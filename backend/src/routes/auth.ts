@@ -25,15 +25,18 @@ authRouter.get(
     const code = typeof req.query.code === "string" ? req.query.code : undefined;
     const state = typeof req.query.state === "string" ? req.query.state : undefined;
 
-    const redirectToFrontend = (params: Record<string, string | undefined>) => {
-      const callbackUrl = new URL("/auth/callback", env.frontendAppUrl);
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) {
-          callbackUrl.searchParams.set(key, value);
-        }
-      });
-      res.redirect(callbackUrl.toString());
-    };
+  const redirectToFrontend = (params: Record<string, string | undefined>) => {
+    const callbackUrl = new URL("/auth/callback", env.frontendAppUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) {
+        callbackUrl.searchParams.set(key, value);
+      }
+    });
+
+    console.log("OAuth redirect URL:", callbackUrl.toString());
+
+    res.redirect(callbackUrl.toString());
+  };
 
     if (errorParam) {
       clearOauthStateCookie(res);
@@ -193,3 +196,4 @@ authRouter.post(
     }
   }),
 );
+
