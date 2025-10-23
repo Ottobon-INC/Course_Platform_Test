@@ -281,6 +281,7 @@ npx prisma generate
 npx prisma migrate dev --name init
 
 # 4. Run backend (port 4000 by default)
+   (Optional) To share your local backend over HTTPS, open a new terminal and run  `ssh -R 80:localhost:4000 serveo.net`. Use the printed `https://�serveo.net` URL for `VITE_API_BASE_URL`, `FRONTEND_APP_URLS`, and `GOOGLE_REDIRECT_URI`. 
 npm run dev
 
 # 5. In a second terminal, run frontend (port 5173)
@@ -355,5 +356,6 @@ npm run dev
 ---
 
 This documentation intentionally captures every pertinent detail—architecture, configuration, routes, styling tokens, and workflows—so another engineer or AI assistant can recreate an identical Course Platform instance from scratch.
+
 
 

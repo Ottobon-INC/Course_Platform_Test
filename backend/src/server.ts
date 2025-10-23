@@ -7,4 +7,6 @@ app.listen(env.port, () => {
   console.log(`API ready on http://localhost:${env.port}`);
   const dbUrl = new URL(env.databaseUrl);
   console.log(`Database connected to ${dbUrl.host}/${dbUrl.pathname.replace("/", "")}`);
+  console.log(`Primary frontend origin: ${env.frontendAppUrl}`);
+  console.log(`OAuth redirect URI: ${env.googleRedirectUri}`);
 });
