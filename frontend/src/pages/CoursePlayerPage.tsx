@@ -1,0 +1,544 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import CourseSidebar from '@/components/CourseSidebar';
+import LessonTabs from '@/components/LessonTabs';
+import ChatBot from '@/components/ChatBot';
+import { useToast } from '@/hooks/use-toast';
+import { ChevronLeft, ChevronRight, Menu, Play, FileText } from 'lucide-react';
+import type { Course as CourseType, Lesson as LessonType, LessonProgress } from '@shared/schema';
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import ThemeToggle from '@/components/ThemeToggle';
+
+// Removed ReactPlayer - using iframe instead
+
+interface LessonWithProgress extends LessonType {
+  completed: boolean;
+  current?: boolean;
+  progress?: number;
+}
+
+// Static lesson data for demo purposes (cleaned YouTube URLs)
+const staticLessons: LessonWithProgress[] = [
+  {
+    id: '1',
+    courseId: 'ai-in-web-development',
+    slug: 'introduction-to-ai-web-development',
+    title: 'Introduction to AI Web Development',
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    notes: `# Introduction to AI Web Development
+
+Welcome to this comprehensive course on AI-powered web development! In this lesson, we'll explore the exciting world of artificial intelligence and its applications in modern web development.
+
+## What You'll Learn
+
+- Understanding AI fundamentals
+- Integration techniques for web applications
+- Real-world AI applications
+- Best practices and implementation strategies
+
+## Getting Started
+
+AI is revolutionizing how we build and interact with web applications. From chatbots to recommendation systems, AI is becoming an essential tool for developers.
+
+### Key Concepts
+
+1. **Machine Learning APIs** - How to integrate pre-built AI services
+2. **Natural Language Processing** - Understanding and processing human language
+3. **Computer Vision** - Working with images and visual data
+4. **Recommendation Systems** - Personalizing user experiences
+
+Let's dive into the exciting world of AI web development!`,
+    orderIndex: 0,
+    isPreview: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completed: false,
+    progress: 0
+  },
+  {
+    id: '2',
+    courseId: 'ai-in-web-development',
+    slug: 'setting-up-development-environment',
+    title: 'Setting Up Your Development Environment',
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
+    notes: `# Setting Up Your Development Environment
+
+In this lesson, we'll prepare your development environment for AI-powered web development.
+
+## Required Tools
+
+- Node.js and npm
+- Code editor (VS Code recommended)
+- AI service accounts (OpenAI, Google Cloud, etc.)
+- Development browser with extensions
+
+## Installation Steps
+
+1. Install Node.js (v16 or higher)
+2. Set up your code editor
+3. Configure AI service APIs
+4. Install necessary packages
+
+## Environment Variables
+
+Make sure to set up your environment variables for AI services:
+
+\`\`\`bash
+OPENAI_API_KEY=your_api_key_here
+GOOGLE_CLOUD_KEY=your_google_key_here
+\`\`\`
+
+## Next Steps
+
+Once your environment is ready, we'll start building our first AI-powered component!`,
+    orderIndex: 1,
+    isPreview: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completed: false,
+    progress: 0
+  },
+  {
+    id: '3',
+    courseId: 'ai-in-web-development',
+    slug: 'building-ai-chatbot',
+    title: 'Building Your First AI Chatbot',
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
+    notes: `# Building Your First AI Chatbot
+
+Time to build something amazing! In this lesson, we'll create a functional AI chatbot for your web application.
+
+## Project Overview
+
+We'll build a chatbot that can:
+- Answer user questions
+- Provide contextual responses
+- Remember conversation history
+- Handle multiple conversation topics
+
+## Implementation Steps
+
+### 1. Setting Up the Chat Interface
+
+\`\`\`jsx
+import React, { useState } from 'react';
+
+function ChatBot() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+
+  return (
+    <div className="chatbot">
+      <div className="messages">
+        {messages.map((msg, idx) => (
+          <div key={idx} className="message">
+            {msg.text}
+          </div>
+        ))}
+      </div>
+      <input 
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="Type your message..."
+      />
+    </div>
+  );
+}
+\`\`\`
+
+### 2. Connecting to AI Service
+
+We'll integrate with OpenAI's API to power our chatbot with intelligent responses.
+
+### 3. Adding Conversation Memory
+
+Learn how to maintain context across multiple messages for more natural conversations.
+
+## Try It Yourself
+
+Build along with the video and create your own AI chatbot!`,
+    orderIndex: 2,
+    isPreview: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completed: true,
+    progress: 100
+  },
+  {
+    id: '4',
+    courseId: 'ai-in-web-development',
+    slug: 'ai-powered-recommendations',
+    title: 'AI-Powered Recommendation System',
+    type: 'video',
+    videoUrl: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
+    notes: `# AI-Powered Recommendation System
+
+Learn how to build intelligent recommendation systems that enhance user experience.
+
+## Types of Recommendations
+
+1. **Content-Based Filtering** - Based on item characteristics
+2. **Collaborative Filtering** - Based on user behavior
+3. **Hybrid Approaches** - Combining multiple techniques
+
+## Implementation
+
+We'll create a recommendation engine that suggests:
+- Products for e-commerce
+- Content for media platforms
+- Connections for social networks
+
+## Code Example
+
+\`\`\`javascript
+async function getRecommendations(userId, preferences) {
+  const response = await fetch('/api/recommendations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, preferences })
+  });
+
+  return response.json();
+}
+\`\`\`
+
+Start building smarter applications with AI recommendations!`,
+    orderIndex: 3,
+    isPreview: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    completed: false,
+    progress: 45
+  }
+];
+
+export default function CoursePlayerPage() {
+  const { id: courseId, lesson: lessonSlug } = useParams();
+  const [, setLocation] = useLocation();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<string>('videos');
+  const { toast } = useToast();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Fetch course data by slug first
+  const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseType }>({
+    queryKey: [`/api/courses/${courseId}`],
+    enabled: !!courseId,
+  });
+  const course = courseResponse?.course;
+
+  // Use static lessons for demo (replace with API call later)
+  const lessons = staticLessons;
+  const sectionsLoading = false;
+
+  // Fetch current lesson details
+  const currentLessonId = lessons.find(l => l.slug === lessonSlug)?.id;
+
+  const { data: lessonResponse, isLoading: lessonLoading } = useQuery<{ lesson: LessonType }>({
+    queryKey: [`/api/lessons/${currentLessonId}`],
+    enabled: !!currentLessonId,
+  });
+  const currentLesson = lessonResponse?.lesson;
+
+  // Fetch course progress using course ID
+  const { data: courseProgress } = useQuery<{ progress: number }>({
+    queryKey: [`/api/courses/${course?.id}/progress`],
+    enabled: !!course?.id,
+  });
+
+  // Fetch lesson progress for the current lesson
+  const { data: lessonProgressResponse } = useQuery<{ progress: LessonProgress }>({
+    queryKey: [`/api/lessons/${currentLessonId}/progress`],
+    enabled: !!currentLessonId,
+  });
+  const lessonProgress = lessonProgressResponse?.progress;
+
+  // Update lesson progress mutation - memoized to prevent recreation
+  const updateProgressMutation = useMutation({
+    mutationFn: async ({ lessonId, progressData }: { lessonId: string; progressData: any }) => {
+      const response = await apiRequest('PUT', `/api/lessons/${lessonId}/progress`, progressData);
+      return response.json();
+    },
+    onSuccess: () => {
+      if (course?.id) {
+        queryClient.invalidateQueries({ queryKey: [`/api/courses/${course.id}/progress`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/courses/${course.id}/sections`] });
+      }
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('authenticated') || error.message?.includes('401')) {
+        console.log('Progress not saved - user not authenticated');
+        return;
+      }
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update progress",
+      });
+    },
+  });
+
+  const totalLessons = lessons.length;
+  const completedLessons = lessons.filter(l => l.completed).length;
+  const overallProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
+
+  const { allLessons, currentLessonIndex, previous, next, displayLesson, lessonsWithCurrent } = useMemo(() => {
+    const currentIndex = lessons.findIndex(lesson => lesson.slug === lessonSlug);
+    const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
+    const nextLesson = currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
+
+    const display = currentIndex >= 0 ? {
+      ...lessons[currentIndex],
+      completed: lessonProgress?.status === 'completed' || lessons[currentIndex].completed,
+      current: true,
+      progress: lessonProgress?.progress || lessons[currentIndex].progress,
+    } : null;
+
+    const updatedLessons = lessons.map(lesson => ({
+      ...lesson,
+      completed: lesson.id === currentLessonId ? (lessonProgress?.status === 'completed' || lesson.completed) : lesson.completed,
+      current: lesson.slug === lessonSlug
+    }));
+
+    return {
+      allLessons: lessons,
+      currentLessonIndex: currentIndex,
+      previous: prevLesson,
+      next: nextLesson,
+      displayLesson: display,
+      lessonsWithCurrent: updatedLessons
+    };
+  }, [lessons, lessonSlug, lessonProgress, currentLessonId]);
+
+  const handleLessonSelect = (lessonSlug: string) => {
+    setLocation(`/course/${courseId}/learn/${lessonSlug}`);
+    setIsMobileSidebarOpen(false);
+    setLastProgressUpdate(0);
+  };
+
+  const [lastProgressUpdate, setLastProgressUpdate] = useState(0);
+
+  // ReactPlayer onProgress gives played seconds/played fraction; use seconds here
+  const handleVideoProgress = useCallback((stateOrSeconds: any) => {
+    if (!currentLessonId) return;
+
+    // ReactPlayer passes an object { played, playedSeconds } to onProgress
+    const seconds = typeof stateOrSeconds === 'number' ? stateOrSeconds : stateOrSeconds?.playedSeconds;
+    if (typeof seconds !== 'number' || seconds <= 0) return;
+
+    // If you know total duration, you can compute percent in onDuration/onProgress.
+    // For a simple milestone approach, assume 10% steps based on duration if available.
+    // Here we approximate with time-based milestones each 30s to reduce spam:
+    const milestone = Math.floor(seconds / 30) * 10; // pseudo-percent step
+
+    if (milestone > lastProgressUpdate) {
+      setLastProgressUpdate(milestone);
+      setTimeout(() => {
+        updateProgressMutation.mutate({
+          lessonId: currentLessonId,
+          progressData: {
+            // if you need a real percent, wire onDuration and compute seconds/duration
+            progress: Math.min(99, milestone),
+            status: milestone >= 90 ? 'completed' : 'in_progress'
+          }
+        });
+      }, 100);
+    }
+  }, [currentLessonId, lastProgressUpdate]);
+
+  useEffect(() => {
+    setLastProgressUpdate(0);
+  }, [currentLessonId]);
+
+  const handleMarkComplete = () => {
+    if (currentLessonId) {
+      updateProgressMutation.mutate({
+        lessonId: currentLessonId,
+        progressData: { progress: 100, status: 'completed' }
+      });
+    }
+  };
+
+  const handleVideoComplete = () => {
+    if (currentLessonId) {
+      updateProgressMutation.mutate({
+        lessonId: currentLessonId,
+        progressData: { progress: 100, status: 'completed' }
+      });
+      toast({ title: "Lesson completed!", description: "Great job! Your progress has been saved." });
+    }
+  };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) setIsMobileSidebarOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Loading state
+  if (courseLoading || sectionsLoading || lessonLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="page-course-player-loading">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading course...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (!displayLesson) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="page-lesson-not-found">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Lesson Not Found</h1>
+          <p className="text-muted-foreground">The requested lesson could not be found.</p>
+          <Button onClick={() => setLocation('/')} className="mt-4">Go Home</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex overflow-x-hidden" data-testid="page-course-player">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          data-testid="overlay-mobile-sidebar"
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:fixed z-50 lg:z-auto transition-transform flex-shrink-0 h-screen`}>
+        <CourseSidebar
+          lessons={lessonsWithCurrent}
+          totalProgress={overallProgress}
+          onLessonSelect={handleLessonSelect}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+      </div>
+
+      {/* Main Content */}
+      <div className={`flex-1 flex flex-col min-h-screen max-w-full overflow-x-hidden ${isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-80'} transition-all duration-300`}>
+        {/* Header */}
+        <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 lg:py-3 w-full overflow-x-hidden" data-testid="header-course-player">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0 max-w-full">
+            <div className="flex items-center space-x-4 min-w-0 flex-1">
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden flex-shrink-0"
+                data-testid="button-open-mobile-sidebar"
+              >
+                <Menu className="w-4 h-4" />
+              </Button>
+
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate" data-testid="title-lesson">{displayLesson?.title}</h1>
+                <p className="text-sm text-muted-foreground truncate" data-testid="subtitle-course">{course?.title}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between lg:justify-end space-x-2 lg:space-x-4 flex-shrink-0">
+              <ToggleGroup 
+                type="single" 
+                value={currentView} 
+                onValueChange={(value) => value && setCurrentView(value)}
+                data-testid="toggle-view-mode"
+                className="grid grid-cols-2 lg:flex"
+              >
+                <ToggleGroupItem value="videos" aria-label="Videos view" data-testid="toggle-videos" className="text-xs sm:text-sm lg:text-base px-2 py-2 lg:px-3">
+                  <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Videos</span>
+                  <span className="sm:hidden">Video</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="guide" aria-label="Guide view" data-testid="toggle-guide" className="text-xs sm:text-sm lg:text-base px-2 py-2 lg:px-3">
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">Guide</span>
+                  <span className="sm:hidden">Guide</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+
+        {/* Video Section */}
+        {currentView === 'videos' && displayLesson?.type === 'video' && displayLesson?.videoUrl && (
+          <div className="bg-black w-full overflow-x-hidden" data-testid="section-video">
+            <div className="w-full max-w-full mx-auto px-2 sm:px-4 py-3 sm:py-4 lg:py-6">
+              <div className="relative w-full" style={{ aspectRatio: '16 / 9' }}>
+                <iframe
+                  src={displayLesson.videoUrl.replace('watch?v=', 'embed/')}
+                  className="absolute top-0 left-0 w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={displayLesson.title}
+                  onLoad={() => console.log('Video iframe loaded:', displayLesson.videoUrl)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Content Section */}
+        <div className="flex-1 w-full max-w-full overflow-x-hidden px-4 py-4 lg:py-6" data-testid="section-lesson-content">
+          <div className="max-w-6xl mx-auto w-full">
+            {/* Navigation */}
+            <div className="flex justify-between items-center mb-4 lg:mb-6 gap-2 w-full" data-testid="navigation-lesson">
+              <Button
+                variant="outline"
+                disabled={!previous}
+                onClick={() => previous && handleLessonSelect(previous.slug)}
+                data-testid="button-previous-lesson"
+                className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
+              >
+                <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={!next}
+                onClick={() => next && handleLessonSelect(next.slug)}
+                data-testid="button-next-lesson"
+                className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+              </Button>
+            </div>
+
+            {/* Lesson Guide */}
+            {currentView === 'guide' && (
+              <LessonTabs
+                guideContent={displayLesson.notes || undefined}
+                onMarkComplete={handleMarkComplete}
+                isCompleted={lessonProgress?.status === 'completed' || displayLesson.completed}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating ChatBot */}
+      <ChatBot courseName={course?.title} />
+    </div>
+  );
+}

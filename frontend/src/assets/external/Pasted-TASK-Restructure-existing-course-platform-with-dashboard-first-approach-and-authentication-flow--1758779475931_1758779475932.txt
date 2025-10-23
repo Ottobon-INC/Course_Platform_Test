@@ -1,0 +1,54 @@
+TASK: Restructure existing course platform with dashboard-first approach and authentication flow
+
+CURRENT WEBSITE STRUCTURE:
+- Landing page with course assessment
+- Assessment questions (3 React questions)
+- Assessment results page
+- Login/Signup pages
+- Course content page with video/text toggle
+- Dark theme throughout
+
+REQUIRED CHANGES:
+
+1. RESTRUCTURE ROUTING FLOW:
+   OLD FLOW: Landing → Assessment → Results → Login/Signup → Course
+   NEW FLOW: Dashboard (Landing) → Login/Signup Modal → Dashboard → Course
+
+2. CONVERT DASHBOARD TO MAIN LANDING PAGE:
+   - Make dashboard the default route ("/")
+   - Remove the old landing page assessment flow
+   - Dashboard shows all available courses without requiring login
+   - Users can browse freely, see course details, but cannot enroll without auth
+
+3. DASHBOARD CONTENT (using existing dark theme):
+   - Header: Platform logo, search bar, cart icon (0), login/signup buttons
+   - Hero section: "Welcome to Your Learning Journey" with call-to-action
+   - Course grid showing 5 static courses:
+     * AI in Web Development (8hrs, $49, Beginner, 2847 students)
+     * Full Stack React Mastery (12hrs, $79, Intermediate, 1523 students)  
+     * Python for Automation (6hrs, $39, Beginner, 3241 students)
+     * Advanced JavaScript (10hrs, $69, Advanced, 987 students)
+     * DevOps for Developers (15hrs, $99, Intermediate, 756 students)
+
+4. AUTHENTICATION TRIGGER SYSTEM:
+   - When user clicks "Enroll Now" or "Add to Cart" on any course
+   - Show login/signup modal overlay (not new page)
+   - Store user's intended action (courseId, action type) in sessionStorage
+   - After successful login/signup, execute the stored intent:
+     * If "Enroll Now" → redirect to that specific course
+     * If "Add to Cart" → add item to cart and show success message
+
+5. UPDATE LOGIN/SIGNUP MODAL:
+   - Convert existing login/signup pages to modal components
+   - Add phone number field to signup form
+   - Keep existing styling and dark theme
+   - Add close button (X) to return to dashboard
+   - Success message after auth: "Welcome! Redirecting to [Course Name]..."
+
+6. COURSE POPUP ENHANCEMENT:
+   - Add "Quick View" button to each course card
+   - Show course popup with:
+     * Course name, description, curriculum preview
+     * Duration, price, difficulty, student count
+     * Two buttons: "Enroll Now" and "Add to Cart"
+   - If not logged in,

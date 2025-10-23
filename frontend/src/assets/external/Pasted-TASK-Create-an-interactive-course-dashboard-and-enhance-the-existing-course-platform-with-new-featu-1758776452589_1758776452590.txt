@@ -1,0 +1,140 @@
+TASK: Create an interactive course dashboard and enhance the existing course platform with new features
+
+CURRENT SYSTEM: 
+- Working course platform with landing page, assessment, results, login/signup, and course content
+- Dark theme throughout the platform
+- React-based architecture
+
+NEW REQUIREMENTS TO ADD:
+
+1. ENHANCED SIGNUP PAGE:
+   - Add phone number field to the existing signup form
+   - Keep: Full Name, Email, Password fields
+   - Add: Phone Number field with proper validation
+   - Maintain current dark theme and layout
+   - Ensure responsive design for all devices
+
+2. INTERACTIVE DASHBOARD PAGE (Primary Focus):
+   - Create a fresh, modern dashboard that appeals to recent graduates
+   - Route: After successful login/signup, redirect to dashboard instead of direct course
+   - Layout: Grid-based course catalog with animated cards
+   - Sections needed:
+     * Header: Welcome message with user name, search bar, cart icon with count
+     * My Courses: Currently enrolled courses section
+     * Available Courses: Course catalog grid
+     * Cart: Shopping cart functionality
+
+3. DASHBOARD DESIGN SPECIFICATIONS:
+   - Target Audience: Fresh graduates (ages 22-25) - modern, vibrant, engaging
+   - Theme: Maintain existing dark theme but add colorful accents and gradients
+   - Interactive Elements:
+     * Hover animations on course cards
+     * Floating action buttons
+     * Smooth transitions and micro-interactions
+     * Loading animations
+     * Progress indicators
+
+4. COURSE CATALOG (Static Data for Now):
+   Add these 5 courses with realistic data:
+   
+   Course 1: "AI in Web Development" 
+   - Duration: 8 hours, Price: $49, Level: Beginner, Students: 2847
+   
+   Course 2: "Full Stack React Mastery"
+   - Duration: 12 hours, Price: $79, Level: Intermediate, Students: 1523
+   
+   Course 3: "Python for Automation" 
+   - Duration: 6 hours, Price: $39, Level: Beginner, Students: 3241
+   
+   Course 4: "Advanced JavaScript Concepts"
+   - Duration: 10 hours, Price: $69, Level: Advanced, Students: 987
+   
+   Course 5: "DevOps for Developers"
+   - Duration: 15 hours, Price: $99, Level: Intermediate, Students: 756
+
+5. COURSE CARD DESIGN:
+   - Gradient backgrounds with course category colors
+   - Course thumbnail/icon area
+   - Course title, instructor, rating (4.5-4.9 stars)
+   - Duration, price, difficulty level
+   - Student count for social proof
+   - "Quick View" button for popup
+
+6. COURSE POPUP MODAL:
+   When user clicks on course card:
+   - Modal overlay with course details
+   - Course name, full description, curriculum preview
+   - Instructor info, student reviews/ratings
+   - Two action buttons: "Enroll Now" (blue) and "Add to Cart" (outline)
+   - Close button (X) in top right
+   - Responsive design for mobile/tablet
+
+7. CART FUNCTIONALITY:
+   - Shopping cart icon in header with item count badge
+   - Add/remove items from cart
+   - Cart sidebar/dropdown showing added courses
+   - Total price calculation
+   - "Checkout" button (can be placeholder for now)
+
+8. NAVIGATION UPDATES:
+   - Update routing: Login/Signup → Dashboard → Individual Course
+   - Dashboard navigation: Logo, Search, Profile dropdown, Cart
+   - Breadcrumb navigation
+   - "Back to Dashboard" option in course pages
+
+9. RESPONSIVE DESIGN REQUIREMENTS:
+   - Desktop (1200px+): 4-column grid for courses
+   - Tablet (768px-1199px): 2-column grid
+   - Mobile (320px-767px): 1-column stack
+   - Touch-friendly buttons (44px minimum)
+   - Optimized images and fast loading
+
+10. BACKEND PREPARATION:
+    - Structure code to easily add new courses via courseId and courseName
+    - Create data structure/JSON for course management
+    - Add comments for future backend integration points
+    - State management for cart and enrollment status
+
+11. INTERACTIVE ELEMENTS FOR FRESH GRADUATES:
+    - Achievement badges and progress tracking
+    - "Recommended for you" section
+    - Trending courses indicator
+    - Recently viewed courses
+    - Course completion certificates preview
+    - Social sharing buttons
+    - "Learning path" suggestions
+
+12. VISUAL ENHANCEMENTS:
+    - Subtle animations on scroll
+    - Card flip effects on hover
+    - Loading skeletons
+    - Empty states with engaging illustrations
+    - Success/error toast notifications
+    - Gradient overlays and modern shadows
+
+TECHNICAL IMPLEMENTATION:
+- Use React hooks (useState, useEffect) for state management
+- Implement React Router for navigation
+- CSS Grid and Flexbox for responsive layouts
+- CSS animations and transitions
+- Local storage for cart persistence
+- Component-based architecture for reusability
+
+STYLING GUIDELINES:
+- Maintain dark theme (#1a1a1a background, #2d2d2d cards)
+- Add vibrant accent colors: #4285f4 (blue), #34a853 (green), #ea4335 (red), #fbbc04 (yellow)
+- Use modern fonts (Inter, Roboto, or system fonts)
+- Consistent 8px spacing grid
+- Rounded corners (8px-16px) for modern look
+- Subtle shadows and gradients
+
+PRIORITY ORDER:
+1. Enhanced signup with phone number
+2. Dashboard layout and navigation
+3. Course catalog with static data
+4. Course popup modal
+5. Cart functionality
+6. Responsive design optimization
+7. Interactive animations and micro-interactions
+
+Ensure all new pages maintain the existing dark theme while adding modern, fresh elements that appeal to young professionals and recent graduates. The dashboard should feel like a premium learning platform comparable to modern EdTech platforms but with a unique identity.
