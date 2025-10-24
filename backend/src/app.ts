@@ -6,6 +6,7 @@ import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { cartRouter } from "./routes/cart";
+import { lessonsRouter } from "./routes/lessons";
 import { env } from "./config/env";
 
 export function createApp(): Express {
@@ -41,6 +42,16 @@ export function createApp(): Express {
   app.use("/auth", authRouter);
   app.use("/users", usersRouter);
   app.use("/cart", cartRouter);
+  app.use("/lessons", lessonsRouter);
+
+  // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
+  const apiRouter = express.Router();
+  apiRouter.use("/health", healthRouter);
+  apiRouter.use("/auth", authRouter);
+  apiRouter.use("/users", usersRouter);
+  apiRouter.use("/cart", cartRouter);
+  apiRouter.use("/lessons", lessonsRouter);
+  app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error("Unhandled error", err);

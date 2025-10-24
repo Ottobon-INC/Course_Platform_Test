@@ -1,322 +1,296 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  CheckCircle, 
-  Play, 
-  Search, 
-  Clock,
-  FileText,
-  Vote,
-  Check
-} from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible';
+import { ChevronLeft, ChevronRight, Search, Clock, Check } from 'lucide-react';
 
-// Topic/Section structure
-interface Topic {
-  id: string;
-  title: string;
-  lessons: LessonWithProgress[];
-  isExpanded?: boolean;
-}
-
-interface LessonWithProgress {
+export interface SidebarLesson {
   id: string;
   slug: string;
   title: string;
+  rawTitle?: string;
   duration: string;
-  type: 'video' | 'reading' | 'quiz';
   completed: boolean;
   current?: boolean;
   progress?: number;
+  type?: 'video' | 'reading' | 'quiz';
+  videoUrl?: string;
+  notes?: string;
   isPreview?: boolean;
 }
 
+export interface SidebarModule {
+  id: string;
+  title: string;
+  lessons: SidebarLesson[];
+}
+
 interface CourseSidebarProps {
-  lessons: LessonWithProgress[];
-  totalProgress: number;
+  modules: SidebarModule[];
+  progressPercent: number;
+  completedCount: number;
+  totalCount: number;
   onLessonSelect: (lessonSlug: string) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onToggleLessonComplete?: (lessonId: string, shouldComplete: boolean) => void;
 }
 
-export default function CourseSidebar({ 
-  lessons, 
-  totalProgress, 
-  onLessonSelect, 
-  isCollapsed = false, 
-  onToggleCollapse 
+export default function CourseSidebar({
+  modules,
+  progressPercent,
+  completedCount,
+  totalCount,
+  onLessonSelect,
+  isCollapsed = false,
+  onToggleCollapse,
+  onToggleLessonComplete
 }: CourseSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set(['topic-1'])); // First topic expanded by default
 
-  // Transform flat lessons into hierarchical topic structure
-  const topics: Topic[] = [
-    {
-      id: 'topic-1',
-      title: 'Starting Your AI-Powered Journey',
-      lessons: [
-        {
-          id: '1',
-          slug: 'introduction-to-ai-web-development',
-          title: 'Welcome to Your AI Learning Journey',
-          duration: '8 min',
-          type: 'video',
-          completed: false,
-          current: lessons.find(l => l.slug === 'introduction-to-ai-web-development')?.current || false,
-          progress: lessons.find(l => l.slug === 'introduction-to-ai-web-development')?.progress || 0,
-          isPreview: true
-        },
-        {
-          id: '2',
-          slug: 'setting-up-development-environment',
-          title: 'Essential AI Tools for Developers',
-          duration: '12 min',
-          type: 'video',
-          completed: lessons.find(l => l.slug === 'setting-up-development-environment')?.completed || false,
-          current: lessons.find(l => l.slug === 'setting-up-development-environment')?.current || false,
-          progress: lessons.find(l => l.slug === 'setting-up-development-environment')?.progress || 0,
-          isPreview: false
-        },
-        {
-          id: '3',
-          slug: 'building-ai-chatbot',
-          title: 'Setting Up Your AI-Enhanced Workspace',
-          duration: '15 min',
-          type: 'video',
-          completed: lessons.find(l => l.slug === 'building-ai-chatbot')?.completed || false,
-          current: lessons.find(l => l.slug === 'building-ai-chatbot')?.current || false,
-          progress: lessons.find(l => l.slug === 'building-ai-chatbot')?.progress || 0,
-          isPreview: false
-        }
-      ]
-    },
-    {
-      id: 'topic-2',
-      title: 'AI-Assisted Frontend Development',
-      lessons: [
-        {
-          id: '4',
-          slug: 'ai-powered-recommendations',
-          title: 'Crafting HTML with AI Assistance',
-          duration: '18 min',
-          type: 'video',
-          completed: lessons.find(l => l.slug === 'ai-powered-recommendations')?.completed || false,
-          current: lessons.find(l => l.slug === 'ai-powered-recommendations')?.current || false,
-          progress: lessons.find(l => l.slug === 'ai-powered-recommendations')?.progress || 0,
-          isPreview: false
-        },
-        {
-          id: '5',
-          slug: 'css-magic-with-ai',
-          title: 'CSS Magic with AI',
-          duration: '22 min',
-          type: 'video',
-          completed: false,
-          current: false,
-          progress: 0,
-          isPreview: false
-        }
-      ]
-    }
-  ];
-
-  const toggleTopic = (topicId: string) => {
-    const newExpanded = new Set(expandedTopics);
-    if (newExpanded.has(topicId)) {
-      newExpanded.delete(topicId);
-    } else {
-      newExpanded.add(topicId);
-    }
-    setExpandedTopics(newExpanded);
-  };
-
-  // Filter topics and lessons based on search
-  const filteredTopics = topics.map(topic => ({
-    ...topic,
-    lessons: topic.lessons.filter(lesson =>
-      lesson.title.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  })).filter(topic => 
-    topic.lessons.length > 0 || 
-    topic.title.toLowerCase().includes(searchQuery.toLowerCase())
+  const initialExpanded = modules.length > 0 ? modules[0].id : undefined;
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(
+    initialExpanded ? new Set([initialExpanded]) : new Set()
   );
 
-  const allLessons = topics.flatMap(topic => topic.lessons);
-  const completedLessons = allLessons.filter(lesson => lesson.completed).length;
-  const totalLessons = allLessons.length;
+  const toggleModule = (moduleId: string) => {
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) {
+        next.delete(moduleId);
+      } else {
+        next.add(moduleId);
+      }
+      return next;
+    });
+  };
+
+  const filteredModules = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return modules;
+    }
+
+    return modules
+      .map((module) => ({
+        ...module,
+        lessons: module.lessons.filter((lesson) =>
+          `${module.title} ${lesson.title}`.toLowerCase().includes(query)
+        )
+      }))
+      .filter((module) => module.lessons.length > 0);
+  }, [modules, searchQuery]);
+
+  const totalLessons = modules.reduce(
+    (acc, module) => acc + module.lessons.length,
+    0
+  );
 
   if (isCollapsed) {
     return (
-      <div className="w-16 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 space-y-4" data-testid="sidebar-collapsed">
+      <div
+        className="relative flex h-screen w-14 sm:w-16 flex-col items-center justify-start pt-3 bg-sidebar/98 border-r border-sidebar-border/80"
+        data-testid="sidebar-collapsed"
+      >
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-[3px] rounded-l-full bg-gradient-to-b from-primary/40 via-primary to-primary/40 shadow-[0_0_24px_rgba(59,130,246,0.55)]" />
+        <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-muted-foreground mb-4">
+          {progressPercent}%
+        </span>
         <Button
           size="icon"
           variant="ghost"
           onClick={onToggleCollapse}
           data-testid="button-expand-sidebar"
+          className="h-10 w-10 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary shadow-[0_4px_18px_rgba(59,130,246,0.25)] transition-all"
         >
           <ChevronRight className="w-4 h-4" />
         </Button>
-        <div className="text-xs text-center text-muted-foreground" data-testid="text-progress-mini">
-          {Math.round(totalProgress)}%
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-w-80 max-w-96 w-80 bg-sidebar border-r border-sidebar-border flex flex-col h-screen overflow-x-hidden" data-testid="sidebar-expanded">
-      {/* Header */}
+    <div
+      className="min-w-80 max-w-96 w-80 bg-sidebar border-r border-sidebar-border flex flex-col h-screen overflow-x-hidden"
+      data-testid="sidebar-expanded"
+    >
       <div className="p-6 border-b border-sidebar-border flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold" data-testid="title-course-content">Course Content</h2>
+          <h2 className="text-lg font-semibold" data-testid="title-course-content">
+            Course Content
+          </h2>
           <Button
             size="icon"
             variant="ghost"
             onClick={onToggleCollapse}
             data-testid="button-collapse-sidebar"
           >
-            <ChevronDown className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4" />
           </Button>
         </div>
 
-        {/* Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium" data-testid="text-progress-percentage">{Math.round(totalProgress)}%</span>
+            <span className="font-medium" data-testid="text-progress-percentage">
+              {progressPercent}%
+            </span>
           </div>
-          <Progress value={totalProgress} className="h-2" data-testid="progress-bar-course" />
-          <div className="text-xs text-muted-foreground" data-testid="text-lessons-completed">
-            {completedLessons} of {totalLessons} lessons completed
-          </div>
+          <Progress
+            value={progressPercent}
+            className="h-2"
+            data-testid="progress-bar-course"
+          />
+            <div className="text-xs text-muted-foreground" data-testid="text-lessons-completed">
+              {completedCount} of {totalCount} lessons completed
+            </div>
         </div>
 
-        {/* Search */}
         <div className="relative mt-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search lessons..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search lessons..."
+            className="pl-9"
             data-testid="input-search-lessons"
           />
         </div>
       </div>
 
-      {/* Course Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        <div className="px-3 pb-4">
-          {filteredTopics.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Search className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">No lessons found</p>
-              <p className="text-xs mt-1">Try adjusting your search</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredTopics.map((topic) => (
-                <div key={topic.id} className="mb-2">
-                  <Collapsible
-                    open={expandedTopics.has(topic.id)}
-                    onOpenChange={() => toggleTopic(topic.id)}
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        {filteredModules.length === 0 ? (
+          <div className="text-sm text-muted-foreground px-2">
+            No lessons match “{searchQuery}”.
+          </div>
+        ) : (
+          filteredModules.map((module) => (
+            <div
+              key={module.id}
+              className="rounded-2xl border border-sidebar-border/60 bg-sidebar/60 backdrop-blur"
+            >
+              <Collapsible
+                open={expandedModules.has(module.id)}
+                onOpenChange={() => toggleModule(module.id)}
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full flex items-start gap-3 p-4 text-left font-semibold hover:bg-accent/50 transition-colors"
                   >
-                    <CollapsibleTrigger asChild>
+                    <span className="flex-1 text-left leading-snug break-words whitespace-normal">
+                      {module.title}
+                    </span>
+                    <ChevronRight
+                      className="h-4 w-4 flex-shrink-0 mt-1 transition-transform data-[state=open]:rotate-90"
+                      data-state={expandedModules.has(module.id) ? 'open' : 'closed'}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-2 pb-3 space-y-1.5">
+                    {module.lessons.map((lesson) => (
                       <Button
-                        variant="ghost"
-                        className="w-full justify-start p-3 h-auto hover:bg-accent/50 transition-colors group rounded-lg"
+                        key={lesson.id}
+                        variant={lesson.current ? 'secondary' : 'ghost'}
+                        className={`w-full justify-start p-3 h-auto min-h-[72px] transition-all duration-200 group rounded-lg ${
+                          lesson.current ? 'bg-primary/10 border border-primary/20 shadow-sm' : ''
+                        }`}
+                        onClick={() => onLessonSelect(lesson.slug)}
                       >
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="flex-shrink-0">
-                            <div className="w-6 h-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center transition-all group-hover:bg-primary/15 group-hover:border-primary/30">
-                              {expandedTopics.has(topic.id) ? (
-                                <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                              ) : (
-                                <div className="w-2 h-2 rounded-sm bg-primary/70 rotate-45"></div>
+                        <div className="flex items-start gap-3 w-full">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onToggleLessonComplete?.(lesson.id, !lesson.completed);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onToggleLessonComplete?.(lesson.id, !lesson.completed);
+                              }
+                            }}
+                            aria-label={
+                              lesson.completed
+                                ? 'Mark lesson as incomplete'
+                                : 'Mark lesson as complete'
+                            }
+                            aria-pressed={lesson.completed}
+                            disabled={!onToggleLessonComplete}
+                            className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+                              lesson.completed
+                                ? 'bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-500/40 text-emerald-500 hover:scale-105'
+                                : lesson.current
+                                ? 'bg-gradient-to-br from-primary/25 to-primary/10 border-primary/50 text-primary hover:scale-105'
+                                : 'bg-gradient-to-br from-muted/40 to-muted/20 border-muted-foreground/15 text-muted-foreground/70 hover:scale-105'
+                            } ${onToggleLessonComplete ? 'cursor-pointer' : 'cursor-default pointer-events-none'}`}
+                          >
+                            {lesson.completed ? (
+                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                            ) : lesson.current ? (
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                            ) : (
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p
+                              className={`text-xs sm:text-sm font-medium leading-relaxed group-hover:text-primary transition-colors whitespace-normal ${
+                                lesson.current ? 'text-primary' : 'text-foreground'
+                              }`}
+                            >
+                              {lesson.title}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
+                                  {lesson.duration}
+                                </span>
+                              </div>
+                              {lesson.isPreview && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 bg-primary/5 border-primary/30 text-primary whitespace-nowrap"
+                                >
+                                  Free
+                                </Badge>
                               )}
                             </div>
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug break-words whitespace-normal">
-                              {topic.title}
-                            </p>
+                            {lesson.current && lesson.progress && lesson.progress > 0 && (
+                              <div className="mt-2">
+                                <div className="w-full bg-secondary/50 rounded-full h-1">
+                                  <div
+                                    className="bg-primary h-1 rounded-full transition-all duration-300"
+                                    style={{ width: `${lesson.progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="ml-3 mt-1.5 space-y-1.5">
-                        {topic.lessons.map((lesson) => (
-                          <div key={lesson.id} className="w-full">
-                            <Button
-                              variant={lesson.current ? "secondary" : "ghost"}
-                              className={`w-full justify-start p-3 h-auto min-h-[72px] hover:bg-accent/50 transition-all duration-200 group rounded-lg ${
-                                lesson.current ? 'bg-primary/10 border border-primary/20 shadow-sm' : ''
-                              }`}
-                              onClick={() => onLessonSelect(lesson.slug)}
-                            >
-                              <div className="flex items-start gap-3 w-full">
-                                <div className="flex-shrink-0 mt-0.5">
-                                  {lesson.completed ? (
-                                    <div className="w-5 h-5 rounded-md bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/40 flex items-center justify-center shadow-sm">
-                                      <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
-                                    </div>
-                                  ) : lesson.current ? (
-                                    <div className="w-5 h-5 rounded-md bg-gradient-to-br from-primary/25 to-primary/10 border border-primary/50 flex items-center justify-center shadow-sm">
-                                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                                    </div>
-                                  ) : (
-                                    <div className="w-5 h-5 rounded-md border border-muted-foreground/15 bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                  <p className={`text-xs sm:text-sm font-medium leading-relaxed group-hover:text-primary transition-colors whitespace-normal ${
-                                    lesson.current ? 'text-primary' : 'text-foreground'
-                                  }`}>
-                                    {lesson.title}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">{lesson.duration}</span>
-                                    </div>
-                                    {lesson.isPreview && (
-                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/5 border-primary/30 text-primary whitespace-nowrap">
-                                        Free
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {lesson.current && lesson.progress && lesson.progress > 0 && (
-                                    <div className="mt-2">
-                                      <div className="w-full bg-secondary/50 rounded-full h-1">
-                                        <div 
-                                          className="bg-primary h-1 rounded-full transition-all duration-300"
-                                          style={{ width: `${lesson.progress}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </div>
-              ))}
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
-          )}
-        </div>
+          ))
+        )}
+      </div>
+
+      <div className="px-6 py-4 border-t border-sidebar-border text-xs text-muted-foreground">
+        {completedCount} of {totalLessons} total lessons tracked
       </div>
     </div>
   );
 }
+
+
