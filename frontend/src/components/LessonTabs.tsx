@@ -1,22 +1,22 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle, BookOpen, Sparkles } from 'lucide-react';
+import { CheckCircle, BookOpen, Sparkles, Loader2 } from 'lucide-react';
 
 interface LessonTabsProps {
   guideContent?: string;
-  onMarkComplete: () => void;
+  onToggleComplete: (nextCompletedState: boolean) => void;
   isCompleted?: boolean;
+  isUpdating?: boolean;
 }
 
 export default function LessonTabs({
-  guideContent = "This is a comprehensive guide that will help you understand the concepts covered in this lesson. The content here provides detailed explanations, examples, and best practices to reinforce your learning.\n\nKey Topics Covered:\n• Understanding the fundamentals\n• Practical applications\n• Real-world examples\n• Best practices and tips\n\nThis guide serves as your reference material and can be revisited anytime to strengthen your understanding of the subject matter.",
-  onMarkComplete,
-  isCompleted = false
+  guideContent = "This is a comprehensive guide that will help you understand the concepts covered in this lesson. The content here provides detailed explanations, examples, and best practices to reinforce your learning.\n\nKey Topics Covered:\n Understanding the fundamentals\n Practical applications\n Real-world examples\n Best practices and tips\n\nThis guide serves as your reference material and can be revisited anytime to strengthen your understanding of the subject matter.",
+  onToggleComplete,
+  isCompleted = false,
+  isUpdating = false,
 }: LessonTabsProps) {
-
   // Parse content to add better formatting
   const formatContent = (content: string) => {
     const lines = content.split('\n');
@@ -31,7 +31,7 @@ export default function LessonTabs({
         );
       }
       // Bullet points
-      if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
+      if (line.trim().startsWith('') || line.trim().startsWith('-')) {
         return (
           <div key={index} className="flex items-center gap-2 mb-2">
             <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
@@ -56,8 +56,8 @@ export default function LessonTabs({
     <div className="w-full" data-testid="container-lesson-tabs">
       <Tabs defaultValue="quiz" className="w-full">
         <TabsList className="grid w-full grid-cols-1 h-auto p-0 bg-transparent border-b border-border" data-testid="tabs-lesson-content">
-          <TabsTrigger 
-            value="quiz" 
+          <TabsTrigger
+            value="quiz"
             data-testid="tab-guide"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 px-4 justify-start gap-2"
           >
@@ -122,16 +122,21 @@ export default function LessonTabs({
       {/* Mark Complete Button */}
       <div className="mt-6 lg:mt-8 flex justify-center px-4 lg:px-0">
         <Button
-          onClick={onMarkComplete}
+          onClick={() => onToggleComplete(!isCompleted)}
           size="lg"
-          disabled={isCompleted}
-          className="w-full sm:w-auto sm:min-w-64 h-12 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={isUpdating}
+          className="w-full sm:w-auto sm:min-w-64 h-12 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-60 disabled:cursor-wait"
           data-testid="button-mark-complete"
         >
-          {isCompleted ? (
+          {isUpdating ? (
             <>
-              <CheckCircle className="w-5 h-5 mr-2" />
-              <span>Lesson Completed</span>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              <span>Updating...</span>
+            </>
+          ) : isCompleted ? (
+            <>
+              <CheckCircle className="w-5 h-5 mr-2 text-emerald-500" />
+              <span>Mark as Incomplete</span>
             </>
           ) : (
             <>
