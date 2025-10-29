@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { buildApiUrl } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import CourseSidebar, { SidebarModule } from '@/components/CourseSidebar';
 import LessonTabs from '@/components/LessonTabs';
 import ChatBot from '@/components/ChatBot';
+import VideoPlayer from '@/components/VideoPlayer';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -19,7 +21,6 @@ import {
   Settings,
   User
 } from 'lucide-react';
-import type { Course as CourseType, LessonProgress } from '@shared/schema';
 import ThemeToggle from '@/components/ThemeToggle';
 import {
   DropdownMenu,
@@ -31,7 +32,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-interface LessonWithProgress extends LessonType {
+type LessonContentType = 'video' | 'reading' | 'quiz';
+
+interface LessonContent {
+  id: string;
+  courseId: string;
+  slug: string;
+  title: string;
+  type: LessonContentType;
+  videoUrl: string;
+  notes: string;
+  orderIndex: number;
+  isPreview: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface LessonWithProgress extends LessonContent {
   completed: boolean;
   current?: boolean;
   progress?: number;
@@ -39,12 +56,17 @@ interface LessonWithProgress extends LessonType {
 
 type LessonProgressStatus = 'not_started' | 'in_progress' | 'completed';
 
-interface LessonProgressRecord {
+interface LessonProgressPayload {
   lessonId: string;
   status: LessonProgressStatus;
   progress: number;
   updatedAt?: string;
   userId?: string;
+}
+
+interface CourseSummary {
+  id?: string;
+  title?: string;
 }
 
 interface AuthenticatedUser {
@@ -81,68 +103,8 @@ interface ModuleTopic {
   contentType: string;
 }
 
-const FALLBACK_VIDEO_IDS = [
-  'dQw4w9WgXcQ',
-  '3fumBcKC6RE',
-  'l482T0yNkeo',
-  'V-_O7nl0Ii0',
-  'fLexgOxsZu0'
-] as const;
-
-const FALLBACK_TEXTS = [
-  `# Content Coming Soon\n\nThanks for your curiosity! We\'re producing this lesson right now. In the meantime, revisit earlier modules and explore additional CSS experiments.`,
-  `# Styling Workshop (Preview)\n\nThis session will showcase applying AI helpers to refactor CSS. Until the official drop, try prompting your co-pilot to suggest layout improvements.`,
-  `# Lesson Under Construction\n\nWe\'re polishing this walkthrough. Use this break to build a component and ask your AI assistant for animation or layout variations.`,
-  `# Placeholder Lesson\n\nFresh content is on the way! Bookmark this topic and experiment with utility classes or design tokens while we prepare the recording.`
-] as const;
-
 // Static lesson data for demo purposes
 const staticLessons: LessonWithProgress[] = [
-  {
-    id: '1',
-    courseId: 'ai-in-web-development',
-    slug: 'introduction-to-ai-web-development',
-    title: 'Welcome to Your AI Learning Journey',
-    type: 'video',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    notes: `# Welcome to Your AI Learning Journey\n\nYou\'re about to blend AI superpowers with modern front-end craft. This overview highlights the course structure, project checkpoints, and the collaboration model we\'ll use.`,
-    orderIndex: 0,
-    isPreview: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    completed: false,
-    progress: 0
-  },
-  {
-    id: '2',
-    courseId: 'ai-in-web-development',
-    slug: 'setting-up-development-environment',
-    title: 'Essential AI Tools for Developers',
-    type: 'video',
-    videoUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
-    notes: `# Essential AI Tools for Developers\n\nSet up VS Code, CLI helpers, and AI credentials so you can move fast throughout the course.`,
-    orderIndex: 1,
-    isPreview: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    completed: false,
-    progress: 0
-  },
-  {
-    id: '3',
-    courseId: 'ai-in-web-development',
-    slug: 'building-ai-chatbot',
-    title: 'Setting Up Your AI-Enhanced Workspace',
-    type: 'video',
-    videoUrl: 'https://www.youtube.com/watch?v=9bZkp7q19f0',
-    notes: `# Setting Up Your AI-Enhanced Workspace\n\nDesign a workflow that lets AI assist with prompts, snippets, and pull requests.`,
-    orderIndex: 2,
-    isPreview: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    completed: false,
-    progress: 0
-  },
   {
     id: '4',
     courseId: 'ai-in-web-development',
@@ -175,11 +137,11 @@ const staticLessons: LessonWithProgress[] = [
   }
 ];
 
-const moduleOneLessonSlugs = new Set([
-  'introduction-to-ai-web-development',
-  'setting-up-development-environment',
-  'building-ai-chatbot'
-]);
+const legacyModuleOneSlugToTopicNumber: Record<string, number> = {
+  'introduction-to-ai-web-development': 1,
+  'setting-up-development-environment': 2,
+  'building-ai-chatbot': 3
+};
 
 const slugify = (value: string, fallback: string) => {
   const normalized = value
@@ -187,6 +149,96 @@ const slugify = (value: string, fallback: string) => {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return normalized.length > 0 ? normalized : fallback;
+};
+
+const normalizeVideoUrl = (videoUrl: string | null): string => {
+  if (!videoUrl) {
+    return '';
+  }
+
+  const convertTimestampToSeconds = (value: string) => {
+    if (!value) {
+      return null;
+    }
+
+    if (/^\d+$/.test(value)) {
+      return Number.parseInt(value, 10);
+    }
+
+    const match = value.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+    if (!match) {
+      return null;
+    }
+
+    const hours = Number.parseInt(match[1] ?? '0', 10);
+    const minutes = Number.parseInt(match[2] ?? '0', 10);
+    const seconds = Number.parseInt(match[3] ?? '0', 10);
+    return hours * 3600 + minutes * 60 + seconds;
+  };
+
+  try {
+    const trimmed = videoUrl.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const url = new URL(trimmed);
+    const hostname = url.hostname.toLowerCase();
+    const isYouTubeHost =
+      hostname === 'youtu.be' ||
+      hostname === 'www.youtu.be' ||
+      hostname.includes('youtube.com') ||
+      hostname.endsWith('.youtube-nocookie.com');
+
+    if (!isYouTubeHost) {
+      return trimmed;
+    }
+
+    if (url.pathname.startsWith('/embed/')) {
+      return url.toString();
+    }
+
+    let videoId = '';
+
+    if (hostname === 'youtu.be' || hostname === 'www.youtu.be') {
+      videoId = url.pathname.replace('/', '');
+    } else if (url.pathname.startsWith('/shorts/')) {
+      videoId = url.pathname.split('/').pop() ?? '';
+    } else if (url.searchParams.has('v')) {
+      videoId = url.searchParams.get('v') ?? '';
+    } else {
+      const parts = url.pathname.split('/').filter(Boolean);
+      videoId = parts.pop() ?? '';
+    }
+
+    const playlistId = url.searchParams.get('list');
+    const startParam = url.searchParams.get('start') ?? url.searchParams.get('t');
+    const startSeconds = startParam ? convertTimestampToSeconds(startParam) : null;
+
+    if (!videoId && playlistId) {
+      const playlistUrl = new URL('https://www.youtube.com/embed/videoseries');
+      playlistUrl.searchParams.set('list', playlistId);
+      if (startSeconds) {
+        playlistUrl.searchParams.set('start', String(startSeconds));
+      }
+      return playlistUrl.toString();
+    }
+
+    if (!videoId) {
+      return trimmed;
+    }
+
+    const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`);
+    if (startSeconds) {
+      embedUrl.searchParams.set('start', String(startSeconds));
+    }
+
+    // Drop playlist/index parameters because some public videos disallow embedded playlist playback.
+    return embedUrl.toString();
+  } catch (error) {
+    console.warn('Failed to normalize video URL', { videoUrl, error });
+    return videoUrl;
+  }
 };
 
 const baseModuleDefinitions: ModuleDefinition[] = [
@@ -260,11 +312,11 @@ export default function CoursePlayerPage() {
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [lessonProgressMap, setLessonProgressMap] = useState<Record<string, LessonProgressRecord>>({});
+  const [lessonProgressMap, setLessonProgressMap] = useState<Record<string, LessonProgressPayload>>({});
   const [pendingLessonId, setPendingLessonId] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
-  const fallbackAssignmentsRef = useRef<Record<string, { videoId: string; text: string }>>({});
 
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
@@ -285,22 +337,46 @@ export default function CoursePlayerPage() {
         }
       } catch (error) {
         console.error('Failed to parse stored user', error);
+        setIsAuthenticated(false);
+        setUser(null);
       }
+    } else {
+      setIsAuthenticated(false);
+      setUser(null);
     }
+
+    setAuthChecked(true);
   }, []);
 
-  const { data: moduleTopicsResponse, isLoading: moduleTopicsLoading } = useQuery<{ topics: ModuleTopic[] }>({
-    queryKey: ['/api/lessons/modules/1/topics']
+  const {
+    data: moduleTopicsResponse,
+    isLoading: moduleTopicsLoading,
+    refetch: moduleTopicsQueryRefetch
+  } = useQuery<{ topics: ModuleTopic[] }>({
+    queryKey: ['/api/lessons/modules/1/topics'],
+    enabled: authChecked && isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true
   });
+
+  useEffect(() => {
+    if (authChecked && isAuthenticated) {
+      moduleTopicsQueryRefetch();
+    }
+  }, [lessonSlug, authChecked, isAuthenticated, moduleTopicsQueryRefetch]);
   const moduleOneTopics = moduleTopicsResponse?.topics ?? [];
 
   const moduleOneLessons = useMemo<LessonWithProgress[]>(() => {
+    // Map module 1 topics from the API into the lesson shape used across the player.
     return moduleOneTopics.map((topic) => {
       const slugBase = slugify(topic.topicName, topic.topicId);
       const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
       const normalizedType = (topic.contentType ?? 'video').toLowerCase();
-      const lessonType: LessonWithProgress['type'] =
-        normalizedType === 'reading' || normalizedType === 'quiz' ? (normalizedType as SidebarLesson['type']) : 'video';
+      const lessonType = (normalizedType === 'reading' || normalizedType === 'quiz'
+        ? normalizedType
+        : 'video') as LessonWithProgress['type'];
 
       return {
         id: topic.topicId,
@@ -308,7 +384,7 @@ export default function CoursePlayerPage() {
         slug,
         title: topic.topicName,
         type: lessonType,
-        videoUrl: topic.videoUrl ?? '',
+        videoUrl: normalizeVideoUrl(topic.videoUrl),
         notes: topic.textContent ?? '',
         orderIndex: topic.topicNumber - 1,
         isPreview: topic.isPreview,
@@ -320,16 +396,30 @@ export default function CoursePlayerPage() {
     });
   }, [moduleOneTopics]);
 
-  const lessonSourceBySlug = useMemo(() => {
-    if (moduleOneLessons.length === 0) {
-      return new Map(staticLessons.map((lesson) => [lesson.slug, lesson] as const));
+  useEffect(() => {
+    if (!moduleOneLessons.length || !courseId) {
+      return;
     }
 
+    if (!lessonSlug) {
+      // Ensure learners land on the first database-backed lesson once it exists.
+      setLocation(`/course/${courseId}/learn/${moduleOneLessons[0].slug}`);
+      return;
+    }
+
+    const legacyTopicNumber = legacyModuleOneSlugToTopicNumber[lessonSlug];
+    if (legacyTopicNumber) {
+      const matchingLesson =
+        moduleOneLessons.find((lesson) => lesson.orderIndex === legacyTopicNumber - 1) ?? moduleOneLessons[0];
+      setLocation(`/course/${courseId}/learn/${matchingLesson.slug}`);
+    }
+  }, [courseId, lessonSlug, moduleOneLessons, setLocation]);
+
+  const lessonSourceBySlug = useMemo(() => {
+    // Merge static lessons and freshly fetched module 1 lessons so downstream lookups stay uniform.
     const map = new Map<string, LessonWithProgress>();
     staticLessons.forEach((lesson) => {
-      if (!moduleOneLessonSlugs.has(lesson.slug)) {
-        map.set(lesson.slug, lesson);
-      }
+      map.set(lesson.slug, lesson);
     });
     moduleOneLessons.forEach((lesson) => {
       map.set(lesson.slug, lesson);
@@ -360,35 +450,69 @@ export default function CoursePlayerPage() {
   }, [moduleOneLessons, moduleOneTopics]);
 
   const moduleDefinitions = useMemo<ModuleDefinition[]>(() => {
-    if (!moduleOneDefinition) {
-      return baseModuleDefinitions;
-    }
+    return baseModuleDefinitions.map((module) => {
+      if (module.id !== 'module-1') {
+        return module;
+      }
 
-    return baseModuleDefinitions.map((module) => (module.id === 'module-1' ? moduleOneDefinition : module));
+      if (moduleOneDefinition) {
+        return moduleOneDefinition;
+      }
+
+      // Preserve numbering and layout while module 1 loads from the API.
+      return {
+        ...module,
+        lessons: []
+      };
+    });
   }, [moduleOneDefinition]);
 
-  const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseType }>({
+  const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseSummary }>({
     queryKey: [`/api/courses/${courseId}`],
-    enabled: !!courseId
+    enabled: !!courseId && authChecked && isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true
   });
   const course = courseResponse?.course;
 
-  const lessonsQuerySlug = lessonSlug && lessonSourceBySlug.has(lessonSlug) ? lessonSlug : staticLessons[0]?.slug;
-  const currentLessonBase = lessonsQuerySlug ? lessonSourceBySlug.get(lessonsQuerySlug) : undefined;
+  const firstModuleOneSlug = moduleOneLessons[0]?.slug;
+  const firstStaticSlug = staticLessons[0]?.slug;
+  const activeLessonSlug = lessonSlug ?? firstModuleOneSlug ?? firstStaticSlug ?? null;
+  const currentLessonBase = activeLessonSlug ? lessonSourceBySlug.get(activeLessonSlug) : undefined;
 
   const currentLessonId = currentLessonBase?.id;
 
-  const { data: lessonProgressResponse, isLoading: lessonLoading } = useQuery<{ progress: LessonProgress }>({
+  const { data: lessonProgressResponse, isLoading: lessonLoading } = useQuery<{ progress: LessonProgressPayload }>({
     queryKey: [`/api/lessons/${currentLessonId}/progress`],
-    enabled: !!currentLessonId
+    enabled: !!currentLessonId && authChecked && isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true
   });
   const lessonProgress = lessonProgressResponse?.progress;
 
   useEffect(() => {
+    if (authChecked && isAuthenticated) {
+      queryClient.invalidateQueries({ queryKey: ['/api/lessons/modules/1/topics'] });
+      if (courseId) {
+        queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
+      }
+    }
+  }, [authChecked, isAuthenticated, courseId]);
+
+  const handleSignIn = () => {
+    const safeRedirect = window.location.pathname + window.location.search;
+    sessionStorage.setItem('postLoginRedirect', safeRedirect);
+    window.location.assign(`${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(safeRedirect)}`);
+  };
+
+  useEffect(() => {
     if (currentLessonId && lessonProgress) {
       const normalizedStatus: LessonProgressStatus =
-        (lessonProgress.status as LessonProgressStatus) ??
-        (lessonProgress.progress >= 100 ? 'completed' : 'in_progress');
+        lessonProgress.status ?? (lessonProgress.progress >= 100 ? 'completed' : 'in_progress');
 
       setLessonProgressMap((previous) => ({
         ...previous,
@@ -396,8 +520,8 @@ export default function CoursePlayerPage() {
           lessonId: currentLessonId,
           status: normalizedStatus,
           progress: lessonProgress.progress ?? 0,
-          updatedAt: (lessonProgress as unknown as LessonProgressRecord)?.updatedAt,
-          userId: (lessonProgress as unknown as LessonProgressRecord)?.userId
+          updatedAt: lessonProgress.updatedAt,
+          userId: lessonProgress.userId
         }
       }));
     }
@@ -420,7 +544,7 @@ export default function CoursePlayerPage() {
           rawTitle: lessonDef.title,
           duration: lessonDef.duration,
           completed,
-          current: lessonSlug === lessonDef.slug,
+          current: activeLessonSlug === lessonDef.slug,
           progress,
           isPreview: base?.isPreview ?? false,
           type: base?.type ?? 'video',
@@ -429,7 +553,7 @@ export default function CoursePlayerPage() {
         };
       })
     }));
-  }, [lessonProgressMap, lessonSlug]);
+  }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions]);
 
   const lessons = useMemo(() => sidebarModules.flatMap((module) => module.lessons), [sidebarModules]);
 
@@ -438,7 +562,8 @@ export default function CoursePlayerPage() {
       return { previous: null, next: null, displayLesson: null };
     }
 
-    const currentIndex = lessons.findIndex((lesson) => lesson.slug === lessonSlug);
+    const searchSlug = activeLessonSlug ?? lessons[0]?.slug ?? null;
+    const currentIndex = searchSlug ? lessons.findIndex((lesson) => lesson.slug === searchSlug) : 0;
     const index = currentIndex >= 0 ? currentIndex : 0;
 
     return {
@@ -446,42 +571,20 @@ export default function CoursePlayerPage() {
       next: index < lessons.length - 1 ? lessons[index + 1] : null,
       displayLesson: lessons[index]
     };
-  }, [lessons, lessonSlug]);
+  }, [lessons, activeLessonSlug]);
 
   const resolvedLesson = useMemo(() => {
     if (!displayLesson) {
       return null;
     }
 
-    let videoUrl = displayLesson.videoUrl ?? '';
-    let notes = displayLesson.notes ?? '';
-    let isFallback = false;
-
-    if ((!videoUrl || !videoUrl.trim()) && (!notes || !notes.trim())) {
-      let assignment = fallbackAssignmentsRef.current[displayLesson.id];
-      if (!assignment) {
-        const videoId = FALLBACK_VIDEO_IDS[Math.floor(Math.random() * FALLBACK_VIDEO_IDS.length)];
-        const text = FALLBACK_TEXTS[Math.floor(Math.random() * FALLBACK_TEXTS.length)];
-        assignment = { videoId, text };
-        fallbackAssignmentsRef.current[displayLesson.id] = assignment;
-      }
-      videoUrl = `https://www.youtube.com/watch?v=${assignment.videoId}`;
-      notes = assignment.text;
-      isFallback = true;
-    }
-
-    return {
-      ...displayLesson,
-      videoUrl,
-      notes,
-      isFallback
-    };
+    return displayLesson;
   }, [displayLesson]);
 
   const progressInfo = useMemo(() => computeProgress(sidebarModules), [sidebarModules]);
 
   const updateProgressMutation = useMutation<
-    { progress: LessonProgressRecord },
+    { progress: LessonProgressPayload },
     Error,
     { lessonId: string; progressData: { progress: number; status: LessonProgressStatus } }
   >({
@@ -493,7 +596,7 @@ export default function CoursePlayerPage() {
       setPendingLessonId(lessonId);
     },
     onSuccess: (data, variables) => {
-      const progressRecord: LessonProgressRecord = data?.progress ?? {
+      const progressRecord: LessonProgressPayload = data?.progress ?? {
         lessonId: variables.lessonId,
         status: variables.progressData.status,
         progress: variables.progressData.progress,
@@ -577,7 +680,70 @@ export default function CoursePlayerPage() {
     setLocation('/dashboard');
   };
 
-  if (courseLoading || lessonLoading) {
+  const moduleOneDataIsLoading = isAuthenticated && moduleTopicsLoading && moduleOneLessons.length === 0;
+  const awaitingDefaultModuleOneLesson =
+    isAuthenticated &&
+    !lessonSlug &&
+    moduleOneLessons.length === 0 &&
+    (moduleTopicsLoading || moduleTopicsResponse === undefined);
+  const awaitingLegacyRedirect = Boolean(
+    isAuthenticated &&
+      lessonSlug &&
+      legacyModuleOneSlugToTopicNumber[lessonSlug] &&
+      moduleOneLessons.length > 0 &&
+      !currentLessonBase
+  );
+  const awaitingModuleOneLessonHydration =
+    Boolean(
+      isAuthenticated &&
+        lessonSlug &&
+        lessonSlug.startsWith('module-1-topic-') &&
+        !currentLessonBase &&
+        (moduleTopicsLoading || moduleTopicsResponse === undefined)
+    );
+  const shouldShowModuleHydrationSpinner =
+    moduleOneDataIsLoading || awaitingDefaultModuleOneLesson || awaitingLegacyRedirect || awaitingModuleOneLessonHydration;
+
+  if (!authChecked) {
+    return (
+      <div
+        className="min-h-screen bg-background flex items-center justify-center"
+        data-testid="page-course-player-auth-loading"
+      >
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Checking your session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6" data-testid="page-course-player-auth-guard">
+        <div className="max-w-lg w-full text-center space-y-6 border border-border/60 bg-card/80 px-8 py-10 rounded-3xl shadow-lg">
+          <h1 className="text-3xl font-bold tracking-tight">Sign in to continue learning</h1>
+          <p className="text-muted-foreground text-base leading-relaxed">
+            You need to be signed in to access course content. Please sign in with your account to resume where you left off.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={handleSignIn} className="h-12 px-6 text-base font-semibold">
+              Sign in with Google
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setLocation('/dashboard')}
+              className="h-12 px-6 text-base font-semibold"
+            >
+              Return to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (courseLoading || lessonLoading || shouldShowModuleHydrationSpinner) {
     return (
       <div
         className="min-h-screen bg-background flex items-center justify-center"
@@ -759,7 +925,6 @@ export default function CoursePlayerPage() {
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     title={resolvedLesson.rawTitle ?? resolvedLesson.title}
-                    onLoad={() => console.log('Video iframe loaded', resolvedLesson.videoUrl)}
                   />
                 </div>
 
@@ -809,3 +974,4 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
+
