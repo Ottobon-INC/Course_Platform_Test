@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,45 @@ export default function CourseSidebar({
   const [expandedModules, setExpandedModules] = useState<Set<string>>(
     initialExpanded ? new Set([initialExpanded]) : new Set()
   );
+
+  useEffect(() => {
+    if (modules.length === 0) {
+      setExpandedModules(new Set());
+      return;
+    }
+
+    const existingIds = new Set(modules.map((module) => module.id));
+    const activeModule = modules.find((module) => module.lessons.some((lesson) => lesson.current)) ?? null;
+
+    setExpandedModules((previous) => {
+      const next = new Set<string>();
+
+      previous.forEach((id) => {
+        if (existingIds.has(id)) {
+          next.add(id);
+        }
+      });
+
+      const defaultModule = activeModule ?? modules[0];
+      if (defaultModule) {
+        next.add(defaultModule.id);
+      }
+
+      if (next.size === previous.size) {
+        let identical = true;
+        next.forEach((id) => {
+          if (!previous.has(id)) {
+            identical = false;
+          }
+        });
+        if (identical) {
+          return previous;
+        }
+      }
+
+      return next;
+    });
+  }, [modules]);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => {

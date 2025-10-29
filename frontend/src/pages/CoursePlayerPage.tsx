@@ -8,7 +8,6 @@ import { Progress } from '@/components/ui/progress';
 import CourseSidebar, { SidebarModule } from '@/components/CourseSidebar';
 import LessonTabs from '@/components/LessonTabs';
 import ChatBot from '@/components/ChatBot';
-import VideoPlayer from '@/components/VideoPlayer';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -221,6 +220,14 @@ const normalizeVideoUrl = (videoUrl: string | null): string => {
       if (startSeconds) {
         playlistUrl.searchParams.set('start', String(startSeconds));
       }
+      playlistUrl.searchParams.set('controls', '0');
+      playlistUrl.searchParams.set('rel', '0');
+      playlistUrl.searchParams.set('modestbranding', '1');
+      playlistUrl.searchParams.set('showinfo', '0');
+      playlistUrl.searchParams.set('iv_load_policy', '3');
+      playlistUrl.searchParams.set('disablekb', '1');
+      playlistUrl.searchParams.set('fs', '0');
+      playlistUrl.searchParams.set('playsinline', '1');
       return playlistUrl.toString();
     }
 
@@ -233,12 +240,28 @@ const normalizeVideoUrl = (videoUrl: string | null): string => {
       embedUrl.searchParams.set('start', String(startSeconds));
     }
 
+    // Hide YouTube chrome and block keyboard/fullscreen shortcuts from the embedded player.
+    embedUrl.searchParams.set('controls', '0');
+    embedUrl.searchParams.set('rel', '0');
+    embedUrl.searchParams.set('modestbranding', '1');
+    embedUrl.searchParams.set('showinfo', '0');
+    embedUrl.searchParams.set('iv_load_policy', '3');
+    embedUrl.searchParams.set('disablekb', '1');
+    embedUrl.searchParams.set('fs', '0');
+    embedUrl.searchParams.set('playsinline', '1');
+
     // Drop playlist/index parameters because some public videos disallow embedded playlist playback.
     return embedUrl.toString();
   } catch (error) {
     console.warn('Failed to normalize video URL', { videoUrl, error });
     return videoUrl;
   }
+};
+
+// Extract the numeric suffix (if any) from module identifiers like "module-1".
+const getModuleNumberFromId = (moduleId: string): number | null => {
+  const match = moduleId.match(/^module-(\d+)$/i);
+  return match ? Number.parseInt(match[1], 10) : null;
 };
 
 const baseModuleDefinitions: ModuleDefinition[] = [
@@ -348,25 +371,71 @@ export default function CoursePlayerPage() {
     setAuthChecked(true);
   }, []);
 
+  // Module 0 hosts the course introduction topics that should surface ahead of numbered modules.
+  const {
+    data: introductionTopicsResponse,
+    isLoading: introductionTopicsLoading,
+    refetch: introductionTopicsQueryRefetch,
+  } = useQuery<{ topics: ModuleTopic[] }>({
+    queryKey: ['/api/lessons/modules/0/topics'],
+    enabled: authChecked && isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true,
+  });
+
+  // Module 1 remains the first numbered module; fetch it so content stays aligned with the database.
   const {
     data: moduleTopicsResponse,
     isLoading: moduleTopicsLoading,
-    refetch: moduleTopicsQueryRefetch
+    refetch: moduleTopicsQueryRefetch,
   } = useQuery<{ topics: ModuleTopic[] }>({
     queryKey: ['/api/lessons/modules/1/topics'],
     enabled: authChecked && isAuthenticated,
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true
+    refetchOnReconnect: true,
   });
 
   useEffect(() => {
     if (authChecked && isAuthenticated) {
+      introductionTopicsQueryRefetch();
       moduleTopicsQueryRefetch();
     }
-  }, [lessonSlug, authChecked, isAuthenticated, moduleTopicsQueryRefetch]);
+  }, [lessonSlug, authChecked, isAuthenticated, introductionTopicsQueryRefetch, moduleTopicsQueryRefetch]);
+
+  const introductionTopics = introductionTopicsResponse?.topics ?? [];
   const moduleOneTopics = moduleTopicsResponse?.topics ?? [];
+
+  const introductionLessons = useMemo<LessonWithProgress[]>(() => {
+    // Convert module 0 topics into the lesson shape consumed by the rest of the player.
+    return introductionTopics.map((topic) => {
+      const slugBase = slugify(topic.topicName, topic.topicId);
+      const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
+      const normalizedType = (topic.contentType ?? 'video').toLowerCase();
+      const lessonType = (normalizedType === 'reading' || normalizedType === 'quiz'
+        ? normalizedType
+        : 'video') as LessonWithProgress['type'];
+
+      return {
+        id: topic.topicId,
+        courseId: topic.courseId,
+        slug,
+        title: topic.topicName,
+        type: lessonType,
+        videoUrl: normalizeVideoUrl(topic.videoUrl),
+        notes: topic.textContent ?? '',
+        orderIndex: topic.topicNumber,
+        isPreview: topic.isPreview,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completed: false,
+        progress: 0
+      };
+    });
+  }, [introductionTopics]);
 
   const moduleOneLessons = useMemo<LessonWithProgress[]>(() => {
     // Map module 1 topics from the API into the lesson shape used across the player.
@@ -396,14 +465,42 @@ export default function CoursePlayerPage() {
     });
   }, [moduleOneTopics]);
 
+  const introductionDefinition = useMemo<ModuleDefinition | null>(() => {
+    if (introductionLessons.length === 0) {
+      return null;
+    }
+
+    const moduleTitle =
+      introductionTopics.find((topic) => topic.moduleName && topic.moduleName.trim().length > 0)?.moduleName.trim() ??
+      'Introduction';
+
+    return {
+      id: 'module-introduction',
+      title: moduleTitle,
+      lessons: introductionLessons.map((lesson) => ({
+        id: lesson.id,
+        slug: lesson.slug,
+        title: lesson.title,
+        duration: lesson.type === 'video' ? 'Video' : lesson.type === 'reading' ? 'Reading' : 'Lesson'
+      }))
+    };
+  }, [introductionLessons, introductionTopics]);
+
   useEffect(() => {
-    if (!moduleOneLessons.length || !courseId) {
+    if (!courseId || !authChecked) {
       return;
     }
 
     if (!lessonSlug) {
-      // Ensure learners land on the first database-backed lesson once it exists.
-      setLocation(`/course/${courseId}/learn/${moduleOneLessons[0].slug}`);
+      if (introductionTopicsLoading && introductionLessons.length === 0) {
+        return;
+      }
+
+      const defaultLesson =
+        introductionLessons[0]?.slug ?? moduleOneLessons[0]?.slug ?? staticLessons[0]?.slug ?? null;
+      if (defaultLesson) {
+        setLocation(`/course/${courseId}/learn/${defaultLesson}`);
+      }
       return;
     }
 
@@ -413,19 +510,34 @@ export default function CoursePlayerPage() {
         moduleOneLessons.find((lesson) => lesson.orderIndex === legacyTopicNumber - 1) ?? moduleOneLessons[0];
       setLocation(`/course/${courseId}/learn/${matchingLesson.slug}`);
     }
-  }, [courseId, lessonSlug, moduleOneLessons, setLocation]);
+  }, [
+    courseId,
+    lessonSlug,
+    moduleOneLessons,
+    introductionLessons,
+    staticLessons,
+    setLocation,
+    authChecked,
+    introductionTopicsLoading
+  ]);
 
   const lessonSourceBySlug = useMemo(() => {
     // Merge static lessons and freshly fetched module 1 lessons so downstream lookups stay uniform.
     const map = new Map<string, LessonWithProgress>();
     staticLessons.forEach((lesson) => {
+      map.set(lesson.slug, {
+        ...lesson,
+        videoUrl: normalizeVideoUrl(lesson.videoUrl)
+      });
+    });
+    introductionLessons.forEach((lesson) => {
       map.set(lesson.slug, lesson);
     });
     moduleOneLessons.forEach((lesson) => {
       map.set(lesson.slug, lesson);
     });
     return map;
-  }, [moduleOneLessons]);
+  }, [moduleOneLessons, introductionLessons]);
 
   const moduleOneDefinition = useMemo<ModuleDefinition | null>(() => {
     if (moduleOneLessons.length === 0) {
@@ -450,7 +562,7 @@ export default function CoursePlayerPage() {
   }, [moduleOneLessons, moduleOneTopics]);
 
   const moduleDefinitions = useMemo<ModuleDefinition[]>(() => {
-    return baseModuleDefinitions.map((module) => {
+    const modules = baseModuleDefinitions.map((module) => {
       if (module.id !== 'module-1') {
         return module;
       }
@@ -465,7 +577,13 @@ export default function CoursePlayerPage() {
         lessons: []
       };
     });
-  }, [moduleOneDefinition]);
+
+    if (introductionDefinition) {
+      return [introductionDefinition, ...modules];
+    }
+
+    return modules;
+  }, [moduleOneDefinition, introductionDefinition]);
 
   const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseSummary }>({
     queryKey: [`/api/courses/${courseId}`],
@@ -496,6 +614,7 @@ export default function CoursePlayerPage() {
 
   useEffect(() => {
     if (authChecked && isAuthenticated) {
+      queryClient.invalidateQueries({ queryKey: ['/api/lessons/modules/0/topics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/lessons/modules/1/topics'] });
       if (courseId) {
         queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
@@ -528,19 +647,31 @@ export default function CoursePlayerPage() {
   }, [lessonProgress, currentLessonId]);
 
   const sidebarModules = useMemo<SidebarModule[]>(() => {
-    return moduleDefinitions.map((module, moduleIndex) => ({
-      id: module.id,
-      title: `Module-${moduleIndex + 1}: ${module.title}`,
-      lessons: module.lessons.map((lessonDef, lessonIndex) => {
+    // Keep numeric module labels consistent even when we prepend the introduction block.
+    let sequentialModuleNumber = 1;
+
+    return moduleDefinitions.map((module) => {
+      const parsedNumber = getModuleNumberFromId(module.id);
+      const isIntroduction = module.id === 'module-introduction';
+      const moduleNumber = isIntroduction ? null : parsedNumber ?? sequentialModuleNumber++;
+
+      if (!isIntroduction && parsedNumber !== null) {
+        sequentialModuleNumber = Math.max(sequentialModuleNumber, parsedNumber + 1);
+      }
+
+      const displayModuleTitle = isIntroduction ? module.title : `Module-${moduleNumber}: ${module.title}`;
+
+      const lessons = module.lessons.map((lessonDef, lessonIndex) => {
         const base = lessonSourceBySlug.get(lessonDef.slug);
         const override = base ? lessonProgressMap[base.id] : undefined;
         const completed = override ? override.status === 'completed' : base?.completed ?? false;
         const progress = override?.progress ?? base?.progress ?? 0;
+        const lessonPrefix = moduleNumber === null ? '' : `${moduleNumber}.${lessonIndex + 1} `;
 
         return {
           id: base?.id ?? lessonDef.id,
           slug: lessonDef.slug,
-          title: `${moduleIndex + 1}.${lessonIndex + 1} ${lessonDef.title}`,
+          title: `${lessonPrefix}${lessonDef.title}`.trim(),
           rawTitle: lessonDef.title,
           duration: lessonDef.duration,
           completed,
@@ -551,8 +682,14 @@ export default function CoursePlayerPage() {
           videoUrl: base?.videoUrl ?? '',
           notes: base?.notes ?? ''
         };
-      })
-    }));
+      });
+
+      return {
+        id: module.id,
+        title: displayModuleTitle,
+        lessons
+      };
+    });
   }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions]);
 
   const lessons = useMemo(() => sidebarModules.flatMap((module) => module.lessons), [sidebarModules]);
@@ -580,6 +717,14 @@ export default function CoursePlayerPage() {
 
     return displayLesson;
   }, [displayLesson]);
+
+  const resolvedVideoUrl = useMemo(() => {
+    if (!resolvedLesson || resolvedLesson.type !== 'video' || !resolvedLesson.videoUrl) {
+      return '';
+    }
+
+    return normalizeVideoUrl(resolvedLesson.videoUrl);
+  }, [resolvedLesson]);
 
   const progressInfo = useMemo(() => computeProgress(sidebarModules), [sidebarModules]);
 
@@ -680,6 +825,8 @@ export default function CoursePlayerPage() {
     setLocation('/dashboard');
   };
 
+  const introductionDataIsLoading =
+    isAuthenticated && introductionTopicsLoading && introductionLessons.length === 0;
   const moduleOneDataIsLoading = isAuthenticated && moduleTopicsLoading && moduleOneLessons.length === 0;
   const awaitingDefaultModuleOneLesson =
     isAuthenticated &&
@@ -702,7 +849,11 @@ export default function CoursePlayerPage() {
         (moduleTopicsLoading || moduleTopicsResponse === undefined)
     );
   const shouldShowModuleHydrationSpinner =
-    moduleOneDataIsLoading || awaitingDefaultModuleOneLesson || awaitingLegacyRedirect || awaitingModuleOneLessonHydration;
+    introductionDataIsLoading ||
+    moduleOneDataIsLoading ||
+    awaitingDefaultModuleOneLesson ||
+    awaitingLegacyRedirect ||
+    awaitingModuleOneLessonHydration;
 
   if (!authChecked) {
     return (
@@ -913,17 +1064,18 @@ export default function CoursePlayerPage() {
         </header>
 
         <div className="flex-1 flex flex-col min-h-0 max-w-full overflow-hidden">
-          {resolvedLesson.type === 'video' && resolvedLesson.videoUrl && (
+          {resolvedLesson.type === 'video' && resolvedVideoUrl && (
             <div className="w-full overflow-x-hidden flex-shrink-0" data-testid="section-video">
               <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:pt-6 lg:pb-4 space-y-4">
                 <div
                   className="relative w-full aspect-video max-h-[65vh] min-h-[220px] rounded-2xl border border-border/60 bg-black shadow-xl overflow-hidden"
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   <iframe
-                    src={resolvedLesson.videoUrl.includes('watch?v=') ? resolvedLesson.videoUrl.replace('watch?v=', 'embed/') : resolvedLesson.videoUrl}
+                    src={resolvedVideoUrl}
                     className="absolute inset-0 w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                    referrerPolicy="strict-origin-when-cross-origin"
                     title={resolvedLesson.rawTitle ?? resolvedLesson.title}
                   />
                 </div>

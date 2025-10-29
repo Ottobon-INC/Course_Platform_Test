@@ -57,6 +57,26 @@ export default function VideoPlayer({
   }, [currentTime, duration, onProgress]);
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.closest('input, textarea, [contenteditable="true"]') || target.getAttribute('role') === 'textbox')) {
+        return;
+      }
+
+      const blockedKeys = new Set([' ', 'k', 'K', 'j', 'J', 'l', 'L', 'f', 'F', 'c', 'C', 's', 'S', 'w', 'W']);
+      if (blockedKeys.has(event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
+
+  useEffect(() => {
     // Cleanup timeout on unmount
     return () => {
       if (toggleTimeoutRef.current) {
@@ -139,6 +159,11 @@ export default function VideoPlayer({
     onComplete?.();
   };
 
+  const handleBlockedInteraction = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
@@ -156,14 +181,16 @@ export default function VideoPlayer({
 
   return (
     <div 
-      className="relative bg-black rounded-lg overflow-hidden group"
+      className="relative bg-black rounded-lg overflow-hidden group select-none"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
+      onContextMenu={(event) => event.preventDefault()}
       data-testid="container-video-player"
     >
       <div className="w-full aspect-video">
         <ReactPlayer
           ref={playerRef}
+          className="pointer-events-none select-none"
           url={videoUrl}
           playing={isPlaying}
           volume={isMuted ? 0 : volume}
@@ -184,16 +211,36 @@ export default function VideoPlayer({
                 controls: 0,
                 modestbranding: 1,
                 rel: 0,
+                fs: 0,
+                disablekb: 1,
+                iv_load_policy: 3,
+                playsinline: 1,
                 origin: window.location.origin
               }
             },
             file: {
               attributes: {
-                controlsList: 'nodownload'
+                controlsList: 'nodownload nofullscreen noremoteplayback',
+                disablePictureInPicture: true
               }
             }
           }}
           data-testid="video-element"
+        />
+        {/* Block click-through to YouTube controls (share, watch later, logo) */}
+        <div
+          className="pointer-events-auto absolute top-0 right-0 w-28 h-20 z-30"
+          onClick={handleBlockedInteraction}
+          onDoubleClick={handleBlockedInteraction}
+          onMouseDown={handleBlockedInteraction}
+          title="Sharing disabled"
+        />
+        <div
+          className="pointer-events-auto absolute bottom-12 right-4 w-32 h-16 z-30"
+          onClick={handleBlockedInteraction}
+          onDoubleClick={handleBlockedInteraction}
+          onMouseDown={handleBlockedInteraction}
+          title="External navigation disabled"
         />
       </div>
 
@@ -224,7 +271,7 @@ export default function VideoPlayer({
       </div>
 
       {/* Controls */}
-      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity ${
+      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity z-40 ${
         showControls ? 'opacity-100' : 'opacity-0'
       }`} data-testid="container-video-controls">
         {/* Progress Bar */}
