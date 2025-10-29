@@ -153,7 +153,7 @@ export default function DashboardPage() {
   const [filteredCourses, setFilteredCourses] = useState(coursesData);
   const [showAuthChoiceModal, setShowAuthChoiceModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authAction, setAuthAction] = useState<'enroll' | 'cart'>('enroll');
+  const [authAction, setAuthAction] = useState<'enroll' | 'cart' | 'continue'>('enroll');
   const [pendingCourse, setPendingCourse] = useState<Course | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
@@ -485,6 +485,13 @@ export default function DashboardPage() {
   };
 
   const continueLearning = (course: Course) => {
+    if (!isAuthenticated) {
+      setPendingCourse(course);
+      setAuthAction('continue');
+      setShowAuthModal(true);
+      return;
+    }
+
     // Navigate to the course learning page with a default first lesson
     setLocation(getContinuePath(course));
   };
@@ -889,13 +896,15 @@ const startGoogleSignIn = (redirectPath?: string) => {
               <Button
                 variant="outline"
                 className="w-full sm:w-auto px-6 py-6 flex items-center justify-center gap-3 border-muted-foreground/20 shadow-sm hover:shadow-md transition"
-                onClick={() => {
-                  const redirectTarget =
-                    authAction === 'cart'
-                      ? '/cart'
-                      : pendingCourse
-                        ? getEnrollPath(pendingCourse)
-                        : undefined;
+                  onClick={() => {
+                    const redirectTarget =
+                      authAction === 'cart'
+                        ? '/cart'
+                        : pendingCourse
+                          ? authAction === 'continue'
+                            ? getContinuePath(pendingCourse)
+                            : getEnrollPath(pendingCourse)
+                          : undefined;
                   startGoogleSignIn(redirectTarget);
                 }}
               >

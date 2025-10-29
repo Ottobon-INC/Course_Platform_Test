@@ -1,8 +1,13 @@
+import { useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle, BookOpen, Sparkles, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
+import { CheckCircle, BookOpen, Loader2, Sparkles } from 'lucide-react';
 
 interface LessonTabsProps {
   guideContent?: string;
@@ -11,45 +16,104 @@ interface LessonTabsProps {
   isUpdating?: boolean;
 }
 
+const DEFAULT_GUIDE = '# Lesson Guide\n\nThis lesson does not include a guide yet. Please check back later.';
+
 export default function LessonTabs({
-  guideContent = "This is a comprehensive guide that will help you understand the concepts covered in this lesson. The content here provides detailed explanations, examples, and best practices to reinforce your learning.\n\nKey Topics Covered:\n Understanding the fundamentals\n Practical applications\n Real-world examples\n Best practices and tips\n\nThis guide serves as your reference material and can be revisited anytime to strengthen your understanding of the subject matter.",
+  guideContent,
   onToggleComplete,
   isCompleted = false,
   isUpdating = false,
 }: LessonTabsProps) {
-  // Parse content to add better formatting
-  const formatContent = (content: string) => {
-    const lines = content.split('\n');
-    return lines.map((line, index) => {
-      // Headers (lines that end with :)
-      if (line.trim().endsWith(':') && line.trim().length > 3) {
-        return (
-          <h3 key={index} className="text-lg font-semibold text-foreground mt-6 mb-3 first:mt-0 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            {line.trim()}
-          </h3>
-        );
+  const normalizedGuideContent = useMemo(() => {
+    const raw = (guideContent ?? '').trim();
+    if (!raw) {
+      return DEFAULT_GUIDE;
+    }
+
+    if (/#\s|<h[1-6]/i.test(raw)) {
+      return raw;
+    }
+
+    const lines = raw.split(/\r?\n/).map((line) => line.trim());
+    if (lines.length === 0) {
+      return DEFAULT_GUIDE;
+    }
+
+    const bulletRegex = /^[-*\u2022]\s+/;
+    const transformed: string[] = [];
+
+    lines.forEach((line, index) => {
+      if (!line) {
+        transformed.push('');
+        return;
       }
-      // Bullet points
-      if (line.trim().startsWith('') || line.trim().startsWith('-')) {
-        return (
-          <div key={index} className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-            <p className="text-foreground/90 leading-relaxed">{line.trim().substring(1).trim()}</p>
-          </div>
-        );
+
+      if (bulletRegex.test(line)) {
+        transformed.push(line.replace(bulletRegex, '- '));
+        return;
       }
-      // Empty lines
-      if (line.trim() === '') {
-        return <div key={index} className="h-3" />;
+
+      const looksLikeHeading = /^[A-Z0-9].*$/.test(line) && line.split(' ').length <= 12;
+      const endsWithColon = /[:：]$/.test(line);
+
+      if (index === 0) {
+        transformed.push(`# ${line}`);
+      } else if (looksLikeHeading && endsWithColon) {
+        transformed.push(`### ${line.replace(/[:：]$/, '').trim()}`);
+      } else if (looksLikeHeading) {
+        transformed.push(`## ${line}`);
+      } else {
+        transformed.push(line);
       }
-      // Regular paragraphs
-      return (
-        <p key={index} className="text-foreground/85 leading-relaxed mb-3">
-          {line}
-        </p>
-      );
     });
+
+    const result = transformed.join('\n\n').trim();
+    return result.length > 0 ? result : DEFAULT_GUIDE;
+  }, [guideContent]);
+
+  const markdownComponents: Components = {
+    h1: (props) => (
+      <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-6 first:mt-0" {...props} />
+    ),
+    h2: (props) => (
+      <h2 className="text-2xl font-semibold tracking-tight text-foreground mt-8 mb-4" {...props} />
+    ),
+    h3: (props) => (
+      <h3 className="text-xl font-semibold text-foreground mt-6 mb-3" {...props} />
+    ),
+    p: (props) => (
+      <p className="text-lg text-foreground/90 leading-relaxed mb-4 whitespace-pre-wrap" {...props} />
+    ),
+    ul: (props) => (
+      <ul className="list-disc pl-7 space-y-2 text-lg text-foreground/90" {...props} />
+    ),
+    ol: (props) => (
+      <ol className="list-decimal pl-7 space-y-2 text-lg text-foreground/90" {...props} />
+    ),
+    li: (props) => <li className="leading-relaxed" {...props} />,
+    strong: (props) => <strong className="font-semibold text-foreground" {...props} />,
+    em: (props) => <em className="italic text-foreground/90" {...props} />,
+    blockquote: (props) => (
+      <blockquote
+        className="border-l-4 border-primary/50 pl-4 italic text-foreground/80 bg-primary/5 rounded-r-md py-2"
+        {...props}
+      />
+    ),
+    code: ({ inline, ...props }) =>
+      inline ? (
+        <code className="rounded-md bg-muted px-1.5 py-0.5 text-sm font-medium text-foreground/90" {...props} />
+      ) : (
+        <code className="block rounded-lg bg-muted px-4 py-3 text-sm leading-relaxed text-foreground/90" {...props} />
+      ),
+    table: (props) => (
+      <div className="overflow-x-auto rounded-md border border-border">
+        <table className="w-full text-left text-sm" {...props} />
+      </div>
+    ),
+    th: (props) => (
+      <th className="bg-muted/50 px-3 py-2 text-sm font-semibold text-foreground" {...props} />
+    ),
+    td: (props) => <td className="px-3 py-2 text-foreground/90" {...props} />
   };
 
   return (
@@ -88,15 +152,18 @@ export default function LessonTabs({
                 <ScrollArea className="h-[400px] sm:h-[450px] lg:h-[500px]">
                   <div className="p-6 sm:p-8">
                     <div className="prose prose-sm max-w-none dark:prose-invert">
-                      <div className="space-y-1">
-                        {formatContent(guideContent)}
-                      </div>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                        components={markdownComponents}
+                      >
+                        {normalizedGuideContent}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </ScrollArea>
               </div>
 
-              {/* Progress indicator */}
               {!isCompleted && (
                 <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
                   <div className="flex items-start gap-3">
@@ -119,7 +186,6 @@ export default function LessonTabs({
         </TabsContent>
       </Tabs>
 
-      {/* Mark Complete Button */}
       <div className="mt-6 lg:mt-8 flex justify-center px-4 lg:px-0">
         <Button
           onClick={() => onToggleComplete(!isCompleted)}
@@ -149,3 +215,4 @@ export default function LessonTabs({
     </div>
   );
 }
+
