@@ -1,0 +1,66 @@
+*** Begin Patch
+*** Update File: backend/src/routes/lessons.ts
+@@
+-export const lessonsRouter = express.Router();
++export const lessonsRouter = express.Router();
++
++function toSlug(value: string) {
++  return value
++    .toLowerCase()
++    .replace(/[^a-z0-9]+/g, "-")
++    .replace(/^-+|-+$/g, "");
++}
+@@
+-  if (uuidRegex.test(courseKey)) {
+-    resolvedCourseId = courseKey;
+-  } else {
+-    const normalizedName = courseKey.replace(/-/g, " ");
+-    const course = await prisma.course.findFirst({
+-      where: {
+-        courseName: {
+-          equals: normalizedName,
+-          mode: "insensitive",
+-        },
+-      },
+-      select: { courseId: true },
+-    });
+-
+-    if (!course) {
+-      res.status(404).json({ message: "Course not found" });
+-      return;
+-    }
+-
+-    resolvedCourseId = course.courseId;
+-  }
++  if (uuidRegex.test(courseKey)) {
++    resolvedCourseId = courseKey;
++  } else {
++    const normalizedName = courseKey.replace(/-/g, " ");
++    const course = await prisma.course.findFirst({
++      where: {
++        courseName: {
++          equals: normalizedName,
++          mode: "insensitive",
++        },
++      },
++      select: { courseId: true, courseName: true },
++    });
++
++    if (course) {
++      resolvedCourseId = course.courseId;
++    } else {
++      const allCourses = await prisma.course.findMany({
++        select: { courseId: true, courseName: true },
++      });
++
++      const fallbackCourse = allCourses.find((candidate) => toSlug(candidate.courseName) === courseKey.toLowerCase());
++
++      if (!fallbackCourse) {
++        res.status(404).json({ message: "Course not found" });
++        return;
++      }
++
++      resolvedCourseId = fallbackCourse.courseId;
++    }
++  }
+*** End Patch

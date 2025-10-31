@@ -12,7 +12,7 @@ const envSchema = z.object({
     JWT_REFRESH_SECRET: z.string().min(32, { message: "JWT_REFRESH_SECRET must be at least 32 characters" }),
     JWT_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     JWT_REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-    FRONTEND_APP_URL: z.string().url().default("http://localhost:5173"),
+    FRONTEND_APP_URLS: z.string().default("http://localhost:5173"),
     GOOGLE_STATE_COOKIE_NAME: z.string().min(1).default("cp_oauth_state"),
     GOOGLE_STATE_MAX_AGE_SECONDS: z.coerce.number().int().positive().default(600),
 });
@@ -21,6 +21,8 @@ if (!parsed.success) {
     console.error("Invalid environment configuration", parsed.error.flatten().fieldErrors);
     throw new Error("Failed to parse environment variables");
 }
+const frontendAppUrls = parsed.data.FRONTEND_APP_URLS.split(",").map((url) => url.trim()).filter(Boolean);
+const primaryFrontendUrl = frontendAppUrls[0] ?? "http://localhost:5173";
 export const env = {
     nodeEnv: parsed.data.NODE_ENV,
     port: parsed.data.PORT,
@@ -32,7 +34,8 @@ export const env = {
     jwtRefreshSecret: parsed.data.JWT_REFRESH_SECRET,
     jwtAccessTokenTtlSeconds: parsed.data.JWT_ACCESS_TOKEN_TTL_SECONDS,
     jwtRefreshTokenTtlDays: parsed.data.JWT_REFRESH_TOKEN_TTL_DAYS,
-    frontendAppUrl: parsed.data.FRONTEND_APP_URL,
+    frontendAppUrl: primaryFrontendUrl,
+    frontendAppUrls,
     googleStateCookieName: parsed.data.GOOGLE_STATE_COOKIE_NAME,
     googleStateMaxAgeMs: parsed.data.GOOGLE_STATE_MAX_AGE_SECONDS * 1000,
 };

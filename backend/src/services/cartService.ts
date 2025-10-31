@@ -39,8 +39,12 @@ function extractMetadata(payload: CoursePayload): CourseMetadata {
   const metadata: CourseMetadata = {};
   for (const key of METADATA_KEYS) {
     const value = payload[key];
-    if (value !== undefined && value !== null) {
-      metadata[key] = value;
+    if (value === undefined || value === null) {
+      continue;
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+      (metadata as Record<keyof CourseMetadata, string | number>)[key] = value;
     }
   }
   return metadata;

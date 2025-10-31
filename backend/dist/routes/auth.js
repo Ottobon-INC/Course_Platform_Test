@@ -23,6 +23,7 @@ authRouter.get("/google/callback", asyncHandler(async (req, res) => {
                 callbackUrl.searchParams.set(key, value);
             }
         });
+        console.log("OAuth redirect URL:", callbackUrl.toString());
         res.redirect(callbackUrl.toString());
     };
     if (errorParam) {

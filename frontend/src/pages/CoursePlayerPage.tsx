@@ -491,34 +491,45 @@ export default function CoursePlayerPage() {
       return;
     }
 
+    const redirectToSlug = (slug: string | null | undefined) => {
+      if (slug) {
+        setLocation(`/course/${courseId}/learn/${slug}`);
+      }
+    };
+
     if (!lessonSlug) {
-      if (introductionTopicsLoading && introductionLessons.length === 0) {
+      if (introductionTopicsLoading && introductionLessons.length === 0 && moduleOneLessons.length === 0) {
         return;
       }
 
       const defaultLesson =
         introductionLessons[0]?.slug ?? moduleOneLessons[0]?.slug ?? staticLessons[0]?.slug ?? null;
-      if (defaultLesson) {
-        setLocation(`/course/${courseId}/learn/${defaultLesson}`);
-      }
+      redirectToSlug(defaultLesson);
       return;
     }
 
     const legacyTopicNumber = legacyModuleOneSlugToTopicNumber[lessonSlug];
     if (legacyTopicNumber) {
-      const matchingLesson =
-        moduleOneLessons.find((lesson) => lesson.orderIndex === legacyTopicNumber - 1) ?? moduleOneLessons[0];
-      setLocation(`/course/${courseId}/learn/${matchingLesson.slug}`);
+      const matchingLesson = moduleOneLessons.find((lesson) => lesson.orderIndex === legacyTopicNumber - 1);
+
+      if (matchingLesson) {
+        redirectToSlug(matchingLesson.slug);
+        return;
+      }
+
+      if (!moduleTopicsLoading && moduleOneLessons.length === 0) {
+        redirectToSlug(introductionLessons[0]?.slug ?? staticLessons[0]?.slug ?? null);
+      }
     }
   }, [
     courseId,
     lessonSlug,
     moduleOneLessons,
     introductionLessons,
-    staticLessons,
     setLocation,
     authChecked,
-    introductionTopicsLoading
+    introductionTopicsLoading,
+    moduleTopicsLoading
   ]);
 
   const lessonSourceBySlug = useMemo(() => {
