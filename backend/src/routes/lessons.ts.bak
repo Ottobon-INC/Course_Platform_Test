@@ -32,7 +32,7 @@ lessonsRouter.get(
       return;
     }
 
-    // Pull every topic for the requested module so the frontend can hydrate module content dynamically.
+    // Pull every topic for the requested module so the frontend can hydrate Module 1 dynamically.
     const topics = await prisma.topic.findMany({
       where: { moduleNo },
       orderBy: { topicNumber: "asc" },
@@ -151,3 +151,4 @@ lessonsRouter.put(
     res.status(200).json({ progress: record });
   }),
 );
+

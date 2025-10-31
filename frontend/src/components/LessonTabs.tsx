@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ComponentPropsWithoutRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ export default function LessonTabs({
         {...props}
       />
     ),
-    code: ({ inline, ...props }) =>
+    code: ({ inline, ...props }: { inline?: boolean } & ComponentPropsWithoutRef<'code'>) =>
       inline ? (
         <code className="rounded-md bg-muted px-1.5 py-0.5 text-sm font-medium text-foreground/90" {...props} />
       ) : (

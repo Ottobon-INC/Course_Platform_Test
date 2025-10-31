@@ -14,7 +14,7 @@ export function createApp(): Express {
 
   const allowedOrigins = env.frontendAppUrls;
   const corsOptions: cors.CorsOptions = {
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin) {
         callback(null, true);
         return;
