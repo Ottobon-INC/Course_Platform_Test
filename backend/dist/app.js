@@ -6,7 +6,11 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { cartRouter } from "./routes/cart";
 import { lessonsRouter } from "./routes/lessons";
+import { coursesRouter } from "./routes/courses";
+import { tutorApplicationsRouter } from "./routes/tutorApplications";
+import { pagesRouter } from "./routes/pages";
 import { env } from "./config/env";
+import { assistantRouter } from "./routes/assistant";
 export function createApp() {
     const app = express();
     const allowedOrigins = env.frontendAppUrls;
@@ -39,6 +43,10 @@ export function createApp() {
     app.use("/users", usersRouter);
     app.use("/cart", cartRouter);
     app.use("/lessons", lessonsRouter);
+    app.use("/courses", coursesRouter);
+    app.use("/tutor-applications", tutorApplicationsRouter);
+    app.use("/pages", pagesRouter);
+    app.use("/assistant", assistantRouter);
     // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
     const apiRouter = express.Router();
     apiRouter.use("/health", healthRouter);
@@ -46,6 +54,10 @@ export function createApp() {
     apiRouter.use("/users", usersRouter);
     apiRouter.use("/cart", cartRouter);
     apiRouter.use("/lessons", lessonsRouter);
+    apiRouter.use("/courses", coursesRouter);
+    apiRouter.use("/tutor-applications", tutorApplicationsRouter);
+    apiRouter.use("/pages", pagesRouter);
+    apiRouter.use("/assistant", assistantRouter);
     app.use("/api", apiRouter);
     app.use((err, _req, res, _next) => {
         console.error("Unhandled error", err);

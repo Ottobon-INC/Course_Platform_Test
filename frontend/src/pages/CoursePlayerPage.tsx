@@ -1128,7 +1128,7 @@ export default function CoursePlayerPage() {
               />
             </div>
           </div>
-          <ChatBot courseName={course?.title} />
+          <ChatBot courseName={course?.title} courseId={courseId} />
         </div>
       </div>
     </div>

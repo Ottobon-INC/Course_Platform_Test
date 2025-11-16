@@ -7,7 +7,6 @@ const coursesRouter = express.Router();
 
 const courseSelect = {
   courseId: true,
-  slug: true,
   courseName: true,
   description: true,
   priceCents: true,
@@ -45,7 +44,7 @@ function formatDuration(minutes: number): string {
 
 function mapCourse(course: CourseRecord) {
   return {
-    id: course.slug,
+    id: course.courseId,
     title: course.courseName,
     description: course.description,
     category: course.category,
@@ -83,16 +82,16 @@ coursesRouter.get(
 );
 
 coursesRouter.get(
-  "/:slug",
+  "/:courseId",
   asyncHandler(async (req, res) => {
-    const slug = req.params.slug?.toLowerCase();
-    if (!slug) {
-      res.status(400).json({ message: "Course slug is required" });
+    const courseId = req.params.courseId?.trim();
+    if (!courseId) {
+      res.status(400).json({ message: "Course identifier is required" });
       return;
     }
 
     const course = await prisma.course.findUnique({
-      where: { slug },
+      where: { courseId },
       select: courseSelect,
     });
 

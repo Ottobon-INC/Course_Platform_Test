@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Send, X, Bot, User } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageCircle, Send, X, Bot, User, Loader2 } from "lucide-react";
+import { buildApiUrl } from "@/lib/api";
+import { readStoredSession } from "@/utils/session";
+import type { StoredSession } from "@/types/session";
 
 interface Message {
   id: string;
@@ -14,91 +17,111 @@ interface Message {
 
 interface ChatBotProps {
   courseName?: string;
+  courseId?: string;
 }
 
-export default function ChatBot({ courseName }: ChatBotProps) {
+const createIntroMessage = (courseName?: string): Message => ({
+  id: "assistant-intro",
+  text: `Hi! I'm your AI learning assistant for ${courseName ?? "this course"}. Ask anything about the lessons and I'll answer based on the official course material.`,
+  isBot: true,
+  timestamp: new Date(),
+});
+
+export default function ChatBot({ courseName, courseId }: ChatBotProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: `Hi! I'm your AI learning assistant for ${courseName || 'this course'}. I can help you with questions about the content, explain concepts, or provide additional resources. How can I help you today?`,
-      isBot: true,
-      timestamp: new Date()
-    }
-  ]);
-  const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState<Message[]>(() => [createIntroMessage(courseName)]);
+  const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [session, setSession] = useState<StoredSession | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll to bottom when new messages are added
+  const isAuthenticated = Boolean(session?.accessToken);
+
+  // Sync session from localStorage
   useEffect(() => {
-    const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    const syncSession = () => {
+      setSession(readStoredSession());
+    };
+    syncSession();
+    window.addEventListener("storage", syncSession);
+    return () => window.removeEventListener("storage", syncSession);
+  }, []);
+
+  // Auto scroll to bottom when new messages arrive
+  useEffect(() => {
+    const scrollContainer = scrollAreaRef.current?.querySelector("[data-radix-scroll-area-viewport]");
     if (scrollContainer) {
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   }, [messages, isTyping]);
 
+  const disabledReason = useMemo(() => {
+    if (!courseId) {
+      return "The assistant needs a course context to answer questions.";
+    }
+    if (!isAuthenticated) {
+      return "Sign in to chat with the course assistant.";
+    }
+    return null;
+  }, [courseId, isAuthenticated]);
+
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || isTyping) {
+      return;
+    }
 
     const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputValue,
+      id: `user-${Date.now()}`,
+      text: inputValue.trim(),
       isBot: false,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
+    setMessages((prev) => [...prev, userMessage]);
+    const question = inputValue.trim();
+    setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response (in real implementation, this would call your AI service)
-    setTimeout(() => {
+    try {
+      const answer = await requestAssistantAnswer({
+        courseId,
+        courseName,
+        question,
+        onSessionUpdate: setSession,
+      });
+
       const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: generateBotResponse(inputValue),
+        id: `bot-${Date.now()}`,
+        text: answer,
         isBot: true,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-
-      setMessages(prev => [...prev, botResponse]);
+      setMessages((prev) => [...prev, botResponse]);
+    } catch (error) {
+      const fallback: Message = {
+        id: `error-${Date.now()}`,
+        text:
+          error instanceof Error
+            ? error.message
+            : "Sorry, I couldn't reach the learning assistant. Please try again.",
+        isBot: true,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, fallback]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const generateBotResponse = (userInput: string): string => {
-    const input = userInput.toLowerCase();
-
-    if (input.includes('video') || input.includes('play') || input.includes('pause')) {
-      return "I can help you with video-related questions! You can use the video controls to pause, play, or adjust the speed. If you're having trouble with the video, try refreshing the page or checking your internet connection.";
-    }
-
-    if (input.includes('quiz') || input.includes('test') || input.includes('assessment')) {
-      return "For quiz and assessment help, I can explain concepts or provide hints. Remember, the goal is to learn, so try to understand the material before checking answers. Would you like me to explain any specific topic?";
-    }
-
-    if (input.includes('progress') || input.includes('complete')) {
-      return "Your progress is automatically saved as you complete lessons and activities. You can see your overall progress in the sidebar and dashboard. Keep up the great work!";
-    }
-
-    if (input.includes('certificate') || input.includes('completion')) {
-      return "You'll receive a certificate upon completing all course materials and assessments. Make sure to complete all lessons and maintain good quiz scores to qualify for certification.";
-    }
-
-    // Default response
-    return "That's a great question! I'm here to help you learn. Can you provide more details about what you'd like to know? I can assist with course content, technical issues, or learning strategies.";
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void handleSendMessage();
     }
   };
 
   return (
     <>
-      {/* Floating Chat Button */}
       <div className="fixed bottom-6 right-6 sm:bottom-4 sm:right-4 xs:bottom-3 xs:right-3 z-50">
         {!isOpen && (
           <Button
@@ -109,97 +132,73 @@ export default function ChatBot({ courseName }: ChatBotProps) {
           </Button>
         )}
 
-        {/* Chat Window */}
         {isOpen && (
           <Card className="w-96 max-w-[calc(100vw-2rem)] h-[500px] lg:w-96 md:w-80 sm:w-72 xs:w-[calc(100vw-1rem)] md:h-[500px] sm:h-[450px] xs:h-[400px] bg-background/95 backdrop-blur border-border shadow-xl flex flex-col overflow-hidden">
-            {/* Header */}
-            <CardHeader className="pb-3 p-4 sm:p-3 xs:p-2 border-b border-border flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="h-8 w-8 sm:h-7 sm:w-7 xs:h-6 xs:w-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Bot className="h-4 w-4 sm:h-3 sm:w-3 xs:h-2.5 xs:w-2.5 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <CardTitle className="text-sm sm:text-xs xs:text-xs truncate">Learning Assistant</CardTitle>
-                    <p className="text-xs sm:text-xs xs:text-xs text-muted-foreground hidden sm:block">Always here to help</p>
-                  </div>
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-5 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <Bot className="h-5 w-5" />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsOpen(false)}
-                  className="h-6 w-6 sm:h-5 sm:w-5 xs:h-4 xs:w-4 p-0 flex-shrink-0"
-                >
-                  <X className="h-4 w-4 sm:h-3 sm:w-3 xs:h-2.5 xs:w-2.5" />
-                </Button>
+                <div>
+                  <CardTitle className="text-lg">Learning Assistant</CardTitle>
+                  <p className="text-xs text-white/80">
+                    {disabledReason ?? "Always here to help"}
+                  </p>
+                </div>
               </div>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => setIsOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
             </CardHeader>
 
-            {/* Messages */}
-            <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-              <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 sm:p-3 xs:p-2 h-full">
-                <div className="space-y-4 sm:space-y-3 xs:space-y-2">
+            <CardContent className="flex-1 flex flex-col px-0 pb-0 min-h-0">
+              <ScrollArea className="flex-1 min-h-0 px-4" ref={scrollAreaRef}>
+                <div className="space-y-4 py-4">
                   {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.isBot ? 'justify-start' : 'justify-end'}`}
-                    >
-                      <div className={`flex items-start space-x-2 sm:space-x-1.5 xs:space-x-1 max-w-[85%] sm:max-w-[90%] xs:max-w-[95%] ${message.isBot ? '' : 'flex-row-reverse space-x-reverse sm:space-x-reverse xs:space-x-reverse'}`}>
-                        <div className={`h-6 w-6 sm:h-5 sm:w-5 xs:h-4 xs:w-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          message.isBot 
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600' 
-                            : 'bg-gradient-to-r from-green-500 to-emerald-600'
-                        }`}>
-                          {message.isBot ? (
-                            <Bot className="h-3 w-3 sm:h-2.5 sm:w-2.5 xs:h-2 xs:w-2 text-white" />
-                          ) : (
-                            <User className="h-3 w-3 sm:h-2.5 sm:w-2.5 xs:h-2 xs:w-2 text-white" />
-                          )}
-                        </div>
-                        <div className={`rounded-lg p-2 sm:p-1.5 xs:p-1 text-sm sm:text-xs xs:text-xs break-words overflow-wrap-anywhere leading-relaxed ${
+                    <div key={message.id} className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}>
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-md ${
                           message.isBot
-                            ? 'bg-muted text-foreground'
-                            : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                        }`}>
-                          {message.text}
+                            ? "bg-muted text-foreground"
+                            : "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1 text-xs opacity-80">
+                          {message.isBot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                          <span>{message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </div>
+                        <p className="whitespace-pre-line leading-relaxed">{message.text}</p>
                       </div>
                     </div>
                   ))}
 
-                  {/* Typing indicator */}
                   {isTyping && (
                     <div className="flex justify-start">
-                      <div className="flex items-start space-x-2 sm:space-x-1.5 xs:space-x-1 max-w-[85%] sm:max-w-[90%] xs:max-w-[95%]">
-                        <div className="h-6 w-6 sm:h-5 sm:w-5 xs:h-4 xs:w-4 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                          <Bot className="h-3 w-3 sm:h-2.5 sm:w-2.5 xs:h-2 xs:w-2 text-white" />
-                        </div>
-                        <div className="bg-muted rounded-lg p-2 sm:p-1.5 xs:p-1 text-sm sm:text-xs xs:text-xs">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 sm:w-1.5 sm:h-1.5 xs:w-1 xs:h-1 bg-muted-foreground rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 sm:w-1.5 sm:h-1.5 xs:w-1 xs:h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 sm:w-1.5 sm:h-1.5 xs:w-1 xs:h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                          </div>
-                        </div>
+                      <div className="max-w-[80%] rounded-2xl px-4 py-3 text-sm bg-muted text-foreground shadow-md flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>The assistant is thinking...</span>
                       </div>
                     </div>
                   )}
                 </div>
               </ScrollArea>
 
-              {/* Input */}
-              <div className="border-t border-border p-3 sm:p-2 xs:p-1.5 flex-shrink-0">
-                <div className="flex space-x-2 sm:space-x-1.5 xs:space-x-1">
+              <div className="border-t bg-muted/40 px-4 py-3 space-y-2">
+                {disabledReason && (
+                  <p className="text-xs text-muted-foreground flex-1 text-center">{disabledReason}</p>
+                )}
+                <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Ask me anything about this course..."
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="flex-1 text-sm sm:text-xs xs:text-xs h-9 sm:h-8 xs:h-7"
+                    onChange={(event) => setInputValue(event.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Ask me anything about this course..."
+                    className="flex-1"
+                    disabled={Boolean(disabledReason) || isTyping}
                   />
                   <Button
-                    onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || isTyping}
+                    onClick={() => void handleSendMessage()}
+                    disabled={!inputValue.trim() || Boolean(disabledReason) || isTyping}
                     size="sm"
                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 h-9 sm:h-8 xs:h-7 w-9 sm:w-8 xs:w-7 p-0"
                   >
@@ -213,4 +212,54 @@ export default function ChatBot({ courseName }: ChatBotProps) {
       </div>
     </>
   );
+}
+
+async function requestAssistantAnswer(params: {
+  courseId?: string;
+  courseName?: string;
+  question: string;
+  onSessionUpdate: (session: StoredSession | null) => void;
+}): Promise<string> {
+  if (!params.courseId) {
+    throw new Error("I need to know which course you're viewing before I can help.");
+  }
+
+  const activeSession = readStoredSession();
+  params.onSessionUpdate(activeSession);
+
+  if (!activeSession?.accessToken) {
+    throw new Error("Please sign in to chat with the learning assistant.");
+  }
+
+  const response = await fetch(buildApiUrl("/assistant/query"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${activeSession.accessToken}`,
+    },
+    body: JSON.stringify({
+      question: params.question,
+      courseId: params.courseId,
+      courseTitle: params.courseName,
+    }),
+  });
+
+  if (response.status === 401) {
+    throw new Error("Your session expired. Refresh the page or sign in again.");
+  }
+
+  if (response.status === 429) {
+    throw new Error("You are asking very quickly. Please wait a moment before trying again.");
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(payload?.message ?? "The assistant could not process that request.");
+  }
+
+  if (!payload?.answer) {
+    throw new Error("I couldn't find an answer in the course material. Try rephrasing your question.");
+  }
+
+  return payload.answer as string;
 }
