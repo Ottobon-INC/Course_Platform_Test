@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -948,16 +948,33 @@ export default function CoursePlayerPage() {
     );
   }
 
+  const handleLessonSelect = useCallback(
+    (lessonSlug: string) => {
+      if (!courseId) {
+        return;
+      }
+
+      setLocation(`/course/${courseId}/learn/${lessonSlug}`);
+      if (isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    },
+    [courseId, isMobileSidebarOpen, setLocation]
+  );
+
   return (
     <div className={cn(FONT_INTER_STACK, "min-h-screen w-full flex")} style={{ background: DASHBOARD_GRADIENT_BG }}>
       <CourseSidebar
         modules={sidebarModules}
+        progressPercent={progressInfo.percent}
+        completedCount={progressInfo.completedCount}
+        totalCount={progressInfo.totalCount}
+        onLessonSelect={handleLessonSelect}
         isCollapsed={isSidebarCollapsed}
-        isMobileOpen={isMobileSidebarOpen}
-        setIsCollapsed={setIsSidebarCollapsed}
-        setIsMobileOpen={setIsMobileSidebarOpen}
-        courseTitle={course?.title ?? 'Course'}
-        progress={progressInfo.percent}
+        onToggleCollapse={() => setIsSidebarCollapsed((previous) => !previous)}
+        onToggleLessonComplete={(lessonId, shouldComplete) =>
+          handleLessonCompletionChange(lessonId, shouldComplete)
+        }
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden relative">
         <header
