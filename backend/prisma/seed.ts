@@ -9,6 +9,180 @@ const prisma = new PrismaClient();
 
 const COURSE_ID = "f26180b2-5dda-495a-a014-ae02e63f172f";
 
+type SeedCourse = {
+  courseId?: string;
+  slug: string;
+  courseName: string;
+  description: string;
+  priceCents: number;
+  category: string;
+  level: string;
+  instructor: string;
+  durationMinutes: number;
+  rating: number;
+  students: number;
+  thumbnailUrl?: string;
+  heroVideoUrl?: string;
+  isFeatured?: boolean;
+};
+
+const SEED_COURSES: SeedCourse[] = [
+  {
+    courseId: COURSE_ID,
+    slug: "ai-in-web-development",
+    courseName: "AI in Web Development",
+    description:
+      "Master the integration of AI technologies in modern web development while building a complete end-to-end application with guided prompts and real project workflows.",
+    priceCents: 399900,
+    category: "AI & Machine Learning",
+    level: "Beginner",
+    instructor: "Dr. Sarah Chen",
+    durationMinutes: 8 * 60,
+    rating: 4.8,
+    students: 2847,
+    thumbnailUrl: "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=800&q=80",
+    heroVideoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    isFeatured: true,
+  },
+  {
+    slug: "full-stack-react-mastery",
+    courseName: "Full Stack React Mastery",
+    description:
+      "Complete guide to the React ecosystem including Next.js, TypeScript, testing, API design, and deployment best practices for production apps.",
+    priceCents: 649900,
+    category: "Frontend Development",
+    level: "Intermediate",
+    instructor: "Alex Rodriguez",
+    durationMinutes: 12 * 60,
+    rating: 4.9,
+    students: 1523,
+    thumbnailUrl: "https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&w=800&q=80",
+    heroVideoUrl: "https://www.youtube.com/embed/VYOjWnS4cMY",
+    isFeatured: true,
+  },
+  {
+    slug: "python-for-automation",
+    courseName: "Python for Automation",
+    description:
+      "Automate repetitive tasks and build powerful scripts with Python. Cover web scraping, file processing, API integration, and scheduling.",
+    priceCents: 319900,
+    category: "Python & Automation",
+    level: "Beginner",
+    instructor: "Maria Garcia",
+    durationMinutes: 6 * 60,
+    rating: 4.7,
+    students: 3241,
+    thumbnailUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    slug: "advanced-javascript-concepts",
+    courseName: "Advanced JavaScript Concepts",
+    description:
+      "Deep dive into JavaScript fundamentals, async flows, design patterns, and performance tuning to ship resilient frontends.",
+    priceCents: 569900,
+    category: "Programming Languages",
+    level: "Advanced",
+    instructor: "John Mitchell",
+    durationMinutes: 10 * 60,
+    rating: 4.8,
+    students: 2113,
+    thumbnailUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    slug: "human-centered-ui-design",
+    courseName: "Human-Centered UI Design",
+    description:
+      "Blend research, typography, accessibility, and prototyping to design delightful experiences with Figma and collaborative workflows.",
+    priceCents: 289900,
+    category: "Design",
+    level: "Intermediate",
+    instructor: "Priya Natarajan",
+    durationMinutes: 5 * 60,
+    rating: 4.6,
+    students: 1842,
+    thumbnailUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
+  },
+];
+
+type PageContentSeed = {
+  slug: string;
+  title: string;
+  subtitle?: string;
+  heroImage?: string;
+  sections: Prisma.JsonValue;
+};
+
+const PAGE_CONTENT: PageContentSeed[] = [
+  {
+    slug: "about",
+    title: "Learning that moves careers forward",
+    subtitle: "MetaLearn blends industry projects, senior mentors, and adaptive AI guidance so learners build skills with confidence.",
+    heroImage: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80",
+    sections: {
+      stats: [
+        { label: "Learners", value: "58K+" },
+        { label: "Instructors", value: "320+" },
+        { label: "Countries", value: "42" },
+      ],
+      highlights: [
+        {
+          title: "Career-first curriculum",
+          description: "Every module ends with a workplace scenario reviewed by mentors working at top product companies.",
+        },
+        {
+          title: "Personalized guidance",
+          description: "Adaptive study plans identify weak topics and recommend lessons, practice labs, or tutors automatically.",
+        },
+        {
+          title: "Verified credentials",
+          description: "Shareable course credentials and capstone reviews showcase real mastery to hiring teams.",
+        },
+      ],
+      values: [
+        { title: "People over vanity metrics", description: "We optimise for learner trust and job-readiness, not course starts." },
+        { title: "Learning transparently", description: "Clear syllabi, project rubrics, and success data keep everyone aligned." },
+        { title: "Built with industry", description: "Courses are co-designed with product orgs so skills match hiring needs." },
+      ],
+      faqs: [
+        {
+          question: "How are instructors vetted?",
+          answer: "Mentors submit teaching demos, project samples, and references. Only 8% make it onto the platform.",
+        },
+        {
+          question: "Do courses include live support?",
+          answer: "Each track offers weekly office hours, async Q&A, and AI copilots to unblock you faster.",
+        },
+      ],
+    },
+  },
+  {
+    slug: "courses",
+    title: "Curated tracks across tech, product, and creative skills",
+    subtitle: "Browse an ever-growing catalogue backed by mentor support, practice projects, and progress analytics.",
+    sections: {
+      categories: ["AI & ML", "Frontend", "Backend", "Cloud & DevOps", "Design", "Product"],
+      filters: ["Beginner friendly", "Includes certificate", "Live mentor hours", "Hands-on labs"],
+    },
+  },
+  {
+    slug: "become-a-tutor",
+    title: "Share your expertise with 58K+ motivated learners",
+    subtitle: "Launch a cohort-based experience or contribute on-demand lessons. We help with curriculum design, tooling, and analytics.",
+    sections: {
+      steps: [
+        { title: "Submit your course idea", description: "Tell us about the skills you teach and the outcomes learners can expect." },
+        { title: "Co-design the syllabus", description: "Our curriculum team helps structure modules, assessments, and projects." },
+        { title: "Launch with confidence", description: "We provide recording support, mentor training, and detailed learner analytics." },
+      ],
+      perks: [
+        { title: "Revenue sharing", description: "Earn up to 60% share on every learner and unlock milestone bonuses." },
+        { title: "Production support", description: "From studio hours to editors—we make content creation painless." },
+        { title: "Global reach", description: "Teach learners across 40+ countries with translations and AI dubbing built-in." },
+      ],
+    },
+  },
+];
+
 type CsvTopicRow = {
   topic_id: string;
   course_id: string;
@@ -71,23 +245,29 @@ async function loadTopicsFromCsv(csvPath: string, courseId: string): Promise<Pri
   }
 }
 
-async function seedCourse(): Promise<void> {
-  await prisma.course.upsert({
-    where: { courseId: COURSE_ID },
-    create: {
-      courseId: COURSE_ID,
-      courseName: "AI in Web Development",
-      description:
-        "Master the integration of AI technologies in modern web development while building a complete end-to-end application with guided prompts and real project workflows.",
-      priceCents: 399900,
-    },
-    update: {
-      courseName: "AI in Web Development",
-      description:
-        "Master the integration of AI technologies in modern web development while building a complete end-to-end application with guided prompts and real project workflows.",
-      priceCents: 399900,
-    },
-  });
+async function seedCourses(): Promise<void> {
+  for (const course of SEED_COURSES) {
+    const { courseId, ...rest } = course;
+    const payload = {
+      ...rest,
+      slug: rest.slug.toLowerCase(),
+      isFeatured: rest.isFeatured ?? false,
+    };
+
+    if (courseId) {
+      await prisma.course.upsert({
+        where: { courseId },
+        create: { courseId, ...payload },
+        update: payload,
+      });
+    } else {
+      await prisma.course.upsert({
+        where: { slug: payload.slug },
+        create: payload,
+        update: payload,
+      });
+    }
+  }
 }
 
 async function seedTopics(topics: Prisma.TopicCreateManyInput[]): Promise<void> {
@@ -117,10 +297,21 @@ async function main(): Promise<void> {
   const csvPath = path.resolve(__dirname, "..", "..", "topics_all_modules.csv");
 
   console.log("Seeding database...");
-  await seedCourse();
+  await seedCourses();
   const topics = await loadTopicsFromCsv(csvPath, COURSE_ID);
   await seedTopics(topics);
+  await seedPageContent();
   console.log("Database seed completed.");
+}
+
+async function seedPageContent(): Promise<void> {
+  for (const page of PAGE_CONTENT) {
+    await prisma.pageContent.upsert({
+      where: { slug: page.slug },
+      create: page,
+      update: page,
+    });
+  }
 }
 
 main()

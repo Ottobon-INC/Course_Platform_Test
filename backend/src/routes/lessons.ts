@@ -69,13 +69,18 @@ lessonsRouter.get(
     if (uuidRegex.test(courseKey)) {
       resolvedCourseId = courseKey;
     } else {
-      const normalizedName = courseKey.replace(/-/g, " ");
+      const normalizedName = courseKey.replace(/-/g, " ").trim();
       const course = await prisma.course.findFirst({
         where: {
-          courseName: {
-            equals: normalizedName,
-            mode: "insensitive",
-          },
+          OR: [
+            { slug: { equals: courseKey.toLowerCase() } },
+            {
+              courseName: {
+                equals: normalizedName,
+                mode: "insensitive",
+              },
+            },
+          ],
         },
         select: { courseId: true },
       });

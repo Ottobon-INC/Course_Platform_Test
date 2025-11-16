@@ -30,6 +30,8 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+import { DASHBOARD_CARD_SHADOW, DASHBOARD_GRADIENT_BG, FONT_INTER_STACK } from '@/constants/theme';
 
 type LessonContentType = 'video' | 'reading' | 'quiz';
 
@@ -907,13 +909,18 @@ export default function CoursePlayerPage() {
 
   if (courseLoading || lessonLoading || shouldShowModuleHydrationSpinner) {
     return (
-      <div
-        className="min-h-screen bg-background flex items-center justify-center"
-        data-testid="page-course-player-loading"
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading course...</p>
+      <div className={cn(FONT_INTER_STACK, "min-h-screen w-full")} style={{ background: DASHBOARD_GRADIENT_BG }}>
+        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div
+            className="flex min-h-[60vh] items-center justify-center rounded-[22px] bg-white shadow-2xl"
+            style={{ boxShadow: DASHBOARD_CARD_SHADOW }}
+            data-testid="page-course-player-loading"
+          >
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+              <p>Loading course...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -921,155 +928,146 @@ export default function CoursePlayerPage() {
 
   if (!resolvedLesson) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center" data-testid="page-lesson-not-found">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Lesson Not Found</h1>
-          <p className="text-muted-foreground">The requested lesson could not be found.</p>
-          <Button onClick={() => setLocation('/dashboard')} className="mt-4">
-            Go to Dashboard
-          </Button>
+      <div className={cn(FONT_INTER_STACK, "min-h-screen w-full")} style={{ background: DASHBOARD_GRADIENT_BG }}>
+        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
+          <div
+            className="flex min-h-[60vh] items-center justify-center rounded-[22px] bg-white shadow-2xl"
+            style={{ boxShadow: DASHBOARD_CARD_SHADOW }}
+            data-testid="page-lesson-not-found"
+          >
+            <div className="text-center">
+              <h1 className="mb-2 text-2xl font-bold">Lesson Not Found</h1>
+              <p className="text-muted-foreground">The requested lesson could not be found.</p>
+              <Button onClick={() => setLocation('/dashboard')} className="mt-4">
+                Go to Dashboard
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex overflow-x-hidden" data-testid="page-course-player">
-      {isMobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
-          data-testid="overlay-mobile-sidebar"
-        />
-      )}
-
-      <div
-        className={`${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:fixed z-50 lg:z-auto transition-transform flex-shrink-0 h-screen`}
-      >
-        <CourseSidebar
-          modules={sidebarModules}
-          progressPercent={progressInfo.percent}
-          completedCount={progressInfo.completedCount}
-          totalCount={progressInfo.totalCount}
-          onLessonSelect={(slug) => {
-            setLocation(`/course/${courseId}/learn/${slug}`);
-            setIsMobileSidebarOpen(false);
-          }}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          onToggleLessonComplete={(lessonId, shouldComplete) => handleLessonCompletionChange(lessonId, shouldComplete)}
-        />
-      </div>
-
-      <div
-        className={`flex-1 flex flex-col min-h-screen max-w-full overflow-x-hidden ${isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-80'} transition-all duration-300`}
-      >
+    <div className={cn(FONT_INTER_STACK, "min-h-screen w-full flex")} style={{ background: DASHBOARD_GRADIENT_BG }}>
+      <CourseSidebar
+        modules={sidebarModules}
+        isCollapsed={isSidebarCollapsed}
+        isMobileOpen={isMobileSidebarOpen}
+        setIsCollapsed={setIsSidebarCollapsed}
+        setIsMobileOpen={setIsMobileSidebarOpen}
+        courseTitle={course?.title ?? 'Course'}
+        progress={progressInfo.percent}
+      />
+      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden relative">
         <header
-          className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 lg:py-3 w-full"
-          data-testid="header-course-player"
+          className="flex-shrink-0 bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b border-border/60 shadow-sm px-4 sm:px-6 lg:px-8 py-3"
+          data-testid="page-header"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
-            <div className="flex items-center space-x-3">
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => setIsMobileSidebarOpen(true)}
-                className="lg:hidden"
-                data-testid="button-open-mobile-sidebar"
-              >
-                <Menu className="w-4 h-4" />
-              </Button>
+          <div className="w-full max-w-6xl mx-auto">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
+              <div className="flex items-center space-x-3">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="lg:hidden"
+                  data-testid="button-open-mobile-sidebar"
+                >
+                  <Menu className="w-4 h-4" />
+                </Button>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleBack}
-                  aria-label="Go back"
-                  className="border border-border/60"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleHome}
-                  aria-label="Go home"
-                  className="border border-border/60"
-                >
-                  <Home className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleBack}
+                    aria-label="Go back"
+                    className="border border-border/60"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleHome}
+                    aria-label="Go home"
+                    className="border border-border/60"
+                  >
+                    <Home className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate" data-testid="title-lesson">
+                    {resolvedLesson.rawTitle ?? resolvedLesson.title}
+                  </h1>
+                  <p className="text-sm text-muted-foreground truncate" data-testid="subtitle-course">
+                    {course?.title}
+                  </p>
+                </div>
               </div>
 
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate" data-testid="title-lesson">
-                  {resolvedLesson.rawTitle ?? resolvedLesson.title}
-                </h1>
-                <p className="text-sm text-muted-foreground truncate" data-testid="subtitle-course">
-                  {course?.title}
-                </p>
+              <div className="flex items-center gap-3">
+                <ThemeToggle />
+                {isAuthenticated && user ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="group flex items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-left text-sm font-medium text-foreground shadow-sm transition hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      >
+                        <Avatar className="h-9 w-9 border border-primary/20 bg-muted">
+                          {user.picture ? (
+                            <AvatarImage src={user.picture} alt={user.fullName} referrerPolicy="no-referrer" />
+                          ) : (
+                            <AvatarFallback className="text-sm font-semibold text-primary">
+                              {getUserInitials(user.fullName)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="hidden min-[420px]:flex min-w-0 flex-col leading-tight text-left">
+                          <span className="text-xs text-muted-foreground">Signed in</span>
+                          <span className="truncate text-sm font-semibold">{user.fullName}</span>
+                        </div>
+                        <span className="min-[420px]:hidden text-sm font-semibold">
+                          {user.fullName.split(' ')[0] || getUserInitials(user.fullName)}
+                        </span>
+                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-60" sideOffset={8}>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-semibold leading-none">{user.fullName}</span>
+                          <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="flex items-center gap-2" onSelect={handleProfileClick}>
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="flex items-center gap-2" onSelect={handleSettingsClick}>
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="flex items-center gap-2 text-destructive focus:text-destructive"
+                        onSelect={handleLogout}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={handleHome}>
+                    Sign in
+                  </Button>
+                )}
               </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              {isAuthenticated && user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="group flex items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-left text-sm font-medium text-foreground shadow-sm transition hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <Avatar className="h-9 w-9 border border-primary/20 bg-muted">
-                        {user.picture ? (
-                          <AvatarImage src={user.picture} alt={user.fullName} referrerPolicy="no-referrer" />
-                        ) : (
-                          <AvatarFallback className="text-sm font-semibold text-primary">
-                            {getUserInitials(user.fullName)}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="hidden min-[420px]:flex min-w-0 flex-col leading-tight text-left">
-                        <span className="text-xs text-muted-foreground">Signed in</span>
-                        <span className="truncate text-sm font-semibold">{user.fullName}</span>
-                      </div>
-                      <span className="min-[420px]:hidden text-sm font-semibold">
-                        {user.fullName.split(' ')[0] || getUserInitials(user.fullName)}
-                      </span>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-60" sideOffset={8}>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-semibold leading-none">{user.fullName}</span>
-                        <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="flex items-center gap-2" onSelect={handleProfileClick}>
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2" onSelect={handleSettingsClick}>
-                      <Settings className="h-4 w-4 text-muted-foreground" />
-                      Settings
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="flex items-center gap-2 text-destructive focus:text-destructive"
-                      onSelect={handleLogout}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button variant="outline" size="sm" onClick={handleHome}>
-                  Sign in
-                </Button>
-              )}
             </div>
           </div>
         </header>
@@ -1130,11 +1128,9 @@ export default function CoursePlayerPage() {
               />
             </div>
           </div>
+          <ChatBot courseName={course?.title} />
         </div>
       </div>
-
-      <ChatBot courseName={course?.title} />
     </div>
   );
 }
-

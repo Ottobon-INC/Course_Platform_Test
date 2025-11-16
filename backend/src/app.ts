@@ -7,6 +7,9 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { cartRouter } from "./routes/cart";
 import { lessonsRouter } from "./routes/lessons";
+import { coursesRouter } from "./routes/courses";
+import { tutorApplicationsRouter } from "./routes/tutorApplications";
+import { pagesRouter } from "./routes/pages";
 import { env } from "./config/env";
 
 export function createApp(): Express {
@@ -43,6 +46,9 @@ export function createApp(): Express {
   app.use("/users", usersRouter);
   app.use("/cart", cartRouter);
   app.use("/lessons", lessonsRouter);
+  app.use("/courses", coursesRouter);
+  app.use("/tutor-applications", tutorApplicationsRouter);
+  app.use("/pages", pagesRouter);
 
   // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
   const apiRouter = express.Router();
@@ -51,6 +57,9 @@ export function createApp(): Express {
   apiRouter.use("/users", usersRouter);
   apiRouter.use("/cart", cartRouter);
   apiRouter.use("/lessons", lessonsRouter);
+  apiRouter.use("/courses", coursesRouter);
+  apiRouter.use("/tutor-applications", tutorApplicationsRouter);
+  apiRouter.use("/pages", pagesRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

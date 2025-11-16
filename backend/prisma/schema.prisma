@@ -25,10 +25,21 @@ model User {
 
 model Course {
   courseId    String      @id @default(dbgenerated("gen_random_uuid()")) @map("course_id") @db.Uuid
+  slug        String      @unique @map("slug")
   courseName  String      @map("course_name")
   description String
   priceCents  Int         @default(0) @map("price_cents")
+  category    String      @default("General") @map("category")
+  level       String      @default("Beginner") @map("level")
+  instructor  String      @default("Staff Instructor") @map("instructor")
+  durationMinutes Int     @default(0) @map("duration_minutes")
+  rating      Float       @default(4.5) @map("rating")
+  students    Int         @default(0) @map("students")
+  thumbnailUrl String?    @map("thumbnail_url")
+  heroVideoUrl String?    @map("hero_video_url")
+  isFeatured  Boolean     @default(false) @map("is_featured")
   createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
   cartLines   CartLine[]
   enrollments Enrollment[]
   topics      Topic[]
@@ -125,4 +136,37 @@ model UserSession {
 
   @@index([userId], map: "idx_user_sessions_user_id")
   @@map("user_sessions")
+}
+
+model TutorApplication {
+  applicationId      String   @id @default(dbgenerated("gen_random_uuid()")) @map("application_id") @db.Uuid
+  fullName           String   @map("full_name")
+  email              String
+  phone              String?
+  expertiseArea      String   @map("expertise_area")
+  proposedCourseTitle String  @map("proposed_course_title")
+  courseLevel        String?  @map("course_level")
+  deliveryFormat     String?  @map("delivery_format")
+  availability       String?  @map("availability")
+  experienceYears    Int?     @map("experience_years")
+  outline            String?  @map("course_outline")
+  motivation         String?
+  status             String   @default("pending")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("tutor_applications")
+}
+
+model PageContent {
+  pageId     String   @id @default(dbgenerated("gen_random_uuid()")) @map("page_id") @db.Uuid
+  slug       String   @unique
+  title      String
+  subtitle   String?
+  heroImage  String?  @map("hero_image")
+  sections   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("page_content")
 }

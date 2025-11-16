@@ -7,11 +7,20 @@ import { useToast } from '@/hooks/use-toast';
 import type { CartItem, CartResponse } from '@/types/cart';
 import type { StoredSession } from '@/types/session';
 import { buildApiUrl } from '@/lib/api';
-import { ShoppingCart, X, Trash2, Star, Clock, Users, CreditCard, ArrowLeft, Home } from 'lucide-react';
+import { ShoppingCart, Trash2, Star, Clock, Users, CreditCard, Home, PartyPopper, CheckCircle2 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle'; // Import ThemeToggle
+import { SiteLayout } from '@/components/layout/SiteLayout';
+
+const INR_FORMATTER = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+});
+
+const formatCurrency = (value: number) => INR_FORMATTER.format(Math.max(0, Math.round(value)));
 
 export default function CartPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -260,73 +269,66 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setLocation('/dashboard')}
-                className="hover:bg-muted"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[hsl(var(--gradient-text-from))] to-[hsl(var(--gradient-text-to))] bg-clip-text text-transparent">
-                Shopping Cart
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <ThemeToggle /> {/* Theme toggle button */}
-              <Button 
-                variant="outline"
-                onClick={() => setLocation('/dashboard')}
-                className="hidden sm:flex"
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 sm:py-8 lg:py-10">
-        {isLoadingCart ? (
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="w-12 h-12 border-2 border-muted-foreground/40 border-t-transparent rounded-full animate-spin" />
+    <SiteLayout
+      headerProps={{
+        cartCount: cart.length,
+        currentPath: location,
+        onNavigate: (href) => setLocation(href),
+        showSearch: false,
+        isAuthenticated,
+        onLoginClick: () => setLocation('/dashboard'),
+      }}
+      contentClassName="space-y-8"
+    >
+            <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50/70 p-4 transition-all duration-500 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Cart overview</p>
+                <h1 className="text-3xl font-bold text-slate-900">Shopping Cart</h1>
+                <p className="text-sm text-slate-500">Review your curated courses and continue checkout whenever you’re ready.</p>
               </div>
-              <p className="text-sm text-muted-foreground">Loading your cart...</p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation('/dashboard')}
+                  className="hidden sm:inline-flex border-slate-200 text-slate-700 hover:bg-slate-100"
+                >
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Dashboard
+                </Button>
+                <ThemeToggle />
+              </div>
             </div>
-          </div>
-        ) : cart.length === 0 ? (
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="flex justify-center">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-muted flex items-center justify-center">
-                  <ShoppingCart className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50" />
+
+            <section className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-sm transition-all duration-500 sm:p-6">
+              {isLoadingCart ? (
+                <div className="flex min-h-[40vh] items-center justify-center">
+                  <div className="space-y-4 text-center">
+                    <div className="flex justify-center">
+                      <div className="h-12 w-12 animate-spin rounded-full border-2 border-emerald-200 border-t-transparent" />
+                    </div>
+                    <p className="text-sm text-slate-500">Loading your cart...</p>
+                  </div>
                 </div>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Your cart is empty</h2>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Explore our courses and add them to your cart to get started on your learning journey!
-              </p>
-              <Button 
-                onClick={() => setLocation('/dashboard')}
-                className="mt-6 bg-gradient-to-r from-[hsl(var(--gradient-text-from))] to-[hsl(var(--gradient-text-to))]"
-              >
-                Browse Courses
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+              ) : cart.length === 0 ? (
+                <div className="flex min-h-[40vh] items-center justify-center text-center">
+                  <div className="space-y-4">
+                    <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-slate-100">
+                      <ShoppingCart className="h-10 w-10 text-slate-400" />
+                    </div>
+                    <h2 className="text-2xl font-semibold text-slate-900">Your cart is empty</h2>
+                    <p className="text-sm text-slate-500">
+                      Explore new tracks and add them to your cart to build a personalised learning plan.
+                    </p>
+                    <Button
+                      onClick={() => setLocation('/dashboard')}
+                      className="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
+                    >
+                      Browse courses
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Cart Items - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between mb-4">
@@ -354,8 +356,8 @@ export default function CartPage() {
                       <div className="flex flex-col sm:flex-row gap-4">
                         {/* Course Thumbnail */}
                         <div className="flex-shrink-0">
-                          <div className="w-full sm:w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-3xl sm:text-2xl">
-                            {item.thumbnail || '📚'}
+                          <div className="w-full sm:w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-3xl sm:text-2xl text-white">
+                            {item.thumbnail || 'AI'}
                           </div>
                         </div>
 
@@ -379,7 +381,7 @@ export default function CartPage() {
                                 </Badge>
                               )}
                               <span className="text-lg sm:text-xl font-bold whitespace-nowrap text-foreground">
-                                ₹{item.price}
+                                {formatCurrency(item.price)}
                               </span>
                             </div>
                           </div>
@@ -453,29 +455,28 @@ export default function CartPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm sm:text-base">
                       <span className="text-muted-foreground">Subtotal ({cart.length} {cart.length === 1 ? 'item' : 'items'})</span>
-                      <span className="font-medium text-foreground">₹{totalCartValue}</span>
+                      <span className="font-medium text-foreground">{formatCurrency(totalCartValue)}</span>
                     </div>
                     {cart.length > 1 && (
                       <div className="flex justify-between text-sm sm:text-base text-green-600 dark:text-green-400">
                         <span>Bundle Discount (20%)</span>
-                        <span>-₹{totalSavings.toFixed(0)}</span>
+                        <span>-{formatCurrency(totalSavings)}</span>
                       </div>
                     )}
                     <div className="border-t border-border pt-3">
                       <div className="flex justify-between font-semibold text-lg sm:text-xl">
                         <span className="text-foreground">Total</span>
                         <span className="bg-gradient-to-r from-[hsl(var(--gradient-text-from))] to-[hsl(var(--gradient-text-to))] bg-clip-text text-transparent">
-                          ₹{cart.length > 1 ? (totalCartValue - totalSavings).toFixed(0) : totalCartValue}
+                          {formatCurrency(cart.length > 1 ? totalCartValue - totalSavings : totalCartValue)}
                         </span>
                       </div>
                     </div>
                   </div>
 
                   {cart.length > 1 && (
-                    <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                      <p className="text-xs sm:text-sm text-green-700 dark:text-green-400 font-medium">
-                        🎉 You're saving ₹{totalSavings.toFixed(0)} with the bundle discount!
-                      </p>
+                    <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-xs font-medium text-green-700 dark:border-green-800 dark:bg-green-950/20 dark:text-green-400">
+                      <PartyPopper className="h-4 w-4" />
+                      <span>You're saving {formatCurrency(totalSavings)} with the bundle discount!</span>
                     </div>
                   )}
 
@@ -491,12 +492,12 @@ export default function CartPage() {
                           Processing...
                         </span>
                       ) : (
-                        `Checkout - ₹${cart.length > 1 ? (totalCartValue - totalSavings).toFixed(0) : totalCartValue}`
+                        `Checkout - ${formatCurrency(cart.length > 1 ? totalCartValue - totalSavings : totalCartValue)}`
                       )}
                     </Button>
 
                     <div className="text-xs text-center text-muted-foreground">
-                      🛡️ 30-day money-back guarantee
+                      30-day money-back guarantee
                     </div>
                   </div>
 
@@ -504,30 +505,25 @@ export default function CartPage() {
                   <div className="space-y-3 pt-4 border-t border-border">
                     <h4 className="font-semibold text-sm text-foreground">What's included:</h4>
                     <ul className="text-xs sm:text-sm text-muted-foreground space-y-2">
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>Lifetime access to all courses</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>Certificate of completion</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>Mobile and desktop access</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>24/7 student support</span>
-                      </li>
+                      {[
+                        'Lifetime access to every lesson and update',
+                        'Shareable certificate of completion',
+                        'Optimised for mobile and desktop',
+                        '24/7 mentor-supported chat',
+                      ].map((perk) => (
+                        <li key={perk} className="flex items-start gap-2">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+                          <span>{perk}</span>
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+                </div>
+              )}
+            </section>
+    </SiteLayout>
   );
 }

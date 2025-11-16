@@ -10,6 +10,9 @@ import CoursePlayerPage from "@/pages/CoursePlayerPage";
 import DashboardPage from "@/pages/DashboardPage";
 import CartPage from "@/pages/CartPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
+import CoursesPage from "@/pages/CoursesPage";
+import BecomeTutorPage from "@/pages/BecomeTutorPage";
+import AboutPage from "@/pages/AboutPage";
 
 function Router() {
   return (
@@ -19,6 +22,9 @@ function Router() {
       
       {/* Cart Route */}
       <Route path="/cart" component={CartPage} />
+      <Route path="/courses" component={CoursesPage} />
+      <Route path="/become-a-tutor" component={BecomeTutorPage} />
+      <Route path="/about" component={AboutPage} />
       
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />

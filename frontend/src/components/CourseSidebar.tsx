@@ -156,10 +156,10 @@ export default function CourseSidebar({
 
   return (
     <div
-      className="min-w-80 max-w-96 w-80 bg-sidebar border-r border-sidebar-border flex flex-col h-screen overflow-x-hidden"
+      className="course-player-sidebar min-w-80 max-w-96 w-80 border-r flex flex-col h-screen overflow-x-hidden"
       data-testid="sidebar-expanded"
     >
-      <div className="p-6 border-b border-sidebar-border flex-shrink-0">
+      <div className="p-6 border-b flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold" data-testid="title-course-content">
             Course Content
@@ -212,7 +212,7 @@ export default function CourseSidebar({
           filteredModules.map((module) => (
             <div
               key={module.id}
-              className="rounded-2xl border border-sidebar-border/60 bg-sidebar/60 backdrop-blur"
+              className="course-player-module rounded-2xl border backdrop-blur"
             >
               <Collapsible
                 open={expandedModules.has(module.id)}
