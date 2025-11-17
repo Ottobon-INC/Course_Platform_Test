@@ -802,6 +802,20 @@ export default function CoursePlayerPage() {
     });
   };
 
+  const handleLessonSelect = useCallback(
+    (lessonSlug: string) => {
+      if (!courseId) {
+        return;
+      }
+
+      setLocation(`/course/${courseId}/learn/${lessonSlug}`);
+      if (isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false);
+      }
+    },
+    [courseId, isMobileSidebarOpen, setLocation]
+  );
+
   const handleBack = () => {
     if (window.history.length > 1) {
       window.history.back();
@@ -947,21 +961,6 @@ export default function CoursePlayerPage() {
       </div>
     );
   }
-
-  const handleLessonSelect = useCallback(
-    (lessonSlug: string) => {
-      if (!courseId) {
-        return;
-      }
-
-      setLocation(`/course/${courseId}/learn/${lessonSlug}`);
-      if (isMobileSidebarOpen) {
-        setIsMobileSidebarOpen(false);
-      }
-    },
-    [courseId, isMobileSidebarOpen, setLocation]
-  );
-
   return (
     <div className={cn(FONT_INTER_STACK, "min-h-screen w-full flex")} style={{ background: DASHBOARD_GRADIENT_BG }}>
       <CourseSidebar
