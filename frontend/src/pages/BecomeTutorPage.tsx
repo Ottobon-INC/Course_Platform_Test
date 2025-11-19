@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { CheckCircle2, Presentation, Send } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Layers, Sparkles } from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
 import type {
   PageContentEntry,
@@ -21,15 +21,25 @@ const INITIAL_FORM = {
   fullName: "",
   email: "",
   phone: "",
+  headline: "",
+  courseTitle: "",
+  courseDescription: "",
+  targetAudience: "",
   expertiseArea: "",
-  proposedCourseTitle: "",
-  courseLevel: "",
-  deliveryFormat: "",
-  availability: "",
   experienceYears: "",
-  outline: "",
-  motivation: "",
+  availability: "",
 };
+
+const highlightCards = [
+  {
+    title: "AI in Web Development blueprint",
+    description: "We’ll use the same production and growth playbook that scaled our flagship AI course to thousands of learners.",
+  },
+  {
+    title: "Studio + launch crew",
+    description: "Scripting, recording, post-production, launch operations, and analytics dashboards included.",
+  },
+];
 
 export default function BecomeTutorPage() {
   const [location, setLocation] = useLocation();
@@ -53,10 +63,9 @@ export default function BecomeTutorPage() {
         const payload = (await response.json()) as PageContentResponse;
         setContent(payload.page);
       } catch (err) {
-        if ((err as Error).name === "AbortError") {
-          return;
+        if ((err as Error).name !== "AbortError") {
+          console.error("Failed to fetch tutor page", err);
         }
-        console.error("Failed to fetch tutor page", err);
       } finally {
         if (!controller.signal.aborted) {
           setIsLoadingContent(false);
@@ -70,9 +79,7 @@ export default function BecomeTutorPage() {
 
   const steps = (content?.sections.steps ?? []) as Array<{ title: string; description: string }>;
   const perks = (content?.sections.perks ?? []) as Array<{ title: string; description: string }>;
-  const heroHeading = "Add your course to MetaLearn and start earning.";
-  const heroSubtitle =
-    "Share your course idea, drop your outline, and we’ll co-produce the cohort with mentors, editors, and launch support.";
+
   const inputClassName =
     "h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base shadow-inner focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-0";
   const textareaClassName =
@@ -94,14 +101,13 @@ export default function BecomeTutorPage() {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim() || undefined,
+        headline: formData.headline.trim(),
+        courseTitle: formData.courseTitle.trim(),
+        courseDescription: formData.courseDescription.trim(),
+        targetAudience: formData.targetAudience.trim(),
         expertiseArea: formData.expertiseArea.trim(),
-        proposedCourseTitle: formData.proposedCourseTitle.trim(),
-        courseLevel: formData.courseLevel.trim() || undefined,
-        deliveryFormat: formData.deliveryFormat.trim() || undefined,
-        availability: formData.availability.trim() || undefined,
         experienceYears: formData.experienceYears ? Number(formData.experienceYears) : undefined,
-        outline: formData.outline.trim(),
-        motivation: formData.motivation.trim(),
+        availability: formData.availability.trim(),
       };
 
       const response = await fetch(buildApiUrl("/tutor-applications"), {
@@ -120,16 +126,15 @@ export default function BecomeTutorPage() {
       setFormData(INITIAL_FORM);
       toast({
         title: "Application received",
-        description: "Our partnerships team will respond within 2-3 business days.",
+        description: "Thanks for reaching out! We’ll respond within 3 business days.",
       });
-    } catch (err) {
-      console.error("Failed to submit tutor application", err);
-      const message = err instanceof Error ? err.message : "Unexpected error";
-      setSubmitError(message);
+    } catch (error) {
+      console.error("Failed to submit tutor application", error);
+      setSubmitError((error as Error).message ?? "Submission failed");
       toast({
         variant: "destructive",
-        title: "Could not submit",
-        description: "Please review the form and try again.",
+        title: "Submission failed",
+        description: (error as Error).message ?? "Please try again",
       });
     } finally {
       setIsSubmitting(false);
@@ -146,255 +151,282 @@ export default function BecomeTutorPage() {
       }}
       contentClassName="space-y-10"
     >
-      <section className="space-y-8 rounded-3xl border border-slate-100 bg-white/95 p-6 sm:p-10 shadow-sm">
-        <div className="space-y-3">
+      <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-[32px] border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-8 shadow-xl shadow-emerald-100/60">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Teach with MetaLearn</p>
-          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">{heroHeading}</h1>
-          <p className="text-base text-slate-600">{heroSubtitle}</p>
-          <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Revenue share up to 60%
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Studio & editing support
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Launch help + analytics
-            </span>
+          <div className="mt-4 space-y-4">
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+              Launch the next AI learning experience.
+            </h1>
+            <p className="text-base text-slate-600 sm:text-lg">
+              Share your signature curriculum, drop your outline, and we’ll co-produce your cohort with the same team that built our
+              AI in Web Development program.
+            </p>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-600">
+            {["Revenue share up to 60%", "Studio + editing", "Launch ops & analytics"].map((item) => (
+              <span key={item} className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-1.5 text-emerald-700">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                {item}
+              </span>
+            ))}
           </div>
         </div>
-
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-1">
-            <Label htmlFor="fullName">Full name</Label>
-            <Input
-              id="fullName"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-              minLength={3}
-              className={inputClassName}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className={inputClassName}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+1 555 555 0123"
-                className={inputClassName}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="expertiseArea">Expertise area</Label>
-              <Input
-                id="expertiseArea"
-                name="expertiseArea"
-                value={formData.expertiseArea}
-                onChange={handleChange}
-                required
-                minLength={3}
-                className={inputClassName}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="proposedCourseTitle">Proposed course title</Label>
-              <Input
-                id="proposedCourseTitle"
-                name="proposedCourseTitle"
-                value={formData.proposedCourseTitle}
-                onChange={handleChange}
-                required
-                minLength={4}
-                className={inputClassName}
-              />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1">
-              <Label htmlFor="courseLevel">Target level</Label>
-              <Input
-                id="courseLevel"
-                name="courseLevel"
-                value={formData.courseLevel}
-                onChange={handleChange}
-                placeholder="Beginner"
-                className={inputClassName}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="deliveryFormat">Delivery format</Label>
-              <Input
-                id="deliveryFormat"
-                name="deliveryFormat"
-                value={formData.deliveryFormat}
-                onChange={handleChange}
-                placeholder="Cohort, self-paced, hybrid"
-                className={inputClassName}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="experienceYears">Years of teaching</Label>
-              <Input
-                id="experienceYears"
-                name="experienceYears"
-                type="number"
-                min="0"
-                max="60"
-                value={formData.experienceYears}
-                onChange={handleChange}
-                className={inputClassName}
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="availability">Availability & timeline</Label>
-            <Input
-              id="availability"
-              name="availability"
-              value={formData.availability}
-              onChange={handleChange}
-              placeholder="e.g., 6 weeks from now, evenings only"
-              className={inputClassName}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="outline">Course outline (modules, projects)</Label>
-            <Textarea
-              id="outline"
-              name="outline"
-              rows={4}
-              value={formData.outline}
-              onChange={handleChange}
-              required
-              minLength={20}
-              className={textareaClassName}
-            />
-            <p className="text-xs text-slate-500">Minimum 20 characters.</p>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="motivation">Motivation & teaching approach</Label>
-            <Textarea
-              id="motivation"
-              name="motivation"
-              rows={4}
-              value={formData.motivation}
-              onChange={handleChange}
-              required
-              minLength={20}
-              className={textareaClassName}
-            />
-            <p className="text-xs text-slate-500">Minimum 20 characters.</p>
-          </div>
-          {submitError ? <p className="text-sm text-red-500">{submitError}</p> : null}
-          {submissionId ? (
-            <p className="text-sm text-emerald-600">
-              Application #{submissionId.slice(0, 8)} received. We will reply over email shortly.
-            </p>
-          ) : null}
-          <Button
-            type="submit"
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-300/40 hover:from-emerald-400 hover:to-teal-400"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit application"}
-            <Send className="ml-2 h-4 w-4" />
-          </Button>
-        </form>
-      </section>
-
-      <section className="grid gap-4 rounded-3xl border border-slate-100 bg-white p-6 sm:grid-cols-3">
-        {(isLoadingContent ? Array.from({ length: 3 }) : steps).map((step, index) =>
-          isLoadingContent ? (
-            <Skeleton key={`step-skeleton-${index}`} className="h-36 rounded-2xl bg-slate-100" />
-          ) : (
-            <div key={step.title} className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-center gap-2 text-sm uppercase tracking-wide text-emerald-600">
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Step {index + 1}</span>
-              </div>
-              <p className="text-base font-semibold text-slate-900">{step.title}</p>
-              <p className="text-sm text-slate-600">{step.description}</p>
-            </div>
-          ),
-        )}
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        {(isLoadingContent ? Array.from({ length: 3 }) : perks).map((perk, index) =>
-          isLoadingContent ? (
-            <Skeleton key={`perk-skeleton-${index}`} className="h-32 rounded-2xl bg-slate-100" />
-          ) : (
-            <Card key={perk.title} className="border-slate-100 bg-white shadow-sm">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-base font-semibold text-slate-900">{perk.title}</p>
-                <p className="text-sm text-slate-600">{perk.description}</p>
+        <div className="grid gap-4">
+          {highlightCards.map((card) => (
+            <Card key={card.title} className="border border-white/70 bg-white/80 shadow-sm">
+              <CardContent className="flex items-start gap-4 p-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-slate-900">{card.title}</p>
+                  <p className="text-sm text-slate-600">{card.description}</p>
+                </div>
               </CardContent>
             </Card>
-          ),
-        )}
+          ))}
+          <Card className="border border-slate-200 bg-white/90 shadow-lg">
+            <CardContent className="space-y-3 p-6">
+              <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
+                <Layers className="h-4 w-4" />
+                Playbook
+              </div>
+              {(isLoadingContent ? Array.from({ length: 2 }) : perks.slice(0, 2)).map((perk, index) => (
+                <div key={`perk-${index}`} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                  {isLoadingContent ? (
+                    <>
+                      <Skeleton className="mb-2 h-4 w-1/2" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-slate-900">{perk.title}</p>
+                      <p className="text-sm text-slate-600">{perk.description}</p>
+                    </>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
-      <section className="grid gap-6 rounded-3xl border border-slate-100 bg-white p-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-slate-900">What we look for</h3>
-            <p className="text-sm text-slate-600">
-              Share recordings, slides, demo projects, or any proof of teaching. The stronger the evidence, the faster we launch your program.
-            </p>
-          </div>
-          <div className="space-y-3 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <Presentation className="h-4 w-4 text-emerald-500" />
-              Studio support
+      <section className="grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
+        <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-100/70">
+          <CardContent className="p-8">
+            <div className="flex flex-col gap-2 pb-6">
+              <h2 className="text-2xl font-semibold text-slate-900">Submit your course proposal</h2>
+              <p className="text-sm text-slate-600">
+                Tell us who you are and how your course will transform learners. We review every application manually.
+              </p>
             </div>
-            <p className="text-sm text-slate-600">
-              We provide teleprompters, editing, captions, and producer support so you can focus on teaching.
-            </p>
-          </div>
-          <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">Cohort economics snapshot</p>
-            <ul className="list-inside list-disc text-sm text-slate-600">
-              <li>Average cohort size: 45 learners</li>
-              <li>Avg. NPS: 63</li>
-              <li>Payouts delivered monthly with analytics dashboard</li>
-            </ul>
-          </div>
-        </div>
-        <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 text-sm text-slate-600">
-          <p className="font-semibold text-slate-900">Need inspiration?</p>
-          <p>
-            Browse live tracks, talk to other creators, or schedule a quick call with our partnerships team. We’ll help you shape the first module,
-            record the pilot, and invite the first learners.
-          </p>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-100" onClick={() => setLocation("/courses")}>
-              See live courses
-            </Button>
-            <Button className="bg-emerald-500 text-white hover:bg-emerald-400" onClick={() => setLocation("/about")}>
-              Talk to us
-            </Button>
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full name</Label>
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    placeholder="Vanapalli Jaswanth"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="headline">Professional headline</Label>
+                  <Input
+                    id="headline"
+                    name="headline"
+                    placeholder="AI engineer, mentor & curriculum designer"
+                    value={formData.headline}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="you@studio.dev"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone / WhatsApp</Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    placeholder="+1 555 555 0123"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expertiseArea">Expertise area</Label>
+                <Input
+                  id="expertiseArea"
+                  name="expertiseArea"
+                  placeholder="AI coaching, product engineering, GTM strategy..."
+                  value={formData.expertiseArea}
+                  onChange={handleChange}
+                  className={inputClassName}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="courseTitle">Course title</Label>
+                  <Input
+                    id="courseTitle"
+                    name="courseTitle"
+                    placeholder="Scaling AI copilots for the enterprise"
+                    value={formData.courseTitle}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="availability">Availability</Label>
+                  <Input
+                    id="availability"
+                    name="availability"
+                    placeholder="Ready to record in Dec · evenings IST"
+                    value={formData.availability}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="experienceYears">Years of experience</Label>
+                <Input
+                  id="experienceYears"
+                  name="experienceYears"
+                  type="number"
+                  min={0}
+                  max={60}
+                  placeholder="5"
+                  value={formData.experienceYears}
+                  onChange={handleChange}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="courseDescription">Course description</Label>
+                <Textarea
+                  id="courseDescription"
+                  name="courseDescription"
+                  rows={4}
+                  placeholder="Describe the transformation learners will experience, the modules you have in mind, and the core projects."
+                  value={formData.courseDescription}
+                  onChange={handleChange}
+                  className={textareaClassName}
+                  required
+                  minLength={16}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="targetAudience">Target audience</Label>
+                <Textarea
+                  id="targetAudience"
+                  name="targetAudience"
+                  rows={3}
+                  placeholder="Who is this for? Mention their current role, skill gaps, and why you can help them level up."
+                  value={formData.targetAudience}
+                  onChange={handleChange}
+                  className={textareaClassName}
+                  required
+                  minLength={4}
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="text-sm text-slate-500">
+                  {submitError ? <span className="text-red-500">{submitError}</span> : "We reply within 3 business days."}
+                  {submissionId ? <span className="ml-2 text-emerald-600">Ref: {submissionId}</span> : null}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-200/60 hover:bg-emerald-400"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                  {isSubmitting ? "Submitting..." : "Submit proposal"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+            <CardContent className="space-y-4 p-6">
+              <div className="inline-flex items-center gap-2 text-sm text-emerald-200">
+                <CheckCircle2 className="h-4 w-4" />
+                In good company
+              </div>
+              <div className="space-y-2">
+                <p className="text-lg font-semibold">From outline to launch</p>
+                <p className="text-sm text-white/80">
+                  You focus on teaching; we replicate the AI in Web Development cohort formula—content strategy, studio production,
+                  landing page, payments, and community ops.
+                </p>
+              </div>
+              <ul className="space-y-2 text-sm text-white/80">
+                {["Content strategy & scripting", "Studio-quality recording", "Analytics & growth loops"].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-100 bg-white/80 shadow-lg">
+            <CardContent className="space-y-4 p-6">
+              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-emerald-600">
+                <Sparkles className="h-4 w-4" />
+                How it works
+              </div>
+              <div className="space-y-3">
+                {(isLoadingContent ? Array.from({ length: 3 }) : steps.slice(0, 3)).map((step, index) => (
+                  <div key={`step-${index}`} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                    {isLoadingContent ? (
+                      <>
+                        <Skeleton className="mb-2 h-4 w-1/3" />
+                        <Skeleton className="h-4 w-5/6" />
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold text-slate-400">Step {index + 1}</p>
+                        <p className="text-base font-semibold text-slate-900">{step.title}</p>
+                        <p className="text-sm text-slate-600">{step.description}</p>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
     </SiteLayout>

@@ -311,9 +311,6 @@ const baseModuleDefinitions: ModuleDefinition[] = [
   }
 ];
 
-const defaultModuleOneTitle =
-  baseModuleDefinitions.find((module) => module.id === 'module-1')?.title ?? 'Module 1';
-
 export const computeProgress = (modules: SidebarModule[]) => {
   const allLessons = modules.flatMap((module) => module.lessons);
   const totalCount = allLessons.length;
@@ -373,28 +370,13 @@ export default function CoursePlayerPage() {
     setAuthChecked(true);
   }, []);
 
-  // Module 0 hosts the course introduction topics that should surface ahead of numbered modules.
   const {
-    data: introductionTopicsResponse,
-    isLoading: introductionTopicsLoading,
-    refetch: introductionTopicsQueryRefetch,
+    data: courseTopicsResponse,
+    isLoading: courseTopicsLoading,
+    refetch: courseTopicsRefetch,
   } = useQuery<{ topics: ModuleTopic[] }>({
-    queryKey: ['/api/lessons/modules/0/topics'],
-    enabled: authChecked && isAuthenticated,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true,
-  });
-
-  // Module 1 remains the first numbered module; fetch it so content stays aligned with the database.
-  const {
-    data: moduleTopicsResponse,
-    isLoading: moduleTopicsLoading,
-    refetch: moduleTopicsQueryRefetch,
-  } = useQuery<{ topics: ModuleTopic[] }>({
-    queryKey: ['/api/lessons/modules/1/topics'],
-    enabled: authChecked && isAuthenticated,
+    queryKey: [`/api/lessons/courses/${courseId ?? 'unknown'}/topics`],
+    enabled: Boolean(courseId) && authChecked && isAuthenticated,
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
@@ -402,18 +384,19 @@ export default function CoursePlayerPage() {
   });
 
   useEffect(() => {
-    if (authChecked && isAuthenticated) {
-      introductionTopicsQueryRefetch();
-      moduleTopicsQueryRefetch();
+    if (!courseId || !authChecked || !isAuthenticated) {
+      return;
     }
-  }, [lessonSlug, authChecked, isAuthenticated, introductionTopicsQueryRefetch, moduleTopicsQueryRefetch]);
 
-  const introductionTopics = introductionTopicsResponse?.topics ?? [];
-  const moduleOneTopics = moduleTopicsResponse?.topics ?? [];
+    courseTopicsRefetch();
+  }, [lessonSlug, authChecked, isAuthenticated, courseId, courseTopicsRefetch]);
 
-  const introductionLessons = useMemo<LessonWithProgress[]>(() => {
-    // Convert module 0 topics into the lesson shape consumed by the rest of the player.
-    return introductionTopics.map((topic) => {
+  const courseTopics = courseTopicsResponse?.topics ?? [];
+
+  const groupedModuleContent = useMemo(() => {
+    const modules = new Map<number, { topics: ModuleTopic[]; lessons: LessonWithProgress[] }>();
+
+    const createLessonFromTopic = (topic: ModuleTopic): LessonWithProgress => {
       const slugBase = slugify(topic.topicName, topic.topicId);
       const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
       const normalizedType = (topic.contentType ?? 'video').toLowerCase();
@@ -429,43 +412,53 @@ export default function CoursePlayerPage() {
         type: lessonType,
         videoUrl: normalizeVideoUrl(topic.videoUrl),
         notes: topic.textContent ?? '',
-        orderIndex: topic.topicNumber,
+        orderIndex: topic.moduleNo === 0 ? topic.topicNumber : topic.topicNumber - 1,
         isPreview: topic.isPreview,
         createdAt: new Date(),
         updatedAt: new Date(),
         completed: false,
-        progress: 0
+        progress: 0,
       };
-    });
-  }, [introductionTopics]);
+    };
 
-  const moduleOneLessons = useMemo<LessonWithProgress[]>(() => {
-    // Map module 1 topics from the API into the lesson shape used across the player.
-    return moduleOneTopics.map((topic) => {
-      const slugBase = slugify(topic.topicName, topic.topicId);
-      const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
-      const normalizedType = (topic.contentType ?? 'video').toLowerCase();
-      const lessonType = (normalizedType === 'reading' || normalizedType === 'quiz'
-        ? normalizedType
-        : 'video') as LessonWithProgress['type'];
+    courseTopics.forEach((topic) => {
+      const moduleNo = Number.isFinite(topic.moduleNo) ? topic.moduleNo : 0;
+      const entry = modules.get(moduleNo);
 
-      return {
-        id: topic.topicId,
-        courseId: topic.courseId,
-        slug,
-        title: topic.topicName,
-        type: lessonType,
-        videoUrl: normalizeVideoUrl(topic.videoUrl),
-        notes: topic.textContent ?? '',
-        orderIndex: topic.topicNumber - 1,
-        isPreview: topic.isPreview,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        completed: false,
-        progress: 0
-      };
+      if (entry) {
+        entry.topics.push(topic);
+        entry.lessons.push(createLessonFromTopic(topic));
+      } else {
+        modules.set(moduleNo, {
+          topics: [topic],
+          lessons: [createLessonFromTopic(topic)],
+        });
+      }
     });
-  }, [moduleOneTopics]);
+
+    modules.forEach((entry) => {
+      entry.topics.sort((a, b) => a.topicNumber - b.topicNumber);
+      entry.lessons.sort((a, b) => a.orderIndex - b.orderIndex);
+    });
+
+    return modules;
+  }, [courseTopics]);
+
+  const introductionTopics = groupedModuleContent.get(0)?.topics ?? [];
+  const introductionLessons = groupedModuleContent.get(0)?.lessons ?? [];
+  const moduleOneLessons = groupedModuleContent.get(1)?.lessons ?? [];
+  const sortedModuleNumbers = useMemo(
+    () =>
+      Array.from(groupedModuleContent.keys())
+        .filter((moduleNo) => moduleNo > 0)
+        .sort((a, b) => a - b),
+    [groupedModuleContent],
+  );
+  const fetchedModuleLessons = useMemo(
+    () =>
+      sortedModuleNumbers.flatMap((moduleNo) => groupedModuleContent.get(moduleNo)?.lessons ?? []),
+    [groupedModuleContent, sortedModuleNumbers],
+  );
 
   const introductionDefinition = useMemo<ModuleDefinition | null>(() => {
     if (introductionLessons.length === 0) {
@@ -500,12 +493,12 @@ export default function CoursePlayerPage() {
     };
 
     if (!lessonSlug) {
-      if (introductionTopicsLoading && introductionLessons.length === 0 && moduleOneLessons.length === 0) {
+      if (courseTopicsLoading && introductionLessons.length === 0 && fetchedModuleLessons.length === 0) {
         return;
       }
 
       const defaultLesson =
-        introductionLessons[0]?.slug ?? moduleOneLessons[0]?.slug ?? staticLessons[0]?.slug ?? null;
+        introductionLessons[0]?.slug ?? fetchedModuleLessons[0]?.slug ?? staticLessons[0]?.slug ?? null;
       redirectToSlug(defaultLesson);
       return;
     }
@@ -519,7 +512,7 @@ export default function CoursePlayerPage() {
         return;
       }
 
-      if (!moduleTopicsLoading && moduleOneLessons.length === 0) {
+      if (!courseTopicsLoading && moduleOneLessons.length === 0) {
         redirectToSlug(introductionLessons[0]?.slug ?? staticLessons[0]?.slug ?? null);
       }
     }
@@ -528,14 +521,14 @@ export default function CoursePlayerPage() {
     lessonSlug,
     moduleOneLessons,
     introductionLessons,
+    fetchedModuleLessons,
     setLocation,
     authChecked,
-    introductionTopicsLoading,
-    moduleTopicsLoading
+    courseTopicsLoading
   ]);
 
   const lessonSourceBySlug = useMemo(() => {
-    // Merge static lessons and freshly fetched module 1 lessons so downstream lookups stay uniform.
+    // Merge static lessons and freshly fetched module lessons so downstream lookups stay uniform.
     const map = new Map<string, LessonWithProgress>();
     staticLessons.forEach((lesson) => {
       map.set(lesson.slug, {
@@ -546,57 +539,53 @@ export default function CoursePlayerPage() {
     introductionLessons.forEach((lesson) => {
       map.set(lesson.slug, lesson);
     });
-    moduleOneLessons.forEach((lesson) => {
+    fetchedModuleLessons.forEach((lesson) => {
       map.set(lesson.slug, lesson);
     });
     return map;
-  }, [moduleOneLessons, introductionLessons]);
+  }, [fetchedModuleLessons, introductionLessons]);
 
-  const moduleOneDefinition = useMemo<ModuleDefinition | null>(() => {
-    if (moduleOneLessons.length === 0) {
-      return null;
+  const apiModuleDefinitions = useMemo<ModuleDefinition[]>(() => {
+    if (sortedModuleNumbers.length === 0) {
+      return [];
     }
 
-    const moduleTitle =
-      moduleOneTopics.find((topic) => topic.moduleName && topic.moduleName.trim().length > 0)?.moduleName.trim() ??
-      defaultModuleOneTitle;
+    return sortedModuleNumbers.map((moduleNo) => {
+      const moduleTopics = groupedModuleContent.get(moduleNo)?.topics ?? [];
+      const moduleLessons = groupedModuleContent.get(moduleNo)?.lessons ?? [];
+      const moduleTitle =
+        moduleTopics.find((topic) => topic.moduleName && topic.moduleName.trim().length > 0)?.moduleName.trim() ??
+        `Module ${moduleNo}`;
 
-    return {
-      id: 'module-1',
-      title: moduleTitle,
-      lessons: moduleOneLessons.map((lesson) => ({
-        id: lesson.id,
-        slug: lesson.slug,
-        title: lesson.title,
-        duration:
-          lesson.type === 'reading' ? 'Reading' : lesson.type === 'quiz' ? 'Quiz' : lesson.videoUrl ? 'Video' : 'Lesson'
-      }))
-    };
-  }, [moduleOneLessons, moduleOneTopics]);
-
-  const moduleDefinitions = useMemo<ModuleDefinition[]>(() => {
-    const modules = baseModuleDefinitions.map((module) => {
-      if (module.id !== 'module-1') {
-        return module;
-      }
-
-      if (moduleOneDefinition) {
-        return moduleOneDefinition;
-      }
-
-      // Preserve numbering and layout while module 1 loads from the API.
       return {
-        ...module,
-        lessons: []
+        id: `module-${moduleNo}`,
+        title: moduleTitle,
+        lessons: moduleLessons.map((lesson) => ({
+          id: lesson.id,
+          slug: lesson.slug,
+          title: lesson.title,
+          duration:
+            lesson.type === 'reading'
+              ? 'Reading'
+              : lesson.type === 'quiz'
+                ? 'Quiz'
+                : lesson.videoUrl
+                  ? 'Video'
+                  : 'Lesson'
+        }))
       };
     });
+  }, [groupedModuleContent, sortedModuleNumbers]);
+
+  const moduleDefinitions = useMemo<ModuleDefinition[]>(() => {
+    const modules = apiModuleDefinitions.length > 0 ? apiModuleDefinitions : baseModuleDefinitions;
 
     if (introductionDefinition) {
       return [introductionDefinition, ...modules];
     }
 
     return modules;
-  }, [moduleOneDefinition, introductionDefinition]);
+  }, [apiModuleDefinitions, introductionDefinition]);
 
   const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseSummary }>({
     queryKey: [`/api/courses/${courseId}`],
@@ -608,9 +597,10 @@ export default function CoursePlayerPage() {
   });
   const course = courseResponse?.course;
 
-  const firstModuleOneSlug = moduleOneLessons[0]?.slug;
+  const firstFetchedLessonSlug = fetchedModuleLessons[0]?.slug;
   const firstStaticSlug = staticLessons[0]?.slug;
-  const activeLessonSlug = lessonSlug ?? firstModuleOneSlug ?? firstStaticSlug ?? null;
+  const activeLessonSlug =
+    lessonSlug ?? introductionLessons[0]?.slug ?? firstFetchedLessonSlug ?? firstStaticSlug ?? null;
   const currentLessonBase = activeLessonSlug ? lessonSourceBySlug.get(activeLessonSlug) : undefined;
 
   const currentLessonId = currentLessonBase?.id;
@@ -626,12 +616,9 @@ export default function CoursePlayerPage() {
   const lessonProgress = lessonProgressResponse?.progress;
 
   useEffect(() => {
-    if (authChecked && isAuthenticated) {
-      queryClient.invalidateQueries({ queryKey: ['/api/lessons/modules/0/topics'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/lessons/modules/1/topics'] });
-      if (courseId) {
-        queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
-      }
+    if (authChecked && isAuthenticated && courseId) {
+      queryClient.invalidateQueries({ queryKey: [`/api/lessons/courses/${courseId}/topics`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
     }
   }, [authChecked, isAuthenticated, courseId]);
 
@@ -853,13 +840,14 @@ export default function CoursePlayerPage() {
   };
 
   const introductionDataIsLoading =
-    isAuthenticated && introductionTopicsLoading && introductionLessons.length === 0;
-  const moduleOneDataIsLoading = isAuthenticated && moduleTopicsLoading && moduleOneLessons.length === 0;
-  const awaitingDefaultModuleOneLesson =
+    isAuthenticated && courseTopicsLoading && introductionLessons.length === 0;
+  const moduleDataIsLoading =
+    isAuthenticated && courseTopicsLoading && fetchedModuleLessons.length === 0;
+  const awaitingDefaultModuleLesson =
     isAuthenticated &&
     !lessonSlug &&
-    moduleOneLessons.length === 0 &&
-    (moduleTopicsLoading || moduleTopicsResponse === undefined);
+    fetchedModuleLessons.length === 0 &&
+    (courseTopicsLoading || courseTopicsResponse === undefined);
   const awaitingLegacyRedirect = Boolean(
     isAuthenticated &&
       lessonSlug &&
@@ -867,20 +855,19 @@ export default function CoursePlayerPage() {
       moduleOneLessons.length > 0 &&
       !currentLessonBase
   );
-  const awaitingModuleOneLessonHydration =
+  const awaitingModuleLessonHydration =
     Boolean(
       isAuthenticated &&
         lessonSlug &&
-        lessonSlug.startsWith('module-1-topic-') &&
         !currentLessonBase &&
-        (moduleTopicsLoading || moduleTopicsResponse === undefined)
+        (courseTopicsLoading || courseTopicsResponse === undefined)
     );
   const shouldShowModuleHydrationSpinner =
     introductionDataIsLoading ||
-    moduleOneDataIsLoading ||
-    awaitingDefaultModuleOneLesson ||
+    moduleDataIsLoading ||
+    awaitingDefaultModuleLesson ||
     awaitingLegacyRedirect ||
-    awaitingModuleOneLessonHydration;
+    awaitingModuleLessonHydration;
 
   if (!authChecked) {
     return (

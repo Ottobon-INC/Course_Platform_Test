@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { BookOpen, Clock, Star, Users, ArrowRight, Play } from "lucide-react";
+import { BookOpen, Star, ArrowRight, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildApiUrl } from "@/lib/api";
 import type { CourseSummary, CourseListResponse, PageContentEntry, PageContentResponse } from "@/types/content";
 import { SiteLayout } from "@/components/layout/SiteLayout";
+import { useToast } from "@/hooks/use-toast";
 
 const shimmerArray = Array.from({ length: 6 });
 const CONTINUE_PROGRESS: Record<string, number> = {
@@ -59,7 +59,7 @@ const getContinuePath = (courseId: string) =>
     ? "/course/ai-in-web-development/learn/introduction-to-ai-web-development"
     : `/course/${courseId}/learn/getting-started`;
 
-const getCategoryGradient = (category: string) => {
+const getCategoryGradient = (category?: string) => {
   switch (category) {
     case "AI & Machine Learning":
       return "from-[hsl(var(--gradient-ai-ml-from))] to-[hsl(var(--gradient-ai-ml-to))]";
@@ -82,6 +82,8 @@ const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
 });
 
 const formatCoursePrice = (value: number) => INR_FORMATTER.format(Math.max(0, Math.round(value)));
+const PRIMARY_COURSE_TITLES = new Set(["ai for web-developer", "ai in web development", "intro to ai"]);
+const PRIMARY_COURSE_ROUTE = "/course/ai-in-web-development/learn/introduction-to-ai-web-development";
 
 export default function CoursesPage() {
   const [location, setLocation] = useLocation();
@@ -90,6 +92,7 @@ export default function CoursesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -252,77 +255,88 @@ export default function CoursesPage() {
               ) : null}
             </section>
 
-            <section className="grid gap-5 md:grid-cols-2">
-              {isLoading
-                ? shimmerArray.map((_, index) => (
-                    <Card key={`skeleton-${index}`} className="border-slate-100 bg-white shadow-sm">
-                      <CardContent className="space-y-4 p-6">
-                        <Skeleton className="h-40 w-full rounded-2xl bg-slate-100" />
-                        <Skeleton className="h-6 w-3/4 bg-slate-100" />
-                        <Skeleton className="h-4 w-full bg-slate-100" />
-                        <Skeleton className="h-4 w-2/3 bg-slate-100" />
-                        <div className="flex gap-2">
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">Available courses</h2>
+                <span className="text-sm text-slate-500">{filteredCourses.length} options</span>
+              </div>
+              <div className="grid gap-5 md:grid-cols-2">
+                {isLoading
+                  ? shimmerArray.map((_, index) => (
+                      <Card key={`skeleton-${index}`} className="border-slate-100 bg-white shadow-sm">
+                        <CardContent className="space-y-4 p-6">
                           <Skeleton className="h-6 w-24 rounded-full bg-slate-100" />
-                          <Skeleton className="h-6 w-24 rounded-full bg-slate-100" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                : filteredCourses.map((course) => (
-                    <Card
-                      key={course.id}
-                      className="relative border-slate-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/70 hover:shadow-[0_25px_60px_rgba(16,185,129,0.15)]"
-                    >
-                      <CardHeader className="space-y-4">
-                        <div className="h-48 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                          {course.thumbnail ? (
-                            <img src={course.thumbnail} alt={course.title} className="h-full w-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-slate-400">
-                              <BookOpen className="h-10 w-10" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <Badge variant="secondary" className="bg-emerald-50 text-emerald-700">
-                            {course.level}
-                          </Badge>
-                          <span className="text-sm text-slate-500">{course.category}</span>
-                        </div>
-                        <CardTitle className="text-xl text-slate-900">{course.title}</CardTitle>
-                        <p className="text-sm text-slate-600">{course.description}</p>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Clock className="h-4 w-4 text-emerald-500" />
-                            {course.durationLabel}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <Users className="h-4 w-4 text-emerald-500" />
-                            {course.students.toLocaleString()} learners
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <Star className="h-4 w-4 text-amber-400" />
-                            {course.rating.toFixed(1)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs uppercase text-slate-400">Starts at</p>
-                            <p className="text-2xl font-bold text-slate-900">{formatCoursePrice(course.price)}</p>
+                          <Skeleton className="h-6 w-3/4 bg-slate-100" />
+                          <Skeleton className="h-4 w-full bg-slate-100" />
+                          <Skeleton className="h-4 w-2/3 bg-slate-100" />
+                          <div className="flex gap-2">
+                            <Skeleton className="h-6 w-24 rounded-full bg-slate-100" />
+                            <Skeleton className="h-6 w-24 rounded-full bg-slate-100" />
                           </div>
-                          <Button
-                            className="bg-emerald-500 text-white shadow-sm shadow-emerald-200/60 hover:bg-emerald-400"
-                            onClick={() => setLocation(`/course/${course.id}/enroll`)}
+                        </CardContent>
+                      </Card>
+                    ))
+                  : filteredCourses.length > 0
+                    ? filteredCourses.map((course) => {
+                        const createdAtLabel = course.createdAt
+                          ? new Date(course.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : null;
+
+                        return (
+                          <Card
+                            key={course.id}
+                            className="border-slate-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-emerald-300/80 hover:shadow-lg"
                           >
-                            Enroll
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            <CardContent className="space-y-5 p-6">
+                              <div className="space-y-2">
+                                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                                  <BookOpen className="h-4 w-4" />
+                                  Available course
+                                </div>
+                                <h3 className="text-xl font-semibold text-slate-900">{course.title}</h3>
+                                <p className="text-sm text-slate-600 line-clamp-3">{course.description}</p>
+                                {createdAtLabel ? (
+                                  <p className="text-xs text-slate-500">Added on {createdAtLabel}</p>
+                                ) : null}
+                              </div>
+                              <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
+                                <div>
+                                  <p className="text-xs uppercase text-slate-400">Starts at</p>
+                                  <p className="text-2xl font-bold text-slate-900">{formatCoursePrice(course.price)}</p>
+                                </div>
+                                <Button
+                                  variant="secondary"
+                                  className="w-full rounded-full bg-emerald-500 text-white hover:bg-emerald-400 sm:w-auto"
+                                  onClick={() => {
+                                    const normalizedTitle = course.title.trim().toLowerCase();
+                                    if (PRIMARY_COURSE_TITLES.has(normalizedTitle)) {
+                                      setLocation(PRIMARY_COURSE_ROUTE);
+                                      return;
+                                    }
+                                    toast({
+                                      title: "Course not available yet",
+                                      description: "We're still preparing this course. Please check back soon.",
+                                    });
+                                  }}
+                                >
+                                  View course
+                                  <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    : (
+                      <div className="rounded-3xl border border-slate-100 bg-white p-8 text-center text-slate-500 md:col-span-2">
+                        <p>No tracks match this filter yet. Please pick another category.</p>
+                      </div>
+                    )}
+              </div>
             </section>
 
             {continueLearningCourses.length > 0 ? (
@@ -341,10 +355,10 @@ export default function CoursesPage() {
                       <div className={`h-32 bg-gradient-to-br ${getCategoryGradient(course.category)} p-5 text-white`}>
                         <p className="text-lg font-semibold leading-tight drop-shadow">{course.title}</p>
                         <div className="mt-3 flex items-center gap-3 text-sm text-white/80">
-                          <span className="inline-flex items-center gap-1">
-                            <Star className="h-4 w-4 fill-yellow-300 text-yellow-300" />
-                            {course.rating.toFixed(1)}
-                          </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Star className="h-4 w-4 fill-yellow-300 text-yellow-300" />
+                              {Number(course.rating ?? 0).toFixed(1)}
+                            </span>
                           <span>{course.progress}% complete</span>
                         </div>
                       </div>

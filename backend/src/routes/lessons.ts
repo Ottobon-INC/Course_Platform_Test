@@ -3,6 +3,10 @@ import { z } from "zod";
 import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 
+const LEGACY_COURSE_SLUGS: Record<string, string> = {
+  "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
+};
+
 type LessonStatus = "not_started" | "in_progress" | "completed";
 
 interface StoredProgress {
@@ -69,23 +73,51 @@ lessonsRouter.get(
     if (uuidRegex.test(courseKey)) {
       resolvedCourseId = courseKey;
     } else {
-      const normalizedName = courseKey.replace(/-/g, " ").trim();
-      const course = await prisma.course.findFirst({
-        where: {
-          courseName: {
-            equals: normalizedName,
-            mode: "insensitive",
-          },
-        },
-        select: { courseId: true },
-      });
-
-      if (!course) {
-        res.status(404).json({ message: "Course not found" });
-        return;
+      let decodedKey: string;
+      try {
+        decodedKey = decodeURIComponent(courseKey).trim();
+      } catch {
+        decodedKey = courseKey.trim();
       }
 
-      resolvedCourseId = course.courseId;
+      const normalizedSlug = decodedKey.toLowerCase();
+      const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
+      if (aliasMatch) {
+        resolvedCourseId = aliasMatch;
+      } else {
+        const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+        const searchNames = Array.from(
+          new Set(
+            [decodedKey, normalizedName]
+              .map((value) => value.trim())
+              .filter((value) => value.length > 0),
+          ),
+        );
+
+        if (searchNames.length === 0) {
+          res.status(400).json({ message: "course identifier is required" });
+          return;
+        }
+
+        const course = await prisma.course.findFirst({
+          where: {
+            OR: searchNames.map((name) => ({
+              courseName: {
+                equals: name,
+                mode: "insensitive",
+              },
+            })),
+          },
+          select: { courseId: true },
+        });
+
+        if (!course) {
+          res.status(404).json({ message: "Course not found" });
+          return;
+        }
+
+        resolvedCourseId = course.courseId;
+      }
     }
 
     const topics = await prisma.topic.findMany({
