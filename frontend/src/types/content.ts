@@ -2,15 +2,15 @@ export interface CourseSummary {
   id: string;
   title: string;
   description: string;
-  category: string;
-  level: string;
-  instructor: string;
-  durationLabel: string;
-  durationMinutes: number;
   price: number;
   priceCents: number;
-  rating: number;
-  students: number;
+  category?: string;
+  level?: string;
+  instructor?: string;
+  durationLabel?: string;
+  durationMinutes?: number;
+  rating?: number;
+  students?: number;
   thumbnail?: string | null;
   heroVideoUrl?: string | null;
   isFeatured?: boolean;
@@ -51,14 +51,13 @@ export interface TutorApplicationPayload {
   fullName: string;
   email: string;
   phone?: string;
+  headline: string;
+  courseTitle: string;
+  courseDescription: string;
+  targetAudience: string;
   expertiseArea: string;
-  proposedCourseTitle: string;
-  courseLevel?: string;
-  deliveryFormat?: string;
-  availability?: string;
   experienceYears?: number;
-  outline: string;
-  motivation: string;
+  availability: string;
 }
 
 export interface TutorApplicationResponse {

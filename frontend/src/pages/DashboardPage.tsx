@@ -66,19 +66,26 @@ const formatDurationFromMinutes = (minutes?: number): string => {
     return `${hours}h ${remaining}m`;
 };
 
-const mapCourseSummaryToCourse = (course: CourseSummary): Course => ({
-    id: course.id,
-    title: course.title,
-    description: course.description,
-    instructor: course.instructor,
-    duration: course.durationLabel ?? formatDurationFromMinutes(course.durationMinutes),
-    price: course.price,
-    level: (course.level as Course['level']) ?? 'Beginner',
-    students: course.students,
-    rating: course.rating,
-    category: course.category,
-    thumbnail: course.thumbnail ?? '',
-});
+const mapCourseSummaryToCourse = (course: CourseSummary): Course => {
+    const normalizedPrice =
+        typeof course.price === 'number'
+            ? course.price
+            : Math.max(0, Math.round((course.priceCents ?? 0) / 100));
+
+    return {
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        instructor: course.instructor ?? 'MetaLearn Instructor',
+        duration: course.durationLabel ?? formatDurationFromMinutes(course.durationMinutes),
+        price: normalizedPrice,
+        level: (course.level as Course['level']) ?? 'Beginner',
+        students: course.students ?? 0,
+        rating: course.rating ?? 0,
+        category: course.category ?? 'AI & Technology',
+        thumbnail: course.thumbnail ?? '',
+    };
+};
 
 const mergeCourseCollections = (current: Course[], incoming: Course[]): Course[] => {
     const registry = new Map<string, Course>();

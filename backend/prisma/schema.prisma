@@ -139,21 +139,20 @@ model UserSession {
 }
 
 model TutorApplication {
-  applicationId      String   @id @default(dbgenerated("gen_random_uuid()")) @map("application_id") @db.Uuid
-  fullName           String   @map("full_name")
-  email              String
-  phone              String?
-  expertiseArea      String   @map("expertise_area")
-  proposedCourseTitle String  @map("proposed_course_title")
-  courseLevel        String?  @map("course_level")
-  deliveryFormat     String?  @map("delivery_format")
-  availability       String?  @map("availability")
-  experienceYears    Int?     @map("experience_years")
-  outline            String?  @map("course_outline")
-  motivation         String?
-  status             String   @default("pending")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  applicationId     String   @id @default(dbgenerated("gen_random_uuid()")) @map("application_id") @db.Uuid
+  fullName          String   @map("full_name")
+  email             String
+  phone             String?
+  headline          String
+  courseTitle       String   @map("course_title")
+  courseDescription String   @map("course_description")
+  targetAudience    String   @map("target_audience")
+  expertiseArea     String   @map("expertise_area")
+  experienceYears   Int?     @map("experience_years")
+  availability      String   @map("availability")
+  status            String   @default("pending")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@map("tutor_applications")
 }

@@ -4,7 +4,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import EnrollmentGateway from '@/components/EnrollmentGateway';
 import { useToast } from '@/hooks/use-toast';
 import { buildApiUrl } from '@/lib/api';
-import { Course } from '@shared/schema';
+import type { CourseSummary } from '@/types/content';
 
 export default function EnrollmentPage() {
   const { id } = useParams(); // This is the course slug
@@ -12,7 +12,7 @@ export default function EnrollmentPage() {
   const { toast } = useToast();
 
   // Fetch course data
-  const { data: courseInfo, isLoading: courseLoading, error } = useQuery<Course>({
+  const { data: courseInfo, isLoading: courseLoading, error } = useQuery<{ course: CourseSummary }>({
     queryKey: [`/api/courses/${id}`],
     enabled: !!id,
   });
@@ -30,23 +30,23 @@ export default function EnrollmentPage() {
       });
 
       // Enroll the user in the course
-      if (courseInfo?.id) {
+      if (courseInfo?.course?.id) {
         try {
-          await apiRequest('POST', `/api/courses/${courseInfo.id}/enroll`);
+          await apiRequest('POST', `/api/courses/${courseInfo.course.id}/enroll`);
 
           // Find first lesson to redirect to
-          const sectionsResponse = await fetch(buildApiUrl(`/api/courses/${courseInfo.id}/sections`), {
+          const sectionsResponse = await fetch(buildApiUrl(`/api/courses/${courseInfo.course.id}/sections`), {
             credentials: 'include'
           });
           const sections = await sectionsResponse.json();
           if (sections?.[0]?.lessons?.[0]) {
-            setLocation(`/course/${courseInfo.id}/learn/${sections[0].lessons[0].slug}`);
+            setLocation(`/course/${courseInfo.course.id}/learn/${sections[0].lessons[0].slug}`);
           } else {
-            setLocation(`/course/${courseInfo.id}/learn`);
+            setLocation(`/course/${courseInfo.course.id}/learn`);
           }
         } catch (enrollError) {
           console.error('Enrollment error:', enrollError);
-          setLocation(`/course/${courseInfo.id}/learn`);
+          setLocation(`/course/${courseInfo.course.id}/learn`);
         }
       }
     },
@@ -137,7 +137,7 @@ export default function EnrollmentPage() {
   }
 
   // Show error state
-  if (error || !courseInfo) {
+  if (error || !courseInfo?.course) {
     return (
       <div data-testid="page-enrollment" className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -153,14 +153,14 @@ export default function EnrollmentPage() {
 
   // Transform course data to match expected format
   const transformedCourseInfo = {
-    title: courseInfo.title,
-    description: courseInfo.description,
-    instructor: courseInfo.instructor,
-    rating: courseInfo.rating / 100, // Convert from stored format (485 -> 4.85)
-    students: courseInfo.studentsCount,
-    duration: courseInfo.duration,
-    price: courseInfo.price / 100, // Convert from cents to dollars
-    originalPrice: courseInfo.originalPrice ? courseInfo.originalPrice / 100 : undefined,
+    title: courseInfo.course.title,
+    description: courseInfo.course.description,
+    instructor: courseInfo.course.instructor ?? 'MetaLearn Instructor',
+    rating: courseInfo.course.rating ?? 0,
+    students: courseInfo.course.students ?? 0,
+    duration: courseInfo.course.durationLabel ?? 'Self-paced',
+    price: courseInfo.course.price,
+    originalPrice: undefined,
   };
 
   return (
