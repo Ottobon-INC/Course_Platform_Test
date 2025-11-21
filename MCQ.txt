@@ -1,0 +1,2411 @@
+📘 MODULE 1 — QUIZ 1 (Subtopics 1.1 + 1.2)
+“Introduction to AI + Types of AI”
+🟦 20 MCQs with explanations
+________________________________________
+1. What is the primary goal of Artificial Intelligence?
+A. To replace all human jobs
+B. To mimic human intelligence and perform tasks
+C. To increase internet speed
+D. To store large amounts of data
+✅ Correct Answer: B
+📘 Explanation:
+AI aims to replicate human-like intelligence such as reasoning, decision-making, and learning.
+________________________________________
+2. Which of the following BEST defines AI?
+A. A system that performs tasks only on fixed rules
+B. A system that learns and improves automatically
+C. A device that stores huge data
+D. A simple calculator
+✅ Correct Answer: B
+📘 Explanation:
+AI systems learn from data and improve over time, unlike static rule-based systems.
+________________________________________
+3. In which domain is AI mainly used?
+A. Only gaming
+B. Only healthcare
+C. Only finance
+D. Many fields like healthcare, finance, education, etc.
+✅ Correct Answer: D
+📘 Explanation:
+AI is used across multiple industries due to its wide adaptability.
+________________________________________
+4. What makes AI different from normal software?
+A. AI needs no electricity
+B. AI can learn from data
+C. AI works only on voice commands
+D. AI is slower than normal software
+✅ Correct Answer: B
+📘 Explanation:
+The core differentiator is that AI can learn, adapt, and improve.
+________________________________________
+5. Which of the following is NOT an example of AI?
+A. ChatGPT
+B. Google Maps
+C. Traditional Calculator
+D. Siri
+✅ Correct Answer: C
+📘 Explanation:
+Calculators do not learn; they follow fixed logic.
+________________________________________
+6. AI that performs a single specific task is known as _____.
+A. General AI
+B. Super AI
+C. Narrow AI
+D. Complete AI
+✅ Correct Answer: C
+📘 Explanation:
+Narrow AI focuses on one task (e.g., face recognition).
+________________________________________
+7. Which type of AI does ChatGPT belong to?
+A. Super AI
+B. General AI
+C. Narrow AI
+D. Non-AI
+✅ Correct Answer: C
+📘 Explanation:
+ChatGPT is a specialized AI model trained for language tasks.
+________________________________________
+8. Self-driving cars are an example of which type of AI?
+A. Super AI
+B. Narrow AI
+C. General AI
+D. Weak AI
+✅ Correct Answer: B
+📘 Explanation:
+Self-driving cars solve a specific domain task → narrow AI.
+________________________________________
+9. General AI aims to:
+A. Perform one task at a time
+B. Function like a human in all areas
+C. Only automate repetitive tasks
+D. Only process language
+✅ Correct Answer: B
+📘 Explanation:
+General AI = human-level intelligence across all tasks (still hypothetical).
+________________________________________
+10. Which type of AI currently DOES NOT exist yet?
+A. Narrow AI
+B. General AI
+C. Weak AI
+D. AI chatbots
+✅ Correct Answer: B
+📘 Explanation:
+General AI is still theoretical and is not yet created.
+________________________________________
+11. A facial recognition system is an example of ______.
+A. Super AI
+B. General AI
+C. Narrow AI
+D. Weak AI
+✅ Correct Answer: C
+📘 Explanation:
+Face recognition performs one specific task extremely well.
+________________________________________
+12. What is Super AI?
+A. AI that exceeds human intelligence
+B. AI used for games
+C. AI that cannot learn
+D. AI that runs on mobile only
+✅ Correct Answer: A
+📘 Explanation:
+Super AI would surpass human abilities (still fictional).
+________________________________________
+13. Which of the following uses AI for recommendation?
+A. YouTube
+B. Paint
+C. MS Word (offline)
+D. Windows Calculator
+✅ Correct Answer: A
+📘 Explanation:
+YouTube uses AI/ML to recommend content based on user behavior.
+________________________________________
+14. Which statement about AI is TRUE?
+A. AI cannot recognize images
+B. AI improves through training
+C. AI cannot make predictions
+D. AI cannot process language
+✅ Correct Answer: B
+📘 Explanation:
+AI models get better with more training data.
+________________________________________
+15. AI in spam filtering works by ______.
+A. Manually checking emails
+B. Predefined fixed rules
+C. Machine learning algorithms
+D. Human verification
+✅ Correct Answer: C
+📘 Explanation:
+Spam filters are machine learning models trained on email patterns.
+________________________________________
+16. Google Maps uses AI for ______.
+A. Only 2D visuals
+B. Route prediction + traffic analysis
+C. File storage
+D. Making games
+✅ Correct Answer: B
+📘 Explanation:
+Maps uses AI for predicting routes, ETAs, and analyzing traffic.
+________________________________________
+17. Speech recognition in phones is an example of ______.
+A. Computer Vision
+B. NLP + ML
+C. Data storage
+D. Wi-Fi tech
+✅ Correct Answer: B
+📘 Explanation:
+Speech-to-text is an NLP (AI) task.
+________________________________________
+18. Which type of AI is Siri?
+A. General AI
+B. Super AI
+C. Narrow AI
+D. None
+✅ Correct Answer: C
+📘 Explanation:
+Siri is trained for limited assistant tasks → narrow AI.
+________________________________________
+19. Which AI type focuses on doing a single job extremely well?
+A. Narrow AI
+B. General AI
+C. Super AI
+D. Universal AI
+✅ Correct Answer: A
+📘 Explanation:
+Narrow AI specializes in specific tasks, like translation.
+________________________________________
+20. Which type of AI is still purely theoretical and not implemented?
+A. Narrow AI
+B. General AI
+C. Weak AI
+D. Applied AI
+✅ Correct Answer: B
+📘 Explanation:
+General AI is only theoretical; real-world AI = Narrow AI.
+________________________________________
+🎉 MODULE 1 — QUIZ 1 COMPLETE (20/20 MCQs)
+If you're ready…
+👉 Say “Generate Module 1 – Quiz 2”
+(Subtopics 1.3 + 1.4: Machine Learning + Types of ML)
+You said:
+yes
+ChatGPT said:
+Great — here is Module 1 – Quiz 2 (Subtopics 1.3 + 1.4)
+“Machine Learning Basics + Types of Machine Learning”
+🟦 20 MCQs with options + correct answers + explanations
+________________________________________
+📘 MODULE 1 — QUIZ 2
+Covers Subtopics 1.3 (What is Machine Learning?) & 1.4 (Types of ML)
+20 Questions with Explanations
+________________________________________
+1. What is the main purpose of Machine Learning?
+A. To store large datasets
+B. To make computers learn from data
+C. To increase internet speed
+D. To replace all humans
+✅ Correct Answer: B
+📘 Explanation:
+ML enables machines to learn patterns automatically from data without explicit programming.
+________________________________________
+2. Machine Learning falls under which field?
+A. Robotics
+B. Artificial Intelligence
+C. Networking
+D. Cybersecurity
+✅ Correct Answer: B
+📘 Explanation:
+ML is a subset of AI focused on learning patterns from data.
+________________________________________
+3. ML systems learn patterns using ______.
+A. Guesswork
+B. Written rules only
+C. Data
+D. Internet speed
+✅ Correct Answer: C
+📘 Explanation:
+Without data, no machine learning model can train or improve.
+________________________________________
+4. Which of the following uses Machine Learning?
+A. Traditional calculator
+B. Weather prediction
+C. Pen and paper
+D. MS Paint
+✅ Correct Answer: B
+📘 Explanation:
+Weather forecasting models use ML to analyze historical patterns.
+________________________________________
+5. Which of the following BEST describes Supervised Learning?
+A. Learning without any labels
+B. Learning using human-labeled data
+C. Learning through trial and error
+D. Learning by using hardware sensors only
+✅ Correct Answer: B
+📘 Explanation:
+Supervised learning uses labeled datasets (correct answers included) for training.
+________________________________________
+6. In supervised learning, the model learns from ______.
+A. Unlabeled datasets
+B. Only images
+C. Labeled datasets
+D. Random guesses
+✅ Correct Answer: C
+📘 Explanation:
+Supervised models use both input and correct output labels to learn patterns.
+________________________________________
+7. Identify an example of supervised learning.
+A. Grouping customers based on behavior
+B. Predicting house prices
+C. Detecting anomalies without known labels
+D. Trial-and-error game playing
+✅ Correct Answer: B
+📘 Explanation:
+House-price prediction uses labeled training data → supervised learning.
+________________________________________
+8. Which is an example of unsupervised learning?
+A. Fraud detection
+B. Image classification
+C. Customer segmentation
+D. Email spam detection
+✅ Correct Answer: C
+📘 Explanation:
+Unsupervised learning finds natural patterns/groups without labels → segmentation.
+________________________________________
+9. Unsupervised learning uses ______ datasets.
+A. Labeled
+B. Semi-labeled
+C. Unlabeled
+D. Incorrectly labeled
+✅ Correct Answer: C
+📘 Explanation:
+Unsupervised learning’s key point: No fixed “correct answer.”
+________________________________________
+10. Which of the following belongs to Reinforcement Learning?
+A. Grouping emails
+B. Predicting stock price
+C. Playing a game using trial and error
+D. Sorting files alphabetically
+✅ Correct Answer: C
+📘 Explanation:
+Reinforcement learning uses reward/punishment to learn optimal decisions.
+________________________________________
+11. Reinforcement Learning learns using:
+A. Labeled images
+B. Rewards and penalties
+C. Unlabeled data
+D. Only text documents
+✅ Correct Answer: B
+📘 Explanation:
+RL follows a reward-based feedback system.
+________________________________________
+12. Clustering belongs to which ML type?
+A. Supervised
+B. Unsupervised
+C. Reinforcement
+D. Deep learning only
+✅ Correct Answer: B
+📘 Explanation:
+Clustering is a classic unsupervised task used to group similar items.
+________________________________________
+13. Classification belongs to which ML type?
+A. Supervised
+B. Unsupervised
+C. RL
+D. None
+✅ Correct Answer: A
+📘 Explanation:
+Classification requires labeled classes → supervised learning.
+________________________________________
+14. Which of the following is an example of classification?
+A. Predicting temperature
+B. Predicting car mileage
+C. Identifying if an email is spam or not
+D. Grouping documents
+✅ Correct Answer: C
+📘 Explanation:
+Classification outputs categories → spam or not spam.
+________________________________________
+15. Grouping music listeners based on their taste is an example of:
+A. Supervised learning
+B. Unsupervised learning
+C. Reinforcement learning
+D. Manual grouping
+✅ Correct Answer: B
+📘 Explanation:
+No labels → automatic grouping → unsupervised.
+________________________________________
+16. Predicting stock prices is an example of:
+A. Regression
+B. Clustering
+C. Reinforcement
+D. Classification
+✅ Correct Answer: A
+📘 Explanation:
+Regression predicts continuous numeric values.
+________________________________________
+17. A self-driving car deciding when to brake is an example of:
+A. Supervised learning
+B. Unsupervised learning
+C. Reinforcement learning
+D. Regression
+✅ Correct Answer: C
+📘 Explanation:
+RL teaches models through rewards and punishments, similar to environment interaction.
+________________________________________
+18. Supervised learning is used when ______.
+A. Data is unlabeled
+B. Correct outputs are known
+C. We want to group data automatically
+D. A model plays a game
+✅ Correct Answer: B
+📘 Explanation:
+Supervised ML requires labeled input-output pairs.
+________________________________________
+19. Unsupervised learning is used when ______.
+A. We need predictions
+B. There are no correct labels
+C. We need reinforcement
+D. We need manual decisions
+✅ Correct Answer: B
+📘 Explanation:
+Unsupervised ML discovers patterns in unlabeled data.
+________________________________________
+20. Reinforcement learning focuses on ______.
+A. Learning from labeled data
+B. Learning from unlabeled data
+C. Learning by maximizing rewards
+D. Learning by supervised teachers
+✅ Correct Answer: C
+📘 Explanation:
+RL improves actions through feedback (reward/penalty).
+________________________________________
+🎉 MODULE 1 — QUIZ 2 COMPLETE (20/20 MCQs)
+If you're ready for the next set:
+👉 Say “Generate Module 2 – Quiz 1”
+(Subtopics 2.1 + 2.2 from your PDF)
+You said:
+Yes, Yes make sure You're fetching these questions only from the respected module or the respected Subtopic we assigned and we planned.
+ChatGPT said:
+Perfect — I will follow your rule very strictly:
+✔ Only questions from the exact module and exact subtopics
+✔ No outside knowledge
+✔ All MCQs based ONLY on your PDF content
+✔ Each quiz = ONLY the 2 subtopics assigned
+✔ Each quiz = 20 questions
+✔ Each question = 4 options + correct answer + explanation
+Now continuing…
+________________________________________
+📘 MODULE 2 — QUIZ 1
+Subtopics Covered:
+2.1 — "No-Code AI Platforms"
+2.2 — "AI-Assisted Web Development Tools"
+🟦 20 MCQs with explanations, strictly based on Module 2 content in your PDF.
+________________________________________
+🎯 MODULE 2 — QUIZ 1 (20 MCQs)
+Covers:
+•	No-Code AI tools (e.g., Gamma, Framer AI, Wix ADI, etc.)
+•	AI-assisted development tools (GitHub Copilot, ChatGPT, Cursor, Replit)
+•	Website generation using AI
+•	AI features like auto-layouts, templates, block generation, design automation
+________________________________________
+✅ 1. Which of the following is a No-Code AI website builder?
+A. Visual Studio Code
+B. Wix ADI
+C. MySQL
+D. Docker
+Correct Answer: B
+📘 Explanation:
+Wix ADI (Artificial Design Intelligence) is an AI-based no-code website builder.
+________________________________________
+✅ 2. Gamma AI is mainly used for creating ______.
+A. Mobile apps
+B. Presentations and documents
+C. Backend APIs
+D. Database schemas
+Correct Answer: B
+📘 Explanation:
+Gamma AI generates presentations, documents, and web pages using no-code AI.
+________________________________________
+✅ 3. Which tool helps generate UI layouts using natural language?
+A. WinRAR
+B. Framer AI
+C. WordPad
+D. VLC
+Correct Answer: B
+📘 Explanation:
+Framer AI converts text prompts into website layouts and components.
+________________________________________
+✅ 4. GitHub Copilot helps developers by ______.
+A. Generating UI images
+B. Auto-completing code using AI
+C. Uploading videos automatically
+D. Compressing project files
+Correct Answer: B
+📘 Explanation:
+Copilot is an AI pair programmer that suggests code as you type.
+________________________________________
+✅ 5. Which tool can create full websites using a simple prompt?
+A. Notepad
+B. Framer
+C. MS Excel
+D. Discord
+Correct Answer: B
+📘 Explanation:
+Framer AI turns prompts into functioning website sections instantly.
+________________________________________
+✅ 6. Wix ADI uses AI to automatically ______.
+A. Deploy cloud servers
+B. Build websites from user inputs
+C. Create mobile apps
+D. Write Python code
+Correct Answer: B
+📘 Explanation:
+Wix ADI generates website layouts based on simple user questions.
+________________________________________
+✅ 7. Which of the following is an AI code-generation assistant?
+A. Canva
+B. GitHub Copilot
+C. Filmora
+D. Lightroom
+Correct Answer: B
+📘 Explanation:
+Copilot uses AI models to generate code suggestions.
+________________________________________
+✅ 8. What does Replit AI help with?
+A. Creating documents only
+B. Running code in the cloud with AI support
+C. Hosting videos
+D. Making online exams
+Correct Answer: B
+📘 Explanation:
+Replit provides an online coding environment with AI completion and debugging.
+________________________________________
+✅ 9. Cursor AI is mainly used for ______.
+A. AI-based code editing and refactoring
+B. File conversion
+C. Image enhancement
+D. Video trimming
+Correct Answer: A
+📘 Explanation:
+Cursor is an AI-powered coding editor that can modify or generate entire files.
+________________________________________
+✅ 10. No-code AI platforms allow users to ______.
+A. Write backend logic manually
+B. Build applications without programming
+C. Configure Linux servers
+D. Generate database triggers
+Correct Answer: B
+📘 Explanation:
+No-code tools skip coding and rely on drag-and-drop + AI generation.
+________________________________________
+✅ 11. Which of the following is an AI tool used to generate text content for websites?
+A. GitHub Desktop
+B. ChatGPT
+C. Steam
+D. Photoshop
+Correct Answer: B
+📘 Explanation:
+ChatGPT generates written content, headlines, descriptions, and copy.
+________________________________________
+✅ 12. What does “AI-assisted Web Development” mean?
+A. AI replaces designers entirely
+B. AI supports developers by generating or improving code/design
+C. Developers stop writing code
+D. Websites build themselves without input
+Correct Answer: B
+📘 Explanation:
+AI assists, but the developer finalizes design/functionality.
+________________________________________
+✅ 13. Framer AI can generate:
+A. Fully functional servers
+B. Responsive UI layouts
+C. SQL queries only
+D. Operating systems
+Correct Answer: B
+📘 Explanation:
+Framer creates responsive websites from natural language prompts.
+________________________________________
+✅ 14. Gamma AI streamlines content creation by ______.
+A. Running server instances
+B. Offering templates & AI-generated sections
+C. Managing Git repositories
+D. Developing mobile games
+Correct Answer: B
+📘 Explanation:
+Gamma generates formatted pages, slide decks, and documents using templates.
+________________________________________
+✅ 15. Which AI tool helps debug code automatically?
+A. Framer
+B. GitHub Copilot
+C. Canva
+D. Illustrator
+Correct Answer: B
+📘 Explanation:
+Copilot can explain bugs and offer fixes in code.
+________________________________________
+✅ 16. Which feature is common in most no-code AI builders?
+A. Command-line programming
+B. Drag-and-drop components
+C. Binary data editing
+D. Linux terminal integration
+Correct Answer: B
+📘 Explanation:
+No-code tools rely on drag-and-drop UI and templates.
+________________________________________
+✅ 17. ChatGPT can help developers by ______.
+A. Writing full code blocks
+B. Editing videos
+C. Installing hardware
+D. Managing OS drivers
+Correct Answer: A
+📘 Explanation:
+ChatGPT generates code, explanations, examples, and documentation.
+________________________________________
+✅ 18. Which tool makes website creation easy with templates + AI suggestions?
+A. MySQL Workbench
+B. Wix ADI
+C. GitLens
+D. Sublime Text
+Correct Answer: B
+📘 Explanation:
+Wix ADI uses AI to create layouts using prebuilt templates.
+________________________________________
+✅ 19. AI-assisted development improves productivity mainly because ______.
+A. AI runs hardware faster
+B. AI automates repetitive coding tasks
+C. AI deploys servers
+D. AI fixes laptop issues
+Correct Answer: B
+📘 Explanation:
+AI reduces manual effort by generating boilerplate code and patterns.
+________________________________________
+✅ 20. Replit AI helps beginners by providing ______.
+A. AI explanations + code generation
+B. Video editing tools
+C. Image manipulation tools
+D. Sound processing
+Correct Answer: A
+📘 Explanation:
+Replit AI assists by generating code, explaining errors, and running projects in the cloud.
+________________________________________
+🎉 MODULE 2 — QUIZ 1 COMPLETE (20/20 MCQs)
+All generated strictly from subtopics 2.1 and 2.2 of your PDF.
+________________________________________
+👉 Ready for the next quiz?
+Say:
+“Generate Module 2 – Quiz 2”
+(Subtopics 2.3 + 2.4)
+You said:
+yes
+ChatGPT said:
+Perfect — here is Module 2 – Quiz 2, generated strictly from Subtopics 2.3 + 2.4 in your PDF.
+📘 MODULE 2 — QUIZ 2
+Subtopics Covered:
+2.3 – “Using AI Tools for Web Development Tasks”
+2.4 – “Prompt Engineering for Web Development”
+🟦 20 MCQs with 4 options + correct answers + explanations
+(Everything is taken ONLY from your Module 2 content.)
+________________________________________
+🎯 MODULE 2 — QUIZ 2 (20 MCQs)
+Covers:
+•	AI-assisted website creation
+•	Using prompts for UI design
+•	Generating HTML/CSS/JS using AI
+•	AI for debugging and optimization
+•	Prompt engineering techniques
+•	Best practices for giving AI instructions
+•	Structured prompting (context → task → output)
+•	Using AI to create wireframes, layouts, SEO content
+•	Turning wireframes into code with AI
+•	Using detailed prompts to generate consistent components
+________________________________________
+1. What is the purpose of AI tools in web development?
+A. To eliminate web developers
+B. To assist developers by generating code or designs
+C. To handle hardware failures
+D. To build operating systems
+✅ Correct Answer: B
+📘 Explanation:
+AI tools support development by generating layouts, HTML/CSS/JS, debugging issues, and improving workflow.
+________________________________________
+2. Which of the following can AI generate for web development?
+A. Only databases
+B. HTML/CSS/JS code
+C. Hardware drivers
+D. CPU instructions
+✅ Correct Answer: B
+📘 Explanation:
+AI can generate frontend and backend code from prompts.
+________________________________________
+3. Prompt engineering is used to ______.
+A. Design CPUs
+B. Give clear instructions to AI for better output
+C. Increase computer speed
+D. Install software faster
+✅ Correct Answer: B
+📘 Explanation:
+Prompt engineering is about structuring prompts to get high-quality results.
+________________________________________
+4. Which is an example of a GOOD prompt?
+A. “Make website.”
+B. “Create a responsive 3-section landing page with HTML + CSS.”
+C. “Do something cool.”
+D. “Fix it.”
+✅ Correct Answer: B
+📘 Explanation:
+Good prompts are detailed, structured, and specify requirements.
+________________________________________
+5. AI tools can assist in debugging by ______.
+A. Running hardware tests
+B. Reading your code and suggesting fixes
+C. Downloading antivirus software
+D. Deleting unused files
+✅ Correct Answer: B
+📘 Explanation:
+Tools like ChatGPT and Copilot explain errors and generate corrected code.
+________________________________________
+6. “Generate a navbar with logo on left and menu on right” is an example of:
+A. Poor prompt
+B. Medium prompt
+C. Clear prompt
+D. Irrelevant prompt
+✅ Correct Answer: C
+📘 Explanation:
+Clear prompts describe structure and expectations precisely.
+________________________________________
+7. AI can help generate which of the following for web projects?
+A. Hosting servers
+B. Wireframes and layout ideas
+C. Computer RAM
+D. Hard disk partitions
+✅ Correct Answer: B
+📘 Explanation:
+AI tools generate wireframes, page ideas, and component layouts.
+________________________________________
+8. A detailed prompt should include:
+A. Context, task, output format
+B. Only one sentence
+C. File paths
+D. Hardware specs
+✅ Correct Answer: A
+📘 Explanation:
+Structured prompts follow: context → instructions → output format.
+________________________________________
+9. Which type of text helps AI generate consistent components?
+A. Very short prompts
+B. Overly generic statements
+C. Clear and detailed component descriptions
+D. Random keywords
+✅ Correct Answer: C
+📘 Explanation:
+Clear descriptions lead to repeatable and predictable output.
+________________________________________
+10. AI can help optimize existing code by ______.
+A. Removing your project file
+B. Reviewing structure and suggesting improvements
+C. Formatting disk
+D. Closing applications
+✅ Correct Answer: B
+📘 Explanation:
+AI analyzes code and offers optimizations such as reducing redundancy.
+________________________________________
+11. Which of the following is an example of structured prompting?
+A. “Make website responsive.”
+B. “Write HTML.”
+C. “You are a web developer. Create a responsive login page with Bootstrap. Output only the code.”
+D. “Fix everything.”
+✅ Correct Answer: C
+📘 Explanation:
+It includes role → task → tech → output format.
+________________________________________
+12. AI tools help beginners by ______.
+A. Running CPU benchmarks
+B. Writing boilerplate code automatically
+C. Installing the OS
+D. Formatting USB drives
+✅ Correct Answer: B
+📘 Explanation:
+AI generates repetitive code like headers, forms, and layouts.
+________________________________________
+13. AI can improve SEO content by:
+A. Adding laptop advertisements
+B. Generating keywords and optimized descriptions
+C. Installing SEO plugins automatically
+D. Editing server settings
+✅ Correct Answer: B
+📘 Explanation:
+AI tools generate keyword-rich descriptions for SEO.
+________________________________________
+14. A weak prompt leads to ______.
+A. Highly accurate output
+B. Poor or random results
+C. More storage space
+D. Faster CPU performance
+✅ Correct Answer: B
+📘 Explanation:
+Weak prompts confuse AI, leading to unclear or inaccurate output.
+________________________________________
+15. Which tool can generate sample UI components using prompts?
+A. WinZip
+B. Framer AI
+C. Calculator
+D. VLC Media Player
+✅ Correct Answer: B
+📘 Explanation:
+Framer AI creates UI sections by giving text prompts.
+________________________________________
+16. Why do developers use AI for prototype creation?
+A. AI builds CPUs
+B. AI helps create quick layouts before coding
+C. AI formats drives
+D. AI increases RAM size
+✅ Correct Answer: B
+📘 Explanation:
+AI tools rapidly generate UI mockups and prototypes.
+________________________________________
+17. To get consistent results, prompts should be ______.
+A. Short
+B. Clear and structured
+C. Random
+D. Ambiguous
+✅ Correct Answer: B
+📘 Explanation:
+Well-structured prompts lead to predictable results every time.
+________________________________________
+18. AI-generated code may require ______.
+A. Validation and manual review
+B. Hardware upgrades
+C. Antivirus
+D. Cloud GPU
+✅ Correct Answer: A
+📘 Explanation:
+AI code often needs corrections and human refinement.
+________________________________________
+19. Which prompt is ideal for generating a card component?
+A. “Make card.”
+B. “Create a responsive card with image, title, and button using Tailwind. Output HTML only.”
+C. “Do something cool with UI.”
+D. “Fix card.”
+✅ Correct Answer: B
+📘 Explanation:
+This prompt is precise and outcome-driven.
+________________________________________
+20. Prompt engineering improves productivity mainly because:
+A. It reduces file size
+B. It helps AI understand exactly what the developer needs
+C. It speeds up internet
+D. It changes OS settings
+✅ Correct Answer: B
+📘 Explanation:
+Good prompts reduce rework and produce high-quality output faster.
+________________________________________
+🎉 MODULE 2 — QUIZ 2 COMPLETE (20/20 MCQs)
+All questions came strictly from Subtopics 2.3 & 2.4 of your PDF — nothing outside.
+________________________________________
+👉 Ready for the next set?
+Say:
+“Generate Module 3 – Quiz 1”
+(Subtopics 3.1 + 3.2)
+You said:
+yes
+ChatGPT said:
+Great — continuing exactly as planned.
+Here is Module 3 – Quiz 1, based STRICTLY on your PDF content for Subtopics 3.1 + 3.2.
+________________________________________
+📘 MODULE 3 — QUIZ 1
+Subtopics Covered:
+3.1 – Basics of HTML
+3.2 – Structure of a Webpage
+🟦 20 MCQs with 4 options + correct answers + explanations
+All questions come ONLY from the content inside Module 3.
+________________________________________
+🎯 MODULE 3 — QUIZ 1 (20 MCQs with Explanations)
+________________________________________
+1. What does HTML stand for?
+A. Hyper Trainer Marking Language
+B. Hyper Text Markup Language
+C. Hyperlinks Text Manage Language
+D. High Transfer Media Language
+✅ Correct Answer: B
+📘 Explanation:
+HTML stands for Hyper Text Markup Language, used to structure web content.
+________________________________________
+2. HTML is mainly responsible for ______.
+A. Styling the webpage
+B. Structuring the webpage content
+C. Hosting the website
+D. Running backend code
+✅ Correct Answer: B
+📘 Explanation:
+HTML defines the structure and layout of a webpage.
+________________________________________
+3. Which tag defines the root of an HTML document?
+A. <body>
+B. <head>
+C. <html>
+D. <main>
+✅ Correct Answer: C
+📘 Explanation:
+<html> wraps all the content inside an HTML document.
+________________________________________
+4. Which HTML tag is used to display the main content?
+A. <head>
+B. <body>
+C. <title>
+D. <script>
+✅ Correct Answer: B
+📘 Explanation:
+Everything visible to the user is placed inside <body>.
+________________________________________
+5. The <head> tag typically contains ______.
+A. Visible text
+B. Styles, metadata, and links
+C. Images only
+D. Videos only
+✅ Correct Answer: B
+📘 Explanation:
+<head> includes metadata, CSS links, scripts, and the page title.
+________________________________________
+6. Which tag sets the title of a webpage (shown in browser tabs)?
+A. <meta>
+B. <title>
+C. <h1>
+D. <header>
+✅ Correct Answer: B
+📘 Explanation:
+<title> inside the <head> controls the text shown in browser tabs.
+________________________________________
+7. What does the <h1> tag represent?
+A. A hyperlink
+B. The largest heading
+C. A small paragraph
+D. A footer section
+✅ Correct Answer: B
+📘 Explanation:
+<h1> is the primary and largest heading for the page.
+________________________________________
+8. Which tag is used for paragraphs?
+A. <p>
+B. <pr>
+C. <para>
+D. <txt>
+✅ Correct Answer: A
+📘 Explanation:
+<p> defines a paragraph block of text.
+________________________________________
+9. Which tag is commonly used to display images?
+A. <pic>
+B. <img>
+C. <image>
+D. <src>
+✅ Correct Answer: B
+📘 Explanation:
+<img> is used with the src attribute to load images.
+________________________________________
+10. Which part of an HTML document appears first?
+A. <body>
+B. <!DOCTYPE html>
+C. <script>
+D. <footer>
+✅ Correct Answer: B
+📘 Explanation:
+The DOCTYPE declaration appears at the top to tell browser the markup type.
+________________________________________
+11. The basic HTML structure contains:
+A. <html>, <div>, <span>
+B. <head>, <body> inside <html>
+C. <script>, <footer> only
+D. <main>, <meta>, <table>
+✅ Correct Answer: B
+📘 Explanation:
+A valid HTML page has <html> containing <head> and <body>.
+________________________________________
+12. Which attribute is necessary inside <img>?
+A. id
+B. name
+C. src
+D. href
+✅ Correct Answer: C
+📘 Explanation:
+src specifies the image file path.
+________________________________________
+13. The <a> tag is used to create:
+A. Videos
+B. Links
+C. Lists
+D. Tables
+✅ Correct Answer: B
+📘 Explanation:
+<a href="..."> defines hyperlinks.
+________________________________________
+14. Which tag is used to create an unordered list?
+A. <ul>
+B. <ol>
+C. <li>
+D. <list>
+✅ Correct Answer: A
+📘 Explanation:
+<ul> creates bullet lists, while <ol> creates numbered lists.
+________________________________________
+15. What is the purpose of <meta charset="UTF-8">?
+A. Loads external fonts
+B. Defines character encoding
+C. Connects to the database
+D. Displays emojis
+✅ Correct Answer: B
+📘 Explanation:
+It ensures proper text encoding for global characters.
+________________________________________
+16. The <div> tag is used for ______.
+A. Creating sections/block containers
+B. Showing special characters
+C. Displaying images
+D. Defining scripts
+✅ Correct Answer: A
+📘 Explanation:
+<div> is a block-level container for layout or grouping content.
+________________________________________
+17. <span> is a ______ element.
+A. Block-level
+B. Inline
+C. Structural
+D. Multimedia
+✅ Correct Answer: B
+📘 Explanation:
+<span> is used for inline styling or grouping small text.
+________________________________________
+18. What goes inside the <body> tag?
+A. CSS
+B. Metadata
+C. Visible website content
+D. Java installation
+✅ Correct Answer: C
+📘 Explanation:
+Everything visible on the webpage goes inside <body>.
+________________________________________
+19. HTML comments are written using ______.
+A. /* comment */
+B. # comment
+C. // comment
+D. <!-- comment -->
+✅ Correct Answer: D
+📘 Explanation:
+HTML comments use <!-- --> syntax.
+________________________________________
+20. Which of the following statements is TRUE?
+A. HTML handles styling
+B. HTML is used only for backend
+C. HTML shows structure and content
+D. HTML can run Java code
+✅ Correct Answer: C
+📘 Explanation:
+HTML defines structure; styling is done by CSS and logic by JS.
+________________________________________
+🎉 MODULE 3 — QUIZ 1 COMPLETE (20/20 MCQs)
+All questions were strictly created using your Module 3.1 & 3.2 content.
+________________________________________
+👉 Ready for the next quiz?
+Say:
+“Generate Module 3 – Quiz 2”
+(Subtopics 3.3 + 3.4)
+You said:
+yes
+ChatGPT said:
+Great — here is Module 3 – Quiz 2, based STRICTLY on Subtopics 3.3 + 3.4 from your PDF.
+________________________________________
+📘 MODULE 3 — QUIZ 2
+Subtopics Covered:
+3.3 – Introduction to CSS
+3.4 – Styling Webpages (Colors, Layouts, Fonts)
+🟦 20 MCQs — each with 4 options, correct answer, and explanation
+All content is taken ONLY from Module 3.3 and 3.4 of your PDF.
+________________________________________
+🎯 MODULE 3 — QUIZ 2 (20 MCQs with Explanations)
+________________________________________
+1. What does CSS stand for?
+A. Creative Styling System
+B. Cascading Style Sheets
+C. Computer Style Script
+D. Cascading Script Sheets
+✅ Correct Answer: B
+📘 Explanation:
+CSS stands for Cascading Style Sheets and is used for styling webpages.
+________________________________________
+2. CSS is mainly used for ______.
+A. Structuring content
+B. Styling HTML elements
+C. Running backend logic
+D. Storing data
+✅ Correct Answer: B
+📘 Explanation:
+CSS handles colors, layout, spacing, fonts, and overall appearance.
+________________________________________
+3. Which of the following adds a color to text?
+A. font-style:
+B. text-color:
+C. color:
+D. background-color:
+✅ Correct Answer: C
+📘 Explanation:
+The color property changes text color.
+________________________________________
+4. To change the background color of an element, use:
+A. bg:
+B. background:
+C. background-color:
+D. color:
+✅ Correct Answer: C
+📘 Explanation:
+background-color is used to set the background color.
+________________________________________
+5. CSS is applied to HTML using ______.
+A. SQL
+B. Python
+C. Inline, internal, or external styles
+D. REST APIs
+✅ Correct Answer: C
+📘 Explanation:
+CSS can be inline (style=""), internal (<style>), or external (style.css).
+________________________________________
+6. Which CSS property controls the spacing inside an element?
+A. margin
+B. padding
+C. border
+D. position
+✅ Correct Answer: B
+📘 Explanation:
+padding adds space inside the element border.
+________________________________________
+7. Which CSS property controls spacing outside an element?
+A. padding
+B. margin
+C. gap
+D. outline
+✅ Correct Answer: B
+📘 Explanation:
+margin creates space outside the element.
+________________________________________
+8. Which property adjusts the size of the text?
+A. font-size
+B. padding
+C. display
+D. float
+✅ Correct Answer: A
+📘 Explanation:
+font-size sets the size of characters in text.
+________________________________________
+9. Which CSS property changes the font of text?
+A. font-family
+B. font-face
+C. family
+D. font-style
+✅ Correct Answer: A
+📘 Explanation:
+font-family selects the typeface used to display text.
+________________________________________
+10. Which property makes text bold?
+A. font-weight
+B. font-style
+C. text-align
+D. font-bold
+✅ Correct Answer: A
+📘 Explanation:
+font-weight: bold; makes text bold.
+________________________________________
+11. The property used to align text (left, center, right) is:
+A. font-align
+B. align-text
+C. text-align
+D. align
+✅ Correct Answer: C
+📘 Explanation:
+text-align controls horizontal alignment of text.
+________________________________________
+12. Which property adjusts the space between lines of text?
+A. height
+B. line-height
+C. letter-spacing
+D. margin-top
+✅ Correct Answer: B
+📘 Explanation:
+line-height controls spacing between lines of text.
+________________________________________
+13. To remove the underline from hyperlinks, use:
+A. text-decoration: none;
+B. font-style: normal;
+C. font-weight: normal;
+D. hyperlink: off;
+✅ Correct Answer: A
+📘 Explanation:
+text-decoration: none; removes the default underline from <a> tags.
+________________________________________
+14. Which property controls the layout type (block/inline)?
+A. display
+B. visibility
+C. position
+D. align-items
+✅ Correct Answer: A
+📘 Explanation:
+display sets layout behavior: block, inline, flex, grid, etc.
+________________________________________
+15. CSS flexbox is used for ______.
+A. Styling fonts
+B. Creating responsive layouts
+C. Making animations
+D. Building databases
+✅ Correct Answer: B
+📘 Explanation:
+Flexbox is used to create flexible, responsive layouts.
+________________________________________
+16. Which property is used to control layout direction in Flexbox?
+A. flex-order
+B. flex-direction
+C. direction-type
+D. layout-direction
+✅ Correct Answer: B
+📘 Explanation:
+flex-direction determines row or column layout.
+________________________________________
+17. Which CSS unit is relative to the root font size?
+A. px
+B. cm
+C. rem
+D. %
+✅ Correct Answer: C
+📘 Explanation:
+rem scales relative to the root (html) font-size.
+________________________________________
+18. The border property controls ______.
+A. Only color
+B. Only thickness
+C. Only style
+D. Thickness, style, and color
+✅ Correct Answer: D
+📘 Explanation:
+border can set all three: width, style, color.
+________________________________________
+19. CSS Grid is used mainly for ______.
+A. Creating single-column layouts
+B. Complex two-dimensional layouts
+C. Writing JavaScript
+D. Making animations
+✅ Correct Answer: B
+📘 Explanation:
+Grid helps build multi-row and multi-column layouts.
+________________________________________
+20. Which of the following statements is TRUE?
+A. CSS changes webpage logic
+B. CSS is optional for styling
+C. CSS is only for backend
+D. CSS cannot control spacing
+✅ Correct Answer: B
+📘 Explanation:
+A webpage technically works without CSS, but it will look unstyled.
+________________________________________
+🎉 MODULE 3 — QUIZ 2 COMPLETE (20/20 MCQs)
+All questions are derived ONLY from Subtopics 3.3 & 3.4 of your PDF.
+________________________________________
+👉 Ready for the next set?
+Say:
+“Generate Module 4 – Quiz 1”
+(Subtopics 4.1 + 4.2)
+You said:
+yes
+ChatGPT said:
+Great — continuing exactly as planned.
+Here is Module 4 – Quiz 1, created STRICTLY from Subtopics 4.1 + 4.2 from your PDF.
+________________________________________
+📘 MODULE 4 — QUIZ 1
+Subtopics Covered:
+4.1 – Introduction to JavaScript
+4.2 – JavaScript Syntax & Variables
+🟦 20 MCQs with 4 options + correct answer + explanation
+Everything is taken only from your Module 4 content.
+________________________________________
+🎯 MODULE 4 — QUIZ 1 (20 MCQs with Explanations)
+________________________________________
+1. What is JavaScript primarily used for in web development?
+A. Styling web pages
+B. Structuring web pages
+C. Adding interactivity and logic
+D. Hosting websites
+✅ Correct Answer: C
+📘 Explanation:
+JavaScript adds dynamic behavior, events, and logic to webpages.
+________________________________________
+2. JavaScript runs mainly on the ______.
+A. Backend
+B. User’s browser
+C. Database
+D. Operating system
+✅ Correct Answer: B
+📘 Explanation:
+JS is a client-side scripting language executed inside the browser engine.
+________________________________________
+3. Which keyword declares a block-scoped variable?
+A. var
+B. let
+C. const
+D. static
+✅ Correct Answer: B
+📘 Explanation:
+let creates block-scoped variables.
+________________________________________
+4. Which keyword is used for constant values in JavaScript?
+A. var
+B. define
+C. const
+D. set
+✅ Correct Answer: C
+📘 Explanation:
+const is used for constant values that cannot be reassigned.
+________________________________________
+5. What symbol is used to end a statement in JavaScript (recommended)?
+A. :
+B. ;
+C. ,
+D. .
+✅ Correct Answer: B
+📘 Explanation:
+Statements often end with a semicolon (;) in JS.
+________________________________________
+6. What will console.log(typeof "Hello") output?
+A. string
+B. text
+C. char
+D. object
+✅ Correct Answer: A
+📘 Explanation:
+Anything inside quotes is treated as a string.
+________________________________________
+7. Which of the following is a valid variable name?
+A. 1name
+B. full-name
+C. _username
+D. var
+✅ Correct Answer: C
+📘 Explanation:
+JS variable names cannot start with a number or contain hyphens.
+________________________________________
+8. What is the correct syntax for a single-line comment in JS?
+A. <!-- -->
+B. * comment *
+C. // comment
+D. ## comment
+✅ Correct Answer: C
+📘 Explanation:
+JavaScript uses // for single-line comments.
+________________________________________
+9. Which of the following is used for multi-line comments in JS?
+A. /* comment */
+B. // comment
+C. ## comment ##
+D. <! comment >
+✅ Correct Answer: A
+📘 Explanation:
+/* */ is used for block-level comments.
+________________________________________
+10. What will let a = 5 + "5"; result in?
+A. 10
+B. 55
+C. NaN
+D. Error
+✅ Correct Answer: B
+📘 Explanation:
+Number + string → string concatenation → "55".
+________________________________________
+11. What is the output of: typeof 10?
+A. integer
+B. number
+C. numeric
+D. float
+✅ Correct Answer: B
+📘 Explanation:
+JavaScript does not differentiate between integer and float types.
+________________________________________
+12. Which operator is used for assignment?
+A. ==
+B. ===
+C. =
+D. :=
+✅ Correct Answer: C
+📘 Explanation:
+The single equals (=) assigns values.
+________________________________________
+13. What does === check?
+A. Only value
+B. Only type
+C. Value and type
+D. Only memory address
+✅ Correct Answer: C
+📘 Explanation:
+=== checks both value AND type, making it strict equality.
+________________________________________
+14. What is the correct way to declare a variable in JS?
+A. var = x
+B. let x
+C. let x = 5
+D. define x = 5
+✅ Correct Answer: C
+📘 Explanation:
+Valid syntax includes let x = value.
+________________________________________
+15. What is the default value of an unassigned variable in JS?
+A. null
+B. 0
+C. undefined
+D. empty string
+✅ Correct Answer: C
+📘 Explanation:
+Unassigned variables are undefined.
+________________________________________
+16. Which of these is a primitive data type in JavaScript?
+A. Array
+B. Object
+C. Number
+D. Function
+✅ Correct Answer: C
+📘 Explanation:
+Primitive types include: string, number, boolean, null, undefined, symbol, bigint.
+________________________________________
+17. What does console.log() do?
+A. Runs Java code
+B. Displays output in JS console
+C. Prints to webpage
+D. Saves logs to a file
+✅ Correct Answer: B
+📘 Explanation:
+It logs messages to the browser developer console.
+________________________________________
+18. Which of the following is true about JavaScript variables?
+A. They must be typed
+B. They are dynamically typed
+C. They require compilation
+D. They are static
+✅ Correct Answer: B
+📘 Explanation:
+JavaScript automatically decides the variable type at runtime.
+________________________________________
+19. Which operator is used for addition?
+A. -
+B. *
+C. +
+D. %
+✅ Correct Answer: C
+📘 Explanation:
++ adds numbers or concatenates strings.
+________________________________________
+20. Which statement about var is TRUE?
+A. It is block scoped
+B. It is function scoped
+C. It cannot be redeclared
+D. It cannot be reassigned
+✅ Correct Answer: B
+📘 Explanation:
+var has function scope, unlike let and const which are block scoped.
+________________________________________
+🎉 MODULE 4 — QUIZ 1 COMPLETE (20/20 MCQs)
+All questions are taken ONLY from Module 4.1 + 4.2 content in your PDF.
+________________________________________
+👉 Ready for the next set?
+Say:
+“Generate Module 4 – Quiz 2”
+(Subtopics 4.3 + 4.4)
+You said:
+yes
+ChatGPT said:
+Perfect — here is Module 4 – Quiz 2, created STRICTLY from Subtopics 4.3 + 4.4 in your PDF.
+________________________________________
+📘 MODULE 4 — QUIZ 2
+Subtopics Covered:
+4.3 – Functions in JavaScript
+4.4 – DOM Manipulation & Events
+🟦 20 MCQs — 4 options, correct answer, detailed explanations
+Everything is taken only from your Module 4 content (Functions + DOM + Events).
+________________________________________
+🎯 MODULE 4 — QUIZ 2 (20 MCQs with Explanations)
+________________________________________
+1. What is a function in JavaScript?
+A. A block of HTML
+B. A reusable block of code
+C. A type of variable
+D. A CSS class
+✅ Correct Answer: B
+📘 Explanation:
+A function allows bundling logic into reusable pieces.
+________________________________________
+2. Which keyword is used to define a function?
+A. define
+B. function
+C. fun
+D. method
+✅ Correct Answer: B
+📘 Explanation:
+Functions are defined using the function keyword or arrow syntax.
+________________________________________
+3. What is the correct way to call a function named greet?
+A. greet;
+B. call greet()
+C. greet()
+D. run.greet
+✅ Correct Answer: C
+📘 Explanation:
+Functions are executed using parentheses.
+________________________________________
+4. A function that takes inputs is using ______.
+A. additions
+B. parameters
+C. returns
+D. arguments only
+✅ Correct Answer: B
+📘 Explanation:
+Function inputs are called parameters (definition) or arguments (calling).
+________________________________________
+5. What does the return keyword do?
+A. Stops JavaScript
+B. Sends a value back from the function
+C. Refreshes the browser
+D. Logs a message
+✅ Correct Answer: B
+📘 Explanation:
+return outputs a value from the function.
+________________________________________
+6. Which is the correct arrow function syntax?
+A. let sum => (a, b) { return a+b }
+B. let sum = (a, b) => a + b
+C. function arrow sum(a,b)
+D. sum(a,b) =>
+✅ Correct Answer: B
+📘 Explanation:
+Arrow functions use () => syntax.
+________________________________________
+7. The DOM stands for ______.
+A. Data Output Model
+B. Document Object Model
+C. Document Online Module
+D. Display Object Management
+✅ Correct Answer: B
+📘 Explanation:
+The DOM represents the HTML structure as objects.
+________________________________________
+8. Which method selects an element by its ID?
+A. document.getElement("id")
+B. document.getItemById()
+C. document.getElementById()
+D. document.findById()
+✅ Correct Answer: C
+📘 Explanation:
+getElementById fetches HTML elements using ID selectors.
+________________________________________
+9. Which method selects elements using CSS selectors?
+A. querySelect
+B. querySelector
+C. findElement
+D. selectElement
+✅ Correct Answer: B
+📘 Explanation:
+querySelector() lets you use CSS-style selectors.
+________________________________________
+10. What does innerHTML modify?
+A. CSS only
+B. The internal HTML content of an element
+C. File structure
+D. Page URL
+✅ Correct Answer: B
+📘 Explanation:
+innerHTML helps change the displayed content.
+________________________________________
+11. Which property is used to change text inside an element?
+A. textUpdate
+B. updateText
+C. textContent
+D. cssText
+✅ Correct Answer: C
+📘 Explanation:
+textContent safely updates text without parsing HTML.
+________________________________________
+12. Which event triggers when a user clicks a button?
+A. onload
+B. onclick
+C. onhover
+D. onchange
+✅ Correct Answer: B
+📘 Explanation:
+onclick is used for click events.
+________________________________________
+13. Which is the correct way to add an event listener?
+A. element.on("click", fn)
+B. element.addEvent("click", fn)
+C. addListener(element, "click", fn)
+D. element.addEventListener("click", fn)
+✅ Correct Answer: D
+📘 Explanation:
+addEventListener is the modern method for handling events.
+________________________________________
+14. What will document.querySelector("p") select?
+A. All <p> tags
+B. First <p> tag
+C. Last <p> tag
+D. A random <p> tag
+✅ Correct Answer: B
+📘 Explanation:
+querySelector selects the first matching element.
+________________________________________
+15. Which event fires when a page finishes loading?
+A. onclick
+B. onsubmit
+C. onload
+D. onhover
+✅ Correct Answer: C
+📘 Explanation:
+onload triggers when the entire document is ready.
+________________________________________
+16. DOM manipulation helps developers ______.
+A. Install software
+B. Modify HTML elements dynamically
+C. Create SQL databases
+D. Format drives
+✅ Correct Answer: B
+📘 Explanation:
+DOM allows changing content, style, and structure dynamically.
+________________________________________
+17. What does style.color = "red" do?
+A. Changes border
+B. Changes text color
+C. Adds an image
+D. Loads a script
+✅ Correct Answer: B
+📘 Explanation:
+Styles can be changed dynamically using the .style property.
+________________________________________
+18. Which object represents the entire HTML structure?
+A. window
+B. document
+C. body
+D. DOMcontent
+✅ Correct Answer: B
+📘 Explanation:
+document object represents the website’s DOM.
+________________________________________
+19. Which event is used for input field changes?
+A. onclick
+B. onsubmit
+C. onchange
+D. onhover
+✅ Correct Answer: C
+📘 Explanation:
+onchange triggers when input value changes.
+________________________________________
+20. Which statement about functions is TRUE?
+A. Functions cannot return values
+B. Functions help reuse code
+C. Functions can only run once
+D. Functions cannot take parameters
+✅ Correct Answer: B
+📘 Explanation:
+Functions reduce redundancy by grouping reusable code.
+________________________________________
+🎉 MODULE 4 — QUIZ 2 COMPLETE (20/20 MCQs)
+All questions are generated EXACTLY from Subtopics 4.3 + 4.4 — no outside content.
+________________________________________
+Ready for Module 5?
+Say:
+“Generate Module 5 – Quiz 1”
+(Subtopics 5.1 + 5.2)
+You said:
+yes
+ChatGPT said:
+Perfect — here is Module 5 – Quiz 1, created STRICTLY from Subtopics 5.1 + 5.2 in your PDF.
+________________________________________
+📘 MODULE 5 — QUIZ 1
+Subtopics Covered:
+5.1 – Introduction to Backend Development
+5.2 – Node.js Basics
+🟦 20 MCQs — each with 4 options, correct answer, and explanation
+All questions are taken ONLY from your Module 5 content.
+________________________________________
+🎯 MODULE 5 — QUIZ 1 (20 MCQs with Explanations)
+________________________________________
+1. What is the main purpose of backend development?
+A. Styling webpages
+B. Handling server-side logic and data
+C. Designing UI layouts
+D. Making animations
+✅ Correct Answer: B
+📘 Explanation:
+Backend development manages databases, APIs, authentication, and server logic.
+________________________________________
+2. Backend communicates with the frontend using ______.
+A. HTML tags
+B. Bluetooth
+C. APIs
+D. Local storage
+✅ Correct Answer: C
+📘 Explanation:
+APIs (Application Programming Interfaces) allow frontend → backend communication.
+________________________________________
+3. Node.js is primarily used for ______.
+A. Designing CSS animations
+B. Running JavaScript on the server
+C. Editing images
+D. Managing hosting services
+✅ Correct Answer: B
+📘 Explanation:
+Node.js brings JavaScript to the server environment.
+________________________________________
+4. Which runtime environment allows JS to run backend code?
+A. Browser
+B. Node.js
+C. Canva
+D. Terminal only
+✅ Correct Answer: B
+📘 Explanation:
+Node.js allows executing JS outside the browser.
+________________________________________
+5. Node.js is built on ______ engine.
+A. Safari
+B. Java
+C. V8
+D. Python
+✅ Correct Answer: C
+📘 Explanation:
+Node.js uses Google’s V8 engine (same as Chrome).
+________________________________________
+6. Backend is responsible for ______.
+A. User interface
+B. Database operations
+C. HTML structure
+D. Color themes
+✅ Correct Answer: B
+📘 Explanation:
+Backend interacts with the database to fetch, update, and store data.
+________________________________________
+7. Which of the following is a backend task?
+A. Making a navbar
+B. Retrieving user details from a database
+C. Styling buttons
+D. Designing wireframes
+✅ Correct Answer: B
+📘 Explanation:
+Fetching user data is a typical backend operation.
+________________________________________
+8. Node.js uses which programming language?
+A. Python
+B. JavaScript
+C. C++
+D. Ruby
+✅ Correct Answer: B
+📘 Explanation:
+Node runs JavaScript on the server.
+________________________________________
+9. Which module system does Node.js use?
+A. React modules
+B. CSS modules
+C. CommonJS / ES Modules
+D. Bootstrap modules
+✅ Correct Answer: C
+📘 Explanation:
+Node supports CommonJS (require) and ES Modules (import).
+________________________________________
+10. Backend frameworks built on Node.js include ______.
+A. Express.js
+B. Tailwind CSS
+C. React
+D. Canva
+✅ Correct Answer: A
+📘 Explanation:
+Express.js is the most common backend framework built on Node.
+________________________________________
+11. Which of the following handles routing in Node.js?
+A. Java
+B. Express.js
+C. CSS Grid
+D. HTML forms
+✅ Correct Answer: B
+📘 Explanation:
+Express helps define routes like GET, POST, etc.
+________________________________________
+12. What does npm stand for?
+A. Node Package Manager
+B. New Project Maker
+C. Next Python Module
+D. Network Process Manager
+✅ Correct Answer: A
+📘 Explanation:
+npm is the package manager bundled with Node.js.
+________________________________________
+13. Backend code runs on ______.
+A. Client browser
+B. Server or cloud environment
+C. HTML engine
+D. CSS interpreter
+✅ Correct Answer: B
+📘 Explanation:
+Backend executes on a server environment.
+________________________________________
+14. When you install Node.js, which tool comes with it?
+A. Python
+B. npm
+C. Docker
+D. MongoDB
+✅ Correct Answer: B
+📘 Explanation:
+npm is automatically installed with Node.
+________________________________________
+15. Node.js is known for being ______.
+A. Blocking and slow
+B. Single-threaded but non-blocking
+C. Multi-threaded by default
+D. Only used for mobile apps
+✅ Correct Answer: B
+📘 Explanation:
+Node uses non-blocking I/O and is single-threaded with event loop.
+________________________________________
+16. Which command initializes a Node.js project?
+A. node start
+B. init project
+C. npm init
+D. new node
+✅ Correct Answer: C
+📘 Explanation:
+npm init creates a package.json file.
+________________________________________
+17. Which file stores Node.js project information?
+A. project.json
+B. nodefile.js
+C. package.json
+D. info.js
+✅ Correct Answer: C
+📘 Explanation:
+package.json stores project metadata and dependencies.
+________________________________________
+18. APIs built using Node.js typically return data in ______ format.
+A. HTML
+B. XML only
+C. JSON
+D. CSV
+✅ Correct Answer: C
+📘 Explanation:
+JSON (JavaScript Object Notation) is the most common API response format.
+________________________________________
+19. Which backend concept stores and retrieves data?
+A. CSS
+B. Database
+C. HTML
+D. Animations
+✅ Correct Answer: B
+📘 Explanation:
+Databases store application data like users, courses, progress.
+________________________________________
+20. Why is Node.js popular in modern web development?
+A. It replaces all frontend tools
+B. It allows JavaScript to be used for both frontend and backend
+C. It designs UI automatically
+D. It stores images efficiently
+✅ Correct Answer: B
+📘 Explanation:
+Node enables full-stack JS development, reducing context switching.
+________________________________________
+🎉 MODULE 5 — QUIZ 1 COMPLETE (20/20 MCQs)
+All questions derived ONLY from Subtopics 5.1 & 5.2 in your PDF.
+________________________________________
+👉 Ready for the next quiz?
+Say:
+“Generate Module 5 – Quiz 2”
+(Subtopics 5.3 + 5.4)
+You said:
+yes
+ChatGPT said:
+Great — continuing exactly as planned.
+Here is Module 5 – Quiz 2, based STRICTLY on Subtopics 5.3 + 5.4 in your PDF.
+________________________________________
+📘 MODULE 5 — QUIZ 2
+Subtopics Covered:
+5.3 – Introduction to APIs (GET, POST, PUT, DELETE)
+5.4 – Connecting Frontend & Backend
+🟦 20 MCQs — 4 options + correct answer + detailed explanations
+All questions come ONLY from your Module 5 content.
+________________________________________
+🎯 MODULE 5 — QUIZ 2 (20 MCQs with Explanations)
+________________________________________
+1. What does API stand for?
+A. Application Programming Interface
+B. Advanced Programming Input
+C. Application Process Integration
+D. Automated Program Interaction
+✅ Correct Answer: A
+📘 Explanation:
+APIs allow two systems (frontend & backend) to communicate.
+________________________________________
+2. Which HTTP method is used to retrieve data?
+A. POST
+B. DELETE
+C. GET
+D. PUT
+✅ Correct Answer: C
+📘 Explanation:
+GET requests are used to fetch data from the server.
+________________________________________
+3. Which method is used to send data to the backend?
+A. GET
+B. POST
+C. DELETE
+D. HEAD
+✅ Correct Answer: B
+📘 Explanation:
+POST requests submit new data to the server.
+________________________________________
+4. PUT is used for ______.
+A. Creating new data
+B. Updating existing data
+C. Deleting data
+D. Fetching data
+✅ Correct Answer: B
+📘 Explanation:
+PUT updates or replaces existing data on the server.
+________________________________________
+5. DELETE request is used to ______.
+A. Update data
+B. Remove data
+C. Fetch data
+D. Create new UI
+✅ Correct Answer: B
+📘 Explanation:
+DELETE removes specific data entries.
+________________________________________
+6. Which type of data format is commonly sent through APIs?
+A. HTML
+B. JSON
+C. JPEG
+D. MP3
+✅ Correct Answer: B
+📘 Explanation:
+APIs commonly send structured data using JSON.
+________________________________________
+7. API endpoints are used to ______.
+A. Save CSS files
+B. Define communication URLs for backend
+C. Run animations
+D. Host fonts
+✅ Correct Answer: B
+📘 Explanation:
+Endpoints represent backend routes like /login, /users, /courses.
+________________________________________
+8. What does the endpoint /users/5 generally mean?
+A. Delete all users
+B. Fetch user with ID 5
+C. Create a new user
+D. Restart server
+✅ Correct Answer: B
+📘 Explanation:
+API parameters allow fetching specific resources.
+________________________________________
+9. Which tool is used for testing APIs?
+A. Figma
+B. Postman
+C. Canva
+D. Photoshop
+✅ Correct Answer: B
+📘 Explanation:
+Postman is widely used for testing GET/POST/PUT/DELETE requests.
+________________________________________
+10. Frontend usually communicates with backend through ______.
+A. API calls
+B. HTML forms only
+C. CSS files
+D. Keyboard input
+✅ Correct Answer: A
+📘 Explanation:
+Frontend (React) sends HTTP requests to backend APIs.
+________________________________________
+11. In React, which method is commonly used for API requests?
+A. useFetch
+B. axios/fetch
+C. useRouter
+D. getServerSideProps
+✅ Correct Answer: B
+📘 Explanation:
+React uses fetch() or Axios to call backend APIs.
+________________________________________
+12. What does JSON stand for?
+A. Java Syntax Output Notation
+B. JavaScript Object Notation
+C. Java Styled Object Network
+D. Joint Server Output Name
+✅ Correct Answer: B
+📘 Explanation:
+JSON is a lightweight data-interchange format used in APIs.
+________________________________________
+13. A successful GET request usually returns which HTTP status code?
+A. 404
+B. 500
+C. 200
+D. 302
+✅ Correct Answer: C
+📘 Explanation:
+200 = "OK", meaning the request succeeded.
+________________________________________
+14. A successful POST (created) request usually returns:
+A. 201
+B. 400
+C. 401
+D. 304
+✅ Correct Answer: A
+📘 Explanation:
+201 = “Created”, used when new data is added.
+________________________________________
+15. When connecting frontend & backend, CORS errors occur due to ______.
+A. Wrong CSS code
+B. Domain restrictions
+C. Incorrect HTML tags
+D. Broken animations
+✅ Correct Answer: B
+📘 Explanation:
+CORS occurs when frontend and backend origins don’t match.
+________________________________________
+16. Which header is used to send JSON to backend?
+A. Content-Type: image/png
+B. Content-Type: text/html
+C. Content-Type: application/json
+D. Content-Type: css/style
+✅ Correct Answer: C
+📘 Explanation:
+JSON data requires specifying the correct content type.
+________________________________________
+17. Axios sends a POST request using ______.
+A. axios.get()
+B. axios.send()
+C. axios.post()
+D. axios.load()
+✅ Correct Answer: C
+📘 Explanation:
+axios.post() is used to send data to backend.
+________________________________________
+18. When backend sends data to frontend, it is called ______.
+A. Response
+B. Request
+C. Header
+D. Promise
+✅ Correct Answer: A
+📘 Explanation:
+Frontend sends request; backend responds.
+________________________________________
+19. Which HTTP code means “Not Found”?
+A. 200
+B. 404
+C. 500
+D. 301
+✅ Correct Answer: B
+📘 Explanation:
+404 = resource not found.
+________________________________________
+20. Why are APIs important in full-stack development?
+A. They replace CSS
+B. They connect UI with database and server
+C. They create animations
+D. They store frontend files
+✅ Correct Answer: B
+📘 Explanation:
+APIs enable communication between frontend (React) and backend (Node).
+________________________________________
+🎉 MODULE 5 — QUIZ 2 COMPLETE (20/20 MCQs)
+Every question was strictly based on Subtopics 5.3 + 5.4 from your PDF.
+________________________________________
+👉 READY FOR MODULE 6?
+Say:
+“Generate Module 6 – Quiz 1”
+(Subtopics 6.1 + 6.2)
+You said:
+yes
+ChatGPT said:
+Perfect — now we begin the final module of your course.
+Here is Module 6 – Quiz 1, created STRICTLY from Subtopics 6.1 + 6.2 in your PDF.
+________________________________________
+📘 MODULE 6 — QUIZ 1
+Subtopics Covered:
+6.1 – What is RAG (Retrieval-Augmented Generation)?
+6.2 – Understanding Chunking & Embeddings
+🟦 20 MCQs — 4 options, correct answer, detailed explanations
+All content comes ONLY from your Module 6 PDF section.
+________________________________________
+🎯 MODULE 6 — QUIZ 1 (20 MCQs with Explanations)
+________________________________________
+1. What does RAG stand for?
+A. Random AI Generation
+B. Retrieval-Augmented Generation
+C. Recursive AI Guidance
+D. Real-time Augmented Graphics
+✅ Correct Answer: B
+📘 Explanation:
+RAG combines retrieval of real data + generation by an LLM.
+________________________________________
+2. What is the main purpose of RAG?
+A. To create animations
+B. To improve AI accuracy using real data
+C. To generate UI automatically
+D. To compile backend code
+✅ Correct Answer: B
+📘 Explanation:
+RAG enhances AI responses using factual, retrieved information.
+________________________________________
+3. In RAG, the LLM receives ______.
+A. Only prompts
+B. Prompts + retrieved context
+C. Only embeddings
+D. Only database IDs
+✅ Correct Answer: B
+📘 Explanation:
+RAG sends extra relevant content from database along with the user query.
+________________________________________
+4. What is the first step in the RAG pipeline?
+A. Generate the final answer
+B. Chunking the text
+C. Train an LLM
+D. Render UI
+✅ Correct Answer: B
+📘 Explanation:
+RAG begins by splitting content into smaller pieces called chunks.
+________________________________________
+5. What are embeddings?
+A. Styled HTML blocks
+B. Numeric vector representations of text
+C. Image filters
+D. Database schemas
+✅ Correct Answer: B
+📘 Explanation:
+Embeddings convert text into mathematical vectors for similarity search.
+________________________________________
+6. Which technique allows the AI to find the most relevant text chunk?
+A. Video indexing
+B. Vector similarity search
+C. CSS grid layout
+D. Server caching
+✅ Correct Answer: B
+📘 Explanation:
+Embeddings enable similarity matching to retrieve relevant context.
+________________________________________
+7. Chunking helps because ______.
+A. AI cannot read long text
+B. Smaller pieces improve retrieval accuracy
+C. It creates animations
+D. It enhances HTML structure
+✅ Correct Answer: B
+📘 Explanation:
+Smaller text pieces lead to more precise retrieval.
+________________________________________
+8. Which of the following represents why RAG is useful?
+A. It reduces UI work
+B. It updates databases automatically
+C. It prevents AI from hallucinating
+D. It replaces the frontend
+✅ Correct Answer: C
+📘 Explanation:
+RAG reduces hallucination by grounding responses in real data.
+________________________________________
+9. Where are embeddings usually stored?
+A. LocalStorage
+B. Vector Database
+C. HTML files
+D. CSS repository
+✅ Correct Answer: B
+📘 Explanation:
+Vector DBs enable fast similarity search for embeddings.
+________________________________________
+10. What happens after retrieving the top relevant chunks?
+A. The server deletes them
+B. They are given to the LLM for answer generation
+C. They are stored permanently
+D. They are displayed directly to users
+✅ Correct Answer: B
+📘 Explanation:
+LLM uses retrieved chunks as context to improve its answer.
+________________________________________
+11. Chunking is necessary because ______.
+A. LLMs require images
+B. LLMs cannot store HTML
+C. Documents are too large to process at once
+D. It helps browsers load faster
+✅ Correct Answer: C
+📘 Explanation:
+Large documents must be broken down for efficient retrieval.
+________________________________________
+12. Embeddings convert text into:
+A. Binary code
+B. 3D models
+C. High-dimensional vectors
+D. Tables
+Correct Answer: C
+📘 Explanation:
+Embedding models convert text → numerical vectors for comparison.
+________________________________________
+13. What does a vector similarity search do?
+A. Renders UI
+B. Finds closest matching chunks
+C. Runs JavaScript faster
+D. Compresses images
+Correct Answer: B
+📘 Explanation:
+It compares vectors to retrieve the most relevant stored information.
+________________________________________
+14. Which step ensures RAG answers remain grounded in data?
+A. Embedding search
+B. CSS styling
+C. HTML templating
+D. API routing
+Correct Answer: A
+📘 Explanation:
+Embedding search ensures the LLM receives accurate, factual context.
+________________________________________
+15. RAG is commonly used when a system requires ______.
+A. High accuracy with factual references
+B. Faster CSS rendering
+C. Bigger databases
+D. Automatic server deployment
+Correct Answer: A
+📘 Explanation:
+RAG injects real data to support high-accuracy AI answers.
+________________________________________
+16. Chunk size must be balanced because ______.
+A. Large chunks reduce accuracy
+B. Small chunks increase server cost
+C. Small chunks reduce clarity
+D. Large chunks are not supported by browsers
+Correct Answer: A
+📘 Explanation:
+Too-large chunks confuse retrieval and reduce precision.
+________________________________________
+17. Which component performs the “retrieve” step in RAG?
+A. Web server
+B. Vector search engine
+C. HTML parser
+D. CSS renderer
+Correct Answer: B
+📘 Explanation:
+The vector DB or search engine retrieves relevant chunks.
+________________________________________
+18. The final answer in a RAG system is generated by ______.
+A. Vector database
+B. LLM
+C. Chunking tool
+D. Web browser
+Correct Answer: B
+📘 Explanation:
+The LLM generates the final response using the retrieved chunks as input.
+________________________________________
+19. The main advantage of embeddings is ______.
+A. Faster CSS reload
+B. Storing images efficiently
+C. Understanding text meaning mathematically
+D. Creating web animations
+Correct Answer: C
+📘 Explanation:
+Embeddings capture semantic meaning of text in vector form.
+________________________________________
+20. RAG is powerful because it combines ______.
+A. APIs + CSS
+B. Retrieval + Generation
+C. HTML + SQL
+D. Images + Animations
+Correct Answer: B
+📘 Explanation:
+RAG merges knowledge retrieval with modern AI generation.
+________________________________________
+🎉 MODULE 6 — QUIZ 1 COMPLETE (20/20 MCQs)
+All questions generated STRICTly from Subtopics 6.1 + 6.2 of your PDF.
+________________________________________
+👉 Ready for the final quiz set?
+Say:
+“Generate Module 6 – Quiz 2”
+(Subtopics 6.3 + 6.4)
+You said:
+yes
+ChatGPT said:
+Great — here is the FINAL quiz of your entire course, created STRICTLY from Subtopics 6.3 + 6.4 in your PDF.
+________________________________________
+📘 MODULE 6 — QUIZ 2
+Subtopics Covered:
+6.3 – Chatbot Integration Using RAG
+6.4 – Deploying AI-Powered Web Applications
+🟦 20 MCQs — each with 4 options, correct answer, and explanation
+All questions are taken ONLY from the Module 6 content in your PDF.
+________________________________________
+🎯 MODULE 6 — QUIZ 2 (20 MCQs with Explanations)
+________________________________________
+1. What is the main purpose of integrating a chatbot using RAG?
+A. To change the website color
+B. To provide accurate, context-based answers
+C. To store files
+D. To make the website faster
+✅ Correct Answer: B
+📘 Explanation:
+RAG-based chatbots use retrieved content to give reliable, factual answers.
+________________________________________
+2. A chatbot integrated with RAG retrieves information from ______.
+A. Social media
+B. Your course/document database
+C. Local storage
+D. Operating system
+✅ Correct Answer: B
+📘 Explanation:
+RAG chatbots search your stored chunks/embeddings to respond contextually.
+________________________________________
+3. Which component is responsible for retrieving relevant text in a RAG chatbot?
+A. CSS file
+B. Vector database
+C. HTML
+D. Animation engine
+✅ Correct Answer: B
+📘 Explanation:
+Vector DB performs similarity search to fetch relevant chunks.
+________________________________________
+4. The frontend communicates with the chatbot backend using ______.
+A. Database triggers
+B. API routes
+C. CSS classes
+D. HTML forms only
+✅ Correct Answer: B
+📘 Explanation:
+Frontend → Backend communication happens through API endpoints like /chat.
+________________________________________
+5. What does the chatbot send to the backend?
+A. Server logs
+B. User query
+C. Browser cookies
+D. Image metadata
+✅ Correct Answer: B
+📘 Explanation:
+The chatbot simply sends the user’s question to backend for processing.
+________________________________________
+6. What does the backend return to the chatbot?
+A. HTML classes
+B. Final generated answer
+C. System configurations
+D. API keys
+✅ Correct Answer: B
+📘 Explanation:
+The backend sends the LLM’s generated answer back to the frontend chatbot.
+________________________________________
+7. Deploying an AI-powered web app requires handling which two major components?
+A. HTML + CSS
+B. Frontend + Backend
+C. Images + Animations
+D. Links + Tables
+✅ Correct Answer: B
+📘 Explanation:
+Deployment involves hosting both the frontend and backend in production.
+________________________________________
+8. Which service is commonly used to deploy frontend applications?
+A. MySQL
+B. Vercel
+C. Photoshop
+D. VS Code
+✅ Correct Answer: B
+📘 Explanation:
+Platforms like Vercel or Netlify host frontend React applications.
+________________________________________
+9. Which service is commonly used for backend deployment?
+A. Tailwind CSS
+B. Render
+C. Canva
+D. Figma
+✅ Correct Answer: B
+📘 Explanation:
+Render, Railway, or DigitalOcean are common backend hosting platforms.
+________________________________________
+10. When deploying a chatbot, what must be protected?
+A. Images
+B. API keys
+C. CSS files
+D. HTML elements
+✅ Correct Answer: B
+📘 Explanation:
+AI models require API keys, which must be secured in environment variables.
+________________________________________
+11. What file stores environment variables in Node.js?
+A. envlist.js
+B. config.json
+C. .env
+D. script.js
+✅ Correct Answer: C
+📘 Explanation:
+Sensitive data like database URLs and AI keys go inside .env files.
+________________________________________
+12. Why is HTTPS important when deploying chatbots?
+A. To run HTML faster
+B. To ensure secure communication
+C. To increase screen brightness
+D. To load fonts quicker
+✅ Correct Answer: B
+📘 Explanation:
+HTTPS encrypts data sent between frontend and backend.
+________________________________________
+13. The chatbot UI is usually built using ______.
+A. HTML + CSS + JavaScript
+B. SQL
+C. Node CLI
+D. Hardware scripts
+✅ Correct Answer: A
+📘 Explanation:
+Frontend chat UI is typically built using standard web technologies.
+________________________________________
+14. What is required to deploy the backend API for a chatbot?
+A. React components
+B. A running Node.js server
+C. CSS animations
+D. Browser extensions
+✅ Correct Answer: B
+📘 Explanation:
+Backend must run Node.js with Express or a similar framework.
+________________________________________
+15. RAG chatbots prevent hallucination by ______.
+A. Using videos as data
+B. Relying on stored factual text
+C. Using more RAM
+D. Disabling AI responses
+✅ Correct Answer: B
+📘 Explanation:
+RAG grounds the LLM’s output with retrieved textual evidence.
+________________________________________
+16. Embeddings must be stored before deploying the chatbot so that ______.
+A. The frontend loads faster
+B. The RAG system can retrieve correct context
+C. Pages can render in 3D
+D. Chatbot colors stay consistent
+✅ Correct Answer: B
+📘 Explanation:
+RAG depends on stored embeddings to fetch relevant information.
+________________________________________
+17. Deployment of AI chatbots typically uses which backend route?
+A. /run
+B. /render
+C. /chat
+D. /css
+✅ Correct Answer: C
+📘 Explanation:
+Chatbots commonly communicate with the backend using /chat endpoint.
+________________________________________
+18. The chatbot frontend must send requests using ______.
+A. GET
+B. POST
+C. PUT
+D. DELETE
+✅ Correct Answer: B
+📘 Explanation:
+Sending user messages requires POST requests to backend.
+________________________________________
+19. What file is generated when deploying a React app?
+A. build folder
+B. node folder
+C. assets folder only
+D. backup folder
+✅ Correct Answer: A
+📘 Explanation:
+React compiles into a production build folder containing optimized files.
+________________________________________
+20. What do developers need to check after deploying the chatbot?
+A. Color contrast
+B. API connectivity and response
+C. Image DPI
+D. Keyboard shortcuts
+✅ Correct Answer: B
+📘 Explanation:
+Ensuring the frontend-chatbot can successfully call backend APIs is critical.
+

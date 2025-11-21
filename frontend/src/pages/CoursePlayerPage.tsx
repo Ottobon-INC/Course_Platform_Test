@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Lock,
   LogOut,
   Menu,
   Settings,
@@ -34,6 +35,7 @@ import { cn } from '@/lib/utils';
 import { DASHBOARD_CARD_SHADOW, DASHBOARD_GRADIENT_BG, FONT_INTER_STACK } from '@/constants/theme';
 
 type LessonContentType = 'video' | 'reading' | 'quiz';
+type ViewMode = 'video' | 'notes' | 'quiz';
 
 interface LessonContent {
   id: string;
@@ -53,6 +55,10 @@ interface LessonWithProgress extends LessonContent {
   completed: boolean;
   current?: boolean;
   progress?: number;
+  moduleNo: number;
+  topicNumber: number;
+  topicPairIndex: number;
+  moduleTitle?: string;
 }
 
 type LessonProgressStatus = 'not_started' | 'in_progress' | 'completed';
@@ -104,6 +110,35 @@ interface ModuleTopic {
   contentType: string;
 }
 
+interface QuizOption {
+  optionId: string;
+  text: string;
+}
+
+interface QuizQuestion {
+  questionId: string;
+  prompt: string;
+  moduleNo: number;
+  topicPairIndex: number;
+  options: QuizOption[];
+}
+
+interface QuizAttemptResult {
+  correctCount: number;
+  totalQuestions: number;
+  scorePercent: number;
+  passed: boolean;
+  thresholdPercent?: number;
+}
+
+interface QuizProgressModule {
+  moduleNo: number;
+  quizPassed: boolean;
+  unlocked: boolean;
+  completedAt: string | null;
+  updatedAt: string;
+}
+
 // Static lesson data for demo purposes
 const staticLessons: LessonWithProgress[] = [
   {
@@ -115,6 +150,10 @@ const staticLessons: LessonWithProgress[] = [
     videoUrl: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
     notes: `# Crafting HTML with AI Assistance\n\nPrompt co-pilots for semantic layouts, review the output, and iterate quickly.`,
     orderIndex: 3,
+    moduleNo: 2,
+    moduleTitle: 'AI-Assisted Frontend Development',
+    topicNumber: 1,
+    topicPairIndex: 1,
     isPreview: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -130,6 +169,10 @@ const staticLessons: LessonWithProgress[] = [
     videoUrl: '',
     notes: '',
     orderIndex: 4,
+    moduleNo: 2,
+    moduleTitle: 'AI-Assisted Frontend Development',
+    topicNumber: 2,
+    topicPairIndex: 1,
     isPreview: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -319,6 +362,9 @@ export const computeProgress = (modules: SidebarModule[]) => {
   return { completedCount, totalCount, percent };
 };
 
+const QUIZ_QUESTION_LIMIT = 5;
+const PASSING_PERCENT_THRESHOLD = 70;
+
 const getUserInitials = (name: string) =>
   name
     .split(' ')
@@ -339,6 +385,14 @@ export default function CoursePlayerPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const previousLessonSlug = useRef<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('video');
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
+  const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [quizKey, setQuizKey] = useState<string | null>(null);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
@@ -414,6 +468,10 @@ export default function CoursePlayerPage() {
         notes: topic.textContent ?? '',
         orderIndex: topic.moduleNo === 0 ? topic.topicNumber : topic.topicNumber - 1,
         isPreview: topic.isPreview,
+        moduleNo: Number.isFinite(topic.moduleNo) ? topic.moduleNo : 0,
+        moduleTitle: topic.moduleName,
+        topicNumber: topic.topicNumber,
+        topicPairIndex: Math.max(1, Math.ceil(topic.topicNumber / 2)),
         createdAt: new Date(),
         updatedAt: new Date(),
         completed: false,
@@ -597,6 +655,20 @@ export default function CoursePlayerPage() {
   });
   const course = courseResponse?.course;
 
+  const {
+    data: quizProgressResponse,
+    refetch: quizProgressRefetch,
+    isFetching: quizProgressLoading
+  } = useQuery<{ modules: QuizProgressModule[] }>({
+    queryKey: [`/api/quiz/progress/${courseId ?? 'unknown'}`],
+    enabled: !!courseId && authChecked && isAuthenticated,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true
+  });
+  const quizProgressModules = quizProgressResponse?.modules ?? [];
+
   const firstFetchedLessonSlug = fetchedModuleLessons[0]?.slug;
   const firstStaticSlug = staticLessons[0]?.slug;
   const activeLessonSlug =
@@ -646,6 +718,47 @@ export default function CoursePlayerPage() {
     }
   }, [lessonProgress, currentLessonId]);
 
+  const quizProgressMap = useMemo(() => {
+    const map = new Map<number, QuizProgressModule>();
+    quizProgressModules.forEach((entry) => map.set(entry.moduleNo, entry));
+    return map;
+  }, [quizProgressModules]);
+
+  const unlockedModules = useMemo(() => {
+    if (sortedModuleNumbers.length === 0) {
+      return new Set<number>();
+    }
+
+    const unlocked = new Set<number>();
+    let previousPassed = true;
+
+    sortedModuleNumbers.forEach((moduleNo, index) => {
+      const progress = quizProgressMap.get(moduleNo);
+      const unlockedByBackend = progress?.unlocked ?? false;
+      const unlockedByRule = index === 0 || previousPassed;
+      if (unlockedByBackend || unlockedByRule) {
+        unlocked.add(moduleNo);
+      }
+
+      const passed = progress?.quizPassed ?? false;
+      if (!passed) {
+        previousPassed = false;
+      }
+    });
+
+    return unlocked;
+  }, [quizProgressMap, sortedModuleNumbers]);
+
+  const isModuleLocked = useCallback(
+    (moduleNo: number | null | undefined) => {
+      if (!moduleNo || moduleNo <= 1) {
+        return false;
+      }
+      return !unlockedModules.has(moduleNo);
+    },
+    [unlockedModules]
+  );
+
   const sidebarModules = useMemo<SidebarModule[]>(() => {
     // Keep numeric module labels consistent even when we prepend the introduction block.
     let sequentialModuleNumber = 1;
@@ -667,6 +780,7 @@ export default function CoursePlayerPage() {
         const completed = override ? override.status === 'completed' : base?.completed ?? false;
         const progress = override?.progress ?? base?.progress ?? 0;
         const lessonPrefix = moduleNumber === null ? '' : `${moduleNumber}.${lessonIndex + 1} `;
+        const locked = moduleNumber !== null ? isModuleLocked(moduleNumber) : false;
 
         return {
           id: base?.id ?? lessonDef.id,
@@ -680,7 +794,12 @@ export default function CoursePlayerPage() {
           isPreview: base?.isPreview ?? false,
           type: base?.type ?? 'video',
           videoUrl: base?.videoUrl ?? '',
-          notes: base?.notes ?? ''
+          notes: base?.notes ?? '',
+          moduleNo: base?.moduleNo ?? moduleNumber ?? 0,
+          topicNumber: base?.topicNumber ?? lessonIndex + 1,
+          topicPairIndex: base?.topicPairIndex ?? Math.max(1, Math.ceil((lessonIndex + 1) / 2)),
+          moduleTitle: base?.moduleTitle ?? module.title,
+          locked
         };
       });
 
@@ -693,6 +812,13 @@ export default function CoursePlayerPage() {
   }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions]);
 
   const lessons = useMemo(() => sidebarModules.flatMap((module) => module.lessons), [sidebarModules]);
+  const lockedLessonSlugs = useMemo(
+    () =>
+      new Set(
+        sidebarModules.flatMap((module) => module.lessons.filter((lesson) => lesson.locked).map((lesson) => lesson.slug))
+      ),
+    [sidebarModules]
+  );
 
   const { previous, next, displayLesson } = useMemo(() => {
     if (lessons.length === 0) {
@@ -703,12 +829,32 @@ export default function CoursePlayerPage() {
     const currentIndex = searchSlug ? lessons.findIndex((lesson) => lesson.slug === searchSlug) : 0;
     const index = currentIndex >= 0 ? currentIndex : 0;
 
+    const findPrevious = () => {
+      for (let pointer = index - 1; pointer >= 0; pointer -= 1) {
+        const candidate = lessons[pointer];
+        if (candidate && !lockedLessonSlugs.has(candidate.slug)) {
+          return candidate;
+        }
+      }
+      return null;
+    };
+
+    const findNext = () => {
+      for (let pointer = index + 1; pointer < lessons.length; pointer += 1) {
+        const candidate = lessons[pointer];
+        if (candidate && !lockedLessonSlugs.has(candidate.slug)) {
+          return candidate;
+        }
+      }
+      return null;
+    };
+
     return {
-      previous: index > 0 ? lessons[index - 1] : null,
-      next: index < lessons.length - 1 ? lessons[index + 1] : null,
+      previous: findPrevious(),
+      next: findNext(),
       displayLesson: lessons[index]
     };
-  }, [lessons, activeLessonSlug]);
+  }, [lessons, activeLessonSlug, lockedLessonSlugs]);
 
   const resolvedLesson = useMemo(() => {
     if (!displayLesson) {
@@ -726,7 +872,92 @@ export default function CoursePlayerPage() {
     return normalizeVideoUrl(resolvedLesson.videoUrl);
   }, [resolvedLesson]);
 
-  const progressInfo = useMemo(() => computeProgress(sidebarModules), [sidebarModules]);
+  useEffect(() => {
+    if (!resolvedLesson) {
+      return;
+    }
+
+    const lessonChanged = previousLessonSlug.current !== resolvedLesson.slug;
+    if (!lessonChanged) {
+      return;
+    }
+
+    previousLessonSlug.current = resolvedLesson.slug;
+
+    const nextViewMode =
+      resolvedLesson.type === 'video' && resolvedLesson.videoUrl
+        ? 'video'
+        : resolvedLesson.notes && resolvedLesson.notes.trim().length > 0
+          ? 'notes'
+          : 'quiz';
+    setViewMode(nextViewMode);
+
+    setQuizQuestions([]);
+    setSelectedAnswers({});
+    setQuizResult(null);
+    setQuizAttemptId(null);
+    setQuizKey(null);
+    setQuizError(null);
+  }, [resolvedLesson]);
+
+  const currentModuleNo = resolvedLesson?.moduleNo ?? null;
+  const currentTopicPairIndex = resolvedLesson
+    ? Math.max(1, resolvedLesson.topicPairIndex ?? Math.ceil((resolvedLesson.topicNumber ?? 1) / 2))
+    : null;
+  const currentQuizKey =
+    courseId && currentModuleNo !== null && currentTopicPairIndex !== null
+      ? `${courseId}-${currentModuleNo}-${currentTopicPairIndex}`
+      : null;
+
+  const quizLockedForModule = currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
+  const videoUnavailable = !resolvedLesson || resolvedLesson.type !== 'video' || !resolvedVideoUrl;
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === 'quiz' && quizLockedForModule) {
+      toast({
+        title: 'Quiz locked',
+        description: 'Pass the previous module quiz to unlock this quiz.'
+      });
+      return;
+    }
+
+    if (mode === 'video' && videoUnavailable) {
+      setViewMode(resolvedLesson?.notes ? 'notes' : 'quiz');
+      return;
+    }
+
+    setViewMode(mode);
+  };
+
+  const ViewModeToggle = ({ className = '' }: { className?: string }) => (
+    <div className={cn('inline-flex rounded-full border border-border bg-background/80 shadow-sm', className)}>
+      {[
+        { value: 'video', label: 'Video', disabled: videoUnavailable },
+        { value: 'notes', label: 'Notes', disabled: false },
+        {
+          value: 'quiz',
+          label: 'Quiz',
+          disabled: quizLockedForModule || !currentModuleNo || currentModuleNo <= 0
+        }
+      ].map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={option.disabled}
+          onClick={() => handleViewModeChange(option.value as ViewMode)}
+          className={cn(
+            'px-3 py-1.5 text-sm font-semibold rounded-full transition-colors',
+            viewMode === option.value
+              ? 'bg-primary text-primary-foreground shadow'
+              : 'text-muted-foreground hover:text-foreground',
+            option.disabled ? 'opacity-50 cursor-not-allowed' : ''
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
 
   const updateProgressMutation = useMutation<
     { progress: LessonProgressPayload },
@@ -776,6 +1007,84 @@ export default function CoursePlayerPage() {
     }
   });
 
+  const startQuizAttemptMutation = useMutation<
+    { attemptId: string; questions: QuizQuestion[]; moduleNo: number; topicPairIndex: number },
+    Error,
+    { courseId: string; moduleNo: number; topicPairIndex: number }
+  >({
+    mutationFn: async (payload) => {
+      const response = await apiRequest('POST', '/api/quiz/attempts', {
+        ...payload,
+        limit: QUIZ_QUESTION_LIMIT
+      });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      setQuizAttemptId(data?.attemptId ?? null);
+      setQuizQuestions(data?.questions ?? []);
+      setSelectedAnswers({});
+      setQuizResult(null);
+      setQuizKey(`${variables.courseId}-${variables.moduleNo}-${variables.topicPairIndex}`);
+      setQuizError(null);
+    },
+    onError: (error) => {
+      setQuizError(error.message ?? 'Failed to start quiz');
+      toast({
+        variant: 'destructive',
+        title: 'Quiz unavailable',
+        description: error.message || 'Unable to start the quiz right now.'
+      });
+    }
+  });
+
+  const submitQuizMutation = useMutation<
+    { result: QuizAttemptResult; progress?: { modules: QuizProgressModule[] } },
+    Error,
+    { attemptId: string; answers: { questionId: string; optionId: string }[] }
+  >({
+    mutationFn: async ({ attemptId, answers }) => {
+      const response = await apiRequest('POST', `/api/quiz/attempts/${attemptId}/submit`, { answers });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const baseResult = data?.result ?? {};
+      setQuizResult({
+        correctCount: baseResult.correctCount ?? 0,
+        totalQuestions: baseResult.totalQuestions ?? quizQuestions.length,
+        scorePercent: baseResult.scorePercent ?? 0,
+        passed: Boolean(baseResult.passed),
+        thresholdPercent: baseResult.thresholdPercent ?? PASSING_PERCENT_THRESHOLD
+      });
+
+      if (data?.progress?.modules) {
+        queryClient.setQueryData([`/api/quiz/progress/${courseId ?? 'unknown'}`], data.progress);
+      }
+      quizProgressRefetch();
+
+      toast({
+        title: baseResult?.passed ? 'Module unlocked' : 'Quiz submitted',
+        description: baseResult?.passed
+          ? 'Great job! You can now open the next module.'
+          : 'Review the material and try again.'
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Submit failed',
+        description: error.message || 'Unable to submit answers'
+      });
+    }
+  });
+
+  const progressInfo = useMemo(() => computeProgress(sidebarModules), [sidebarModules]);
+  const quizStarting = startQuizAttemptMutation.isPending;
+  const quizSubmitting = submitQuizMutation.isPending;
+  const answersComplete =
+    quizQuestions.length > 0 &&
+    quizQuestions.every((question) => selectedAnswers[question.questionId] && selectedAnswers[question.questionId].length > 0);
+  const currentModuleProgress = currentModuleNo ? quizProgressMap.get(currentModuleNo) : undefined;
+
   const handleLessonCompletionChange = (lessonId: string | null, shouldComplete: boolean) => {
     if (!lessonId) {
       return;
@@ -795,13 +1104,65 @@ export default function CoursePlayerPage() {
         return;
       }
 
+      const targetLesson = lessonSourceBySlug.get(lessonSlug);
+      if (targetLesson && isModuleLocked(targetLesson.moduleNo)) {
+        toast({
+          title: 'Module locked',
+          description: 'Complete the previous module quiz to unlock this module.'
+        });
+        return;
+      }
+
       setLocation(`/course/${courseId}/learn/${lessonSlug}`);
       if (isMobileSidebarOpen) {
         setIsMobileSidebarOpen(false);
       }
     },
-    [courseId, isMobileSidebarOpen, setLocation]
+    [courseId, isMobileSidebarOpen, isModuleLocked, lessonSourceBySlug, setLocation, toast]
   );
+
+  useEffect(() => {
+    if (viewMode !== 'quiz') {
+      return;
+    }
+
+    if (!courseId || currentModuleNo === null || currentTopicPairIndex === null || currentModuleNo <= 0) {
+      return;
+    }
+
+    if (isModuleLocked(currentModuleNo)) {
+      setQuizError('Complete the previous module quiz to unlock this module.');
+      setQuizQuestions([]);
+      setQuizAttemptId(null);
+      return;
+    }
+
+    if (startQuizAttemptMutation.isPending || submitQuizMutation.isPending) {
+      return;
+    }
+
+    if (quizKey && quizKey === currentQuizKey && quizQuestions.length > 0) {
+      return;
+    }
+
+    startQuizAttemptMutation.mutate({
+      courseId,
+      moduleNo: currentModuleNo,
+      topicPairIndex: currentTopicPairIndex
+    });
+  }, [
+    viewMode,
+    courseId,
+    currentModuleNo,
+    currentTopicPairIndex,
+    quizKey,
+    currentQuizKey,
+    quizQuestions.length,
+    isModuleLocked,
+    startQuizAttemptMutation.isPending,
+    startQuizAttemptMutation.mutate,
+    submitQuizMutation.isPending
+  ]);
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -813,6 +1174,13 @@ export default function CoursePlayerPage() {
 
   const handleHome = () => {
     setLocation('/dashboard');
+  };
+
+  const handleAnswerChange = (questionId: string, optionId: string) => {
+    setSelectedAnswers((previous) => ({
+      ...previous,
+      [questionId]: optionId
+    }));
   };
 
   const handleProfileClick = () => {
@@ -1008,6 +1376,9 @@ export default function CoursePlayerPage() {
                   <p className="text-sm text-muted-foreground truncate" data-testid="subtitle-course">
                     {course?.title}
                   </p>
+                  <div className="hidden lg:flex mt-2">
+                    <ViewModeToggle />
+                  </div>
                 </div>
               </div>
 
@@ -1076,7 +1447,7 @@ export default function CoursePlayerPage() {
         </header>
 
         <div className="flex-1 flex flex-col min-h-0 max-w-full overflow-hidden">
-          {resolvedLesson.type === 'video' && resolvedVideoUrl && (
+          {viewMode === 'video' && resolvedLesson.type === 'video' && resolvedVideoUrl && (
             <div className="w-full overflow-x-hidden flex-shrink-0" data-testid="section-video">
               <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:pt-6 lg:pb-4 space-y-4">
                 <div
@@ -1091,44 +1462,286 @@ export default function CoursePlayerPage() {
                     title={resolvedLesson.rawTitle ?? resolvedLesson.title}
                   />
                 </div>
-
-                <div className="flex flex-wrap justify-between items-center gap-2" data-testid="navigation-lesson">
-                  <Button
-                    variant="outline"
-                    disabled={!previous}
-                    onClick={() => previous && setLocation(`/course/${courseId}/learn/${previous.slug}`)}
-                    data-testid="button-previous-lesson"
-                    className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
-                  >
-                    <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    disabled={!next}
-                    onClick={() => next && setLocation(`/course/${courseId}/learn/${next.slug}`)}
-                    data-testid="button-next-lesson"
-                    className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
-                  >
-                    <span className="hidden sm:inline">Next</span>
-                    <span className="sm:hidden">Next</span>
-                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                  </Button>
-                </div>
               </div>
             </div>
           )}
 
           <div className="flex-1 w-full max-w-full overflow-x-hidden overflow-y-auto px-4 py-4 lg:py-6" data-testid="section-lesson-content">
             <div className="max-w-6xl mx-auto w-full space-y-6">
-              <LessonTabs
-                guideContent={resolvedLesson.notes || undefined}
-                onToggleComplete={(nextState) => handleLessonCompletionChange(resolvedLesson.id, nextState)}
-                isCompleted={resolvedLesson.completed}
-                isUpdating={pendingLessonId === resolvedLesson.id && updateProgressMutation.isPending}
-              />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="lg:hidden">
+                    <ViewModeToggle />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Module {currentModuleNo ?? '-'}</span>
+                    <span>•</span>
+                    <span>Topic pair {currentTopicPairIndex ?? '-'}</span>
+                    {quizLockedForModule && (
+                      <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs font-semibold">
+                        Locked
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2" data-testid="navigation-lesson">
+                    <Button
+                      variant="outline"
+                      disabled={!previous}
+                      onClick={() => previous && setLocation(`/course/${courseId}/learn/${previous.slug}`)}
+                      data-testid="button-previous-lesson"
+                      className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                      <span className="hidden sm:inline">Previous</span>
+                      <span className="sm:hidden">Prev</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      disabled={!next}
+                      onClick={() => next && setLocation(`/course/${courseId}/learn/${next.slug}`)}
+                      data-testid="button-next-lesson"
+                      className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <span className="sm:hidden">Next</span>
+                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {viewMode === 'notes' && (
+                <LessonTabs
+                  guideContent={resolvedLesson.notes || undefined}
+                  onToggleComplete={(nextState) => handleLessonCompletionChange(resolvedLesson.id, nextState)}
+                  isCompleted={resolvedLesson.completed}
+                  isUpdating={pendingLessonId === resolvedLesson.id && updateProgressMutation.isPending}
+                />
+              )}
+
+              {viewMode === 'quiz' && (
+                <div className="space-y-4" data-testid="section-quiz">
+                  <div className="rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Module {currentModuleNo ?? '-'} • Topic pair {currentTopicPairIndex ?? '-'}
+                        </p>
+                        <h2 className="text-xl font-bold">Module Quiz</h2>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {quizProgressLoading
+                          ? 'Loading progress...'
+                          : currentModuleProgress?.quizPassed
+                            ? 'Passed'
+                            : 'Not passed yet'}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {sortedModuleNumbers.map((moduleNo) => {
+                        const modProgress = quizProgressMap.get(moduleNo);
+                        const passed = modProgress?.quizPassed ?? false;
+                        const unlocked = !isModuleLocked(moduleNo);
+                        const isCurrent = moduleNo === currentModuleNo;
+                        return (
+                          <div
+                            key={moduleNo}
+                            className={cn(
+                              'rounded-xl border p-3 shadow-sm transition',
+                              passed
+                                ? 'border-emerald-300 bg-emerald-50/70'
+                                : unlocked
+                                  ? 'border-border/70 bg-background/50'
+                                  : 'border-dashed border-border/60 bg-muted/40'
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="font-semibold text-sm">Module {moduleNo}</div>
+                              <span
+                                className={cn(
+                                  'text-xs px-2 py-0.5 rounded-full',
+                                  passed
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : unlocked
+                                      ? 'bg-primary/10 text-primary'
+                                      : 'bg-muted text-muted-foreground'
+                                )}
+                              >
+                                {passed ? 'Passed' : unlocked ? 'Unlocked' : 'Locked'}
+                              </span>
+                            </div>
+                            {isCurrent && <p className="text-xs text-primary mt-1">Current module</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 sm:p-6 shadow-sm">
+                        {quizLockedForModule ? (
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <Lock className="w-5 h-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-semibold text-foreground">Module locked</p>
+                              <p>Pass the previous module’s quiz to unlock this one.</p>
+                            </div>
+                          </div>
+                        ) : quizStarting ? (
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                            <span>Loading quiz questions...</span>
+                          </div>
+                        ) : quizQuestions.length === 0 && quizError ? (
+                          <p className="text-muted-foreground text-sm">{quizError}</p>
+                        ) : quizQuestions.length === 0 ? (
+                          <p className="text-muted-foreground text-sm">No questions available for this module.</p>
+                        ) : (
+                          <div className="space-y-4">
+                            {quizQuestions.map((question, index) => (
+                              <div
+                                key={question.questionId}
+                                className="rounded-xl border border-border/60 bg-background/60 p-4 space-y-3"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-xs uppercase text-muted-foreground">Question {index + 1}</p>
+                                    <p className="font-semibold text-foreground mt-1">{question.prompt}</p>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  {question.options.map((option) => {
+                                    const selected = selectedAnswers[question.questionId] === option.optionId;
+                                    return (
+                                      <label
+                                        key={option.optionId}
+                                        className={cn(
+                                          'flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition',
+                                          selected
+                                            ? 'border-primary bg-primary/5 text-foreground'
+                                            : 'border-border/60 hover:border-primary/60'
+                                        )}
+                                      >
+                                        <input
+                                          type="radio"
+                                          name={`question-${question.questionId}`}
+                                          value={option.optionId}
+                                          checked={selected}
+                                          onChange={() => handleAnswerChange(question.questionId, option.optionId)}
+                                          className="sr-only"
+                                        />
+                                        <span
+                                          className={cn(
+                                            'w-4 h-4 rounded-full border flex items-center justify-center',
+                                            selected ? 'border-primary bg-primary/80' : 'border-muted-foreground/50'
+                                          )}
+                                        >
+                                          <span className="w-2 h-2 rounded-full bg-white/90" />
+                                        </span>
+                                        <span className="text-sm leading-snug">{option.text}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                              <Button
+                                onClick={() =>
+                                  quizAttemptId &&
+                                  submitQuizMutation.mutate({
+                                    attemptId: quizAttemptId,
+                                    answers: Object.entries(selectedAnswers).map(([questionId, optionId]) => ({
+                                      questionId,
+                                      optionId
+                                    }))
+                                  })
+                                }
+                                disabled={!quizAttemptId || !answersComplete || quizSubmitting}
+                                className="w-full sm:w-auto"
+                              >
+                                {quizSubmitting ? 'Submitting...' : 'Submit answers'}
+                              </Button>
+                              {!answersComplete && quizQuestions.length > 0 && (
+                                <span className="text-xs text-muted-foreground">Answer all questions to submit.</span>
+                              )}
+                            </div>
+                            {quizResult && (
+                              <div
+                                className={cn(
+                                  'rounded-xl p-4 border',
+                                  quizResult.passed
+                                    ? 'border-emerald-300 bg-emerald-50/80 text-emerald-800'
+                                    : 'border-amber-200 bg-amber-50/80 text-amber-800'
+                                )}
+                              >
+                                <p className="text-sm font-semibold">
+                                  {quizResult.passed ? 'Quiz passed!' : 'Quiz submitted'}
+                                </p>
+                                <p className="text-xs mt-1">
+                                  Score: {quizResult.scorePercent}% • {quizResult.correctCount} / {quizResult.totalQuestions} correct
+                                </p>
+                                <p className="text-xs">
+                                  Passing score: {quizResult.thresholdPercent ?? PASSING_PERCENT_THRESHOLD}%
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Module progress</p>
+                            <h3 className="text-lg font-semibold">
+                              {currentModuleProgress?.quizPassed ? 'Quiz passed' : 'Quiz pending'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Passing score {PASSING_PERCENT_THRESHOLD}% required to unlock the next module.
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              'text-xs px-2 py-1 rounded-full',
+                              currentModuleProgress?.quizPassed ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+                            )}
+                          >
+                            {currentModuleProgress?.quizPassed ? 'Passed' : 'In progress'}
+                          </span>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                          <Progress
+                            value={
+                              quizResult
+                                ? Math.min(quizResult.scorePercent, 100)
+                                : currentModuleProgress?.quizPassed
+                                  ? 100
+                                  : 0
+                            }
+                          />
+                          {quizResult && (
+                            <p className="text-xs text-muted-foreground">
+                              Latest attempt: {quizResult.scorePercent}% ({quizResult.correctCount} / {quizResult.totalQuestions})
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {viewMode === 'video' && (resolvedLesson.type !== 'video' || !resolvedVideoUrl) && (
+                <div className="rounded-xl border border-border/60 bg-card/80 p-6">
+                  <p className="text-sm text-muted-foreground">
+                    No video available for this lesson. Switch to Notes or Quiz view to continue.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <ChatBot courseName={course?.title} courseId={courseId} />

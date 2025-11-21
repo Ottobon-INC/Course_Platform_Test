@@ -8,7 +8,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger
 } from '@/components/ui/collapsible';
-import { ChevronLeft, ChevronRight, Search, Clock, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Clock, Check, Lock } from 'lucide-react';
 
 export interface SidebarLesson {
   id: string;
@@ -23,6 +23,11 @@ export interface SidebarLesson {
   videoUrl?: string;
   notes?: string;
   isPreview?: boolean;
+  locked?: boolean;
+  moduleNo?: number;
+  topicNumber?: number;
+  topicPairIndex?: number;
+  moduleTitle?: string;
 }
 
 export interface SidebarModule {
@@ -240,8 +245,13 @@ export default function CourseSidebar({
                         variant={lesson.current ? 'secondary' : 'ghost'}
                         className={`w-full justify-start p-3 h-auto min-h-[72px] transition-all duration-200 group rounded-lg ${
                           lesson.current ? 'bg-primary/10 border border-primary/20 shadow-sm' : ''
-                        }`}
-                        onClick={() => onLessonSelect(lesson.slug)}
+                        } ${lesson.locked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        onClick={() => {
+                          if (!lesson.locked) {
+                            onLessonSelect(lesson.slug);
+                          }
+                        }}
+                        disabled={lesson.locked}
                       >
                         <div className="flex items-start gap-3 w-full">
                           <button
@@ -262,7 +272,7 @@ export default function CourseSidebar({
                                 : 'Mark lesson as complete'
                             }
                             aria-pressed={lesson.completed}
-                            disabled={!onToggleLessonComplete}
+                            disabled={!onToggleLessonComplete || lesson.locked}
                             className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                               lesson.completed
                                 ? 'bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border-emerald-500/40 text-emerald-500 hover:scale-105'
@@ -294,6 +304,15 @@ export default function CourseSidebar({
                                   {lesson.duration}
                                 </span>
                               </div>
+                              {lesson.locked && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] px-1.5 py-0 h-4 bg-muted border-muted text-muted-foreground flex items-center gap-1 whitespace-nowrap"
+                                >
+                                  <Lock className="w-3 h-3" />
+                                  Locked
+                                </Badge>
+                              )}
                               {lesson.isPreview && (
                                 <Badge
                                   variant="outline"
