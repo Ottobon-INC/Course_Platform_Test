@@ -9,6 +9,8 @@ import CourseSidebar, { SidebarModule } from '@/components/CourseSidebar';
 import LessonTabs from '@/components/LessonTabs';
 import ChatBot from '@/components/ChatBot';
 import { useToast } from '@/hooks/use-toast';
+import type { StoredSession } from '@/types/session';
+import { readStoredSession } from '@/utils/session';
 import {
   ArrowLeft,
   ChevronDown,
@@ -137,6 +139,19 @@ interface QuizProgressModule {
   unlocked: boolean;
   completedAt: string | null;
   updatedAt: string;
+}
+
+interface QuizSectionStatus {
+  moduleNo: number;
+  topicPairIndex: number;
+  title?: string | null;
+  subtitle?: string | null;
+  unlocked: boolean;
+  passed: boolean;
+  status?: string | null;
+  lastScore?: number | null;
+  attemptedAt?: string | null;
+  questionCount?: number | null;
 }
 
 // Static lesson data for demo purposes
@@ -385,6 +400,7 @@ export default function CoursePlayerPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [session, setSession] = useState<StoredSession | null>(null);
   const previousLessonSlug = useRef<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('video');
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -397,6 +413,8 @@ export default function CoursePlayerPage() {
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
     const userData = localStorage.getItem('user');
+    const storedSession = readStoredSession();
+    setSession(storedSession);
 
     if (authStatus === 'true' && userData) {
       try {
@@ -603,6 +621,11 @@ export default function CoursePlayerPage() {
     return map;
   }, [fetchedModuleLessons, introductionLessons]);
 
+  const authHeaders = useMemo(
+    () => (session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined),
+    [session?.accessToken]
+  );
+
   const apiModuleDefinitions = useMemo<ModuleDefinition[]>(() => {
     if (sortedModuleNumbers.length === 0) {
       return [];
@@ -654,20 +677,62 @@ export default function CoursePlayerPage() {
     refetchOnReconnect: true
   });
   const course = courseResponse?.course;
+  const resolvedCourseIdentifier = useMemo(
+    () => course?.id ?? courseId ?? 'unknown',
+    [course?.id, courseId]
+  );
 
   const {
     data: quizProgressResponse,
     refetch: quizProgressRefetch,
     isFetching: quizProgressLoading
-  } = useQuery<{ modules: QuizProgressModule[] }>({
-    queryKey: [`/api/quiz/progress/${courseId ?? 'unknown'}`],
-    enabled: !!courseId && authChecked && isAuthenticated,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true
-  });
+  } = useQuery<{ modules: QuizProgressModule[] }>(
+    {
+      queryKey: ['quiz-progress', resolvedCourseIdentifier, session?.accessToken],
+      enabled:
+        resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
+      queryFn: async () => {
+        const response = await apiRequest(
+          'GET',
+          `/api/quiz/progress/${resolvedCourseIdentifier}`,
+          undefined,
+          authHeaders ? { headers: authHeaders } : undefined
+        );
+        return response.json();
+      },
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: true
+    }
+  );
   const quizProgressModules = quizProgressResponse?.modules ?? [];
+
+  const {
+    data: quizSectionsResponse,
+    refetch: quizSectionsRefetch,
+    isFetching: quizSectionsLoading
+  } = useQuery<{ sections: QuizSectionStatus[] }>(
+    {
+      queryKey: ['quiz-sections', resolvedCourseIdentifier, session?.accessToken],
+      enabled:
+        resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
+      queryFn: async () => {
+        const response = await apiRequest(
+          'GET',
+          `/api/quiz/sections/${resolvedCourseIdentifier}`,
+          undefined,
+          authHeaders ? { headers: authHeaders } : undefined
+        );
+        return response.json();
+      },
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: 'always',
+      refetchOnReconnect: true
+    }
+  );
+  const quizSections = quizSectionsResponse?.sections ?? [];
 
   const firstFetchedLessonSlug = fetchedModuleLessons[0]?.slug;
   const firstStaticSlug = staticLessons[0]?.slug;
@@ -724,6 +789,54 @@ export default function CoursePlayerPage() {
     return map;
   }, [quizProgressModules]);
 
+  const quizSectionLookup = useMemo(() => {
+    if (quizSections.length === 0) {
+      return null;
+    }
+    const map = new Map<string, QuizSectionStatus>();
+    quizSections.forEach((section) => {
+      map.set(`${section.moduleNo}:${section.topicPairIndex}`, section);
+    });
+    return map;
+  }, [quizSections]);
+
+  const moduleUnlockState = useMemo(() => {
+    if (quizSections.length === 0) {
+      return null;
+    }
+
+    const grouped = new Map<number, QuizSectionStatus[]>();
+    quizSections.forEach((section) => {
+      const existing = grouped.get(section.moduleNo);
+      if (existing) {
+        existing.push(section);
+      } else {
+        grouped.set(section.moduleNo, [section]);
+      }
+    });
+
+    const orderedModuleNos = Array.from(grouped.keys()).sort((a, b) => a - b);
+    const unlockedModules = new Set<number>();
+    const modulePassed = new Map<number, boolean>();
+    let previousModulesPassed = true;
+
+    orderedModuleNos.forEach((moduleNo, index) => {
+      if (index === 0 || previousModulesPassed) {
+        unlockedModules.add(moduleNo);
+      }
+
+      const sections = grouped.get(moduleNo) ?? [];
+      const passed = sections.length > 0 && sections.every((section) => section.passed);
+      modulePassed.set(moduleNo, passed);
+
+      if (!passed) {
+        previousModulesPassed = false;
+      }
+    });
+
+    return { unlockedModules, modulePassed };
+  }, [quizSections]);
+
   const unlockedModules = useMemo(() => {
     if (sortedModuleNumbers.length === 0) {
       return new Set<number>();
@@ -754,10 +867,29 @@ export default function CoursePlayerPage() {
       if (!moduleNo || moduleNo <= 1) {
         return false;
       }
+      if (moduleUnlockState) {
+        return !moduleUnlockState.unlockedModules.has(moduleNo);
+      }
       return !unlockedModules.has(moduleNo);
     },
-    [unlockedModules]
+    [moduleUnlockState, unlockedModules]
   );
+
+  const showingTopicPairs = quizSections.length > 0;
+  const quizGridSections: QuizSectionStatus[] = showingTopicPairs
+    ? quizSections
+    : sortedModuleNumbers.map((moduleNo) => ({
+        moduleNo,
+        topicPairIndex: 1,
+        unlocked: !isModuleLocked(moduleNo),
+        passed: quizProgressMap.get(moduleNo)?.quizPassed ?? false,
+        title: `Module ${moduleNo}`,
+        subtitle: null,
+        status: null,
+        lastScore: null,
+        attemptedAt: null,
+        questionCount: null
+      }));
 
   const sidebarModules = useMemo<SidebarModule[]>(() => {
     // Keep numeric module labels consistent even when we prepend the introduction block.
@@ -909,14 +1041,22 @@ export default function CoursePlayerPage() {
       ? `${courseId}-${currentModuleNo}-${currentTopicPairIndex}`
       : null;
 
-  const quizLockedForModule = currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
+  const currentQuizSection = useMemo(() => {
+    if (!quizSectionLookup || currentModuleNo === null || currentTopicPairIndex === null) {
+      return null;
+    }
+    return quizSectionLookup.get(`${currentModuleNo}:${currentTopicPairIndex}`) ?? null;
+  }, [quizSectionLookup, currentModuleNo, currentTopicPairIndex]);
+
+  const moduleLockedFallback = currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
+  const quizLockedForSection = currentQuizSection ? !currentQuizSection.unlocked : moduleLockedFallback;
   const videoUnavailable = !resolvedLesson || resolvedLesson.type !== 'video' || !resolvedVideoUrl;
 
   const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === 'quiz' && quizLockedForModule) {
+    if (mode === 'quiz' && quizLockedForSection) {
       toast({
         title: 'Quiz locked',
-        description: 'Pass the previous module quiz to unlock this quiz.'
+        description: 'Complete the previous topic pair quiz to unlock this quiz.'
       });
       return;
     }
@@ -937,7 +1077,7 @@ export default function CoursePlayerPage() {
         {
           value: 'quiz',
           label: 'Quiz',
-          disabled: quizLockedForModule || !currentModuleNo || currentModuleNo <= 0
+          disabled: quizLockedForSection || !currentModuleNo || currentModuleNo <= 0
         }
       ].map((option) => (
         <button
@@ -1013,9 +1153,14 @@ export default function CoursePlayerPage() {
     { courseId: string; moduleNo: number; topicPairIndex: number }
   >({
     mutationFn: async (payload) => {
+      if (!session?.accessToken) {
+        throw new Error('Authentication required to start quizzes.');
+      }
       const response = await apiRequest('POST', '/api/quiz/attempts', {
         ...payload,
         limit: QUIZ_QUESTION_LIMIT
+      }, {
+        headers: { Authorization: `Bearer ${session.accessToken}` }
       });
       return response.json();
     },
@@ -1024,7 +1169,7 @@ export default function CoursePlayerPage() {
       setQuizQuestions(data?.questions ?? []);
       setSelectedAnswers({});
       setQuizResult(null);
-      setQuizKey(`${variables.courseId}-${variables.moduleNo}-${variables.topicPairIndex}`);
+      setQuizKey(`${courseId ?? 'unknown'}-${variables.moduleNo}-${variables.topicPairIndex}`);
       setQuizError(null);
     },
     onError: (error) => {
@@ -1043,7 +1188,15 @@ export default function CoursePlayerPage() {
     { attemptId: string; answers: { questionId: string; optionId: string }[] }
   >({
     mutationFn: async ({ attemptId, answers }) => {
-      const response = await apiRequest('POST', `/api/quiz/attempts/${attemptId}/submit`, { answers });
+      if (!session?.accessToken) {
+        throw new Error('Authentication required to submit quizzes.');
+      }
+      const response = await apiRequest(
+        'POST',
+        `/api/quiz/attempts/${attemptId}/submit`,
+        { answers },
+        { headers: { Authorization: `Bearer ${session.accessToken}` } }
+      );
       return response.json();
     },
     onSuccess: (data) => {
@@ -1057,9 +1210,10 @@ export default function CoursePlayerPage() {
       });
 
       if (data?.progress?.modules) {
-        queryClient.setQueryData([`/api/quiz/progress/${courseId ?? 'unknown'}`], data.progress);
+        queryClient.setQueryData(['quiz-progress', resolvedCourseIdentifier, session?.accessToken], data.progress);
       }
       quizProgressRefetch();
+      quizSectionsRefetch();
 
       toast({
         title: baseResult?.passed ? 'Module unlocked' : 'Quiz submitted',
@@ -1084,6 +1238,11 @@ export default function CoursePlayerPage() {
     quizQuestions.length > 0 &&
     quizQuestions.every((question) => selectedAnswers[question.questionId] && selectedAnswers[question.questionId].length > 0);
   const currentModuleProgress = currentModuleNo ? quizProgressMap.get(currentModuleNo) : undefined;
+  const sectionPassed =
+    currentQuizSection?.passed ??
+    moduleUnlockState?.modulePassed.get(currentModuleNo ?? 0) ??
+    currentModuleProgress?.quizPassed ??
+    false;
 
   const handleLessonCompletionChange = (lessonId: string | null, shouldComplete: boolean) => {
     if (!lessonId) {
@@ -1108,7 +1267,7 @@ export default function CoursePlayerPage() {
       if (targetLesson && isModuleLocked(targetLesson.moduleNo)) {
         toast({
           title: 'Module locked',
-          description: 'Complete the previous module quiz to unlock this module.'
+          description: 'Complete the previous quiz to unlock this module.'
         });
         return;
       }
@@ -1126,12 +1285,28 @@ export default function CoursePlayerPage() {
       return;
     }
 
-    if (!courseId || currentModuleNo === null || currentTopicPairIndex === null || currentModuleNo <= 0) {
+    const moduleNumberValid =
+      typeof currentModuleNo === 'number' && Number.isFinite(currentModuleNo) && currentModuleNo > 0;
+    const topicPairValid =
+      typeof currentTopicPairIndex === 'number' && Number.isFinite(currentTopicPairIndex) && currentTopicPairIndex > 0;
+
+    if (!courseId || !moduleNumberValid || !topicPairValid) {
       return;
     }
 
-    if (isModuleLocked(currentModuleNo)) {
-      setQuizError('Complete the previous module quiz to unlock this module.');
+    if (resolvedCourseIdentifier === 'unknown') {
+      return;
+    }
+
+    if (!session?.accessToken) {
+      setQuizError('Sign in required to take this quiz.');
+      setQuizQuestions([]);
+      setQuizAttemptId(null);
+      return;
+    }
+
+    if (quizLockedForSection) {
+      setQuizError('Complete the previous topic pair quiz to unlock this one.');
       setQuizQuestions([]);
       setQuizAttemptId(null);
       return;
@@ -1146,7 +1321,7 @@ export default function CoursePlayerPage() {
     }
 
     startQuizAttemptMutation.mutate({
-      courseId,
+      courseId: resolvedCourseIdentifier,
       moduleNo: currentModuleNo,
       topicPairIndex: currentTopicPairIndex
     });
@@ -1161,7 +1336,10 @@ export default function CoursePlayerPage() {
     isModuleLocked,
     startQuizAttemptMutation.isPending,
     startQuizAttemptMutation.mutate,
-    submitQuizMutation.isPending
+    submitQuizMutation.isPending,
+    quizLockedForSection,
+    session?.accessToken,
+    resolvedCourseIdentifier
   ]);
 
   const handleBack = () => {
@@ -1203,6 +1381,7 @@ export default function CoursePlayerPage() {
     localStorage.removeItem('isAuthenticated');
     setIsAuthenticated(false);
     setUser(null);
+    setSession(null);
     toast({ title: 'Signed out', description: 'You have been successfully logged out.' });
     setLocation('/dashboard');
   };
@@ -1477,7 +1656,7 @@ export default function CoursePlayerPage() {
                     <span>Module {currentModuleNo ?? '-'}</span>
                     <span>•</span>
                     <span>Topic pair {currentTopicPairIndex ?? '-'}</span>
-                    {quizLockedForModule && (
+                    {quizLockedForSection && (
                       <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs font-semibold">
                         Locked
                       </span>
@@ -1531,22 +1710,25 @@ export default function CoursePlayerPage() {
                         <h2 className="text-xl font-bold">Module Quiz</h2>
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {quizProgressLoading
+                        {quizProgressLoading || quizSectionsLoading
                           ? 'Loading progress...'
-                          : currentModuleProgress?.quizPassed
+                          : sectionPassed
                             ? 'Passed'
                             : 'Not passed yet'}
                       </span>
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {sortedModuleNumbers.map((moduleNo) => {
-                        const modProgress = quizProgressMap.get(moduleNo);
-                        const passed = modProgress?.quizPassed ?? false;
-                        const unlocked = !isModuleLocked(moduleNo);
-                        const isCurrent = moduleNo === currentModuleNo;
+                      {quizGridSections.map((section) => {
+                        const moduleNo = section.moduleNo;
+                        const topicPairIndex = section.topicPairIndex;
+                        const passed = section.passed;
+                        const unlocked = section.unlocked;
+                        const isCurrent =
+                          moduleNo === currentModuleNo &&
+                          (showingTopicPairs ? topicPairIndex === currentTopicPairIndex : true);
                         return (
                           <div
-                            key={moduleNo}
+                            key={`${moduleNo}-${topicPairIndex}`}
                             className={cn(
                               'rounded-xl border p-3 shadow-sm transition',
                               passed
@@ -1557,7 +1739,16 @@ export default function CoursePlayerPage() {
                             )}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="font-semibold text-sm">Module {moduleNo}</div>
+                              <div className="font-semibold text-sm">
+                                {showingTopicPairs
+                                  ? section.title ?? `Module ${moduleNo} • Topic pair ${topicPairIndex}`
+                                  : `Module ${moduleNo}`}
+                                {showingTopicPairs && (
+                                  <span className="block text-xs text-muted-foreground">
+                                    Topic pair {topicPairIndex}
+                                  </span>
+                                )}
+                              </div>
                               <span
                                 className={cn(
                                   'text-xs px-2 py-0.5 rounded-full',
@@ -1571,7 +1762,14 @@ export default function CoursePlayerPage() {
                                 {passed ? 'Passed' : unlocked ? 'Unlocked' : 'Locked'}
                               </span>
                             </div>
-                            {isCurrent && <p className="text-xs text-primary mt-1">Current module</p>}
+                            {showingTopicPairs && section.subtitle && (
+                              <p className="text-xs text-muted-foreground mt-1">{section.subtitle}</p>
+                            )}
+                            {isCurrent && (
+                              <p className="text-xs text-primary mt-1">
+                                {showingTopicPairs ? 'Current topic pair' : 'Current module'}
+                              </p>
+                            )}
                           </div>
                         );
                       })}
@@ -1581,12 +1779,12 @@ export default function CoursePlayerPage() {
                   <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
                     <div className="space-y-4">
                       <div className="rounded-2xl border border-border/70 bg-card/80 p-4 sm:p-6 shadow-sm">
-                        {quizLockedForModule ? (
+                        {quizLockedForSection ? (
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <Lock className="w-5 h-5 text-muted-foreground" />
                             <div>
-                              <p className="font-semibold text-foreground">Module locked</p>
-                              <p>Pass the previous module’s quiz to unlock this one.</p>
+                              <p className="font-semibold text-foreground">Quiz locked</p>
+                              <p>Complete the previous topic pair quiz to unlock this one.</p>
                             </div>
                           </div>
                         ) : quizStarting ? (
@@ -1698,7 +1896,7 @@ export default function CoursePlayerPage() {
                           <div>
                             <p className="text-xs uppercase tracking-wide text-muted-foreground">Module progress</p>
                             <h3 className="text-lg font-semibold">
-                              {currentModuleProgress?.quizPassed ? 'Quiz passed' : 'Quiz pending'}
+                              {sectionPassed ? 'Quiz passed' : 'Quiz pending'}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-1">
                               Passing score {PASSING_PERCENT_THRESHOLD}% required to unlock the next module.
@@ -1707,10 +1905,10 @@ export default function CoursePlayerPage() {
                           <span
                             className={cn(
                               'text-xs px-2 py-1 rounded-full',
-                              currentModuleProgress?.quizPassed ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+                              sectionPassed ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
                             )}
                           >
-                            {currentModuleProgress?.quizPassed ? 'Passed' : 'In progress'}
+                            {sectionPassed ? 'Passed' : 'In progress'}
                           </span>
                         </div>
                         <div className="mt-4 space-y-2">
@@ -1718,7 +1916,7 @@ export default function CoursePlayerPage() {
                             value={
                               quizResult
                                 ? Math.min(quizResult.scorePercent, 100)
-                                : currentModuleProgress?.quizPassed
+                                : sectionPassed
                                   ? 100
                                   : 0
                             }

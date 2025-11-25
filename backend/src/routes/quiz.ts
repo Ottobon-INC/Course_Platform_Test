@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "../services/prisma";
 import { asyncHandler } from "../utils/asyncHandler";
 import { createHash } from "node:crypto";
+import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 
 type DbQuestionRow = {
   question_id: string;
@@ -48,6 +49,22 @@ type ModuleProgressRow = {
   updated_at: Date;
 };
 
+type QuizSectionMetaRow = {
+  module_no: number;
+  topic_pair_index: number;
+  order_index?: number | null;
+  question_count?: number | bigint | null;
+};
+
+type QuizSectionAttemptRow = {
+  module_no: number;
+  topic_pair_index: number;
+  status: string | null;
+  score: number | null;
+  completed_at: Date | null;
+  updated_at: Date | null;
+};
+
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_ANONYMOUS_USER_ID = "00000000-0000-0000-0000-000000000000";
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
@@ -83,12 +100,12 @@ const questionsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(20).optional(),
 });
 
-function normalizeUserId(raw: string | undefined): string {
-  const trimmed = raw?.trim();
-  if (trimmed && uuidRegex.test(trimmed)) {
-    return trimmed;
+function getAuthenticatedUserId(req: express.Request): string {
+  const auth = (req as AuthenticatedRequest).auth;
+  if (!auth?.userId) {
+    throw new Error("Missing authenticated user context");
   }
-  return DEFAULT_ANONYMOUS_USER_ID;
+  return auth.userId;
 }
 
 async function resolveCourseId(courseKey: string): Promise<string | null> {
@@ -308,6 +325,86 @@ async function getModuleProgressSummary(params: {
   return summary;
 }
 
+async function loadQuizSectionsMetadata(courseId: string): Promise<QuizSectionMetaRow[]> {
+  return prisma.$queryRaw<QuizSectionMetaRow[]>(
+    Prisma.sql`
+      SELECT module_no,
+             topic_pair_index,
+             MIN(order_index) AS order_index,
+             COUNT(*)::bigint AS question_count
+      FROM quiz_questions
+      WHERE course_id = ${courseId}::uuid
+      GROUP BY module_no, topic_pair_index
+      ORDER BY module_no ASC, topic_pair_index ASC
+    `,
+  );
+}
+
+async function buildQuizSections(params: { courseId: string; userId: string }) {
+  const metadata = await loadQuizSectionsMetadata(params.courseId);
+  if (metadata.length === 0) {
+    return [];
+  }
+
+  const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(
+    Prisma.sql`
+      SELECT module_no, topic_pair_index, status, score, completed_at, updated_at
+      FROM quiz_attempts
+      WHERE course_id = ${params.courseId}::uuid
+        AND user_id = ${params.userId}::uuid
+      ORDER BY completed_at DESC NULLS LAST, updated_at DESC NULLS LAST
+    `,
+  );
+
+  const latestAttemptByKey = new Map<string, QuizSectionAttemptRow>();
+  attempts.forEach((attempt) => {
+    const key = `${attempt.module_no}:${attempt.topic_pair_index}`;
+    if (!latestAttemptByKey.has(key)) {
+      latestAttemptByKey.set(key, attempt);
+    }
+  });
+
+  const sorted = [...metadata].sort((a, b) => {
+    const orderA =
+      (typeof a.order_index === "number" ? a.order_index : null) ??
+      (typeof a.order_index === "bigint" ? Number(a.order_index) : null) ??
+      a.module_no * 10 + a.topic_pair_index;
+    const orderB =
+      (typeof b.order_index === "number" ? b.order_index : null) ??
+      (typeof b.order_index === "bigint" ? Number(b.order_index) : null) ??
+      b.module_no * 10 + b.topic_pair_index;
+    return orderA - orderB;
+  });
+
+  let gateAllPreviousPassed = true;
+  return sorted.map((row, index) => {
+    const key = `${row.module_no}:${row.topic_pair_index}`;
+    const attempt = latestAttemptByKey.get(key);
+    const passed = attempt?.status === "passed";
+    const unlocked = index === 0 ? true : gateAllPreviousPassed;
+    gateAllPreviousPassed = gateAllPreviousPassed && Boolean(passed);
+
+    const rawCount =
+      typeof row.question_count === "bigint" ? Number(row.question_count) : row.question_count ?? 0;
+    const questionCount = Number(rawCount) || 0;
+    const attemptedAt =
+      attempt?.completed_at?.toISOString?.() ?? attempt?.updated_at?.toISOString?.() ?? null;
+
+    return {
+      moduleNo: row.module_no,
+      topicPairIndex: row.topic_pair_index,
+      title: `Module ${row.module_no} • Topic pair ${row.topic_pair_index}`,
+      subtitle: null,
+      questionCount,
+      unlocked,
+      passed,
+      status: attempt?.status ?? null,
+      lastScore: typeof attempt?.score === "number" ? attempt.score : null,
+      attemptedAt,
+    };
+  });
+}
+
 quizRouter.get(
   "/questions",
   asyncHandler(async (req, res) => {
@@ -337,8 +434,27 @@ quizRouter.get(
   }),
 );
 
+quizRouter.get(
+  "/sections/:courseKey",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const courseKey = req.params.courseKey ?? "";
+    const courseId = await resolveCourseId(courseKey);
+    if (!courseId) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    const userId = getAuthenticatedUserId(req);
+    const sections = await buildQuizSections({ courseId, userId });
+
+    res.status(200).json({ sections });
+  }),
+);
+
 quizRouter.post(
   "/attempts",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const parsed = startAttemptSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -352,7 +468,7 @@ quizRouter.post(
       return;
     }
 
-    const userId = normalizeUserId(req.headers["x-user-id"] as string | undefined);
+    const userId = getAuthenticatedUserId(req);
     await ensureUserExists(userId);
 
     const questionSet = await loadQuestionSet({
@@ -396,6 +512,7 @@ quizRouter.post(
 
 quizRouter.post(
   "/attempts/:attemptId/submit",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const parsedBody = submitAttemptSchema.safeParse(req.body);
     if (!parsedBody.success) {
@@ -409,7 +526,7 @@ quizRouter.post(
       return;
     }
 
-    const userId = normalizeUserId(req.headers["x-user-id"] as string | undefined);
+    const userId = getAuthenticatedUserId(req);
 
     const attemptRows = await prisma.$queryRaw<AttemptRow[]>(
       Prisma.sql`
@@ -503,6 +620,7 @@ quizRouter.post(
 
 quizRouter.get(
   "/progress/:courseKey",
+  requireAuth,
   asyncHandler(async (req, res) => {
     const courseId = await resolveCourseId(req.params.courseKey);
     if (!courseId) {
@@ -510,7 +628,7 @@ quizRouter.get(
       return;
     }
 
-    const userId = normalizeUserId(req.headers["x-user-id"] as string | undefined);
+    const userId = getAuthenticatedUserId(req);
     const summary = await getModuleProgressSummary({ userId, courseId });
 
     res.status(200).json({

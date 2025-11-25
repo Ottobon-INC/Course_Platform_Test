@@ -141,3 +141,12 @@ This log captures the end-to-end implementation work on the course platform. Eac
 4. **Session guard** – The session heartbeat in `utils/session.ts` keeps access tokens refreshed while `DashboardPage`, `CartPage`, and `CoursePlayerPage` subscribe and react to changes.
 
 This flow keeps the course player dynamic, secure, and resilient to session expiry while providing a clear historical record of the work completed.
+
+---
+
+## Quiz API Payload Fix (2025-11-25)
+
+- **frontend/src/lib/queryClient.ts (`apiRequest`)**    The helper now merges caller-supplied headers with its defaults before issuing `fetch`. Previously, the quiz mutations (`CoursePlayerPage.tsx`) passed `{ Authorization: Bearer ... }`, which overwrote `Content-Type: application/json`. Express treated the payload as empty (`{}`), so `startAttemptSchema` flagged missing `courseId/moduleNo/topicPairIndex` and `quiz_attempts` kept the anonymous `00000000-0000-...` user id.
+
+- **Impact**    `/api/quiz/sections` and `/api/quiz/progress` once again resolve all 12 topic pairs. `POST /api/quiz/attempts` receives the correct JSON body, freezes the chosen `quiz_questions` + `quiz_options`, and records the authenticated learner. Submissions update `module_progress`, unlocking module content as soon as both topic-pair quizzes are passed.
+

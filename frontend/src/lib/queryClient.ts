@@ -14,15 +14,20 @@ export async function apiRequest(
   data?: unknown | undefined,
   init?: RequestInit,
 ): Promise<Response> {
+  const body = data ? JSON.stringify(data) : undefined;
+  const { headers: initHeaders, ...restInit } = init ?? {};
+  const mergedHeaders = new Headers(initHeaders as HeadersInit | undefined);
+
+  if (body && !mergedHeaders.has("Content-Type")) {
+    mergedHeaders.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(buildApiUrl(path), {
     method,
-    headers: {
-      ...(data ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers ?? {}),
-    },
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
-    ...init,
+    ...restInit,
+    headers: mergedHeaders,
   });
 
   await throwIfResNotOk(res);

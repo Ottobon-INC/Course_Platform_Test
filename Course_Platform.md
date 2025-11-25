@@ -359,3 +359,18 @@ This documentation intentionally captures every pertinent detail—architecture,
 
 
 
+
+---
+
+## Quiz Infrastructure & Recent Fix
+
+- **Source tables:** `quiz_questions` defines prompts scoped by course/module/topic pair and `quiz_options` supplies their answers. Attempt metadata lives in `quiz_attempts` and long-term unlock flags live in `module_progress`.
+- **Runtime flow:** `backend/src/routes/quiz.ts` fetches the aggregated quiz section list, serves randomised question sets per topic pair, and grades submissions. Frontend `CoursePlayerPage.tsx` hits `/api/quiz/sections/:courseKey`, `/api/quiz/progress/:courseKey`, `POST /api/quiz/attempts`, and the submission endpoint whenever a learner enters the Quiz tab.
+- **Bug resolved on 2025-11-25:** The shared `apiRequest` helper used by quiz mutations accidentally overwrote `Content-Type: application/json` whenever callers supplied `Authorization` headers. Express therefore saw an empty body, Zod emitted `courseId required / moduleNo NaN`, and every attempt row defaulted to the anonymous user id. The helper now merges headers before issuing `fetch`, so the backend receives both headers, can parse the payload, and stores attempts under the active learner while unlocking subsequent modules once both topic-pair quizzes are passed.
+
+### Quiz unlock flow
+
+1. Quiz tab loads `sections` + `progress` with the bearer token to know which cards to unlock.
+2. Starting an attempt POSTs `{ courseId, moduleNo, topicPairIndex }` to `/api/quiz/attempts`; Prisma freezes that question set inside `quiz_attempts`.
+3. Submitting answers updates the same attempt row, recomputes `module_progress`, and returns the refreshed module summary so the course sidebar immediately unlocks the next module when both topic pairs pass.
+4. Because requests now keep `Content-Type`, every attempt row records the true `user_id` instead of the previous `00000000-...` placeholder.

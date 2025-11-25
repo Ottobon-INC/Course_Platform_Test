@@ -36,6 +36,7 @@
     - `health.ts`: liveliness check (includes Postgres connectivity probe).
     - `auth.ts`: Google OAuth code exchange, JWT issuance, refresh, and logout.
     - `users.ts`: authenticated profile lookup (`/users/me`).
+    - `quiz.ts`: dynamic quiz sections/progress plus attempt start/submit endpoints backed by `quiz_questions`, `quiz_options`, `quiz_attempts`, and `module_progress`.
   - `middleware/requireAuth.ts`: verifies bearer JWTs and attaches auth context to requests.
   - `services/`: shared business utilities:
     - `prisma.ts`: Prisma client singleton bound to `DATABASE_URL`.

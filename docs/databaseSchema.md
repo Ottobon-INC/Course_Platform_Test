@@ -187,3 +187,12 @@ classDiagram
 6. **Completion Tracking**: Lessons marked complete when 90% watched or manually completed
 
 This schema supports the current course player functionality where lesson navigation, video playback, and guide content are synchronized to provide a cohesive learning experience.
+
+## Quiz Tables Snapshot (Live Prisma Schema)
+
+- **`quiz_questions`** – Stores canonical prompts and metadata fields `course_id (uuid)`, `module_no (smallint)`, `topic_pair_index (smallint)`, and `order_index`. Each row represents a single quiz question tied to a topic pair.
+- **`quiz_options`** – Child table keyed by `option_id (uuid)` with `question_id` foreign key, `option_text`, and `is_correct` boolean. Every question has multiple options with exactly one correct flag.
+- **`quiz_attempts`** – Runtime storage for each learner attempt. Columns include `attempt_id`, `user_id`, `course_id`, `module_no`, `topic_pair_index`, frozen `question_set` JSONB, learner `answers` JSONB, numeric `score`, textual `status` (passed/failed), plus `completed_at`/`updated_at` timestamps.
+- **`module_progress`** – Aggregated per-user progress keyed by `(user_id, course_id, module_no)` with `quiz_passed`, `unlocked_at`, and optional `completed_at`. Updated whenever quizzes start or finish to control module unlocks in the course player.
+
+Because the frontend now sends properly typed JSON payloads (the `apiRequest` header fix), each `quiz_attempts.user_id` reflects the authenticated learner instead of the anonymous `00000000-0000-...` placeholder, ensuring unlock logic (`module_progress`) tracks the correct person.

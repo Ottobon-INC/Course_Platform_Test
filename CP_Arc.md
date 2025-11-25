@@ -64,6 +64,13 @@ Express API (4000) ── Prisma ──► PostgreSQL (Supabase)
 
 - **Utility patterns:** `asyncHandler` wraps async routes, zod schemas validate payloads, environment configuration is validated via zod at startup.
 
+### Quiz Experience & Recent Fix
+
+- **Data ownership:** The quiz system is fully relational: `quiz_questions` holds authored prompts per `(course_id, module_no, topic_pair_index)`, `quiz_options` stores the answers, `quiz_attempts` freezes each served question set together with learner answers, and `module_progress` tracks module unlock status.
+- **API contract:** `quizRouter` (`backend/src/routes/quiz.ts`) exposes `/api/quiz/sections/:courseKey`, `/api/quiz/progress/:courseKey`, `POST /api/quiz/attempts`, and `POST /api/quiz/attempts/:attemptId/submit`. Sections are now computed directly from the live question data, so all 12 topic-pair quizzes appear without any shadow tables.
+- **Frontend integration:** `CoursePlayerPage.tsx` fetches sections/progress when the Quiz tab becomes active, then starts attempts by posting `{ courseId, moduleNo, topicPairIndex, limit }`. Submissions send the stored `attemptId` plus `{ questionId, optionId }` answers.
+- **Bug + resolution (2025‑11‑25):** The shared `apiRequest` helper appended caller headers *after* its defaults, so the Quiz POSTs replaced `Content-Type: application/json` with `Authorization`. Express could not parse the body, leading to `400` responses and anonymous attempt rows in Postgres. The helper now merges headers up front, ensuring both headers are present; quiz payloads arrive intact, real user IDs are stored, and module 2 unlocks once both topic-pair quizzes in module 1 pass.
+
 ## 4. Data & Integration Layer
 
 ### 4.1 PostgreSQL (Supabase-managed)

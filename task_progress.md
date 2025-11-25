@@ -58,3 +58,14 @@
 
 - **Regenerated Prisma client & hardened cart provisioning**  
   Unblocked `prisma.cartItem` usage by regenerating the client and updating `cartService.ts` to auto-create the `cart_items` table/index using the Prisma connection (no manual DB prep required).
+
+## 2025-11-25 — Quiz API & Progress Fix
+
+- **Resolved quiz payload validation failures**  
+  Updated the shared `apiRequest` helper (frontend) to merge `Authorization` headers with `Content-Type: application/json` instead of overwriting it. Quiz start/submit mutations now send well-formed JSON, so `/api/quiz/attempts` receives the real `{ courseId, moduleNo, topicPairIndex }` payload.
+
+- **Per-user quiz attempts restored**  
+  With the correct payload and bearer token reaching Express, `quiz_attempts.user_id` is populated with the authenticated learner instead of the default `00000000-0000-0000-0000-000000000000`. Module unlock logic in `module_progress` therefore advances immediately after both topic pairs pass.
+
+- **Frontend verification**  
+  Course player displays all 12 topic-pair quizzes, auto unlocks module 2 once module 1 pairs are passed, and surfaces quiz attempt history without errors.
