@@ -483,7 +483,7 @@ export default function CoursePlayerPage() {
   const groupedModuleContent = useMemo(() => {
     const modules = new Map<number, { topics: ModuleTopic[]; lessons: LessonWithProgress[] }>();
 
-    const createLessonFromTopic = (topic: ModuleTopic): LessonWithProgress => {
+    const createLessonFromTopic = (topic: ModuleTopic, moduleLocalIndex: number): LessonWithProgress => {
       const slugBase = slugify(topic.topicName, topic.topicId);
       const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
       const normalizedType = (topic.contentType ?? 'video').toLowerCase();
@@ -499,12 +499,12 @@ export default function CoursePlayerPage() {
         type: lessonType,
         videoUrl: normalizeVideoUrl(topic.videoUrl),
         notes: topic.textContent ?? '',
-        orderIndex: topic.moduleNo === 0 ? topic.topicNumber : topic.topicNumber - 1,
+        orderIndex: moduleLocalIndex,
         isPreview: topic.isPreview,
         moduleNo: Number.isFinite(topic.moduleNo) ? topic.moduleNo : 0,
         moduleTitle: topic.moduleName,
         topicNumber: topic.topicNumber,
-        topicPairIndex: Math.max(1, Math.ceil(topic.topicNumber / 2)),
+        topicPairIndex: Math.max(1, Math.ceil((moduleLocalIndex + 1) / 2)),
         createdAt: new Date(),
         updatedAt: new Date(),
         completed: false,
@@ -518,18 +518,17 @@ export default function CoursePlayerPage() {
 
       if (entry) {
         entry.topics.push(topic);
-        entry.lessons.push(createLessonFromTopic(topic));
       } else {
         modules.set(moduleNo, {
           topics: [topic],
-          lessons: [createLessonFromTopic(topic)],
+          lessons: [],
         });
       }
     });
 
     modules.forEach((entry) => {
       entry.topics.sort((a, b) => a.topicNumber - b.topicNumber);
-      entry.lessons.sort((a, b) => a.orderIndex - b.orderIndex);
+      entry.lessons = entry.topics.map((topic, index) => createLessonFromTopic(topic, index));
     });
 
     return modules;
