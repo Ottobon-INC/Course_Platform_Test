@@ -18,5 +18,5 @@
 
 ## 2025-11-25
 - Diagnosed quiz API failures caused by the frontend `apiRequest` helper clobbering `Content-Type: application/json` whenever callers supplied custom headers. Without the header, Express treated quiz POST bodies as empty, Zod reported `courseId`/`moduleNo` as missing, and `quiz_attempts` rows showed the anonymous fallback user id.
-- Updated the helper so it now merges headers before sending the `fetch` request, guaranteeing both the bearer `Authorization` header and JSON content type reach the backend.
+- Updated the helper so it now merges headers before sending the `fetch` request, guaranteeing both the bearer `Authorization` header and JSON content type reach the backend. 
 - Verified the `/api/quiz/sections`, `/api/quiz/progress`, `/api/quiz/attempts`, and submission endpoints now return full question sets for all 12 topic pairs and persist attempts against the signed-in learner, thereby unlocking subsequent modules through `module_progress`.

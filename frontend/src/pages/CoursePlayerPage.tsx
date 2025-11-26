@@ -324,6 +324,21 @@ const getModuleNumberFromId = (moduleId: string): number | null => {
   return match ? Number.parseInt(match[1], 10) : null;
 };
 
+const coerceNumber = (value: unknown, fallback = 0) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const baseModuleDefinitions: ModuleDefinition[] = [
   {
     id: 'module-1',
@@ -733,6 +748,20 @@ export default function CoursePlayerPage() {
     }
   );
   const quizSections = quizSectionsResponse?.sections ?? [];
+  const normalizedQuizSections = useMemo(() => {
+    if (quizSections.length === 0) {
+      return [];
+    }
+    return quizSections.map((section) => {
+      const normalizedModuleNo = coerceNumber(section.moduleNo, 0);
+      const normalizedTopicPairIndex = Math.max(1, coerceNumber(section.topicPairIndex, 1));
+      return {
+        ...section,
+        moduleNo: normalizedModuleNo,
+        topicPairIndex: normalizedTopicPairIndex
+      };
+    });
+  }, [quizSections]);
 
   const firstFetchedLessonSlug = fetchedModuleLessons[0]?.slug;
   const firstStaticSlug = staticLessons[0]?.slug;
@@ -790,23 +819,23 @@ export default function CoursePlayerPage() {
   }, [quizProgressModules]);
 
   const quizSectionLookup = useMemo(() => {
-    if (quizSections.length === 0) {
+    if (normalizedQuizSections.length === 0) {
       return null;
     }
     const map = new Map<string, QuizSectionStatus>();
-    quizSections.forEach((section) => {
+    normalizedQuizSections.forEach((section) => {
       map.set(`${section.moduleNo}:${section.topicPairIndex}`, section);
     });
     return map;
-  }, [quizSections]);
+  }, [normalizedQuizSections]);
 
   const moduleUnlockState = useMemo(() => {
-    if (quizSections.length === 0) {
+    if (normalizedQuizSections.length === 0) {
       return null;
     }
 
     const grouped = new Map<number, QuizSectionStatus[]>();
-    quizSections.forEach((section) => {
+    normalizedQuizSections.forEach((section) => {
       const existing = grouped.get(section.moduleNo);
       if (existing) {
         existing.push(section);
@@ -821,13 +850,14 @@ export default function CoursePlayerPage() {
     let previousModulesPassed = true;
 
     orderedModuleNos.forEach((moduleNo, index) => {
-      if (index === 0 || previousModulesPassed) {
-        unlockedModules.add(moduleNo);
-      }
-
       const sections = grouped.get(moduleNo) ?? [];
       const passed = sections.length > 0 && sections.every((section) => section.passed);
       modulePassed.set(moduleNo, passed);
+
+      const hasUnlockedTopicPair = sections.some((section) => section.unlocked || section.passed);
+      if (hasUnlockedTopicPair || index === 0 || previousModulesPassed) {
+        unlockedModules.add(moduleNo);
+      }
 
       if (!passed) {
         previousModulesPassed = false;
@@ -835,7 +865,20 @@ export default function CoursePlayerPage() {
     });
 
     return { unlockedModules, modulePassed };
-  }, [quizSections]);
+  }, [normalizedQuizSections]);
+
+  const moduleUnlockedBySections = useMemo(() => {
+    if (normalizedQuizSections.length === 0) {
+      return null;
+    }
+    const unlocked = new Set<number>();
+    normalizedQuizSections.forEach((section) => {
+      if (section.unlocked || section.passed) {
+        unlocked.add(section.moduleNo);
+      }
+    });
+    return unlocked;
+  }, [normalizedQuizSections]);
 
   const unlockedModules = useMemo(() => {
     if (sortedModuleNumbers.length === 0) {
@@ -867,17 +910,73 @@ export default function CoursePlayerPage() {
       if (!moduleNo || moduleNo <= 1) {
         return false;
       }
+      if (moduleUnlockState && moduleUnlockState.unlockedModules.has(moduleNo)) {
+        return false;
+      }
+      if (moduleUnlockedBySections && moduleUnlockedBySections.has(moduleNo)) {
+        return false;
+      }
       if (moduleUnlockState) {
-        return !moduleUnlockState.unlockedModules.has(moduleNo);
+        return true;
       }
       return !unlockedModules.has(moduleNo);
     },
-    [moduleUnlockState, unlockedModules]
+    [moduleUnlockState, moduleUnlockedBySections, unlockedModules]
   );
 
-  const showingTopicPairs = quizSections.length > 0;
+  const hasQuizForTopicPair = useCallback(
+    (moduleNo: number | null | undefined, topicPairIndex: number | null | undefined) => {
+      if (!moduleNo || moduleNo <= 0) {
+        return true;
+      }
+      const normalizedPair = topicPairIndex && topicPairIndex > 0 ? topicPairIndex : 1;
+      if (quizSectionLookup) {
+        return quizSectionLookup.has(`${moduleNo}:${normalizedPair}`);
+      }
+      return true;
+    },
+    [quizSectionLookup]
+  );
+
+  const isTopicPairUnlocked = useCallback(
+    (moduleNo: number | null | undefined, topicPairIndex: number | null | undefined) => {
+      if (!moduleNo || moduleNo <= 0) {
+        return true;
+      }
+      if (isModuleLocked(moduleNo)) {
+        return false;
+      }
+
+      const normalizedPair = topicPairIndex && topicPairIndex > 0 ? topicPairIndex : 1;
+      const currentKey = `${moduleNo}:${normalizedPair}`;
+      const currentSection = quizSectionLookup?.get(currentKey);
+      if (currentSection?.passed || currentSection?.unlocked) {
+        return true;
+      }
+
+      if (normalizedPair <= 1) {
+        return true;
+      }
+
+      const previousKey = `${moduleNo}:${normalizedPair - 1}`;
+      const previousSection = quizSectionLookup?.get(previousKey);
+      if (previousSection) {
+        return Boolean(previousSection.passed);
+      }
+
+      // Fallback: allow if module progress already marks the module as passed.
+      if (moduleUnlockState?.modulePassed.get(moduleNo)) {
+        return true;
+      }
+
+      return false;
+    },
+    [isModuleLocked, moduleUnlockState, quizSectionLookup]
+  );
+
+  const showingTopicPairs = normalizedQuizSections.length > 0;
   const quizGridSections: QuizSectionStatus[] = showingTopicPairs
-    ? quizSections
+    ? normalizedQuizSections
     : sortedModuleNumbers.map((moduleNo) => ({
         moduleNo,
         topicPairIndex: 1,
@@ -912,7 +1011,15 @@ export default function CoursePlayerPage() {
         const completed = override ? override.status === 'completed' : base?.completed ?? false;
         const progress = override?.progress ?? base?.progress ?? 0;
         const lessonPrefix = moduleNumber === null ? '' : `${moduleNumber}.${lessonIndex + 1} `;
-        const locked = moduleNumber !== null ? isModuleLocked(moduleNumber) : false;
+        const resolvedModuleNo = base?.moduleNo ?? moduleNumber ?? 0;
+        const resolvedTopicNumber = base?.topicNumber ?? lessonIndex + 1;
+        const resolvedTopicPairIndex =
+          base?.topicPairIndex ?? Math.max(1, Math.ceil(resolvedTopicNumber / 2));
+        const locked =
+          resolvedModuleNo > 0
+            ? isModuleLocked(resolvedModuleNo) ||
+              !isTopicPairUnlocked(resolvedModuleNo, resolvedTopicPairIndex)
+            : false;
 
         return {
           id: base?.id ?? lessonDef.id,
@@ -927,9 +1034,9 @@ export default function CoursePlayerPage() {
           type: base?.type ?? 'video',
           videoUrl: base?.videoUrl ?? '',
           notes: base?.notes ?? '',
-          moduleNo: base?.moduleNo ?? moduleNumber ?? 0,
-          topicNumber: base?.topicNumber ?? lessonIndex + 1,
-          topicPairIndex: base?.topicPairIndex ?? Math.max(1, Math.ceil((lessonIndex + 1) / 2)),
+          moduleNo: resolvedModuleNo,
+          topicNumber: resolvedTopicNumber,
+          topicPairIndex: resolvedTopicPairIndex,
           moduleTitle: base?.moduleTitle ?? module.title,
           locked
         };
@@ -941,7 +1048,7 @@ export default function CoursePlayerPage() {
         lessons
       };
     });
-  }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions]);
+  }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions, isModuleLocked, isTopicPairUnlocked]);
 
   const lessons = useMemo(() => sidebarModules.flatMap((module) => module.lessons), [sidebarModules]);
   const lockedLessonSlugs = useMemo(
@@ -1048,17 +1155,35 @@ export default function CoursePlayerPage() {
     return quizSectionLookup.get(`${currentModuleNo}:${currentTopicPairIndex}`) ?? null;
   }, [quizSectionLookup, currentModuleNo, currentTopicPairIndex]);
 
-  const moduleLockedFallback = currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
-  const quizLockedForSection = currentQuizSection ? !currentQuizSection.unlocked : moduleLockedFallback;
+  const currentQuizAvailable =
+    currentModuleNo !== null && currentTopicPairIndex !== null
+      ? hasQuizForTopicPair(currentModuleNo, currentTopicPairIndex)
+      : false;
+
+  const moduleLockedFallback =
+    currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
+  const quizLockedForSection =
+    currentQuizAvailable && currentModuleNo !== null && currentTopicPairIndex !== null
+      ? !isTopicPairUnlocked(currentModuleNo, currentTopicPairIndex)
+      : moduleLockedFallback;
   const videoUnavailable = !resolvedLesson || resolvedLesson.type !== 'video' || !resolvedVideoUrl;
 
   const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === 'quiz' && quizLockedForSection) {
-      toast({
-        title: 'Quiz locked',
-        description: 'Complete the previous topic pair quiz to unlock this quiz.'
-      });
-      return;
+    if (mode === 'quiz') {
+      if (!currentQuizAvailable) {
+        toast({
+          title: 'Quiz unavailable',
+          description: 'No quiz has been configured for this topic pair.'
+        });
+        return;
+      }
+      if (quizLockedForSection) {
+        toast({
+          title: 'Quiz locked',
+          description: 'Complete the previous topic pair quiz to unlock this quiz.'
+        });
+        return;
+      }
     }
 
     if (mode === 'video' && videoUnavailable) {
@@ -1077,7 +1202,11 @@ export default function CoursePlayerPage() {
         {
           value: 'quiz',
           label: 'Quiz',
-          disabled: quizLockedForSection || !currentModuleNo || currentModuleNo <= 0
+          disabled:
+            quizLockedForSection ||
+            !currentQuizAvailable ||
+            !currentModuleNo ||
+            currentModuleNo <= 0
         }
       ].map((option) => (
         <button
@@ -1262,14 +1391,22 @@ export default function CoursePlayerPage() {
       if (!courseId) {
         return;
       }
-
       const targetLesson = lessonSourceBySlug.get(lessonSlug);
-      if (targetLesson && isModuleLocked(targetLesson.moduleNo)) {
-        toast({
-          title: 'Module locked',
-          description: 'Complete the previous quiz to unlock this module.'
-        });
-        return;
+      if (targetLesson) {
+        if (isModuleLocked(targetLesson.moduleNo)) {
+          toast({
+            title: 'Module locked',
+            description: 'Complete the previous quiz to unlock this module.'
+          });
+          return;
+        }
+        if (!isTopicPairUnlocked(targetLesson.moduleNo, targetLesson.topicPairIndex)) {
+          toast({
+            title: 'Topic locked',
+            description: 'Complete the previous topic pair quiz to unlock these lessons.'
+          });
+          return;
+        }
       }
 
       setLocation(`/course/${courseId}/learn/${lessonSlug}`);
@@ -1277,7 +1414,15 @@ export default function CoursePlayerPage() {
         setIsMobileSidebarOpen(false);
       }
     },
-    [courseId, isMobileSidebarOpen, isModuleLocked, lessonSourceBySlug, setLocation, toast]
+    [
+      courseId,
+      isMobileSidebarOpen,
+      isModuleLocked,
+      isTopicPairUnlocked,
+      lessonSourceBySlug,
+      setLocation,
+      toast
+    ]
   );
 
   useEffect(() => {
@@ -1300,6 +1445,13 @@ export default function CoursePlayerPage() {
 
     if (!session?.accessToken) {
       setQuizError('Sign in required to take this quiz.');
+      setQuizQuestions([]);
+      setQuizAttemptId(null);
+      return;
+    }
+
+    if (!currentQuizAvailable) {
+      setQuizError('No quiz available for this topic pair.');
       setQuizQuestions([]);
       setQuizAttemptId(null);
       return;
@@ -1338,6 +1490,7 @@ export default function CoursePlayerPage() {
     startQuizAttemptMutation.mutate,
     submitQuizMutation.isPending,
     quizLockedForSection,
+    currentQuizAvailable,
     session?.accessToken,
     resolvedCourseIdentifier
   ]);
@@ -1779,7 +1932,15 @@ export default function CoursePlayerPage() {
                   <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
                     <div className="space-y-4">
                       <div className="rounded-2xl border border-border/70 bg-card/80 p-4 sm:p-6 shadow-sm">
-                        {quizLockedForSection ? (
+                        {!currentQuizAvailable ? (
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <Lock className="w-5 h-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-semibold text-foreground">Quiz unavailable</p>
+                              <p>No quiz has been configured for this topic pair.</p>
+                            </div>
+                          </div>
+                        ) : quizLockedForSection ? (
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <Lock className="w-5 h-5 text-muted-foreground" />
                             <div>
