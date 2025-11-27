@@ -407,6 +407,27 @@ export const computeProgress = (modules: SidebarModule[]) => {
   return { completedCount, totalCount, percent };
 };
 
+const computeQuizProgress = (
+  moduleNumbers: number[],
+  modulePassedMap: Map<number, boolean> | null,
+  quizProgressMap: Map<number, QuizProgressModule>,
+) => {
+  const totalCount = moduleNumbers.length;
+  if (totalCount === 0) {
+    return { completedCount: 0, totalCount: 0, percent: 0 };
+  }
+
+  const completedCount = moduleNumbers.filter((moduleNo) => {
+    if (modulePassedMap?.has(moduleNo)) {
+      return Boolean(modulePassedMap.get(moduleNo));
+    }
+    return Boolean(quizProgressMap.get(moduleNo)?.quizPassed);
+  }).length;
+
+  const percent = Math.min(100, Math.floor((completedCount / totalCount) * 100));
+  return { completedCount, totalCount, percent };
+};
+
 const QUIZ_QUESTION_LIMIT = 5;
 const PASSING_PERCENT_THRESHOLD = 70;
 
@@ -1469,7 +1490,10 @@ export default function CoursePlayerPage() {
     }
   });
 
-  const progressInfo = useMemo(() => computeProgress(sidebarModules), [sidebarModules]);
+  const progressInfo = useMemo(
+    () => computeQuizProgress(sortedModuleNumbers, moduleUnlockState?.modulePassed ?? null, quizProgressMap),
+    [sortedModuleNumbers, moduleUnlockState?.modulePassed, quizProgressMap]
+  );
   const quizStarting = startQuizAttemptMutation.isPending;
   const quizSubmitting = submitQuizMutation.isPending;
   const answersComplete =

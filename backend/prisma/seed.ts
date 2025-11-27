@@ -4,10 +4,14 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parse } from "csv-parse/sync";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { hashPassword } from "../src/utils/password";
 
 const prisma = new PrismaClient();
 
 const COURSE_ID = "f26180b2-5dda-495a-a014-ae02e63f172f";
+const ADMIN_EMAIL = "jaswanthvanapalli12@gmail.com";
+const ADMIN_PASSWORD = "Ottobon@2025";
+const ADMIN_NAME = "Platform Admin";
 
 type SeedCourse = {
   courseId?: string;
@@ -240,6 +244,10 @@ async function loadTopicsFromCsv(csvPath: string, courseId: string): Promise<Pri
       };
     });
   } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      console.warn(`Topics CSV not found at ${csvPath}. Skipping topic seeding.`);
+      return [];
+    }
     console.error("Failed to parse topics CSV", error);
     throw error;
   }
@@ -297,9 +305,14 @@ async function main(): Promise<void> {
   const csvPath = path.resolve(__dirname, "..", "..", "topics_all_modules.csv");
 
   console.log("Seeding database...");
+  await seedAdmin();
   await seedCourses();
   const topics = await loadTopicsFromCsv(csvPath, COURSE_ID);
-  await seedTopics(topics);
+  if (topics.length > 0) {
+    await seedTopics(topics);
+  } else {
+    console.warn("No topics were seeded because the CSV was missing.");
+  }
   await seedPageContent();
   console.log("Database seed completed.");
 }
@@ -312,6 +325,24 @@ async function seedPageContent(): Promise<void> {
       update: page,
     });
   }
+}
+
+async function seedAdmin(): Promise<void> {
+  const passwordHash = await hashPassword(ADMIN_PASSWORD);
+  await prisma.user.upsert({
+    where: { email: ADMIN_EMAIL },
+    create: {
+      email: ADMIN_EMAIL,
+      fullName: ADMIN_NAME,
+      passwordHash,
+      role: "admin",
+    },
+    update: {
+      fullName: ADMIN_NAME,
+      role: "admin",
+      passwordHash,
+    },
+  });
 }
 
 main()

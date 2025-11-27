@@ -215,11 +215,18 @@ export default function BecomeTutorPage() {
       <section className="grid gap-8 lg:grid-cols-[1.35fr_0.65fr]">
         <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-100/70">
           <CardContent className="p-8">
-            <div className="flex flex-col gap-2 pb-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Submit your course proposal</h2>
-              <p className="text-sm text-slate-600">
-                Tell us who you are and how your course will transform learners. We review every application manually.
-              </p>
+            <div className="flex flex-col gap-3 pb-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-900">Submit your course proposal</h2>
+                  <p className="text-sm text-slate-600">
+                    Tell us who you are and how your course will transform learners. We review every application manually.
+                  </p>
+                </div>
+                <Button variant="outline" onClick={() => setLocation("/tutor/login")}>
+                  Tutor login
+                </Button>
+              </div>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">

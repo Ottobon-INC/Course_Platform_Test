@@ -81,7 +81,11 @@ export const requestSessionRefresh = async (session: StoredSession): Promise<Sto
       accessTokenExpiresAt: refreshed.accessTokenExpiresAt,
       refreshToken: refreshed.refreshToken ?? session.refreshToken,
       refreshTokenExpiresAt: refreshed.refreshTokenExpiresAt ?? session.refreshTokenExpiresAt,
-      sessionId: refreshed.sessionId ?? session.sessionId
+      sessionId: refreshed.sessionId ?? session.sessionId,
+      role: session.role,
+      userId: session.userId,
+      email: session.email,
+      fullName: session.fullName
     };
 
     writeStoredSession(nextSession);

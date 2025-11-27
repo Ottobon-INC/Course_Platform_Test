@@ -7,6 +7,7 @@ type AccessTokenPayload = {
   sub: string;
   sid: string;
   jti: string;
+  role?: string;
   iat: number;
   exp: number;
 };
@@ -39,13 +40,13 @@ function calculateRefreshExpiry(): Date {
   return now;
 }
 
-export async function createSession(userId: string): Promise<SessionTokens> {
+export async function createSession(userId: string, userRole?: string): Promise<SessionTokens> {
   const sessionId = crypto.randomUUID();
   const jwtId = crypto.randomUUID();
   const refreshExpiresAt = calculateRefreshExpiry();
 
   const accessToken = jwt.sign(
-    { sub: userId, sid: sessionId, jti: jwtId },
+    { sub: userId, sid: sessionId, jti: jwtId, role: userRole },
     env.jwtSecret,
     { expiresIn: env.jwtAccessTokenTtlSeconds },
   );
@@ -112,8 +113,13 @@ export async function renewSessionTokens(refreshToken: string): Promise<SessionT
 
   const newJwtId = crypto.randomUUID();
 
+  const user = await prisma.user.findUnique({
+    where: { userId: payload.sub },
+    select: { role: true },
+  });
+
   const newAccessToken = jwt.sign(
-    { sub: payload.sub, sid: payload.sid, jti: newJwtId },
+    { sub: payload.sub, sid: payload.sid, jti: newJwtId, role: user?.role },
     env.jwtSecret,
     { expiresIn: env.jwtAccessTokenTtlSeconds },
   );

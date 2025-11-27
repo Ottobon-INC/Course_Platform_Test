@@ -13,6 +13,8 @@ import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import CoursesPage from "@/pages/CoursesPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
 import AboutPage from "@/pages/AboutPage";
+import TutorLoginPage from "@/pages/TutorLoginPage";
+import TutorDashboardPage from "@/pages/TutorDashboardPage";
 
 function Router() {
   return (
@@ -24,6 +26,8 @@ function Router() {
       <Route path="/cart" component={CartPage} />
       <Route path="/courses" component={CoursesPage} />
       <Route path="/become-a-tutor" component={BecomeTutorPage} />
+      <Route path="/tutor/login" component={TutorLoginPage} />
+      <Route path="/tutor/dashboard" component={TutorDashboardPage} />
       <Route path="/about" component={AboutPage} />
       
       {/* Course Routes */}

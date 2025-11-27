@@ -5,6 +5,7 @@ export type AuthContext = {
   userId: string;
   sessionId: string;
   jwtId: string;
+  role?: string;
 };
 
 export interface AuthenticatedRequest extends Request {
@@ -30,6 +31,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
       userId: payload.sub,
       sessionId: payload.sid,
       jwtId: payload.jti,
+      role: payload.role,
     };
   } catch (error) {
     res.status(401).json({ message: error instanceof Error ? error.message : "Invalid access token" });

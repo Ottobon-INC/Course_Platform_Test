@@ -4,4 +4,8 @@ export interface StoredSession {
   refreshToken: string;
   refreshTokenExpiresAt: string;
   sessionId: string;
+  role?: 'learner' | 'tutor' | 'admin';
+  userId?: string;
+  email?: string;
+  fullName?: string;
 }

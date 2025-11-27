@@ -131,11 +131,6 @@ export default function CourseSidebar({
       .filter((module) => module.lessons.length > 0);
   }, [modules, searchQuery]);
 
-  const totalLessons = modules.reduce(
-    (acc, module) => acc + module.lessons.length,
-    0
-  );
-
   if (isCollapsed) {
     return (
       <div
@@ -191,9 +186,9 @@ export default function CourseSidebar({
             className="h-2"
             data-testid="progress-bar-course"
           />
-            <div className="text-xs text-muted-foreground" data-testid="text-lessons-completed">
-              {completedCount} of {totalCount} lessons completed
-            </div>
+          <div className="text-xs text-muted-foreground" data-testid="text-lessons-completed">
+            {completedCount} of {totalCount} modules passed (quizzes)
+          </div>
         </div>
 
         <div className="relative mt-4">
@@ -345,7 +340,7 @@ export default function CourseSidebar({
       </div>
 
       <div className="px-6 py-4 border-t border-sidebar-border text-xs text-muted-foreground">
-        {completedCount} of {totalLessons} total lessons tracked
+        {completedCount} of {totalCount} modules counted toward progress
       </div>
     </div>
   );

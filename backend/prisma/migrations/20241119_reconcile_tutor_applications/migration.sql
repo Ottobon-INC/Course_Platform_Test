@@ -1,3 +1,21 @@
+-- Ensure table exists for shadow DBs that start empty.
+CREATE TABLE IF NOT EXISTS tutor_applications (
+  application_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name        TEXT NOT NULL,
+  email            TEXT NOT NULL,
+  phone            TEXT,
+  headline         TEXT,
+  course_title     TEXT,
+  course_description TEXT,
+  target_audience  TEXT,
+  expertise_area   TEXT,
+  experience_years INTEGER,
+  availability     TEXT,
+  status           TEXT DEFAULT 'pending',
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  updated_at       TIMESTAMPTZ DEFAULT now()
+);
+
 DO $$
 BEGIN
   IF EXISTS (
