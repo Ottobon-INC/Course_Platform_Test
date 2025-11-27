@@ -73,6 +73,21 @@ interface LessonProgressPayload {
   userId?: string;
 }
 
+interface CourseProgressLesson {
+  lessonId: string;
+  status: LessonProgressStatus;
+  progress: number;
+  updatedAt?: string | null;
+  userId?: string | null;
+}
+
+interface CourseProgressResponse {
+  completedCount: number;
+  totalCount: number;
+  percent: number;
+  lessons: CourseProgressLesson[];
+}
+
 interface CourseSummary {
   id?: string;
   title?: string;
@@ -696,6 +711,25 @@ export default function CoursePlayerPage() {
     [course?.id, courseId]
   );
 
+  const { data: courseProgressResponse } = useQuery<CourseProgressResponse>({
+    queryKey: ['course-progress', resolvedCourseIdentifier, session?.accessToken],
+    enabled:
+      resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
+    queryFn: async () => {
+      const response = await apiRequest(
+        'GET',
+        `/api/lessons/courses/${resolvedCourseIdentifier}/progress`,
+        undefined,
+        authHeaders ? { headers: authHeaders } : undefined
+      );
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true
+  });
+
   const {
     data: quizProgressResponse,
     refetch: quizProgressRefetch,
@@ -771,8 +805,17 @@ export default function CoursePlayerPage() {
   const currentLessonId = currentLessonBase?.id;
 
   const { data: lessonProgressResponse, isLoading: lessonLoading } = useQuery<{ progress: LessonProgressPayload }>({
-    queryKey: [`/api/lessons/${currentLessonId}/progress`],
-    enabled: !!currentLessonId && authChecked && isAuthenticated,
+    queryKey: [`/api/lessons/${currentLessonId}/progress`, session?.accessToken],
+    enabled: !!currentLessonId && authChecked && isAuthenticated && Boolean(session?.accessToken),
+    queryFn: async () => {
+      const response = await apiRequest(
+        'GET',
+        `/api/lessons/${currentLessonId}/progress`,
+        undefined,
+        authHeaders ? { headers: authHeaders } : undefined
+      );
+      return response.json();
+    },
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -810,6 +853,33 @@ export default function CoursePlayerPage() {
       }));
     }
   }, [lessonProgress, currentLessonId]);
+
+  useEffect(() => {
+    const lessons = courseProgressResponse?.lessons ?? [];
+    if (lessons.length === 0) {
+      return;
+    }
+
+    setLessonProgressMap((previous) => {
+      const next = { ...previous };
+      lessons.forEach((lesson) => {
+        const existing = next[lesson.lessonId];
+        const incomingUpdatedAt = lesson.updatedAt ? new Date(lesson.updatedAt).getTime() : 0;
+        const existingUpdatedAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+
+        if (!existing || incomingUpdatedAt >= existingUpdatedAt) {
+          next[lesson.lessonId] = {
+            lessonId: lesson.lessonId,
+            status: lesson.status,
+            progress: lesson.progress,
+            updatedAt: lesson.updatedAt ?? undefined,
+            userId: lesson.userId ?? undefined
+          };
+        }
+      });
+      return next;
+    });
+  }, [courseProgressResponse?.lessons]);
 
   const quizProgressMap = useMemo(() => {
     const map = new Map<number, QuizProgressModule>();
@@ -1233,7 +1303,15 @@ export default function CoursePlayerPage() {
     { lessonId: string; progressData: { progress: number; status: LessonProgressStatus } }
   >({
     mutationFn: async ({ lessonId, progressData }) => {
-      const response = await apiRequest('PUT', `/api/lessons/${lessonId}/progress`, progressData);
+      if (!session?.accessToken) {
+        throw new Error('Authentication required to save progress.');
+      }
+      const response = await apiRequest(
+        'PUT',
+        `/api/lessons/${lessonId}/progress`,
+        progressData,
+        authHeaders ? { headers: authHeaders } : undefined
+      );
       return response.json();
     },
     onMutate: ({ lessonId }) => {
@@ -1252,12 +1330,44 @@ export default function CoursePlayerPage() {
         [variables.lessonId]: progressRecord
       }));
 
-      if (course?.id) {
-        queryClient.invalidateQueries({ queryKey: [`/api/courses/${course.id}/progress`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/courses/${course.id}/sections`] });
+      if (resolvedCourseIdentifier !== 'unknown') {
+        queryClient.setQueryData<CourseProgressResponse>(
+          ['course-progress', resolvedCourseIdentifier, session?.accessToken],
+          (existing) => {
+            if (!existing) {
+              return existing;
+            }
+
+            const lessons = existing.lessons.map((lesson) =>
+              lesson.lessonId === variables.lessonId
+                ? {
+                    ...lesson,
+                    status: progressRecord.status,
+                    progress: progressRecord.progress,
+                    updatedAt: progressRecord.updatedAt ?? new Date().toISOString(),
+                    userId: progressRecord.userId ?? lesson.userId
+                  }
+                : lesson
+            );
+            const completedCount = lessons.filter((lesson) => lesson.status === 'completed').length;
+            const totalCount = existing.totalCount || lessons.length;
+            const percent = totalCount === 0 ? 0 : Math.floor((completedCount / totalCount) * 100);
+
+            return {
+              ...existing,
+              lessons,
+              completedCount,
+              percent
+            };
+          }
+        );
+
+        queryClient.invalidateQueries({
+          queryKey: ['course-progress', resolvedCourseIdentifier, session?.accessToken]
+        });
       }
 
-      queryClient.invalidateQueries({ queryKey: [`/api/lessons/${variables.lessonId}/progress`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/lessons/${variables.lessonId}/progress`, session?.accessToken] });
     },
     onError: (error: any) => {
       if (error.message?.includes('authenticated') || error.message?.includes('401')) {
@@ -1374,6 +1484,13 @@ export default function CoursePlayerPage() {
 
   const handleLessonCompletionChange = (lessonId: string | null, shouldComplete: boolean) => {
     if (!lessonId) {
+      return;
+    }
+    if (!session?.accessToken) {
+      toast({
+        title: 'Sign in required',
+        description: 'Sign in to track your lesson progress across devices.'
+      });
       return;
     }
     updateProgressMutation.mutate({
