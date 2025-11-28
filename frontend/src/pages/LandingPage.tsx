@@ -4,12 +4,14 @@ import {
   Play, ChevronRight, Search, Terminal, Users, LifeBuoy,
   PlayCircle, Lock, Brain, GitBranch, Award, FileCode, ShieldCheck, Clock,
   Star, Bot, Unlock, ArrowDown, Sparkles, Check, Quote, Linkedin, Twitter,
-  Plus, Minus, ArrowRight, BookOpen
+  Plus, Minus, ArrowRight, BookOpen, User, Settings, LogOut
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { readStoredSession } from '@/utils/session';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // --- Types ---
 
@@ -32,7 +34,13 @@ interface Feature {
 
 // --- Components ---
 
-const Navbar: React.FC<{ onLogin: () => void; onApplyTutor: () => void }> = ({ onLogin, onApplyTutor }) => {
+const Navbar: React.FC<{
+  onLogin: () => void;
+  onApplyTutor: () => void;
+  isAuthenticated?: boolean;
+  user?: { fullName?: string; email?: string; picture?: string };
+  onLogout?: () => void;
+}> = ({ onLogin, onApplyTutor, isAuthenticated = false, user, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -78,12 +86,66 @@ const Navbar: React.FC<{ onLogin: () => void; onApplyTutor: () => void }> = ({ o
           >
             Apply as Tutor
           </button>
-          <button
-            onClick={onLogin}
-            className="bg-retro-salmon text-white px-6 py-2 rounded-full font-medium hover:bg-retro-teal transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
-          >
-            Log In
-          </button>
+          {isAuthenticated && user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="group flex items-center gap-3 rounded-full border border-retro-sage/60 bg-white/90 px-3 py-1.5 text-left text-sm font-medium text-retro-teal shadow-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-salmon/40"
+                >
+                  <Avatar className="h-9 w-9 bg-retro-sage">
+                    {user.picture ? (
+                      <AvatarImage src={user.picture} alt={user.fullName ?? 'User'} referrerPolicy="no-referrer" />
+                    ) : (
+                      <AvatarFallback className="text-sm font-semibold text-retro-teal">
+                        {(user.fullName ?? user.email ?? 'U').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <div className="hidden sm:flex min-w-0 flex-col leading-tight text-left">
+                    <span className="text-xs text-retro-teal/70">Signed in</span>
+                    <span className="truncate text-sm font-semibold text-retro-teal max-w-[150px]">{user.fullName ?? user.email}</span>
+                  </div>
+                  <span className="sm:hidden text-sm font-semibold text-retro-teal">
+                    {(user.fullName ?? user.email ?? 'User').split(' ')[0]}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-retro-teal/70 transition-transform group-data-[state=open]:rotate-90" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64" sideOffset={8}>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-semibold leading-none text-foreground">{user.fullName ?? 'Learner'}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="flex items-center gap-2 text-destructive focus:text-destructive"
+                  onSelect={onLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <button
+              onClick={onLogin}
+              className="bg-retro-salmon text-white px-6 py-2 rounded-full font-medium hover:bg-retro-teal transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
+            >
+              Log In
+            </button>
+          )}
         </div>
       </div>
     </motion.nav>
@@ -128,18 +190,18 @@ const TypewriterInput = () => {
   }, [currentText, isDeleting, loopNum, placeholders]);
 
   return (
-    <div className="relative max-w-xl w-full mt-8">
+    <div className="relative max-w-3xl w-full mt-8">
       <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-        <Search className="h-6 w-6 text-retro-teal/50" />
+        <Search className="h-6 w-6 text-[#90AEAD]" />
       </div>
       <input
         type="text"
         readOnly
         placeholder={currentText}
-        className="w-full py-5 pl-14 pr-16 text-lg text-retro-teal bg-white/60 backdrop-blur-md border border-retro-sage/30 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-retro-salmon transition-all placeholder-retro-teal/40"
+        className="w-full py-5 pl-14 pr-16 text-lg text-[#244855] bg-white/80 backdrop-blur-md border border-[#90AEAD]/40 rounded-2xl shadow-[0_10px_30px_rgba(36,72,85,0.18)] focus:outline-none focus:ring-2 focus:ring-[#E64833]/60 transition-all placeholder:text-[#90AEAD]"
       />
       <div className="absolute inset-y-0 right-3 flex items-center">
-        <button className="bg-retro-salmon hover:bg-retro-teal text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95">
+        <button className="bg-[#E64833] hover:bg-[#c93b29] text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_6px_18px_rgba(230,72,51,0.3)]">
           <Search className="h-5 w-5" />
         </button>
       </div>
@@ -343,15 +405,17 @@ const TrustedBy: React.FC = () => {
   return (
     <div className="w-full bg-white py-12 border-b border-retro-sage/20">
       <div className="container mx-auto px-6 text-center">
-        <p className="text-retro-sage font-medium mb-8 text-sm uppercase tracking-widest">Master the Modern Tech Stack</p>
+        <p className="mb-6 text-sm font-semibold uppercase tracking-[0.35em] text-[#244855] opacity-80">
+          Master the Modern Tech Stack
+        </p>
         <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
           {techs.map((tech, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0.4, filter: 'grayscale(100%)' }}
-              whileHover={{ opacity: 1, filter: 'grayscale(0%)', scale: 1.1 }}
+              initial={{ opacity: 0.8, filter: 'grayscale(20%)' }}
+              whileHover={{ opacity: 1, filter: 'grayscale(0%)', scale: 1.08 }}
               transition={{ duration: 0.3 }}
-              className={`text-2xl md:text-3xl font-bold text-retro-teal/50 cursor-default select-none transition-colors ${tech.color}`}
+              className={`text-2xl md:text-3xl font-bold text-[#244855] cursor-default select-none transition-colors ${tech.color}`}
             >
               {tech.name}
             </motion.div>
@@ -451,12 +515,12 @@ const ValueProp: React.FC = () => {
           >
             <div className="relative z-10 max-w-xl">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white">
+                <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center text-[#244855]">
                   <LifeBuoy size={24} />
                 </div>
-                <h3 className="text-2xl font-bold text-white">24/7 AI Support</h3>
+                <h3 className="text-2xl font-bold text-[#244855]">24/7 AI Support</h3>
               </div>
-              <p className="text-white/90 text-lg">Never learn alone. Our AI understands your specific context and unblocks you instantly.</p>
+              <p className="text-[#2f5e6d] text-lg">Never learn alone. Our AI understands your specific context and unblocks you instantly.</p>
             </div>
 
             {/* Floating Chat Bubble Animation */}
@@ -805,7 +869,7 @@ const courses: Course[] = [
   { id: 'game-development-unity', title: 'Game Development Unity', rating: 4.6, students: 1120, description: 'Create 2D and 3D games with Unity and C# programming.', image: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=600&auto=format&fit=crop', status: 'Available' },
 ];
 
-const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string) => void }> = ({ course, onEnroll }) => {
+const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string, courseTitle?: string) => void }> = ({ course, onEnroll }) => {
   return (
     <div
       className={`w-[320px] md:w-[380px] h-[450px] bg-white rounded-3xl shadow-lg border border-retro-sage/20 overflow-hidden flex flex-col shrink-0`}
@@ -844,7 +908,7 @@ const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string) => voi
               : 'bg-retro-bg text-gray-400 cursor-not-allowed'
               }`}
             disabled={course.status !== 'Available'}
-            onClick={() => course.status === 'Available' && onEnroll(course.id)}
+            onClick={() => course.status === 'Available' && onEnroll(course.id, course.title)}
           >
             {course.status === 'Available' ? 'Enroll >' : 'Waitlist'}
           </button>
@@ -854,7 +918,7 @@ const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string) => voi
   );
 };
 
-const TrendingCourses: React.FC<{ onEnroll: (courseId: string) => void; courseCatalog?: Course[] }> = ({
+const TrendingCourses: React.FC<{ onEnroll: (courseId: string, courseTitle?: string) => void; courseCatalog?: Course[] }> = ({
   onEnroll,
   courseCatalog,
 }) => {
@@ -1669,9 +1733,26 @@ function App() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const session = readStoredSession();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const stored = localStorage.getItem('isAuthenticated');
+    return stored === 'true' && Boolean(session?.accessToken);
+  });
+  const [user, setUser] = useState<{ fullName?: string; email?: string; picture?: string } | null>(() => {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  });
   const [catalog, setCatalog] = useState<Course[]>(courses);
 
   useEffect(() => {
+    // Ensure light theme when landing page mounts (prevents dark-mode bleed from course player)
+    document.documentElement.classList.remove('dark');
+    document.body.style.backgroundColor = 'white';
+
     let mounted = true;
     const fetchCourses = async () => {
       try {
@@ -1712,21 +1793,35 @@ function App() {
 
   const handleLogin = () => {
     if (session?.accessToken) {
-      setLocation(coursePlayerPath);
+      setLocation('/');
       return;
     }
-    sessionStorage.setItem("postLoginRedirect", coursePlayerPath);
-    const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(coursePlayerPath)}`;
+    const homeRedirect = '/';
+    sessionStorage.setItem("postLoginRedirect", homeRedirect);
+    const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
     window.location.href = target;
   };
 
   const handleApplyTutor = () => setLocation('/become-a-tutor');
 
-  const handleEnroll = (courseId?: string) => {
-    const targetCourse = courseId ?? primaryCourseId;
-    const normalized = targetCourse.trim().toLowerCase();
+  const slugifyCourse = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-');
 
-    if (normalized !== primaryCourseId) {
+  const handleEnroll = (courseId?: string, courseTitle?: string) => {
+    const targetCourse = courseId ?? primaryCourseId;
+    const normalized = slugifyCourse(targetCourse);
+    const normalizedTitle = courseTitle ? slugifyCourse(courseTitle) : '';
+    const isPrimary =
+      normalized === primaryCourseId ||
+      normalized.includes('ai-in-web-development') ||
+      normalizedTitle.includes('ai-in-web-development') ||
+      (courseTitle ?? '').toLowerCase() === 'ai in web development';
+
+    if (!isPrimary) {
       toast({
         title: "Coming soon",
         description: "This course is being prepared. Meanwhile, jump into AI in Web Development.",
@@ -1739,6 +1834,15 @@ function App() {
 
   const handlePlayVideo = () => handleEnroll(primaryCourseId);
 
+  const handleLogout = () => {
+    localStorage.removeItem('session');
+    localStorage.removeItem('user');
+    localStorage.setItem('isAuthenticated', 'false');
+    setIsAuthenticated(false);
+    setUser(null);
+    setLocation('/');
+  };
+
   const handleViewCurriculum = () => {
     const el = document.getElementById('courses');
     if (el) {
@@ -1749,9 +1853,18 @@ function App() {
   };
 
   return (
-    <main className="w-full min-h-screen bg-white">
+    <main
+      className="w-full min-h-screen"
+      style={{ background: "linear-gradient(180deg, #FBE9D0 0%, #FFFFFF 55%, #FFFFFF 100%)" }}
+    >
       <ProgressBar />
-      <Navbar onLogin={handleLogin} onApplyTutor={handleApplyTutor} />
+      <Navbar
+        onLogin={handleLogin}
+        onApplyTutor={handleApplyTutor}
+        isAuthenticated={isAuthenticated}
+        user={user ?? undefined}
+        onLogout={handleLogout}
+      />
       <Hero onEnroll={() => handleEnroll()} onPlayVideo={handlePlayVideo} />
       <TrustedBy />
       <ValueProp />

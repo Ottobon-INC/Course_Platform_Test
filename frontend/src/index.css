@@ -60,12 +60,13 @@
   --gradient-default-from: 210 15% 40%;
   --gradient-default-to: 220 20% 45%;
 
-  --retro-teal: 15 118 110;
-  --retro-salmon: 230 72 51;
+  /* MetaLearn palette */
+  --retro-teal: 36 72 85;      /* #244855 */
+  --retro-salmon: 230 72 51;   /* #E64833 */
+  --retro-brown: 135 79 65;    /* #874F41 */
+  --retro-cyan: 144 174 173;   /* #90AEAD */
+  --retro-bg: 251 233 208;     /* #FBE9D0 */
   --retro-sage: 216 234 211;
-  --retro-bg: 255 248 241;
-  --retro-cyan: 103 232 249;
-  --retro-brown: 47 27 18;
   --retro-yellow: 245 158 11;
 
   --font-sans: Inter, sans-serif;
@@ -161,12 +162,12 @@
   --gradient-default-from: 210 15% 20%;
   --gradient-default-to: 220 20% 25%;
 
-  --retro-teal: 15 118 110;
+  --retro-teal: 36 72 85;
   --retro-salmon: 230 72 51;
-  --retro-sage: 216 234 211;
+  --retro-brown: 135 79 65;
+  --retro-cyan: 144 174 173;
   --retro-bg: 24 24 24;
-  --retro-cyan: 103 232 249;
-  --retro-brown: 47 27 18;
+  --retro-sage: 216 234 211;
   --retro-yellow: 245 158 11;
 
   --font-sans: Inter, sans-serif;

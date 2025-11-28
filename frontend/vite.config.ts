@@ -22,6 +22,7 @@ export default defineConfig({
       "@shared": path.resolve(import.meta.dirname, "../shared"),
       "@assets": path.resolve(import.meta.dirname, "src", "assets", "external"),
     },
+    dedupe: ["react", "react-dom"],
   },
   build: {
     outDir: "dist",
