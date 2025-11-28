@@ -6,6 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { buildApiUrl } from '@/lib/api';
 import type { CourseSummary } from '@/types/content';
 
+const COURSE_PLAYER_PATH = '/course/ai-in-web-development/learn/welcome-to-ai-journey';
+
 export default function EnrollmentPage() {
   const { id } = useParams(); // This is the course slug
   const [, setLocation] = useLocation();
@@ -81,7 +83,7 @@ export default function EnrollmentPage() {
 
       // Navigate to dashboard
       setTimeout(() => {
-        setLocation('/dashboard');
+        setLocation(COURSE_PLAYER_PATH);
       }, 1000);
     },
     onError: (error: any) => {
@@ -104,7 +106,7 @@ export default function EnrollmentPage() {
 
     // Navigate to dashboard
     setTimeout(() => {
-      setLocation('/dashboard');
+      setLocation(COURSE_PLAYER_PATH);
     }, 1000);
   };
 
@@ -114,7 +116,7 @@ export default function EnrollmentPage() {
       title: "Use Google Sign-In",
       description: "Please sign in with your Google account to continue",
     });
-    setLocation('/dashboard');
+    setLocation(COURSE_PLAYER_PATH);
   };
 
   const handleSocialLogin = (provider: string) => {

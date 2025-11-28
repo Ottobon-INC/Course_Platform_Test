@@ -460,6 +460,7 @@ export default function CoursePlayerPage() {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [quizKey, setQuizKey] = useState<string | null>(null);
   const [quizError, setQuizError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     const authStatus = localStorage.getItem('isAuthenticated');
@@ -676,6 +677,29 @@ export default function CoursePlayerPage() {
     [session?.accessToken]
   );
 
+  const handleSessionExpired = useCallback(() => {
+    if (sessionExpired) return;
+    localStorage.removeItem('session');
+    localStorage.removeItem('user');
+    localStorage.setItem('isAuthenticated', 'false');
+    setIsAuthenticated(false);
+    setUser(null);
+    setSession(null);
+    setSessionExpired(true);
+  }, [sessionExpired]);
+
+  const handleAuthError = useCallback(
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('401') || message.toLowerCase().includes('jwt expired')) {
+        handleSessionExpired();
+        return true;
+      }
+      return false;
+    },
+    [handleSessionExpired]
+  );
+
   const apiModuleDefinitions = useMemo<ModuleDefinition[]>(() => {
     if (sortedModuleNumbers.length === 0) {
       return [];
@@ -745,6 +769,9 @@ export default function CoursePlayerPage() {
       );
       return response.json();
     },
+    onError: (error) => {
+      if (handleAuthError(error)) return;
+    },
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
@@ -768,6 +795,9 @@ export default function CoursePlayerPage() {
           authHeaders ? { headers: authHeaders } : undefined
         );
         return response.json();
+      },
+      onError: (error) => {
+        if (handleAuthError(error)) return;
       },
       staleTime: 0,
       refetchOnMount: 'always',
@@ -794,6 +824,9 @@ export default function CoursePlayerPage() {
           authHeaders ? { headers: authHeaders } : undefined
         );
         return response.json();
+      },
+      onError: (error) => {
+        if (handleAuthError(error)) return;
       },
       staleTime: 0,
       refetchOnMount: 'always',
@@ -1391,10 +1424,7 @@ export default function CoursePlayerPage() {
       queryClient.invalidateQueries({ queryKey: [`/api/lessons/${variables.lessonId}/progress`, session?.accessToken] });
     },
     onError: (error: any) => {
-      if (error.message?.includes('authenticated') || error.message?.includes('401')) {
-        console.log('Progress not saved - user not authenticated');
-        return;
-      }
+      if (handleAuthError(error)) return;
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -1432,12 +1462,14 @@ export default function CoursePlayerPage() {
       setQuizError(null);
     },
     onError: (error) => {
-      setQuizError(error.message ?? 'Failed to start quiz');
-      toast({
-        variant: 'destructive',
-        title: 'Quiz unavailable',
-        description: error.message || 'Unable to start the quiz right now.'
-      });
+      if (!handleAuthError(error)) {
+        setQuizError(error.message ?? 'Failed to start quiz');
+        toast({
+          variant: 'destructive',
+          title: 'Quiz unavailable',
+          description: error.message || 'Unable to start the quiz right now.'
+        });
+      }
     }
   });
 
@@ -1482,11 +1514,13 @@ export default function CoursePlayerPage() {
       });
     },
     onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Submit failed',
-        description: error.message || 'Unable to submit answers'
-      });
+      if (!handleAuthError(error)) {
+        toast({
+          variant: 'destructive',
+          title: 'Submit failed',
+          description: error.message || 'Unable to submit answers'
+        });
+      }
     }
   });
 
@@ -1639,12 +1673,12 @@ export default function CoursePlayerPage() {
     if (window.history.length > 1) {
       window.history.back();
     } else {
-      setLocation('/dashboard');
+      setLocation('/');
     }
   };
 
   const handleHome = () => {
-    setLocation('/dashboard');
+    setLocation('/');
   };
 
   const handleAnswerChange = (questionId: string, optionId: string) => {
@@ -1676,7 +1710,7 @@ export default function CoursePlayerPage() {
     setUser(null);
     setSession(null);
     toast({ title: 'Signed out', description: 'You have been successfully logged out.' });
-    setLocation('/dashboard');
+    setLocation('/');
   };
 
   const introductionDataIsLoading =
@@ -1737,10 +1771,10 @@ export default function CoursePlayerPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setLocation('/dashboard')}
+              onClick={() => setLocation('/')}
               className="h-12 px-6 text-base font-semibold"
             >
-              Return to Dashboard
+              Return to Home
             </Button>
           </div>
         </div>
@@ -1779,8 +1813,8 @@ export default function CoursePlayerPage() {
             <div className="text-center">
               <h1 className="mb-2 text-2xl font-bold">Lesson Not Found</h1>
               <p className="text-muted-foreground">The requested lesson could not be found.</p>
-              <Button onClick={() => setLocation('/dashboard')} className="mt-4">
-                Go to Dashboard
+              <Button onClick={() => setLocation('/')} className="mt-4">
+                Go to Home
               </Button>
             </div>
           </div>
@@ -2246,6 +2280,17 @@ export default function CoursePlayerPage() {
           <ChatBot courseName={course?.title} courseId={courseId} />
         </div>
       </div>
+      {sessionExpired ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900">
+            <h2 className="text-xl font-bold text-foreground mb-2">Session expired</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your session has expired. Please sign in again to continue learning.
+            </p>
+            <Button className="w-full" onClick={() => setLocation('/')}>Go to home</Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

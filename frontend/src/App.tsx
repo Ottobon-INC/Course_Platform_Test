@@ -7,29 +7,15 @@ import NotFound from "@/pages/not-found";
 import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
 import CoursePlayerPage from "@/pages/CoursePlayerPage";
-import DashboardPage from "@/pages/DashboardPage";
-import CartPage from "@/pages/CartPage";
+import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
-import CoursesPage from "@/pages/CoursesPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
-import AboutPage from "@/pages/AboutPage";
-import TutorLoginPage from "@/pages/TutorLoginPage";
-import TutorDashboardPage from "@/pages/TutorDashboardPage";
 
 function Router() {
   return (
     <Switch>
-      {/* Dashboard Route */}
-      <Route path="/dashboard" component={DashboardPage} />
-      
-      {/* Cart Route */}
-      <Route path="/cart" component={CartPage} />
-      <Route path="/courses" component={CoursesPage} />
       <Route path="/become-a-tutor" component={BecomeTutorPage} />
-      <Route path="/tutor/login" component={TutorLoginPage} />
-      <Route path="/tutor/dashboard" component={TutorDashboardPage} />
-      <Route path="/about" component={AboutPage} />
-      
+
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
@@ -37,7 +23,7 @@ function Router() {
       <Route path="/auth/callback" component={AuthCallbackPage} />
       
       {/* Default route goes to dashboard */}
-      <Route path="/" component={DashboardPage} />
+      <Route path="/" component={LandingPage} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

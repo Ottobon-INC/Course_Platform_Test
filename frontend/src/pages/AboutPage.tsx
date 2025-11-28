@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { SiteLayout } from "@/components/layout/SiteLayout";
 
+const COURSE_PLAYER_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
+
 export default function AboutPage() {
   const [location, setLocation] = useLocation();
   const [content, setContent] = useState<PageContentEntry | null>(null);
@@ -56,7 +58,7 @@ export default function AboutPage() {
         currentPath: location,
         onNavigate: (href) => setLocation(href),
         showSearch: false,
-        onLoginClick: () => setLocation("/dashboard"),
+        onLoginClick: () => setLocation(COURSE_PLAYER_PATH),
       }}
       contentClassName="space-y-10"
     >
@@ -160,9 +162,9 @@ export default function AboutPage() {
             <Button
               variant="secondary"
               className="bg-gradient-to-r from-slate-900 to-slate-700 text-white hover:from-slate-800 hover:to-slate-600"
-              onClick={() => setLocation("/dashboard")}
+              onClick={() => setLocation(COURSE_PLAYER_PATH)}
             >
-              Return to dashboard
+              Return to home
             </Button>
           </div>
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 text-sm text-slate-600">

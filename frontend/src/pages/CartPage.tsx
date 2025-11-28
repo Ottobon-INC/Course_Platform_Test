@@ -11,6 +11,8 @@ import { ShoppingCart, Trash2, Star, Clock, Users, CreditCard, Home, PartyPopper
 import ThemeToggle from '@/components/ThemeToggle'; // Import ThemeToggle
 import { SiteLayout } from '@/components/layout/SiteLayout';
 
+const COURSE_PLAYER_PATH = '/course/ai-in-web-development/learn/welcome-to-ai-journey';
+
 const INR_FORMATTER = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -247,7 +249,7 @@ export default function CartPage() {
         description: `You've enrolled in ${cart.length} course${cart.length > 1 ? 's' : ''}. Check your dashboard to start learning.`,
       });
 
-      setLocation('/dashboard');
+      setLocation(COURSE_PLAYER_PATH);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -276,7 +278,7 @@ export default function CartPage() {
         onNavigate: (href) => setLocation(href),
         showSearch: false,
         isAuthenticated,
-        onLoginClick: () => setLocation('/dashboard'),
+        onLoginClick: () => setLocation(COURSE_PLAYER_PATH),
       }}
       contentClassName="space-y-8"
     >
@@ -289,11 +291,11 @@ export default function CartPage() {
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => setLocation('/dashboard')}
+                  onClick={() => setLocation(COURSE_PLAYER_PATH)}
                   className="hidden sm:inline-flex border-slate-200 text-slate-700 hover:bg-slate-100"
                 >
                   <Home className="mr-2 h-4 w-4" />
-                  Back to Dashboard
+                  Back to Home
                 </Button>
                 <ThemeToggle />
               </div>
@@ -320,10 +322,10 @@ export default function CartPage() {
                       Explore new tracks and add them to your cart to build a personalised learning plan.
                     </p>
                     <Button
-                      onClick={() => setLocation('/dashboard')}
+                      onClick={() => setLocation(COURSE_PLAYER_PATH)}
                       className="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
                     >
-                      Browse courses
+                      Continue learning
                     </Button>
                   </div>
                 </div>

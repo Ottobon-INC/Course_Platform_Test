@@ -57,7 +57,7 @@ Whenever the schema changed we ran `npm run prisma:generate` so Prisma regenerat
 
 ### 3.1 Flow overview
 
-1. **Frontend** calls `GET /auth/google?redirect=/dashboard`.
+1. **Frontend** calls `GET /auth/google?redirect=/course/ai-in-web-development/learn/welcome-to-ai-journey`.
 2. **Backend** stores a random `state` + desired redirect in short-lived cookies, then sends the user to Google’s consent screen.
 3. Google redirects to `/auth/google/callback` with `code` + `state`.
 4. Backend verifies `state`, exchanges the code for Google profile info, upserts the user, creates a session, and redirects to the frontend callback with signed JWT tokens.
@@ -224,4 +224,3 @@ Whenever the schema changed we ran `npm run prisma:generate` so Prisma regenerat
 ---
 
 Feel free to convert this Markdown to PDF/Word; everything is written for copy-paste into a doc. Ping me when you’re ready for the next milestone! 🎯
-

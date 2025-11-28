@@ -89,6 +89,13 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        "retro-teal": "rgb(var(--retro-teal) / <alpha-value>)",
+        "retro-salmon": "rgb(var(--retro-salmon) / <alpha-value>)",
+        "retro-sage": "rgb(var(--retro-sage) / <alpha-value>)",
+        "retro-bg": "rgb(var(--retro-bg) / <alpha-value>)",
+        "retro-cyan": "rgb(var(--retro-cyan) / <alpha-value>)",
+        "retro-brown": "rgb(var(--retro-brown) / <alpha-value>)",
+        "retro-yellow": "rgb(var(--retro-yellow) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

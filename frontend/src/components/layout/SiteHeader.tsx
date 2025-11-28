@@ -71,10 +71,10 @@ export function SiteHeader({
 
   const isActive = (href: string) => {
     if (!currentPath) {
-      return href === "/dashboard";
+      return href === "/";
     }
-    if (href === "/dashboard") {
-      return currentPath === "/" || currentPath.startsWith("/dashboard");
+    if (href === "/") {
+      return currentPath === "/";
     }
     return currentPath.startsWith(href);
   };

@@ -38,7 +38,7 @@ export default function TutorLoginPage() {
       writeStoredSession(session);
       resetSessionHeartbeat();
       toast({ title: 'Welcome back', description: 'Tutor session active' });
-      setLocation('/tutor/dashboard');
+      setLocation('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',

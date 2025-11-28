@@ -60,6 +60,14 @@
   --gradient-default-from: 210 15% 40%;
   --gradient-default-to: 220 20% 45%;
 
+  --retro-teal: 15 118 110;
+  --retro-salmon: 230 72 51;
+  --retro-sage: 216 234 211;
+  --retro-bg: 255 248 241;
+  --retro-cyan: 103 232 249;
+  --retro-brown: 47 27 18;
+  --retro-yellow: 245 158 11;
+
   --font-sans: Inter, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: JetBrains Mono, monospace;
@@ -152,6 +160,14 @@
   --gradient-devops-to: 270 45% 30%;
   --gradient-default-from: 210 15% 20%;
   --gradient-default-to: 220 20% 25%;
+
+  --retro-teal: 15 118 110;
+  --retro-salmon: 230 72 51;
+  --retro-sage: 216 234 211;
+  --retro-bg: 24 24 24;
+  --retro-cyan: 103 232 249;
+  --retro-brown: 47 27 18;
+  --retro-yellow: 245 158 11;
 
   --font-sans: Inter, sans-serif;
   --font-serif: Georgia, serif;

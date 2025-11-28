@@ -69,3 +69,14 @@
 
 - **Frontend verification**  
   Course player displays all 12 topic-pair quizzes, auto unlocks module 2 once module 1 pairs are passed, and surfaces quiz attempt history without errors.
+
+## 2025-11-27 — Landing Page Redirect & Course Guardrails
+
+- **Single home route, no legacy dashboard**  
+  Removed `/dashboard`, `/courses`, `/cart`, and related navigation from the SPA router. The landing page at `/` is now the sole entry point, with tutor apply and course player routes retained.
+- **Auth flow drops into course player**  
+  Google OAuth redirect and all login buttons now send users directly to `/course/ai-in-web-development/learn/welcome-to-ai-journey`; auth callback uses the same default.
+- **Enroll guard for unpublished courses**  
+  “Enroll” actions on landing page course cards only deep-link the published course (`ai-in-web-development`); other cards show a “Coming soon” toast instead of hitting the backend and causing 400/404s.
+- **Navigation tightened**  
+  Site header/nav links now point Home → `/` and Become a Tutor → `/become-a-tutor`; all other legacy links were removed to prevent reaching old pages.

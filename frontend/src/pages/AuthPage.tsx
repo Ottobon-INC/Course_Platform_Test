@@ -7,6 +7,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Sparkles, Award, Star, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 
+const COURSE_PLAYER_PATH = '/course/ai-in-web-development/learn/welcome-to-ai-journey';
+
 function FloatingField({
   id,
   label,
@@ -91,7 +93,7 @@ export default function AuthPage() {
 
     setTimeout(() => {
       toast({ title: 'Success', description: 'Welcome back! Redirecting to dashboard...' });
-      setTimeout(() => setLocation('/dashboard'), 1000);
+      setTimeout(() => setLocation(COURSE_PLAYER_PATH), 1000);
     }, 1000);
   };
 
@@ -101,7 +103,7 @@ export default function AuthPage() {
 
     setTimeout(() => {
       toast({ title: 'Success', description: 'Account created successfully! Redirecting to dashboard...' });
-      setTimeout(() => setLocation('/dashboard'), 1000);
+      setTimeout(() => setLocation(COURSE_PLAYER_PATH), 1000);
     }, 1000);
   };
 
@@ -115,7 +117,7 @@ export default function AuthPage() {
         <div className="container mx-auto flex items-center justify-between max-w-7xl">
           <Button
             variant="ghost"
-            onClick={() => setLocation('/dashboard')}
+            onClick={() => setLocation(COURSE_PLAYER_PATH)}
             className="flex items-center gap-2 hover:bg-accent/50 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

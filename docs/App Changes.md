@@ -150,3 +150,21 @@ This flow keeps the course player dynamic, secure, and resilient to session expi
 
 - **Impact**    `/api/quiz/sections` and `/api/quiz/progress` once again resolve all 12 topic pairs. `POST /api/quiz/attempts` receives the correct JSON body, freezes the chosen `quiz_questions` + `quiz_options`, and records the authenticated learner. Submissions update `module_progress`, unlocking module content as soon as both topic-pair quizzes are passed.
 
+---
+
+## Landing Page Redirect & Single-Course Guard (2025-11-27)
+
+- **frontend/src/App.tsx**  
+  Pruned legacy routes (`/dashboard`, `/courses`, `/cart`, etc.) so the SPA exposes only the landing page `/`, course player routes, tutor apply, and auth callback.
+
+- **frontend/src/pages/LandingPage.tsx**  
+  Login and enroll CTAs now redirect straight to `/course/ai-in-web-development/learn/welcome-to-ai-journey`. Enroll buttons on non-published course cards show a “Coming soon” toast instead of navigating to missing course/player content.
+
+- **frontend/src/pages/AuthCallbackPage.tsx**  
+  Default post-login destination changed to the course player (same path as above) with errors falling back to `/` instead of the old dashboard.
+
+- **Navigation cleanup**  
+  `frontend/src/constants/navigation.ts`, `SiteHeader`, and dependent pages now link Home → `/` and keep only “Become a Tutor”; other nav targets removed to avoid the retired dashboard/cart flows.
+
+- **Associated pages**  
+  Course/Become Tutor/About/Enrollment/Cart/Auth pages were updated to use the new home/course-player redirects when offering login or “back” actions, preventing accidental navigation to legacy screens.

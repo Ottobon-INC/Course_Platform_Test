@@ -9,6 +9,8 @@ import type { CourseSummary, CourseListResponse, PageContentEntry, PageContentRe
 import { SiteLayout } from "@/components/layout/SiteLayout";
 import { useToast } from "@/hooks/use-toast";
 
+const COURSE_PLAYER_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
+
 const shimmerArray = Array.from({ length: 6 });
 const CONTINUE_PROGRESS: Record<string, number> = {
   "ai-in-web-development": 65,
@@ -184,7 +186,7 @@ export default function CoursesPage() {
         currentPath: location,
         onNavigate: (href) => setLocation(href),
         showSearch: false,
-        onLoginClick: () => setLocation("/dashboard"),
+        onLoginClick: () => setLocation(COURSE_PLAYER_PATH),
       }}
       contentClassName="space-y-10"
     >
@@ -218,7 +220,7 @@ export default function CoursesPage() {
                 <div className="flex flex-wrap gap-3">
                   <Button
                     className="bg-emerald-500 text-white shadow-lg shadow-emerald-200/60 hover:bg-emerald-400"
-                    onClick={() => setLocation("/dashboard")}
+                    onClick={() => setLocation(COURSE_PLAYER_PATH)}
                   >
                     Go back to Home
                   </Button>

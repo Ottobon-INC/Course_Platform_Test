@@ -10,16 +10,16 @@
 - `index.html`, `vite.config.ts`, `tsconfig.json`: Vite + TypeScript spa bootstrapping.
 - `src/main.tsx`, `src/App.tsx`: entry pipeline wiring React Router, global providers, and layout shell.
 - `src/pages/`: route-level screens that drive the visual experience:
-  - `DashboardPage.tsx`: hero dashboard showing enrolled courses, progress, and quick stats.
-  - `AuthCallbackPage.tsx`: handles Google OAuth callback, stores tokens, and routes back into the app.
+  - `LandingPage.tsx`: the sole public home/marketing page with course cards and CTAs.
+  - `AuthCallbackPage.tsx`: handles Google OAuth callback, stores tokens, and routes directly into the course player.
   - `AuthPage.tsx`: login + signup UI with animated background, tabs, and form flows.
-  - `CoursePlayerPage.tsx`: two-column lesson player (video/text) with topic sidebar.
-  - `EnrollmentPage.tsx`, `CartPage.tsx`, `AssessmentPage.tsx`: purchase funnel, cart, and quiz experience.
+  - `CoursePlayerPage.tsx`: two-column lesson player (video/text/quiz) with topic sidebar.
+  - `EnrollmentPage.tsx`, `AssessmentPage.tsx`: purchase funnel placeholder and quiz experience.
   - `pages/examples/`: frozen design references for demo scenarios.
   - `pages/not-found.tsx`: fallback 404 screen.
 - `src/components/`: reusable UI parts used to compose screens.
   - `components/layout/`: navigation shell, sidebars, headers, and responsive wrappers.
-  - `components/dashboard/`, `components/courses/`, `components/auth/`: feature-focused widgets such as course cards, progress tiles, login hero, etc.
+  - `components/dashboard/`, `components/courses/`, `components/auth/`: feature-focused widgets (some legacy dashboard widgets remain for future reuse).
   - `components/examples/`: self-contained demo blocks mirroring mockups.
   - `components/ui/`: shadcn/ui primitives (buttons, dialogs, tabs, tables) that power styling.
 - `src/hooks/`: custom hooks (`use-toast`, `use-mobile`) that centralize behavior for toasts & responsive checks.

@@ -33,10 +33,9 @@
 
 The Course Platform is a full-stack web application that delivers a LearnHub-branded experience for browsing, enrolling in, and tracking online courses. It features:
 
-- A dashboard with hero stats, search, course catalog, enrollment widgets, and personalized sections.
+- A single landing page with hero stats, course cards, and direct CTAs into the primary course player.
 - Fully authenticated user flows via Google OAuth 2.0, issuing signed JWT access/refresh tokens.
-- A persistent shopping cart tied to the backend database (`cart_items` table).
-- Course-specific routes for learning, enrollment, and assessments.
+- Direct course-player routing (no legacy dashboard/cart pages) with guarded enroll behavior for unpublished courses.
 - Responsive, theme-aware UI built with Tailwind CSS, Radix UI primitives, and shadcn-style components.
 - Type-safe configuration, validation, and database access using Zod + Prisma.
 
@@ -153,7 +152,7 @@ All authenticated routes use `requireAuth` (`backend/src/middleware/requireAuth.
 5. `findOrCreateUserFromGoogle` ensures the user exists in DB.
 6. `createSession` issues access + refresh tokens; refresh hash stored in `user_sessions`.
 7. Backend redirects the browser to `${FRONTEND_APP_URLS[0]}/auth/callback` (the first configured origin) with tokens in query params.
-8. Frontend handles callback in `frontend/src/pages/AuthCallbackPage.tsx`, persisting `session`, `user`, and `isAuthenticated` in localStorage.
+8. Frontend handles callback in `frontend/src/pages/AuthCallbackPage.tsx`, persisting `session`, `user`, and `isAuthenticated` in localStorage, then routes to the course player by default.
 
 Refresh tokens are hashed in the database (`sessionService.ts`). Access tokens are short-lived and verified via `verifyAccessToken`.
 
@@ -190,11 +189,11 @@ Prisma client is generated via `npx prisma generate`. Queries use the typed clie
 
 | Route | Component | Purpose |
 | --- | --- | --- |
-| `/dashboard` (default) | `DashboardPage` | Main landing view once authenticated. |
-| `/cart` | `CartPage` | Manages shopping cart items and checkout CTA. |
+| `/` (default) | `LandingPage` | Main public landing view with course cards/CTAs. |
 | `/course/:id/learn/:lesson` | `CoursePlayerPage` | Lesson viewer with progress. |
 | `/course/:id/enroll` | `EnrollmentPage` | Enrollment steps & payment stub. |
 | `/course/:id/assessment` | `AssessmentPage` | Quizzes/assessments. |
+| `/become-a-tutor` | `BecomeTutorPage` | Tutor application intake. |
 | `/auth/callback` | `AuthCallbackPage` | Handles Google OAuth redirect; stores session; navigates to redirect path. |
 | Any other | `NotFound` | 404 page. |
 
@@ -207,7 +206,7 @@ Prisma client is generated via `npx prisma generate`. Queries use the typed clie
 - `frontend/src/lib/api.ts` normalizes the REST base URL (`VITE_API_BASE_URL`) so every network request hits the configured backend domain.
 - **Custom hooks**: `useToast` provides a global toast queue.
 - **Cart state**: 
-  - On dashboard load, `fetchCart` (in `DashboardPage.tsx`) fetches `/cart` and hydrates UI.
+  - Cart endpoints remain available for future use; current UI hides cart flows.
   - Add/remove operations call backend endpoints and update `cart` state.
   - Cart count badge reads from this state.
 
@@ -247,7 +246,7 @@ Prisma client is generated via `npx prisma generate`. Queries use the typed clie
    - Provide skeleton flows for actual course content, supporting future expansions.
 
 5. **Not Found**
-   - Simple fallback with CTA to return to dashboard.
+   - Simple fallback with CTA to return to home.
 
 Shared utilities (e.g., `frontend/src/lib/format.ts`) can be added as needed for consistent formatting.
 
@@ -281,14 +280,14 @@ npx prisma generate
 npx prisma migrate dev --name init
 
 # 4. Run backend (port 4000 by default)
-   (Optional) To share your local backend over HTTPS, open a new terminal and run  `ssh -R 80:localhost:4000 serveo.net`. Use the printed `https://�serveo.net` URL for `VITE_API_BASE_URL`, `FRONTEND_APP_URLS`, and `GOOGLE_REDIRECT_URI`. 
+   (Optional) To share your local backend over HTTPS, open a new terminal and run  `ssh -R 80:localhost:4000 serveo.net`. Use the printed `https://�serveo.net` URL for `VITE_API_BASE_URL`, `FRONTEND_APP_URLS`, and `GOOGLE_REDIRECT_URI`. 
 npm run dev
 
 # 5. In a second terminal, run frontend (port 5173)
 cd ../frontend
 npm run dev
 
-# 6. Open http://localhost:5173, login via Google, interact with dashboard/cart.
+# 6. Open http://localhost:5173, log in via Google, and enter the course player from the landing page.
 ```
 
 ### Directory-specific scripts
@@ -333,15 +332,13 @@ npm run dev
 3. **Frontend dev server**  
    - `npm run dev` (frontend) outputs `Local: http://localhost:5173/`.
 4. **Login flow**  
-   - Visiting `/dashboard` unauthenticated prompts Google login; after completing, toast indicates success and user avatar appears.
-5. **Cart operations**  
-   - Clicking `+` or `Add to Cart` toasts “Added to Cart”; `/cart` shows items; DB `cart_items` contains row with matching `user_id/course_slug`.
-6. **Remove / Clear**  
-   - Removing a course triggers success toast and DB row deletion.
-7. **Protected route**  
+   - Visiting `/` and clicking Log In triggers Google login; after completing, toast indicates success and the app routes directly to the course player.
+5. **Course entry**  
+   - “Enroll” on the published course deep-links to the course player; other catalog cards show “Coming soon.”
+6. **Protected route**  
    - `GET http://localhost:4000/users/me` with Bearer token returns JSON profile.
-8. **Logout**  
-   - Dropdown `Logout` triggers success toast; local storage cleared; `users/me` subsequently 401.
+7. **Logout**  
+   - Logout clears local storage and redirects to `/`.
 
 ---
 

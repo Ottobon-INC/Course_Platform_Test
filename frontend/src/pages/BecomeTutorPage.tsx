@@ -41,6 +41,8 @@ const highlightCards = [
   },
 ];
 
+const COURSE_PLAYER_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
+
 export default function BecomeTutorPage() {
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
@@ -147,7 +149,7 @@ export default function BecomeTutorPage() {
         currentPath: location,
         onNavigate: (href) => setLocation(href),
         showSearch: false,
-        onLoginClick: () => setLocation("/dashboard"),
+        onLoginClick: () => setLocation(COURSE_PLAYER_PATH),
       }}
       contentClassName="space-y-10"
     >

@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+const COURSE_PLAYER_DEFAULT_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
+
 function parseCallbackParams(): Record<string, string | null> {
   const url = new URL(window.location.href);
   const params = url.searchParams;
@@ -49,7 +51,7 @@ export default function AuthCallbackPage() {
         title: "Google sign-in failed",
         description: "Please try again or use a different account.",
       });
-      setLocation("/dashboard");
+      setLocation("/");
       return;
     }
 
@@ -59,7 +61,7 @@ export default function AuthCallbackPage() {
         title: "Sign-in incomplete",
         description: "Missing credential data from Google. Please retry.",
       });
-      setLocation("/dashboard");
+      setLocation("/");
       return;
     }
 
@@ -94,7 +96,7 @@ export default function AuthCallbackPage() {
     const destination =
       (redirectPath && redirectPath.startsWith("/") ? redirectPath : undefined) ??
       (storedRedirect && storedRedirect.startsWith("/") ? storedRedirect : undefined) ??
-      "/dashboard";
+      COURSE_PLAYER_DEFAULT_PATH;
 
     setLocation(destination);
   }, [setLocation, toast]);

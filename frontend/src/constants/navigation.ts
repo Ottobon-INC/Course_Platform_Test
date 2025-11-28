@@ -5,9 +5,6 @@ export type SiteNavLink = {
 };
 
 export const SITE_NAV_LINKS: SiteNavLink[] = [
-  { key: "home", label: "Home", href: "/dashboard" },
-  { key: "cart", label: "Cart", href: "/cart" },
-  { key: "courses", label: "Courses", href: "/courses" },
+  { key: "home", label: "Home", href: "/" },
   { key: "tutor", label: "Become a Tutor", href: "/become-a-tutor" },
-  { key: "about", label: "About", href: "/about" },
 ];

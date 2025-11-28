@@ -6,7 +6,7 @@ This document summarizes how the Course Platform Test application is put togethe
 
 | Layer | Technology | Endpoints/Ports | Purpose |
 | --- | --- | --- | --- |
-| Presentation (Client) | React 18 + Vite + Wouter + TanStack Query | http://localhost:5173 | Learner dashboard, course player, enrollment, cart, chatbot UI |
+| Presentation (Client) | React 18 + Vite + Wouter + TanStack Query | http://localhost:5173 | Public landing page, course player, enrollment, chatbot UI |
 | Application/API | Node 20 + Express + TypeScript | http://localhost:4000 (`/` + `/api` mirror) | Auth, course data, lessons/progress, cart, static pages, RAG assistant |
 | Data | PostgreSQL (managed through Supabase or local Docker) + Prisma ORM | `DATABASE_URL` | Courses, topics, enrollments, carts, tutor apps, CMS pages |
 | Knowledge Store | Neo4j Aura (vector index) | `neo4j+s://...` | Stores embedded course chunks for retrieval-augmented answers |
@@ -30,7 +30,7 @@ Express API (4000) ── Prisma ──► PostgreSQL (Supabase)
 - **Framework stack:** Vite + React 18, Wouter for routing, TanStack Query for data fetching/caching, shadcn/ui for components, Lucide icons, Tailwind utility classes.
 - **Entry point:** `frontend/src/App.tsx` wires `QueryClientProvider`, tooltip/toast providers, and routes.
 - **Key pages:**
-  - `/dashboard`, `/courses`, `/cart`, `/course/:id/learn/:lesson`, `/course/:id/enroll`, `/course/:id/assessment`, `/become-a-tutor`, `/about`, `/auth/callback`.
+  - `/` (landing), `/course/:id/learn/:lesson`, `/course/:id/enroll`, `/course/:id/assessment`, `/become-a-tutor`, `/auth/callback`.
 - **State & session:**
   - Auth tokens from Google OAuth callback are persisted in `localStorage` (helpers in `utils/session.ts`).
   - Derived session state is consumed by components like `ChatBot` and `CoursePlayerPage` to decide whether to call protected APIs.
