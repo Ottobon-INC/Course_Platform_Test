@@ -160,6 +160,10 @@ const CoursePlayerPage: React.FC = () => {
     [lessons, activeSlug],
   );
   const currentModuleId = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
+  const currentModuleDisplay = useMemo(() => {
+    const idx = modules.findIndex((m) => m.id === currentModuleId);
+    return idx >= 0 ? idx + 1 : currentModuleId > 0 ? currentModuleId : 1;
+  }, [modules, currentModuleId]);
 
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
@@ -214,6 +218,9 @@ const CoursePlayerPage: React.FC = () => {
         questionCount: s.questionCount ?? 5,
       }));
       setSections(list);
+      const totalSections = list.length;
+      const passedSections = list.filter((s) => s.passed).length;
+      setCourseProgress(totalSections > 0 ? Math.round((passedSections / totalSections) * 100) : 0);
     } catch (error) {
       console.error(error);
     }
@@ -229,7 +236,8 @@ const CoursePlayerPage: React.FC = () => {
       });
       if (!res.ok) return;
       const data = await res.json();
-      setCourseProgress(data?.percent ?? 0);
+      // Keep the higher of lesson progress and quiz progress
+      setCourseProgress((prev) => Math.max(prev, data?.percent ?? 0));
     } catch (error) {
       console.error(error);
     }
@@ -244,50 +252,59 @@ const CoursePlayerPage: React.FC = () => {
       list.push(lesson);
       grouped.set(lesson.moduleNo, list);
     });
-    const newModules: Module[] = Array.from(grouped.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([moduleNo, lessonsForModule]) => {
-        const sorted = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
-        const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+    const sortedModules = Array.from(grouped.entries()).sort(([a], [b]) => a - b);
+    let prevModulesPassed = true; // intro baseline
+    const newModules: Module[] = sortedModules.map(([moduleNo, lessonsForModule]) => {
+      const sorted = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
+      const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+      const moduleSectionsPassed = sectionForModule.length > 0 ? sectionForModule.every((s) => s.passed) : false;
 
-        // Unlock rules: module 0 always unlocked; others gated by previous module quiz pass (backend gives section.unlocked)
-        let allowedMaxTopic = moduleNo === 0 ? Number.POSITIVE_INFINITY : 2;
-        sectionForModule.forEach((sec) => {
-          if (sec.passed) {
-            allowedMaxTopic = Math.max(allowedMaxTopic, (sec.topicPairIndex + 1) * 2);
-          }
-        });
-        const moduleUnlocked = moduleNo === 0 ? true : Boolean(sectionForModule[0]?.unlocked);
+      // Unlock: intro always unlocked; later modules unlocked only if ALL previous modules are passed
+      const moduleUnlocked = moduleNo === 0 ? true : prevModulesPassed;
 
-        const submodules: SubModule[] = [];
-        sorted.forEach((lesson) => {
-          const lessonUnlocked = moduleUnlocked && (moduleNo === 0 || lesson.topicNumber <= allowedMaxTopic);
-          submodules.push({
-            id: lesson.topicId,
-            title: lesson.topicName,
-            type: "video",
-            slug: lesson.slug,
-            moduleNo: lesson.moduleNo,
-            topicNumber: lesson.topicNumber,
-            unlocked: lessonUnlocked,
-          });
-          if (lesson.moduleNo > 0 && lesson.topicNumber % 2 === 0) {
-            const pairIdx = lesson.topicNumber / 2;
-            const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
-            const quizUnlocked = moduleUnlocked && (section?.unlocked ?? false) && allowedMaxTopic >= pairIdx * 2;
-            submodules.push({
-              id: `quiz-${moduleNo}-${pairIdx}`,
-              title: section?.title ?? `Quiz ${pairIdx}`,
-              type: "quiz",
-              moduleNo,
-              topicPairIndex: pairIdx,
-              unlocked: quizUnlocked,
-            });
-          }
-        });
-        const passed = sectionForModule.some((s) => s.passed);
-        return { id: moduleNo, title: sorted[0]?.moduleName ?? `Module ${moduleNo}`, submodules, unlocked: moduleUnlocked, passed };
+      // Update gate for next module: require this module passed as well
+      if (moduleNo > 0) {
+        prevModulesPassed = prevModulesPassed && moduleSectionsPassed;
+      }
+
+      // Allowed topics within module
+      let allowedMaxTopic = moduleNo === 0 ? Number.POSITIVE_INFINITY : 2;
+      sectionForModule.forEach((sec) => {
+        if (sec.passed) {
+          allowedMaxTopic = Math.max(allowedMaxTopic, (sec.topicPairIndex + 1) * 2);
+        }
       });
+      if (!moduleUnlocked) allowedMaxTopic = 0;
+
+      const submodules: SubModule[] = [];
+      sorted.forEach((lesson) => {
+        const lessonUnlocked = moduleUnlocked && (moduleNo === 0 || lesson.topicNumber <= allowedMaxTopic);
+        submodules.push({
+          id: lesson.topicId,
+          title: lesson.topicName,
+          type: "video",
+          slug: lesson.slug,
+          moduleNo: lesson.moduleNo,
+          topicNumber: lesson.topicNumber,
+          unlocked: lessonUnlocked,
+        });
+        if (lesson.moduleNo > 0 && lesson.topicNumber % 2 === 0) {
+          const pairIdx = lesson.topicNumber / 2;
+          const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
+          const quizUnlocked = moduleUnlocked && (section?.unlocked ?? moduleUnlocked) && allowedMaxTopic >= pairIdx * 2;
+          submodules.push({
+            id: `quiz-${moduleNo}-${pairIdx}`,
+            title: section?.title ?? `Quiz ${pairIdx}`,
+            type: "quiz",
+            moduleNo,
+            topicPairIndex: pairIdx,
+            unlocked: quizUnlocked,
+          });
+        }
+      });
+      const passed = moduleSectionsPassed;
+      return { id: moduleNo, title: sorted[0]?.moduleName ?? `Module ${moduleNo}`, submodules, unlocked: moduleUnlocked, passed };
+    });
     setModules(newModules);
 
     // If no active slug set yet, jump to first unlocked lesson
@@ -559,7 +576,7 @@ const CoursePlayerPage: React.FC = () => {
         {sidebarOpen && (
           <div className="p-4 border-b border-[#4a4845]/20">
             <div className="flex justify-between text-xs text-[#f8f1e6] mb-1">
-              <span className="font-bold">Module {currentModuleId} of {modules.length}</span>
+              <span className="font-bold">Module {currentModuleDisplay} of {modules.length}</span>
               <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
             </div>
             <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
