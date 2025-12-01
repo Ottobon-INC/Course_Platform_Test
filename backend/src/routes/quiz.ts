@@ -257,11 +257,23 @@ async function upsertModuleProgress(params: {
       }, NOW())
       ON CONFLICT (user_id, course_id, module_no)
       DO UPDATE SET
-        quiz_passed = ${params.quizPassed},
+        quiz_passed = module_progress.quiz_passed OR ${params.quizPassed},
         updated_at = NOW(),
         completed_at = CASE WHEN ${params.quizPassed} THEN NOW() ELSE module_progress.completed_at END;
     `,
   );
+}
+
+async function getMaxTopicPairIndex(courseId: string, moduleNo: number): Promise<number> {
+  const rows = await prisma.$queryRaw<{ max_pair: number | null }[]>(
+    Prisma.sql`
+      SELECT MAX(topic_pair_index) AS max_pair
+      FROM quiz_questions
+      WHERE course_id = ${courseId}::uuid AND module_no = ${moduleNo}
+    `,
+  );
+  const value = rows[0]?.max_pair;
+  return typeof value === "number" ? value : 0;
 }
 
 async function getModuleProgressSummary(params: {
@@ -346,6 +358,14 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
     return [];
   }
 
+  const sectionsByModule = new Map<number, QuizSectionMetaRow[]>();
+  metadata.forEach((row) => {
+    const existing = sectionsByModule.get(row.module_no) ?? [];
+    existing.push(row);
+    sectionsByModule.set(row.module_no, existing);
+  });
+  const moduleOrder = Array.from(sectionsByModule.keys()).sort((a, b) => a - b);
+
   const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(
     Prisma.sql`
       SELECT module_no, topic_pair_index, status, score, completed_at, updated_at
@@ -364,45 +384,77 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
     }
   });
 
-  const sorted = [...metadata].sort((a, b) => {
-    const orderA =
-      (typeof a.order_index === "number" ? a.order_index : null) ??
-      (typeof a.order_index === "bigint" ? Number(a.order_index) : null) ??
-      a.module_no * 10 + a.topic_pair_index;
-    const orderB =
-      (typeof b.order_index === "number" ? b.order_index : null) ??
-      (typeof b.order_index === "bigint" ? Number(b.order_index) : null) ??
-      b.module_no * 10 + b.topic_pair_index;
-    return orderA - orderB;
+  const moduleCompletion = new Map<number, boolean>();
+  moduleOrder.forEach((moduleNo) => {
+    const sections = sectionsByModule.get(moduleNo) ?? [];
+    const allPassed =
+      sections.length > 0 &&
+      sections.every((row) => {
+        const key = `${row.module_no}:${row.topic_pair_index}`;
+        return latestAttemptByKey.get(key)?.status === "passed";
+      });
+    moduleCompletion.set(moduleNo, allPassed);
   });
 
-  let gateAllPreviousPassed = true;
-  return sorted.map((row, index) => {
-    const key = `${row.module_no}:${row.topic_pair_index}`;
-    const attempt = latestAttemptByKey.get(key);
-    const passed = attempt?.status === "passed";
-    const unlocked = index === 0 ? true : gateAllPreviousPassed;
-    gateAllPreviousPassed = gateAllPreviousPassed && Boolean(passed);
+  const results: {
+    moduleNo: number;
+    topicPairIndex: number;
+    title: string;
+    subtitle: null;
+    questionCount: number;
+    unlocked: boolean;
+    passed: boolean;
+    status: string | null;
+    lastScore: number | null;
+    attemptedAt: string | null;
+  }[] = [];
 
-    const rawCount =
-      typeof row.question_count === "bigint" ? Number(row.question_count) : row.question_count ?? 0;
-    const questionCount = Number(rawCount) || 0;
-    const attemptedAt =
-      attempt?.completed_at?.toISOString?.() ?? attempt?.updated_at?.toISOString?.() ?? null;
+  let previousModulesPassed = true;
+  moduleOrder.forEach((moduleNo) => {
+    const sections = (sectionsByModule.get(moduleNo) ?? []).sort((a, b) => {
+      const orderA =
+        (typeof a.order_index === "number" ? a.order_index : null) ??
+        (typeof a.order_index === "bigint" ? Number(a.order_index) : null) ??
+        a.topic_pair_index;
+      const orderB =
+        (typeof b.order_index === "number" ? b.order_index : null) ??
+        (typeof b.order_index === "bigint" ? Number(b.order_index) : null) ??
+        b.topic_pair_index;
+      return orderA - orderB;
+    });
 
-    return {
-      moduleNo: row.module_no,
-      topicPairIndex: row.topic_pair_index,
-      title: `Module ${row.module_no} • Topic pair ${row.topic_pair_index}`,
-      subtitle: null,
-      questionCount,
-      unlocked,
-      passed,
-      status: attempt?.status ?? null,
-      lastScore: typeof attempt?.score === "number" ? attempt.score : null,
-      attemptedAt,
-    };
+    let modulePairGate = previousModulesPassed;
+    sections.forEach((row) => {
+      const key = `${row.module_no}:${row.topic_pair_index}`;
+      const attempt = latestAttemptByKey.get(key);
+      const passed = attempt?.status === "passed";
+      const rawCount =
+        typeof row.question_count === "bigint" ? Number(row.question_count) : row.question_count ?? 0;
+      const questionCount = Number(rawCount) || 0;
+      const attemptedAt =
+        attempt?.completed_at?.toISOString?.() ?? attempt?.updated_at?.toISOString?.() ?? null;
+
+      results.push({
+        moduleNo: row.module_no,
+        topicPairIndex: row.topic_pair_index,
+        title: `Module ${row.module_no} • Topic pair ${row.topic_pair_index}`,
+        subtitle: null,
+        questionCount,
+        unlocked: modulePairGate,
+        passed: Boolean(passed),
+        status: attempt?.status ?? null,
+        lastScore: typeof attempt?.score === "number" ? attempt.score : null,
+        attemptedAt,
+      });
+
+      modulePairGate = modulePairGate && Boolean(passed);
+    });
+
+    const modulePassed = moduleCompletion.get(moduleNo) ?? false;
+    previousModulesPassed = previousModulesPassed && modulePassed;
   });
+
+  return results;
 }
 
 quizRouter.get(
@@ -492,13 +544,6 @@ quizRouter.post(
         RETURNING attempt_id
       `,
     );
-
-    await upsertModuleProgress({
-      userId,
-      courseId: resolvedCourseId,
-      moduleNo: parsed.data.moduleNo,
-      quizPassed: false,
-    });
 
     res.status(201).json({
       attemptId: inserted?.attempt_id ?? randomUUID(),
@@ -594,12 +639,16 @@ quizRouter.post(
       `,
     );
 
-    await upsertModuleProgress({
-      userId,
-      courseId: attempt.course_id,
-      moduleNo: attempt.module_no,
-      quizPassed: passed,
-    });
+    const maxPair = await getMaxTopicPairIndex(attempt.course_id, attempt.module_no);
+    const shouldMarkModulePassed = passed && attempt.topic_pair_index === maxPair;
+    if (shouldMarkModulePassed) {
+      await upsertModuleProgress({
+        userId,
+        courseId: attempt.course_id,
+        moduleNo: attempt.module_no,
+        quizPassed: true,
+      });
+    }
 
     const progress = await getModuleProgressSummary({ userId, courseId: attempt.course_id });
 
