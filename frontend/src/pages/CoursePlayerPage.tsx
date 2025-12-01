@@ -1,120 +1,48 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams, useLocation } from 'wouter';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
-import { buildApiUrl } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import CourseSidebar, { SidebarModule } from '@/components/CourseSidebar';
-import LessonTabs from '@/components/LessonTabs';
-import ChatBot from '@/components/ChatBot';
-import { useToast } from '@/hooks/use-toast';
-import type { StoredSession } from '@/types/session';
-import { readStoredSession } from '@/utils/session';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useParams } from "wouter";
 import {
-  ArrowLeft,
+  ArrowDown,
+  ArrowUpLeftFromCircle,
+  Book,
+  BookOpen,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
-  Home,
+  FileText,
   Lock,
-  LogOut,
-  Menu,
-  Settings,
-  User
-} from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import { DASHBOARD_CARD_SHADOW, DASHBOARD_GRADIENT_BG, FONT_INTER_STACK } from '@/constants/theme';
+  Maximize,
+  MessageSquare,
+  Minimize,
+  Move,
+  Pause,
+  Play,
+  Send,
+  SkipForward,
+  X,
+} from "lucide-react";
+import { buildApiUrl } from "@/lib/api";
+import { readStoredSession } from "@/utils/session";
+import { useToast } from "@/hooks/use-toast";
 
-type LessonContentType = 'video' | 'reading' | 'quiz';
-type ViewMode = 'video' | 'notes' | 'quiz';
+// Helpers
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-");
 
-interface LessonContent {
-  id: string;
-  courseId: string;
-  slug: string;
-  title: string;
-  type: LessonContentType;
-  videoUrl: string;
-  notes: string;
-  orderIndex: number;
-  isPreview: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const normalizeVideoUrl = (videoUrl: string | null): string => {
+  if (!videoUrl) return "";
+  if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+    const ytMatch = videoUrl.match(/(?:v=|youtu\.be\/)([\w-]{11})/);
+    const id = ytMatch ? ytMatch[1] : null;
+    return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=1` : videoUrl;
+  }
+  return videoUrl;
+};
 
-interface LessonWithProgress extends LessonContent {
-  completed: boolean;
-  current?: boolean;
-  progress?: number;
-  moduleNo: number;
-  topicNumber: number;
-  topicPairIndex: number;
-  moduleTitle?: string;
-}
-
-type LessonProgressStatus = 'not_started' | 'in_progress' | 'completed';
-
-interface LessonProgressPayload {
-  lessonId: string;
-  status: LessonProgressStatus;
-  progress: number;
-  updatedAt?: string;
-  userId?: string;
-}
-
-interface CourseProgressLesson {
-  lessonId: string;
-  status: LessonProgressStatus;
-  progress: number;
-  updatedAt?: string | null;
-  userId?: string | null;
-}
-
-interface CourseProgressResponse {
-  completedCount: number;
-  totalCount: number;
-  percent: number;
-  lessons: CourseProgressLesson[];
-}
-
-interface CourseSummary {
-  id?: string;
-  title?: string;
-}
-
-interface AuthenticatedUser {
-  id: string;
-  fullName: string;
-  email: string;
-  picture?: string;
-  emailVerified?: boolean;
-}
-
-interface ModuleLessonDefinition {
-  id: string;
-  slug: string;
-  title: string;
-  duration: string;
-}
-
-interface ModuleDefinition {
-  id: string;
-  title: string;
-  lessons: ModuleLessonDefinition[];
-}
-
-interface ModuleTopic {
+// Types
+interface TopicApi {
   topicId: string;
   courseId: string;
   moduleNo: number;
@@ -127,33 +55,30 @@ interface ModuleTopic {
   contentType: string;
 }
 
-interface QuizOption {
-  optionId: string;
-  text: string;
-}
-
-interface QuizQuestion {
-  questionId: string;
-  prompt: string;
+interface LessonItem {
+  id: string;
+  courseId: string;
   moduleNo: number;
-  topicPairIndex: number;
-  options: QuizOption[];
+  moduleName: string;
+  topicNumber: number;
+  title: string;
+  slug: string;
+  videoUrl: string | null;
+  textContent: string | null;
+  contentType: string;
 }
 
-interface QuizAttemptResult {
-  correctCount: number;
-  totalQuestions: number;
-  scorePercent: number;
-  passed: boolean;
-  thresholdPercent?: number;
+interface ModuleSub {
+  id: string;
+  title: string;
+  duration?: string;
+  type: "video" | "quiz";
 }
 
-interface QuizProgressModule {
-  moduleNo: number;
-  quizPassed: boolean;
-  unlocked: boolean;
-  completedAt: string | null;
-  updatedAt: string;
+interface ModuleDef {
+  id: number;
+  title: string;
+  submodules: ModuleSub[];
 }
 
 interface QuizSectionStatus {
@@ -169,2128 +94,1151 @@ interface QuizSectionStatus {
   questionCount?: number | null;
 }
 
-// Static lesson data for demo purposes
-const staticLessons: LessonWithProgress[] = [
-  {
-    id: '4',
-    courseId: 'ai-in-web-development',
-    slug: 'ai-powered-recommendations',
-    title: 'Crafting HTML with AI Assistance',
-    type: 'video',
-    videoUrl: 'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
-    notes: `# Crafting HTML with AI Assistance\n\nPrompt co-pilots for semantic layouts, review the output, and iterate quickly.`,
-    orderIndex: 3,
-    moduleNo: 2,
-    moduleTitle: 'AI-Assisted Frontend Development',
-    topicNumber: 1,
-    topicPairIndex: 1,
-    isPreview: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    completed: false,
-    progress: 0
-  },
-  {
-    id: '5',
-    courseId: 'ai-in-web-development',
-    slug: 'css-magic-with-ai',
-    title: 'CSS Magic with AI',
-    type: 'video',
-    videoUrl: '',
-    notes: '',
-    orderIndex: 4,
-    moduleNo: 2,
-    moduleTitle: 'AI-Assisted Frontend Development',
-    topicNumber: 2,
-    topicPairIndex: 1,
-    isPreview: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    completed: false,
-    progress: 0
-  }
-];
+interface QuizQuestion {
+  questionId: string;
+  prompt: string;
+  options: { optionId: string; text: string }[];
+}
 
-const legacyModuleOneSlugToTopicNumber: Record<string, number> = {
-  'introduction-to-ai-web-development': 1,
-  'setting-up-development-environment': 2,
-  'building-ai-chatbot': 3
-};
+interface QuizAttemptResult {
+  correctCount: number;
+  totalQuestions: number;
+  scorePercent: number;
+  passed: boolean;
+  thresholdPercent?: number;
+}
 
-const slugify = (value: string, fallback: string) => {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return normalized.length > 0 ? normalized : fallback;
-};
-
-const normalizeVideoUrl = (videoUrl: string | null): string => {
-  if (!videoUrl) {
-    return '';
-  }
-
-  const convertTimestampToSeconds = (value: string) => {
-    if (!value) {
-      return null;
-    }
-
-    if (/^\d+$/.test(value)) {
-      return Number.parseInt(value, 10);
-    }
-
-    const match = value.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
-    if (!match) {
-      return null;
-    }
-
-    const hours = Number.parseInt(match[1] ?? '0', 10);
-    const minutes = Number.parseInt(match[2] ?? '0', 10);
-    const seconds = Number.parseInt(match[3] ?? '0', 10);
-    return hours * 3600 + minutes * 60 + seconds;
-  };
-
-  try {
-    const trimmed = videoUrl.trim();
-    if (!trimmed) {
-      return '';
-    }
-
-    const url = new URL(trimmed);
-    const hostname = url.hostname.toLowerCase();
-    const isYouTubeHost =
-      hostname === 'youtu.be' ||
-      hostname === 'www.youtu.be' ||
-      hostname.includes('youtube.com') ||
-      hostname.endsWith('.youtube-nocookie.com');
-
-    if (!isYouTubeHost) {
-      return trimmed;
-    }
-
-    if (url.pathname.startsWith('/embed/')) {
-      return url.toString();
-    }
-
-    let videoId = '';
-
-    if (hostname === 'youtu.be' || hostname === 'www.youtu.be') {
-      videoId = url.pathname.replace('/', '');
-    } else if (url.pathname.startsWith('/shorts/')) {
-      videoId = url.pathname.split('/').pop() ?? '';
-    } else if (url.searchParams.has('v')) {
-      videoId = url.searchParams.get('v') ?? '';
-    } else {
-      const parts = url.pathname.split('/').filter(Boolean);
-      videoId = parts.pop() ?? '';
-    }
-
-    const playlistId = url.searchParams.get('list');
-    const startParam = url.searchParams.get('start') ?? url.searchParams.get('t');
-    const startSeconds = startParam ? convertTimestampToSeconds(startParam) : null;
-
-    if (!videoId && playlistId) {
-      const playlistUrl = new URL('https://www.youtube.com/embed/videoseries');
-      playlistUrl.searchParams.set('list', playlistId);
-      if (startSeconds) {
-        playlistUrl.searchParams.set('start', String(startSeconds));
-      }
-      playlistUrl.searchParams.set('controls', '0');
-      playlistUrl.searchParams.set('rel', '0');
-      playlistUrl.searchParams.set('modestbranding', '1');
-      playlistUrl.searchParams.set('showinfo', '0');
-      playlistUrl.searchParams.set('iv_load_policy', '3');
-      playlistUrl.searchParams.set('disablekb', '1');
-      playlistUrl.searchParams.set('fs', '0');
-      playlistUrl.searchParams.set('playsinline', '1');
-      return playlistUrl.toString();
-    }
-
-    if (!videoId) {
-      return trimmed;
-    }
-
-    const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`);
-    if (startSeconds) {
-      embedUrl.searchParams.set('start', String(startSeconds));
-    }
-
-    // Hide YouTube chrome and block keyboard/fullscreen shortcuts from the embedded player.
-    embedUrl.searchParams.set('controls', '0');
-    embedUrl.searchParams.set('rel', '0');
-    embedUrl.searchParams.set('modestbranding', '1');
-    embedUrl.searchParams.set('showinfo', '0');
-    embedUrl.searchParams.set('iv_load_policy', '3');
-    embedUrl.searchParams.set('disablekb', '1');
-    embedUrl.searchParams.set('fs', '0');
-    embedUrl.searchParams.set('playsinline', '1');
-
-    // Drop playlist/index parameters because some public videos disallow embedded playlist playback.
-    return embedUrl.toString();
-  } catch (error) {
-    console.warn('Failed to normalize video URL', { videoUrl, error });
-    return videoUrl;
-  }
-};
-
-// Extract the numeric suffix (if any) from module identifiers like "module-1".
-const getModuleNumberFromId = (moduleId: string): number | null => {
-  const match = moduleId.match(/^module-(\d+)$/i);
-  return match ? Number.parseInt(match[1], 10) : null;
-};
-
-const coerceNumber = (value: unknown, fallback = 0) => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'bigint') {
-    return Number(value);
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const baseModuleDefinitions: ModuleDefinition[] = [
-  {
-    id: 'module-1',
-    title: 'Foundations - Your First Steps with AI-Powered Web Development',
-    lessons: [
-      {
-        id: '1',
-        slug: 'introduction-to-ai-web-development',
-        title: 'Welcome to Your AI Learning Journey',
-        duration: '8 min'
-      },
-      {
-        id: '2',
-        slug: 'setting-up-development-environment',
-        title: 'Essential AI Tools for Developers',
-        duration: '12 min'
-      },
-      {
-        id: '3',
-        slug: 'building-ai-chatbot',
-        title: 'Setting Up Your AI-Enhanced Workspace',
-        duration: '15 min'
-      }
-    ]
-  },
-  {
-    id: 'module-2',
-    title: 'AI-Assisted Frontend Development',
-    lessons: [
-      {
-        id: '4',
-        slug: 'ai-powered-recommendations',
-        title: 'Crafting HTML with AI Assistance',
-        duration: '18 min'
-      },
-      {
-        id: '5',
-        slug: 'css-magic-with-ai',
-        title: 'CSS Magic with AI',
-        duration: '22 min'
-      }
-    ]
-  }
-];
-
-export const computeProgress = (modules: SidebarModule[]) => {
-  const allLessons = modules.flatMap((module) => module.lessons);
-  const totalCount = allLessons.length;
-  const completedCount = allLessons.filter((lesson) => lesson.completed).length;
-  const percent = totalCount === 0 ? 0 : Math.floor((completedCount / totalCount) * 100);
-  return { completedCount, totalCount, percent };
-};
-
-const computeQuizProgress = (
-  moduleNumbers: number[],
-  modulePassedMap: Map<number, boolean> | null,
-  quizProgressMap: Map<number, QuizProgressModule>,
-) => {
-  const totalCount = moduleNumbers.length;
-  if (totalCount === 0) {
-    return { completedCount: 0, totalCount: 0, percent: 0 };
-  }
-
-  const completedCount = moduleNumbers.filter((moduleNo) => {
-    if (modulePassedMap?.has(moduleNo)) {
-      return Boolean(modulePassedMap.get(moduleNo));
-    }
-    return Boolean(quizProgressMap.get(moduleNo)?.quizPassed);
-  }).length;
-
-  const percent = Math.min(100, Math.floor((completedCount / totalCount) * 100));
-  return { completedCount, totalCount, percent };
-};
-
-const QUIZ_QUESTION_LIMIT = 5;
 const PASSING_PERCENT_THRESHOLD = 70;
+const PLACEHOLDER_IMAGE = "https://picsum.photos/1200/675";
+const STUDY_MATERIAL_PLACEHOLDER = "No notes available for this lesson.";
 
-const getUserInitials = (name: string) =>
-  name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('') || '?';
-
-export default function CoursePlayerPage() {
-  const { id: courseId, lesson: lessonSlug } = useParams();
+const CoursePlayerPage: React.FC = () => {
+  const params = useParams();
+  const courseId = params?.id ?? "";
+  const lessonSlugParam = params?.lesson ?? "";
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const session = readStoredSession();
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [lessonProgressMap, setLessonProgressMap] = useState<Record<string, LessonProgressPayload>>({});
-  const [pendingLessonId, setPendingLessonId] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<AuthenticatedUser | null>(null);
-  const [session, setSession] = useState<StoredSession | null>(null);
-  const previousLessonSlug = useRef<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('video');
+  // Layout state
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [expandedModules, setExpandedModules] = useState<number[]>([]);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isReadingMode, setIsReadingMode] = useState(false);
+  const [isControlsVisible, setIsControlsVisible] = useState(true);
+
+  // Data state
+  const [lessons, setLessons] = useState<LessonItem[]>([]);
+  const [modules, setModules] = useState<ModuleDef[]>([]);
+  const [activeSlug, setActiveSlug] = useState<string>(lessonSlugParam);
+  const [courseProgress, setCourseProgress] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [progressSaving, setProgressSaving] = useState(false);
+
+  // Video state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showNextOverlay, setShowNextOverlay] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+
+  // Widget state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
+  const [chatRect, setChatRect] = useState({ x: 0, y: 0, width: 350, height: 450, initialized: false });
+  const [notesRect, setNotesRect] = useState({ x: 0, y: 0, width: 350, height: 300, initialized: false });
+  const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
+  const dragInfo = useRef({
+    isDragging: false,
+    widget: null as "study" | "chat" | "notes" | null,
+    type: null as string | null,
+    startX: 0,
+    startY: 0,
+    startW: 0,
+    startH: 0,
+    mouseX: 0,
+    mouseY: 0,
+  });
+  const controlsTimeoutRef = useRef<number | null>(null);
+
+  // Quiz state
+  const [sections, setSections] = useState<QuizSectionStatus[]>([]);
+  const [selectedSection, setSelectedSection] = useState<{ moduleNo: number; topicPairIndex: number } | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-  const [quizKey, setQuizKey] = useState<string | null>(null);
-  const [quizError, setQuizError] = useState<string | null>(null);
-  const [sessionExpired, setSessionExpired] = useState(false);
-
-  useEffect(() => {
-    const authStatus = localStorage.getItem('isAuthenticated');
-    const userData = localStorage.getItem('user');
-    const storedSession = readStoredSession();
-    setSession(storedSession);
-
-    if (authStatus === 'true' && userData) {
-      try {
-        const parsed = JSON.parse(userData) as Partial<AuthenticatedUser & { name?: string }>;
-        if (parsed) {
-          setIsAuthenticated(true);
-          setUser({
-            id: parsed.id ?? '',
-            fullName: parsed.fullName ?? parsed.name ?? 'Learner',
-            email: parsed.email ?? '',
-            picture: parsed.picture,
-            emailVerified: parsed.emailVerified
-          });
-        }
-      } catch (error) {
-        console.error('Failed to parse stored user', error);
-        setIsAuthenticated(false);
-        setUser(null);
-      }
-    } else {
-      setIsAuthenticated(false);
-      setUser(null);
-    }
-
-    setAuthChecked(true);
-  }, []);
-
-  const {
-    data: courseTopicsResponse,
-    isLoading: courseTopicsLoading,
-    refetch: courseTopicsRefetch,
-  } = useQuery<{ topics: ModuleTopic[] }>({
-    queryKey: [`/api/lessons/courses/${courseId ?? 'unknown'}/topics`],
-    enabled: Boolean(courseId) && authChecked && isAuthenticated,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true,
-  });
-
-  useEffect(() => {
-    if (!courseId || !authChecked || !isAuthenticated) {
-      return;
-    }
-
-    courseTopicsRefetch();
-  }, [lessonSlug, authChecked, isAuthenticated, courseId, courseTopicsRefetch]);
-
-  const courseTopics = courseTopicsResponse?.topics ?? [];
-
-  const groupedModuleContent = useMemo(() => {
-    const modules = new Map<number, { topics: ModuleTopic[]; lessons: LessonWithProgress[] }>();
-
-    const createLessonFromTopic = (topic: ModuleTopic, moduleLocalIndex: number): LessonWithProgress => {
-      const slugBase = slugify(topic.topicName, topic.topicId);
-      const slug = `module-${topic.moduleNo}-topic-${topic.topicNumber}-${slugBase}`;
-      const normalizedType = (topic.contentType ?? 'video').toLowerCase();
-      const lessonType = (normalizedType === 'reading' || normalizedType === 'quiz'
-        ? normalizedType
-        : 'video') as LessonWithProgress['type'];
-
-      return {
-        id: topic.topicId,
-        courseId: topic.courseId,
-        slug,
-        title: topic.topicName,
-        type: lessonType,
-        videoUrl: normalizeVideoUrl(topic.videoUrl),
-        notes: topic.textContent ?? '',
-        orderIndex: moduleLocalIndex,
-        isPreview: topic.isPreview,
-        moduleNo: Number.isFinite(topic.moduleNo) ? topic.moduleNo : 0,
-        moduleTitle: topic.moduleName,
-        topicNumber: topic.topicNumber,
-        topicPairIndex: Math.max(1, Math.ceil((moduleLocalIndex + 1) / 2)),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        completed: false,
-        progress: 0,
-      };
-    };
-
-    courseTopics.forEach((topic) => {
-      const moduleNo = Number.isFinite(topic.moduleNo) ? topic.moduleNo : 0;
-      const entry = modules.get(moduleNo);
-
-      if (entry) {
-        entry.topics.push(topic);
-      } else {
-        modules.set(moduleNo, {
-          topics: [topic],
-          lessons: [],
-        });
-      }
-    });
-
-    modules.forEach((entry) => {
-      entry.topics.sort((a, b) => a.topicNumber - b.topicNumber);
-      entry.lessons = entry.topics.map((topic, index) => createLessonFromTopic(topic, index));
-    });
-
-    return modules;
-  }, [courseTopics]);
-
-  const introductionTopics = groupedModuleContent.get(0)?.topics ?? [];
-  const introductionLessons = groupedModuleContent.get(0)?.lessons ?? [];
-  const moduleOneLessons = groupedModuleContent.get(1)?.lessons ?? [];
-  const sortedModuleNumbers = useMemo(
-    () =>
-      Array.from(groupedModuleContent.keys())
-        .filter((moduleNo) => moduleNo > 0)
-        .sort((a, b) => a - b),
-    [groupedModuleContent],
-  );
-  const fetchedModuleLessons = useMemo(
-    () =>
-      sortedModuleNumbers.flatMap((moduleNo) => groupedModuleContent.get(moduleNo)?.lessons ?? []),
-    [groupedModuleContent, sortedModuleNumbers],
-  );
-
-  const introductionDefinition = useMemo<ModuleDefinition | null>(() => {
-    if (introductionLessons.length === 0) {
-      return null;
-    }
-
-    const moduleTitle =
-      introductionTopics.find((topic) => topic.moduleName && topic.moduleName.trim().length > 0)?.moduleName.trim() ??
-      'Introduction';
-
-    return {
-      id: 'module-introduction',
-      title: moduleTitle,
-      lessons: introductionLessons.map((lesson) => ({
-        id: lesson.id,
-        slug: lesson.slug,
-        title: lesson.title,
-        duration: lesson.type === 'video' ? 'Video' : lesson.type === 'reading' ? 'Reading' : 'Lesson'
-      }))
-    };
-  }, [introductionLessons, introductionTopics]);
-
-  useEffect(() => {
-    if (!courseId || !authChecked) {
-      return;
-    }
-
-    const redirectToSlug = (slug: string | null | undefined) => {
-      if (slug) {
-        setLocation(`/course/${courseId}/learn/${slug}`);
-      }
-    };
-
-    if (!lessonSlug) {
-      if (courseTopicsLoading && introductionLessons.length === 0 && fetchedModuleLessons.length === 0) {
-        return;
-      }
-
-      const defaultLesson =
-        introductionLessons[0]?.slug ?? fetchedModuleLessons[0]?.slug ?? staticLessons[0]?.slug ?? null;
-      redirectToSlug(defaultLesson);
-      return;
-    }
-
-    const legacyTopicNumber = legacyModuleOneSlugToTopicNumber[lessonSlug];
-    if (legacyTopicNumber) {
-      const matchingLesson = moduleOneLessons.find((lesson) => lesson.orderIndex === legacyTopicNumber - 1);
-
-      if (matchingLesson) {
-        redirectToSlug(matchingLesson.slug);
-        return;
-      }
-
-      if (!courseTopicsLoading && moduleOneLessons.length === 0) {
-        redirectToSlug(introductionLessons[0]?.slug ?? staticLessons[0]?.slug ?? null);
-      }
-    }
-  }, [
-    courseId,
-    lessonSlug,
-    moduleOneLessons,
-    introductionLessons,
-    fetchedModuleLessons,
-    setLocation,
-    authChecked,
-    courseTopicsLoading
-  ]);
-
-  const lessonSourceBySlug = useMemo(() => {
-    // Merge static lessons and freshly fetched module lessons so downstream lookups stay uniform.
-    const map = new Map<string, LessonWithProgress>();
-    staticLessons.forEach((lesson) => {
-      map.set(lesson.slug, {
-        ...lesson,
-        videoUrl: normalizeVideoUrl(lesson.videoUrl)
-      });
-    });
-    introductionLessons.forEach((lesson) => {
-      map.set(lesson.slug, lesson);
-    });
-    fetchedModuleLessons.forEach((lesson) => {
-      map.set(lesson.slug, lesson);
-    });
-    return map;
-  }, [fetchedModuleLessons, introductionLessons]);
+  const [quizPhase, setQuizPhase] = useState<"intro" | "active" | "result">("intro");
+  const [quizTimer, setQuizTimer] = useState(60);
+  const [isQuizMode, setIsQuizMode] = useState(false);
 
   const authHeaders = useMemo(
     () => (session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined),
-    [session?.accessToken]
+    [session],
   );
 
-  const handleSessionExpired = useCallback(() => {
-    if (sessionExpired) return;
-    localStorage.removeItem('session');
-    localStorage.removeItem('user');
-    localStorage.setItem('isAuthenticated', 'false');
-    setIsAuthenticated(false);
-    setUser(null);
-    setSession(null);
-    setSessionExpired(true);
-  }, [sessionExpired]);
-
-  const handleAuthError = useCallback(
-    (error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('401') || message.toLowerCase().includes('jwt expired')) {
-        handleSessionExpired();
-        return true;
-      }
-      return false;
-    },
-    [handleSessionExpired]
-  );
-
-  const apiModuleDefinitions = useMemo<ModuleDefinition[]>(() => {
-    if (sortedModuleNumbers.length === 0) {
-      return [];
-    }
-
-    return sortedModuleNumbers.map((moduleNo) => {
-      const moduleTopics = groupedModuleContent.get(moduleNo)?.topics ?? [];
-      const moduleLessons = groupedModuleContent.get(moduleNo)?.lessons ?? [];
-      const moduleTitle =
-        moduleTopics.find((topic) => topic.moduleName && topic.moduleName.trim().length > 0)?.moduleName.trim() ??
-        `Module ${moduleNo}`;
-
-      return {
-        id: `module-${moduleNo}`,
-        title: moduleTitle,
-        lessons: moduleLessons.map((lesson) => ({
-          id: lesson.id,
-          slug: lesson.slug,
-          title: lesson.title,
-          duration:
-            lesson.type === 'reading'
-              ? 'Reading'
-              : lesson.type === 'quiz'
-                ? 'Quiz'
-                : lesson.videoUrl
-                  ? 'Video'
-                  : 'Lesson'
-        }))
-      };
-    });
-  }, [groupedModuleContent, sortedModuleNumbers]);
-
-  const moduleDefinitions = useMemo<ModuleDefinition[]>(() => {
-    const modules = apiModuleDefinitions.length > 0 ? apiModuleDefinitions : baseModuleDefinitions;
-
-    if (introductionDefinition) {
-      return [introductionDefinition, ...modules];
-    }
-
-    return modules;
-  }, [apiModuleDefinitions, introductionDefinition]);
-
-  const { data: courseResponse, isLoading: courseLoading } = useQuery<{ course: CourseSummary }>({
-    queryKey: [`/api/courses/${courseId}`],
-    enabled: !!courseId && authChecked && isAuthenticated,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true
-  });
-  const course = courseResponse?.course;
-  const resolvedCourseIdentifier = useMemo(
-    () => course?.id ?? courseId ?? 'unknown',
-    [course?.id, courseId]
-  );
-
-  const { data: courseProgressResponse } = useQuery<CourseProgressResponse>({
-    queryKey: ['course-progress', resolvedCourseIdentifier, session?.accessToken],
-    enabled:
-      resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
-    queryFn: async () => {
-      const response = await apiRequest(
-        'GET',
-        `/api/lessons/courses/${resolvedCourseIdentifier}/progress`,
-        undefined,
-        authHeaders ? { headers: authHeaders } : undefined
-      );
-      return response.json();
-    },
-    onError: (error) => {
-      if (handleAuthError(error)) return;
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true
-  });
-
-  const {
-    data: quizProgressResponse,
-    refetch: quizProgressRefetch,
-    isFetching: quizProgressLoading
-  } = useQuery<{ modules: QuizProgressModule[] }>(
-    {
-      queryKey: ['quiz-progress', resolvedCourseIdentifier, session?.accessToken],
-      enabled:
-        resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
-      queryFn: async () => {
-        const response = await apiRequest(
-          'GET',
-          `/api/quiz/progress/${resolvedCourseIdentifier}`,
-          undefined,
-          authHeaders ? { headers: authHeaders } : undefined
-        );
-        return response.json();
-      },
-      onError: (error) => {
-        if (handleAuthError(error)) return;
-      },
-      staleTime: 0,
-      refetchOnMount: 'always',
-      refetchOnWindowFocus: 'always',
-      refetchOnReconnect: true
-    }
-  );
-  const quizProgressModules = quizProgressResponse?.modules ?? [];
-
-  const {
-    data: quizSectionsResponse,
-    refetch: quizSectionsRefetch,
-    isFetching: quizSectionsLoading
-  } = useQuery<{ sections: QuizSectionStatus[] }>(
-    {
-      queryKey: ['quiz-sections', resolvedCourseIdentifier, session?.accessToken],
-      enabled:
-        resolvedCourseIdentifier !== 'unknown' && authChecked && isAuthenticated && Boolean(session?.accessToken),
-      queryFn: async () => {
-        const response = await apiRequest(
-          'GET',
-          `/api/quiz/sections/${resolvedCourseIdentifier}`,
-          undefined,
-          authHeaders ? { headers: authHeaders } : undefined
-        );
-        return response.json();
-      },
-      onError: (error) => {
-        if (handleAuthError(error)) return;
-      },
-      staleTime: 0,
-      refetchOnMount: 'always',
-      refetchOnWindowFocus: 'always',
-      refetchOnReconnect: true
-    }
-  );
-  const quizSections = quizSectionsResponse?.sections ?? [];
-  const normalizedQuizSections = useMemo(() => {
-    if (quizSections.length === 0) {
-      return [];
-    }
-    return quizSections.map((section) => {
-      const normalizedModuleNo = coerceNumber(section.moduleNo, 0);
-      const normalizedTopicPairIndex = Math.max(1, coerceNumber(section.topicPairIndex, 1));
-      return {
-        ...section,
-        moduleNo: normalizedModuleNo,
-        topicPairIndex: normalizedTopicPairIndex
-      };
-    });
-  }, [quizSections]);
-
-  const firstFetchedLessonSlug = fetchedModuleLessons[0]?.slug;
-  const firstStaticSlug = staticLessons[0]?.slug;
-  const activeLessonSlug =
-    lessonSlug ?? introductionLessons[0]?.slug ?? firstFetchedLessonSlug ?? firstStaticSlug ?? null;
-  const currentLessonBase = activeLessonSlug ? lessonSourceBySlug.get(activeLessonSlug) : undefined;
-
-  const currentLessonId = currentLessonBase?.id;
-
-  const { data: lessonProgressResponse, isLoading: lessonLoading } = useQuery<{ progress: LessonProgressPayload }>({
-    queryKey: [`/api/lessons/${currentLessonId}/progress`, session?.accessToken],
-    enabled: !!currentLessonId && authChecked && isAuthenticated && Boolean(session?.accessToken),
-    queryFn: async () => {
-      const response = await apiRequest(
-        'GET',
-        `/api/lessons/${currentLessonId}/progress`,
-        undefined,
-        authHeaders ? { headers: authHeaders } : undefined
-      );
-      return response.json();
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true
-  });
-  const lessonProgress = lessonProgressResponse?.progress;
-
-  useEffect(() => {
-    if (authChecked && isAuthenticated && courseId) {
-      queryClient.invalidateQueries({ queryKey: [`/api/lessons/courses/${courseId}/topics`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}`] });
-    }
-  }, [authChecked, isAuthenticated, courseId]);
-
-  const handleSignIn = () => {
-    const safeRedirect = window.location.pathname + window.location.search;
-    sessionStorage.setItem('postLoginRedirect', safeRedirect);
-    window.location.assign(`${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(safeRedirect)}`);
-  };
-
-  useEffect(() => {
-    if (currentLessonId && lessonProgress) {
-      const normalizedStatus: LessonProgressStatus =
-        lessonProgress.status ?? (lessonProgress.progress >= 100 ? 'completed' : 'in_progress');
-
-      setLessonProgressMap((previous) => ({
-        ...previous,
-        [currentLessonId]: {
-          lessonId: currentLessonId,
-          status: normalizedStatus,
-          progress: lessonProgress.progress ?? 0,
-          updatedAt: lessonProgress.updatedAt,
-          userId: lessonProgress.userId
-        }
-      }));
-    }
-  }, [lessonProgress, currentLessonId]);
-
-  useEffect(() => {
-    const lessons = courseProgressResponse?.lessons ?? [];
-    if (lessons.length === 0) {
-      return;
-    }
-
-    setLessonProgressMap((previous) => {
-      const next = { ...previous };
-      lessons.forEach((lesson) => {
-        const existing = next[lesson.lessonId];
-        const incomingUpdatedAt = lesson.updatedAt ? new Date(lesson.updatedAt).getTime() : 0;
-        const existingUpdatedAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
-
-        if (!existing || incomingUpdatedAt >= existingUpdatedAt) {
-          next[lesson.lessonId] = {
-            lessonId: lesson.lessonId,
-            status: lesson.status,
-            progress: lesson.progress,
-            updatedAt: lesson.updatedAt ?? undefined,
-            userId: lesson.userId ?? undefined
-          };
-        }
-      });
-      return next;
-    });
-  }, [courseProgressResponse?.lessons]);
-
-  const quizProgressMap = useMemo(() => {
-    const map = new Map<number, QuizProgressModule>();
-    quizProgressModules.forEach((entry) => map.set(entry.moduleNo, entry));
-    return map;
-  }, [quizProgressModules]);
-
-  const quizSectionLookup = useMemo(() => {
-    if (normalizedQuizSections.length === 0) {
-      return null;
-    }
-    const map = new Map<string, QuizSectionStatus>();
-    normalizedQuizSections.forEach((section) => {
-      map.set(`${section.moduleNo}:${section.topicPairIndex}`, section);
-    });
-    return map;
-  }, [normalizedQuizSections]);
-
-  const moduleUnlockState = useMemo(() => {
-    if (normalizedQuizSections.length === 0) {
-      return null;
-    }
-
-    const grouped = new Map<number, QuizSectionStatus[]>();
-    normalizedQuizSections.forEach((section) => {
-      const existing = grouped.get(section.moduleNo);
-      if (existing) {
-        existing.push(section);
-      } else {
-        grouped.set(section.moduleNo, [section]);
-      }
-    });
-
-    const orderedModuleNos = Array.from(grouped.keys()).sort((a, b) => a - b);
-    const unlockedModules = new Set<number>();
-    const modulePassed = new Map<number, boolean>();
-    let previousModulesPassed = true;
-
-    orderedModuleNos.forEach((moduleNo, index) => {
-      const sections = grouped.get(moduleNo) ?? [];
-      const passed = sections.length > 0 && sections.every((section) => section.passed);
-      modulePassed.set(moduleNo, passed);
-
-      const hasUnlockedTopicPair = sections.some((section) => section.unlocked || section.passed);
-      if (hasUnlockedTopicPair || index === 0 || previousModulesPassed) {
-        unlockedModules.add(moduleNo);
-      }
-
-      if (!passed) {
-        previousModulesPassed = false;
-      }
-    });
-
-    return { unlockedModules, modulePassed };
-  }, [normalizedQuizSections]);
-
-  const moduleUnlockedBySections = useMemo(() => {
-    if (normalizedQuizSections.length === 0) {
-      return null;
-    }
-    const unlocked = new Set<number>();
-    normalizedQuizSections.forEach((section) => {
-      if (section.unlocked || section.passed) {
-        unlocked.add(section.moduleNo);
-      }
-    });
-    return unlocked;
-  }, [normalizedQuizSections]);
+  const activeLesson = useMemo(() => lessons.find((l) => l.slug === activeSlug) ?? lessons[0], [lessons, activeSlug]);
+  const resolvedCourseId = useMemo(() => activeLesson?.courseId ?? courseId, [activeLesson, courseId]);
+  const currentModuleNo = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
 
   const unlockedModules = useMemo(() => {
-    if (sortedModuleNumbers.length === 0) {
-      return new Set<number>();
-    }
-
     const unlocked = new Set<number>();
-    let previousPassed = true;
-
-    sortedModuleNumbers.forEach((moduleNo, index) => {
-      const progress = quizProgressMap.get(moduleNo);
-      const unlockedByBackend = progress?.unlocked ?? false;
-      const unlockedByRule = index === 0 || previousPassed;
-      if (unlockedByBackend || unlockedByRule) {
-        unlocked.add(moduleNo);
-      }
-
-      const passed = progress?.quizPassed ?? false;
-      if (!passed) {
-        previousPassed = false;
-      }
+    if (modules.length > 0) unlocked.add(modules[0].id);
+    sections.forEach((s) => {
+      if (s.unlocked) unlocked.add(s.moduleNo);
+      if (s.passed) unlocked.add(s.moduleNo + 1);
     });
-
     return unlocked;
-  }, [quizProgressMap, sortedModuleNumbers]);
+  }, [sections, modules]);
 
-  const isModuleLocked = useCallback(
-    (moduleNo: number | null | undefined) => {
-      if (!moduleNo || moduleNo <= 1) {
-        return false;
-      }
-      if (moduleUnlockState && moduleUnlockState.unlockedModules.has(moduleNo)) {
-        return false;
-      }
-      if (moduleUnlockedBySections && moduleUnlockedBySections.has(moduleNo)) {
-        return false;
-      }
-      if (moduleUnlockState) {
-        return true;
-      }
-      return !unlockedModules.has(moduleNo);
-    },
-    [moduleUnlockState, moduleUnlockedBySections, unlockedModules]
-  );
-
-  const hasQuizForTopicPair = useCallback(
-    (moduleNo: number | null | undefined, topicPairIndex: number | null | undefined) => {
-      if (!moduleNo || moduleNo <= 0) {
-        return true;
-      }
-      const normalizedPair = topicPairIndex && topicPairIndex > 0 ? topicPairIndex : 1;
-      if (quizSectionLookup) {
-        return quizSectionLookup.has(`${moduleNo}:${normalizedPair}`);
-      }
-      return true;
-    },
-    [quizSectionLookup]
-  );
-
-  const isTopicPairUnlocked = useCallback(
-    (moduleNo: number | null | undefined, topicPairIndex: number | null | undefined) => {
-      if (!moduleNo || moduleNo <= 0) {
-        return true;
-      }
-      if (isModuleLocked(moduleNo)) {
-        return false;
-      }
-
-      const normalizedPair = topicPairIndex && topicPairIndex > 0 ? topicPairIndex : 1;
-      const currentKey = `${moduleNo}:${normalizedPair}`;
-      const currentSection = quizSectionLookup?.get(currentKey);
-      if (currentSection?.passed || currentSection?.unlocked) {
-        return true;
-      }
-
-      if (normalizedPair <= 1) {
-        return true;
-      }
-
-      const previousKey = `${moduleNo}:${normalizedPair - 1}`;
-      const previousSection = quizSectionLookup?.get(previousKey);
-      if (previousSection) {
-        return Boolean(previousSection.passed);
-      }
-
-      // Fallback: allow if module progress already marks the module as passed.
-      if (moduleUnlockState?.modulePassed.get(moduleNo)) {
-        return true;
-      }
-
-      return false;
-    },
-    [isModuleLocked, moduleUnlockState, quizSectionLookup]
-  );
-
-  const showingTopicPairs = normalizedQuizSections.length > 0;
-  const quizGridSections: QuizSectionStatus[] = showingTopicPairs
-    ? normalizedQuizSections
-    : sortedModuleNumbers.map((moduleNo) => ({
-        moduleNo,
-        topicPairIndex: 1,
-        unlocked: !isModuleLocked(moduleNo),
-        passed: quizProgressMap.get(moduleNo)?.quizPassed ?? false,
-        title: `Module ${moduleNo}`,
-        subtitle: null,
-        status: null,
-        lastScore: null,
-        attemptedAt: null,
-        questionCount: null
+  const fetchTopics = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics`), { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load topics");
+      const data = (await res.json()) as { topics: TopicApi[] };
+      const mapped: LessonItem[] = (data.topics ?? []).map((t) => ({
+        id: t.topicId,
+        courseId: t.courseId,
+        moduleNo: t.moduleNo,
+        moduleName: t.moduleName,
+        topicNumber: t.topicNumber,
+        title: t.topicName,
+        slug: slugify(t.topicName),
+        videoUrl: t.videoUrl,
+        textContent: t.textContent,
+        contentType: t.contentType,
       }));
+      const sorted = mapped.sort((a, b) => a.moduleNo - b.moduleNo || a.topicNumber - b.topicNumber);
+      setLessons(sorted);
 
-  const sidebarModules = useMemo<SidebarModule[]>(() => {
-    // Keep numeric module labels consistent even when we prepend the introduction block.
-    let sequentialModuleNumber = 1;
-
-    return moduleDefinitions.map((module) => {
-      const parsedNumber = getModuleNumberFromId(module.id);
-      const isIntroduction = module.id === 'module-introduction';
-      const moduleNumber = isIntroduction ? null : parsedNumber ?? sequentialModuleNumber++;
-
-      if (!isIntroduction && parsedNumber !== null) {
-        sequentialModuleNumber = Math.max(sequentialModuleNumber, parsedNumber + 1);
-      }
-
-      const displayModuleTitle = isIntroduction ? module.title : `Module-${moduleNumber}: ${module.title}`;
-
-      const lessons = module.lessons.map((lessonDef, lessonIndex) => {
-        const base = lessonSourceBySlug.get(lessonDef.slug);
-        const override = base ? lessonProgressMap[base.id] : undefined;
-        const completed = override ? override.status === 'completed' : base?.completed ?? false;
-        const progress = override?.progress ?? base?.progress ?? 0;
-        const lessonPrefix = moduleNumber === null ? '' : `${moduleNumber}.${lessonIndex + 1} `;
-        const resolvedModuleNo = base?.moduleNo ?? moduleNumber ?? 0;
-        const resolvedTopicNumber = base?.topicNumber ?? lessonIndex + 1;
-        const resolvedTopicPairIndex =
-          base?.topicPairIndex ?? Math.max(1, Math.ceil(resolvedTopicNumber / 2));
-        const locked =
-          resolvedModuleNo > 0
-            ? isModuleLocked(resolvedModuleNo) ||
-              !isTopicPairUnlocked(resolvedModuleNo, resolvedTopicPairIndex)
-            : false;
-
-        return {
-          id: base?.id ?? lessonDef.id,
-          slug: lessonDef.slug,
-          title: `${lessonPrefix}${lessonDef.title}`.trim(),
-          rawTitle: lessonDef.title,
-          duration: lessonDef.duration,
-          completed,
-          current: activeLessonSlug === lessonDef.slug,
-          progress,
-          isPreview: base?.isPreview ?? false,
-          type: base?.type ?? 'video',
-          videoUrl: base?.videoUrl ?? '',
-          notes: base?.notes ?? '',
-          moduleNo: resolvedModuleNo,
-          topicNumber: resolvedTopicNumber,
-          topicPairIndex: resolvedTopicPairIndex,
-          moduleTitle: base?.moduleTitle ?? module.title,
-          locked
-        };
+      const moduleMap = new Map<number, ModuleDef>();
+      sorted.forEach((t) => {
+        const list = moduleMap.get(t.moduleNo)?.submodules ?? [];
+        list.push({ id: t.id, title: t.title, type: t.contentType === "quiz" ? "quiz" : "video" });
+        moduleMap.set(t.moduleNo, { id: t.moduleNo, title: t.moduleName, submodules: list });
       });
+      const moduleList = Array.from(moduleMap.values()).sort((a, b) => a.id - b.id);
+      setModules(moduleList);
+      if (moduleList.length > 0) setExpandedModules([moduleList[0].id]);
 
-      return {
-        id: module.id,
-        title: displayModuleTitle,
-        lessons
-      };
-    });
-  }, [lessonProgressMap, activeLessonSlug, lessonSourceBySlug, moduleDefinitions, isModuleLocked, isTopicPairUnlocked]);
-
-  const lessons = useMemo(() => sidebarModules.flatMap((module) => module.lessons), [sidebarModules]);
-  const lockedLessonSlugs = useMemo(
-    () =>
-      new Set(
-        sidebarModules.flatMap((module) => module.lessons.filter((lesson) => lesson.locked).map((lesson) => lesson.slug))
-      ),
-    [sidebarModules]
-  );
-
-  const { previous, next, displayLesson } = useMemo(() => {
-    if (lessons.length === 0) {
-      return { previous: null, next: null, displayLesson: null };
-    }
-
-    const searchSlug = activeLessonSlug ?? lessons[0]?.slug ?? null;
-    const currentIndex = searchSlug ? lessons.findIndex((lesson) => lesson.slug === searchSlug) : 0;
-    const index = currentIndex >= 0 ? currentIndex : 0;
-
-    const findPrevious = () => {
-      for (let pointer = index - 1; pointer >= 0; pointer -= 1) {
-        const candidate = lessons[pointer];
-        if (candidate && !lockedLessonSlugs.has(candidate.slug)) {
-          return candidate;
-        }
+      const firstSlug = sorted[0]?.slug;
+      if (!lessonSlugParam && firstSlug) {
+        setLocation(`/course/${courseId}/learn/${firstSlug}`);
+        setActiveSlug(firstSlug);
+      } else if (lessonSlugParam && sorted.some((l) => l.slug === lessonSlugParam)) {
+        setActiveSlug(lessonSlugParam);
+      } else if (firstSlug) {
+        setActiveSlug(firstSlug);
       }
-      return null;
-    };
-
-    const findNext = () => {
-      for (let pointer = index + 1; pointer < lessons.length; pointer += 1) {
-        const candidate = lessons[pointer];
-        if (candidate && !lockedLessonSlugs.has(candidate.slug)) {
-          return candidate;
-        }
-      }
-      return null;
-    };
-
-    return {
-      previous: findPrevious(),
-      next: findNext(),
-      displayLesson: lessons[index]
-    };
-  }, [lessons, activeLessonSlug, lockedLessonSlugs]);
-
-  const resolvedLesson = useMemo(() => {
-    if (!displayLesson) {
-      return null;
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to load course",
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setLoading(false);
     }
+  }, [courseId, lessonSlugParam, setLocation, toast]);
 
-    return displayLesson;
-  }, [displayLesson]);
-
-  const resolvedVideoUrl = useMemo(() => {
-    if (!resolvedLesson || resolvedLesson.type !== 'video' || !resolvedLesson.videoUrl) {
-      return '';
+  const fetchProgress = useCallback(async () => {
+    if (!resolvedCourseId) return;
+    try {
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${resolvedCourseId}/progress`), {
+        credentials: "include",
+        headers: authHeaders,
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCourseProgress(data?.percent ?? 0);
+    } catch {
+      /* ignore */
     }
+  }, [resolvedCourseId, authHeaders]);
 
-    return normalizeVideoUrl(resolvedLesson.videoUrl);
-  }, [resolvedLesson]);
+  const fetchSections = useCallback(async () => {
+    if (!resolvedCourseId) return;
+    try {
+      const res = await fetch(buildApiUrl(`/api/quiz/sections/${resolvedCourseId}`), {
+        credentials: "include",
+        headers: authHeaders,
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSections(data?.sections ?? data ?? []);
+    } catch {
+      /* ignore */
+    }
+  }, [resolvedCourseId, authHeaders]);
 
   useEffect(() => {
-    if (!resolvedLesson) {
-      return;
+    void fetchTopics();
+  }, [fetchTopics]);
+
+  useEffect(() => {
+    void fetchProgress();
+  }, [fetchProgress]);
+
+  useEffect(() => {
+    void fetchSections();
+  }, [fetchSections]);
+
+  // Next overlay timer
+  useEffect(() => {
+    let timer: number;
+    if (showNextOverlay && countdown > 0) {
+      timer = window.setInterval(() => setCountdown((c) => c - 1), 1000);
+    } else if (showNextOverlay && countdown === 0) {
+      handleNextLesson();
     }
+    return () => clearInterval(timer);
+  }, [showNextOverlay, countdown]);
 
-    const lessonChanged = previousLessonSlug.current !== resolvedLesson.slug;
-    if (!lessonChanged) {
-      return;
-    }
-
-    previousLessonSlug.current = resolvedLesson.slug;
-
-    const nextViewMode =
-      resolvedLesson.type === 'video' && resolvedLesson.videoUrl
-        ? 'video'
-        : resolvedLesson.notes && resolvedLesson.notes.trim().length > 0
-          ? 'notes'
-          : 'quiz';
-    setViewMode(nextViewMode);
-
-    setQuizQuestions([]);
-    setSelectedAnswers({});
-    setQuizResult(null);
-    setQuizAttemptId(null);
-    setQuizKey(null);
-    setQuizError(null);
-  }, [resolvedLesson]);
-
-  const currentModuleNo = resolvedLesson?.moduleNo ?? null;
-  const currentTopicPairIndex = resolvedLesson
-    ? Math.max(1, resolvedLesson.topicPairIndex ?? Math.ceil((resolvedLesson.topicNumber ?? 1) / 2))
-    : null;
-  const currentQuizKey =
-    courseId && currentModuleNo !== null && currentTopicPairIndex !== null
-      ? `${courseId}-${currentModuleNo}-${currentTopicPairIndex}`
-      : null;
-
-  const currentQuizSection = useMemo(() => {
-    if (!quizSectionLookup || currentModuleNo === null || currentTopicPairIndex === null) {
-      return null;
-    }
-    return quizSectionLookup.get(`${currentModuleNo}:${currentTopicPairIndex}`) ?? null;
-  }, [quizSectionLookup, currentModuleNo, currentTopicPairIndex]);
-
-  const currentQuizAvailable =
-    currentModuleNo !== null && currentTopicPairIndex !== null
-      ? hasQuizForTopicPair(currentModuleNo, currentTopicPairIndex)
-      : false;
-
-  const moduleLockedFallback =
-    currentModuleNo !== null && currentModuleNo > 1 && isModuleLocked(currentModuleNo);
-  const quizLockedForSection =
-    currentQuizAvailable && currentModuleNo !== null && currentTopicPairIndex !== null
-      ? !isTopicPairUnlocked(currentModuleNo, currentTopicPairIndex)
-      : moduleLockedFallback;
-  const videoUnavailable = !resolvedLesson || resolvedLesson.type !== 'video' || !resolvedVideoUrl;
-
-  const handleViewModeChange = (mode: ViewMode) => {
-    if (mode === 'quiz') {
-      if (!currentQuizAvailable) {
-        toast({
-          title: 'Quiz unavailable',
-          description: 'No quiz has been configured for this topic pair.'
+  // Video progress UI (cosmetic)
+  useEffect(() => {
+    let interval: number;
+    if (isPlaying && !showNextOverlay && progress < 100 && !isReadingMode) {
+      interval = window.setInterval(() => {
+        setProgress((p) => {
+          const next = p + 0.1;
+          if (next >= 100) {
+            setIsPlaying(false);
+            setShowNextOverlay(true);
+            return 100;
+          }
+          return next;
         });
-        return;
-      }
-      if (quizLockedForSection) {
-        toast({
-          title: 'Quiz locked',
-          description: 'Complete the previous topic pair quiz to unlock this quiz.'
-        });
-        return;
-      }
+      }, 50);
     }
+    return () => clearInterval(interval);
+  }, [isPlaying, showNextOverlay, progress, isReadingMode]);
 
-    if (mode === 'video' && videoUnavailable) {
-      setViewMode(resolvedLesson?.notes ? 'notes' : 'quiz');
-      return;
+  // Quiz timer
+  useEffect(() => {
+    let interval: number;
+    if (isQuizMode && quizPhase === "active" && quizTimer > 0) {
+      interval = window.setInterval(() => setQuizTimer((t) => t - 1), 1000);
+    } else if (isQuizMode && quizPhase === "active" && quizTimer === 0) {
+      void handleSubmitQuiz();
     }
+    return () => clearInterval(interval);
+  }, [isQuizMode, quizPhase, quizTimer]);
 
-    setViewMode(mode);
+  // Drag/resize events
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragInfo.current.isDragging) return;
+      const dx = e.clientX - dragInfo.current.mouseX;
+      const dy = e.clientY - dragInfo.current.mouseY;
+      const type = dragInfo.current.type;
+      const updateRect = (prev: typeof studyWidgetRect) => {
+        const r = { ...prev };
+        if (type === "move") {
+          r.x = dragInfo.current.startX + dx;
+          r.y = dragInfo.current.startY + dy;
+        }
+        if (type === "resize-r" || type === "resize-br") r.width = Math.max(250, dragInfo.current.startW + dx);
+        if (type === "resize-b" || type === "resize-br") r.height = Math.max(200, dragInfo.current.startH + dy);
+        return r;
+      };
+      if (dragInfo.current.widget === "study") setStudyWidgetRect((p) => updateRect(p));
+      if (dragInfo.current.widget === "chat") setChatRect((p) => updateRect(p));
+      if (dragInfo.current.widget === "notes") setNotesRect((p) => updateRect(p));
+    };
+    const handleMouseUp = () => {
+      dragInfo.current.isDragging = false;
+      dragInfo.current.widget = null;
+      document.body.style.cursor = "default";
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  // Cleanup controls timeout
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) window.clearTimeout(controlsTimeoutRef.current);
+    };
+  }, []);
+
+  const centerWidget = (widget: "study" | "chat" | "notes") => {
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    if (widget === "study") setStudyWidgetRect({ x: winW / 2 - 300, y: winH / 2 - 225, width: 600, height: 450, initialized: true });
+    if (widget === "chat") setChatRect({ x: winW - 374, y: winH - 546, width: 350, height: 450, initialized: true });
+    if (widget === "notes") setNotesRect({ x: 24, y: winH - 374, width: 350, height: 300, initialized: true });
   };
 
-  const ViewModeToggle = ({ className = '' }: { className?: string }) => (
-    <div className={cn('inline-flex rounded-full border border-border bg-background/80 shadow-sm', className)}>
-      {[
-        { value: 'video', label: 'Video', disabled: videoUnavailable },
-        { value: 'notes', label: 'Notes', disabled: false },
-        {
-          value: 'quiz',
-          label: 'Quiz',
-          disabled:
-            quizLockedForSection ||
-            !currentQuizAvailable ||
-            !currentModuleNo ||
-            currentModuleNo <= 0
-        }
-      ].map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          disabled={option.disabled}
-          onClick={() => handleViewModeChange(option.value as ViewMode)}
-          className={cn(
-            'px-3 py-1.5 text-sm font-semibold rounded-full transition-colors',
-            viewMode === option.value
-              ? 'bg-primary text-primary-foreground shadow'
-              : 'text-muted-foreground hover:text-foreground',
-            option.disabled ? 'opacity-50 cursor-not-allowed' : ''
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
+  const handleMouseDown = (
+    e: React.MouseEvent,
+    type: string,
+    widget: "study" | "chat" | "notes",
+  ) => {
+    e.preventDefault();
+    const rect = widget === "study" ? studyWidgetRect : widget === "chat" ? chatRect : notesRect;
+    dragInfo.current = {
+      isDragging: true,
+      widget,
+      type,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: rect.x,
+      startY: rect.y,
+      startW: rect.width,
+      startH: rect.height,
+    } as typeof dragInfo.current;
+    if (type === "move") document.body.style.cursor = "move";
+    if (type === "resize-r") document.body.style.cursor = "ew-resize";
+    if (type === "resize-b") document.body.style.cursor = "ns-resize";
+    if (type === "resize-br") document.body.style.cursor = "nwse-resize";
+  };
 
-  const updateProgressMutation = useMutation<
-    { progress: LessonProgressPayload },
-    Error,
-    { lessonId: string; progressData: { progress: number; status: LessonProgressStatus } }
-  >({
-    mutationFn: async ({ lessonId, progressData }) => {
-      if (!session?.accessToken) {
-        throw new Error('Authentication required to save progress.');
+  const navigateToLesson = (slug: string) => {
+    const lesson = lessons.find((l) => l.slug === slug);
+    if (lesson && !unlockedModules.has(lesson.moduleNo)) return;
+    setActiveSlug(slug);
+    setIsReadingMode(false);
+    setIsPlaying(false);
+    setProgress(0);
+    setIsQuizMode(false);
+    setQuizPhase("intro");
+    setQuizQuestions([]);
+    setView("video");
+    setLocation(`/course/${courseId}/learn/${slug}`);
+  };
+
+  const handleNextLesson = () => {
+    if (!activeLesson) return;
+    const idx = lessons.findIndex((l) => l.slug === activeSlug);
+    for (let i = idx + 1; i < lessons.length; i++) {
+      if (unlockedModules.has(lessons[i].moduleNo)) {
+        navigateToLesson(lessons[i].slug);
+        break;
       }
-      const response = await apiRequest(
-        'PUT',
-        `/api/lessons/${lessonId}/progress`,
-        progressData,
-        authHeaders ? { headers: authHeaders } : undefined
-      );
-      return response.json();
-    },
-    onMutate: ({ lessonId }) => {
-      setPendingLessonId(lessonId);
-    },
-    onSuccess: (data, variables) => {
-      const progressRecord: LessonProgressPayload = data?.progress ?? {
-        lessonId: variables.lessonId,
-        status: variables.progressData.status,
-        progress: variables.progressData.progress,
-        updatedAt: new Date().toISOString()
-      };
-
-      setLessonProgressMap((previous) => ({
-        ...previous,
-        [variables.lessonId]: progressRecord
-      }));
-
-      if (resolvedCourseIdentifier !== 'unknown') {
-        queryClient.setQueryData<CourseProgressResponse>(
-          ['course-progress', resolvedCourseIdentifier, session?.accessToken],
-          (existing) => {
-            if (!existing) {
-              return existing;
-            }
-
-            const lessons = existing.lessons.map((lesson) =>
-              lesson.lessonId === variables.lessonId
-                ? {
-                    ...lesson,
-                    status: progressRecord.status,
-                    progress: progressRecord.progress,
-                    updatedAt: progressRecord.updatedAt ?? new Date().toISOString(),
-                    userId: progressRecord.userId ?? lesson.userId
-                  }
-                : lesson
-            );
-            const completedCount = lessons.filter((lesson) => lesson.status === 'completed').length;
-            const totalCount = existing.totalCount || lessons.length;
-            const percent = totalCount === 0 ? 0 : Math.floor((completedCount / totalCount) * 100);
-
-            return {
-              ...existing,
-              lessons,
-              completedCount,
-              percent
-            };
-          }
-        );
-
-        queryClient.invalidateQueries({
-          queryKey: ['course-progress', resolvedCourseIdentifier, session?.accessToken]
-        });
-      }
-
-      queryClient.invalidateQueries({ queryKey: [`/api/lessons/${variables.lessonId}/progress`, session?.accessToken] });
-    },
-    onError: (error: any) => {
-      if (handleAuthError(error)) return;
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to update progress'
-      });
-    },
-    onSettled: () => {
-      setPendingLessonId(null);
     }
-  });
+    setShowNextOverlay(false);
+    setCountdown(5);
+  };
 
-  const startQuizAttemptMutation = useMutation<
-    { attemptId: string; questions: QuizQuestion[]; moduleNo: number; topicPairIndex: number },
-    Error,
-    { courseId: string; moduleNo: number; topicPairIndex: number }
-  >({
-    mutationFn: async (payload) => {
-      if (!session?.accessToken) {
-        throw new Error('Authentication required to start quizzes.');
-      }
-      const response = await apiRequest('POST', '/api/quiz/attempts', {
-        ...payload,
-        limit: QUIZ_QUESTION_LIMIT
-      }, {
-        headers: { Authorization: `Bearer ${session.accessToken}` }
+  const handleMarkComplete = async () => {
+    if (!activeLesson?.id) return;
+    setProgressSaving(true);
+    try {
+      await fetch(buildApiUrl(`/api/lessons/${activeLesson.id}/progress`), {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authHeaders ?? {}),
+        },
+        body: JSON.stringify({ progress: 100, status: "completed" }),
       });
-      return response.json();
-    },
-    onSuccess: (data, variables) => {
+      toast({ title: "Progress saved", description: "Lesson marked complete." });
+      void fetchProgress();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Could not save progress",
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setProgressSaving(false);
+    }
+  };
+
+  const handleStartQuiz = async (moduleNo: number, topicPairIndex: number) => {
+    if (!resolvedCourseId) return;
+    try {
+      setQuizPhase("intro");
+      setQuizTimer(60);
+      const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authHeaders ?? {}),
+        },
+        body: JSON.stringify({ courseId: resolvedCourseId, moduleNo, topicPairIndex, limit: 3 }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setSelectedSection({ moduleNo, topicPairIndex });
       setQuizAttemptId(data?.attemptId ?? null);
       setQuizQuestions(data?.questions ?? []);
-      setSelectedAnswers({});
       setQuizResult(null);
-      setQuizKey(`${courseId ?? 'unknown'}-${variables.moduleNo}-${variables.topicPairIndex}`);
-      setQuizError(null);
-    },
-    onError: (error) => {
-      if (!handleAuthError(error)) {
-        setQuizError(error.message ?? 'Failed to start quiz');
-        toast({
-          variant: 'destructive',
-          title: 'Quiz unavailable',
-          description: error.message || 'Unable to start the quiz right now.'
-        });
-      }
+      setIsQuizMode(true);
+      setSidebarOpen(false);
+      setChatOpen(false);
+      setNotesOpen(false);
+      setStudyWidgetOpen(false);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Quiz unavailable",
+        description: error instanceof Error ? error.message : "Please try again",
+      });
     }
-  });
+  };
 
-  const submitQuizMutation = useMutation<
-    { result: QuizAttemptResult; progress?: { modules: QuizProgressModule[] } },
-    Error,
-    { attemptId: string; answers: { questionId: string; optionId: string }[] }
-  >({
-    mutationFn: async ({ attemptId, answers }) => {
-      if (!session?.accessToken) {
-        throw new Error('Authentication required to submit quizzes.');
-      }
-      const response = await apiRequest(
-        'POST',
-        `/api/quiz/attempts/${attemptId}/submit`,
-        { answers },
-        { headers: { Authorization: `Bearer ${session.accessToken}` } }
-      );
-      return response.json();
-    },
-    onSuccess: (data) => {
-      const baseResult = data?.result ?? {};
+  const handleSubmitQuiz = async () => {
+    if (!quizAttemptId) return;
+    try {
+      const payload = Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId }));
+      const res = await fetch(buildApiUrl(`/api/quiz/attempts/${quizAttemptId}/submit`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authHeaders ?? {}),
+        },
+        body: JSON.stringify({ answers: payload }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const base = data?.result ?? {};
       setQuizResult({
-        correctCount: baseResult.correctCount ?? 0,
-        totalQuestions: baseResult.totalQuestions ?? quizQuestions.length,
-        scorePercent: baseResult.scorePercent ?? 0,
-        passed: Boolean(baseResult.passed),
-        thresholdPercent: baseResult.thresholdPercent ?? PASSING_PERCENT_THRESHOLD
+        correctCount: base.correctCount ?? 0,
+        totalQuestions: base.totalQuestions ?? quizQuestions.length,
+        scorePercent: base.scorePercent ?? 0,
+        passed: Boolean(base.passed),
+        thresholdPercent: base.thresholdPercent ?? PASSING_PERCENT_THRESHOLD,
       });
-
-      if (data?.progress?.modules) {
-        queryClient.setQueryData(['quiz-progress', resolvedCourseIdentifier, session?.accessToken], data.progress);
-      }
-      quizProgressRefetch();
-      quizSectionsRefetch();
-
+      setQuizPhase("result");
+      toast({ title: base?.passed ? "Module unlocked" : "Quiz submitted" });
+      void fetchSections();
+    } catch (error) {
       toast({
-        title: baseResult?.passed ? 'Module unlocked' : 'Quiz submitted',
-        description: baseResult?.passed
-          ? 'Great job! You can now open the next module.'
-          : 'Review the material and try again.'
+        variant: "destructive",
+        title: "Submit failed",
+        description: error instanceof Error ? error.message : "Please try again",
       });
-    },
-    onError: (error) => {
-      if (!handleAuthError(error)) {
-        toast({
-          variant: 'destructive',
-          title: 'Submit failed',
-          description: error.message || 'Unable to submit answers'
-        });
-      }
-    }
-  });
-
-  const progressInfo = useMemo(
-    () => computeQuizProgress(sortedModuleNumbers, moduleUnlockState?.modulePassed ?? null, quizProgressMap),
-    [sortedModuleNumbers, moduleUnlockState?.modulePassed, quizProgressMap]
-  );
-  const quizStarting = startQuizAttemptMutation.isPending;
-  const quizSubmitting = submitQuizMutation.isPending;
-  const answersComplete =
-    quizQuestions.length > 0 &&
-    quizQuestions.every((question) => selectedAnswers[question.questionId] && selectedAnswers[question.questionId].length > 0);
-  const currentModuleProgress = currentModuleNo ? quizProgressMap.get(currentModuleNo) : undefined;
-  const sectionPassed =
-    currentQuizSection?.passed ??
-    moduleUnlockState?.modulePassed.get(currentModuleNo ?? 0) ??
-    currentModuleProgress?.quizPassed ??
-    false;
-
-  const handleLessonCompletionChange = (lessonId: string | null, shouldComplete: boolean) => {
-    if (!lessonId) {
-      return;
-    }
-    if (!session?.accessToken) {
-      toast({
-        title: 'Sign in required',
-        description: 'Sign in to track your lesson progress across devices.'
-      });
-      return;
-    }
-    updateProgressMutation.mutate({
-      lessonId,
-      progressData: {
-        progress: shouldComplete ? 100 : 0,
-        status: shouldComplete ? 'completed' : 'not_started'
-      }
-    });
-  };
-
-  const handleLessonSelect = useCallback(
-    (lessonSlug: string) => {
-      if (!courseId) {
-        return;
-      }
-      const targetLesson = lessonSourceBySlug.get(lessonSlug);
-      if (targetLesson) {
-        if (isModuleLocked(targetLesson.moduleNo)) {
-          toast({
-            title: 'Module locked',
-            description: 'Complete the previous quiz to unlock this module.'
-          });
-          return;
-        }
-        if (!isTopicPairUnlocked(targetLesson.moduleNo, targetLesson.topicPairIndex)) {
-          toast({
-            title: 'Topic locked',
-            description: 'Complete the previous topic pair quiz to unlock these lessons.'
-          });
-          return;
-        }
-      }
-
-      setLocation(`/course/${courseId}/learn/${lessonSlug}`);
-      if (isMobileSidebarOpen) {
-        setIsMobileSidebarOpen(false);
-      }
-    },
-    [
-      courseId,
-      isMobileSidebarOpen,
-      isModuleLocked,
-      isTopicPairUnlocked,
-      lessonSourceBySlug,
-      setLocation,
-      toast
-    ]
-  );
-
-  useEffect(() => {
-    if (viewMode !== 'quiz') {
-      return;
-    }
-
-    const moduleNumberValid =
-      typeof currentModuleNo === 'number' && Number.isFinite(currentModuleNo) && currentModuleNo > 0;
-    const topicPairValid =
-      typeof currentTopicPairIndex === 'number' && Number.isFinite(currentTopicPairIndex) && currentTopicPairIndex > 0;
-
-    if (!courseId || !moduleNumberValid || !topicPairValid) {
-      return;
-    }
-
-    if (resolvedCourseIdentifier === 'unknown') {
-      return;
-    }
-
-    if (!session?.accessToken) {
-      setQuizError('Sign in required to take this quiz.');
-      setQuizQuestions([]);
-      setQuizAttemptId(null);
-      return;
-    }
-
-    if (!currentQuizAvailable) {
-      setQuizError('No quiz available for this topic pair.');
-      setQuizQuestions([]);
-      setQuizAttemptId(null);
-      return;
-    }
-
-    if (quizLockedForSection) {
-      setQuizError('Complete the previous topic pair quiz to unlock this one.');
-      setQuizQuestions([]);
-      setQuizAttemptId(null);
-      return;
-    }
-
-    if (startQuizAttemptMutation.isPending || submitQuizMutation.isPending) {
-      return;
-    }
-
-    if (quizKey && quizKey === currentQuizKey && quizQuestions.length > 0) {
-      return;
-    }
-
-    startQuizAttemptMutation.mutate({
-      courseId: resolvedCourseIdentifier,
-      moduleNo: currentModuleNo,
-      topicPairIndex: currentTopicPairIndex
-    });
-  }, [
-    viewMode,
-    courseId,
-    currentModuleNo,
-    currentTopicPairIndex,
-    quizKey,
-    currentQuizKey,
-    quizQuestions.length,
-    isModuleLocked,
-    startQuizAttemptMutation.isPending,
-    startQuizAttemptMutation.mutate,
-    submitQuizMutation.isPending,
-    quizLockedForSection,
-    currentQuizAvailable,
-    session?.accessToken,
-    resolvedCourseIdentifier
-  ]);
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      setLocation('/');
     }
   };
 
-  const handleHome = () => {
-    setLocation('/');
+  const handleGlobalMouseMove = () => {
+    setIsControlsVisible(true);
+    if (controlsTimeoutRef.current) window.clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      if (isPlaying) setIsControlsVisible(false);
+    }, 3000);
   };
 
-  const handleAnswerChange = (questionId: string, optionId: string) => {
-    setSelectedAnswers((previous) => ({
-      ...previous,
-      [questionId]: optionId
-    }));
-  };
-
-  const handleProfileClick = () => {
-    toast({
-      title: 'Profile coming soon',
-      description: 'We\'re polishing your profile experience.'
-    });
-  };
-
-  const handleSettingsClick = () => {
-    toast({
-      title: 'Settings coming soon',
-      description: 'Personalized settings will arrive shortly.'
-    });
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('session');
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
-    setIsAuthenticated(false);
-    setUser(null);
-    setSession(null);
-    toast({ title: 'Signed out', description: 'You have been successfully logged out.' });
-    setLocation('/');
-  };
-
-  const introductionDataIsLoading =
-    isAuthenticated && courseTopicsLoading && introductionLessons.length === 0;
-  const moduleDataIsLoading =
-    isAuthenticated && courseTopicsLoading && fetchedModuleLessons.length === 0;
-  const awaitingDefaultModuleLesson =
-    isAuthenticated &&
-    !lessonSlug &&
-    fetchedModuleLessons.length === 0 &&
-    (courseTopicsLoading || courseTopicsResponse === undefined);
-  const awaitingLegacyRedirect = Boolean(
-    isAuthenticated &&
-      lessonSlug &&
-      legacyModuleOneSlugToTopicNumber[lessonSlug] &&
-      moduleOneLessons.length > 0 &&
-      !currentLessonBase
-  );
-  const awaitingModuleLessonHydration =
-    Boolean(
-      isAuthenticated &&
-        lessonSlug &&
-        !currentLessonBase &&
-        (courseTopicsLoading || courseTopicsResponse === undefined)
-    );
-  const shouldShowModuleHydrationSpinner =
-    introductionDataIsLoading ||
-    moduleDataIsLoading ||
-    awaitingDefaultModuleLesson ||
-    awaitingLegacyRedirect ||
-    awaitingModuleLessonHydration;
-
-  if (!authChecked) {
-    return (
-      <div
-        className="min-h-screen bg-background flex items-center justify-center"
-        data-testid="page-course-player-auth-loading"
-      >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Checking your session...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6" data-testid="page-course-player-auth-guard">
-        <div className="max-w-lg w-full text-center space-y-6 border border-border/60 bg-card/80 px-8 py-10 rounded-3xl shadow-lg">
-          <h1 className="text-3xl font-bold tracking-tight">Sign in to continue learning</h1>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            You need to be signed in to access course content. Please sign in with your account to resume where you left off.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={handleSignIn} className="h-12 px-6 text-base font-semibold">
-              Sign in with Google
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setLocation('/')}
-              className="h-12 px-6 text-base font-semibold"
-            >
-              Return to Home
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (courseLoading || lessonLoading || shouldShowModuleHydrationSpinner) {
-    return (
-      <div className={cn(FONT_INTER_STACK, "min-h-screen w-full")} style={{ background: DASHBOARD_GRADIENT_BG }}>
-        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
-          <div
-            className="flex min-h-[60vh] items-center justify-center rounded-[22px] bg-white shadow-2xl"
-            style={{ boxShadow: DASHBOARD_CARD_SHADOW }}
-            data-testid="page-course-player-loading"
-          >
-            <div className="text-center">
-              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-              <p>Loading course...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!resolvedLesson) {
-    return (
-      <div className={cn(FONT_INTER_STACK, "min-h-screen w-full")} style={{ background: DASHBOARD_GRADIENT_BG }}>
-        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
-          <div
-            className="flex min-h-[60vh] items-center justify-center rounded-[22px] bg-white shadow-2xl"
-            style={{ boxShadow: DASHBOARD_CARD_SHADOW }}
-            data-testid="page-lesson-not-found"
-          >
-            <div className="text-center">
-              <h1 className="mb-2 text-2xl font-bold">Lesson Not Found</h1>
-              <p className="text-muted-foreground">The requested lesson could not be found.</p>
-              <Button onClick={() => setLocation('/')} className="mt-4">
-                Go to Home
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className={cn(FONT_INTER_STACK, "min-h-screen w-full flex")} style={{ background: DASHBOARD_GRADIENT_BG }}>
-      <CourseSidebar
-        modules={sidebarModules}
-        progressPercent={progressInfo.percent}
-        completedCount={progressInfo.completedCount}
-        totalCount={progressInfo.totalCount}
-        onLessonSelect={handleLessonSelect}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed((previous) => !previous)}
-        onToggleLessonComplete={(lessonId, shouldComplete) =>
-          handleLessonCompletionChange(lessonId, shouldComplete)
-        }
-      />
-      <div className="flex flex-col flex-1 min-w-0 min-h-screen overflow-x-hidden relative">
-        <header
-          className="flex-shrink-0 bg-background/80 backdrop-blur-sm sticky top-0 z-10 border-b border-border/60 shadow-sm px-4 sm:px-6 lg:px-8 py-3"
-          data-testid="page-header"
-        >
-          <div className="w-full max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
-              <div className="flex items-center space-x-3">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="lg:hidden"
-                  data-testid="button-open-mobile-sidebar"
-                >
-                  <Menu className="w-4 h-4" />
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleBack}
-                    aria-label="Go back"
-                    className="border border-border/60"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleHome}
-                    aria-label="Go home"
-                    className="border border-border/60"
-                  >
-                    <Home className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate" data-testid="title-lesson">
-                    {resolvedLesson.rawTitle ?? resolvedLesson.title}
-                  </h1>
-                  <p className="text-sm text-muted-foreground truncate" data-testid="subtitle-course">
-                    {course?.title}
-                  </p>
-                  <div className="hidden lg:flex mt-2">
-                    <ViewModeToggle />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <ThemeToggle />
-                {isAuthenticated && user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="group flex items-center gap-3 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-left text-sm font-medium text-foreground shadow-sm transition hover:bg-accent/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                      >
-                        <Avatar className="h-9 w-9 border border-primary/20 bg-muted">
-                          {user.picture ? (
-                            <AvatarImage src={user.picture} alt={user.fullName} referrerPolicy="no-referrer" />
-                          ) : (
-                            <AvatarFallback className="text-sm font-semibold text-primary">
-                              {getUserInitials(user.fullName)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="hidden min-[420px]:flex min-w-0 flex-col leading-tight text-left">
-                          <span className="text-xs text-muted-foreground">Signed in</span>
-                          <span className="truncate text-sm font-semibold">{user.fullName}</span>
-                        </div>
-                        <span className="min-[420px]:hidden text-sm font-semibold">
-                          {user.fullName.split(' ')[0] || getUserInitials(user.fullName)}
-                        </span>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-60" sideOffset={8}>
-                      <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-semibold leading-none">{user.fullName}</span>
-                          <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="flex items-center gap-2" onSelect={handleProfileClick}>
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2" onSelect={handleSettingsClick}>
-                        <Settings className="h-4 w-4 text-muted-foreground" />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="flex items-center gap-2 text-destructive focus:text-destructive"
-                        onSelect={handleLogout}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Logout
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={handleHome}>
-                    Sign in
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="flex-1 flex flex-col min-h-0 max-w-full overflow-hidden">
-          {viewMode === 'video' && resolvedLesson.type === 'video' && resolvedVideoUrl && (
-            <div className="w-full overflow-x-hidden flex-shrink-0" data-testid="section-video">
-              <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:pt-6 lg:pb-4 space-y-4">
-                <div
-                  className="relative w-full aspect-video max-h-[65vh] min-h-[220px] rounded-2xl border border-border/60 bg-black shadow-xl overflow-hidden"
-                  onContextMenu={(event) => event.preventDefault()}
-                >
-                  <iframe
-                    src={resolvedVideoUrl}
-                    className="absolute inset-0 w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    title={resolvedLesson.rawTitle ?? resolvedLesson.title}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex-1 w-full max-w-full overflow-x-hidden overflow-y-auto px-4 py-4 lg:py-6" data-testid="section-lesson-content">
-            <div className="max-w-6xl mx-auto w-full space-y-6">
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="lg:hidden">
-                    <ViewModeToggle />
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>Module {currentModuleNo ?? '-'}</span>
-                    <span>•</span>
-                    <span>Topic pair {currentTopicPairIndex ?? '-'}</span>
-                    {quizLockedForSection && (
-                      <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs font-semibold">
-                        Locked
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2" data-testid="navigation-lesson">
-                    <Button
-                      variant="outline"
-                      disabled={!previous}
-                      onClick={() => previous && setLocation(`/course/${courseId}/learn/${previous.slug}`)}
-                      data-testid="button-previous-lesson"
-                      className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
-                    >
-                      <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                      <span className="hidden sm:inline">Previous</span>
-                      <span className="sm:hidden">Prev</span>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      disabled={!next}
-                      onClick={() => next && setLocation(`/course/${courseId}/learn/${next.slug}`)}
-                      data-testid="button-next-lesson"
-                      className="text-xs sm:text-sm px-3 py-2 lg:px-4 lg:py-2"
-                    >
-                      <span className="hidden sm:inline">Next</span>
-                      <span className="sm:hidden">Next</span>
-                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {viewMode === 'notes' && (
-                <LessonTabs
-                  guideContent={resolvedLesson.notes || undefined}
-                  onToggleComplete={(nextState) => handleLessonCompletionChange(resolvedLesson.id, nextState)}
-                  isCompleted={resolvedLesson.completed}
-                  isUpdating={pendingLessonId === resolvedLesson.id && updateProgressMutation.isPending}
-                />
-              )}
-
-              {viewMode === 'quiz' && (
-                <div className="space-y-4" data-testid="section-quiz">
-                  <div className="rounded-2xl border border-border/70 bg-card/70 p-4 sm:p-6 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Module {currentModuleNo ?? '-'} • Topic pair {currentTopicPairIndex ?? '-'}
-                        </p>
-                        <h2 className="text-xl font-bold">Module Quiz</h2>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {quizProgressLoading || quizSectionsLoading
-                          ? 'Loading progress...'
-                          : sectionPassed
-                            ? 'Passed'
-                            : 'Not passed yet'}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {quizGridSections.map((section) => {
-                        const moduleNo = section.moduleNo;
-                        const topicPairIndex = section.topicPairIndex;
-                        const passed = section.passed;
-                        const unlocked = section.unlocked;
-                        const isCurrent =
-                          moduleNo === currentModuleNo &&
-                          (showingTopicPairs ? topicPairIndex === currentTopicPairIndex : true);
-                        return (
-                          <div
-                            key={`${moduleNo}-${topicPairIndex}`}
-                            className={cn(
-                              'rounded-xl border p-3 shadow-sm transition',
-                              passed
-                                ? 'border-emerald-300 bg-emerald-50/70'
-                                : unlocked
-                                  ? 'border-border/70 bg-background/50'
-                                  : 'border-dashed border-border/60 bg-muted/40'
-                            )}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="font-semibold text-sm">
-                                {showingTopicPairs
-                                  ? section.title ?? `Module ${moduleNo} • Topic pair ${topicPairIndex}`
-                                  : `Module ${moduleNo}`}
-                                {showingTopicPairs && (
-                                  <span className="block text-xs text-muted-foreground">
-                                    Topic pair {topicPairIndex}
-                                  </span>
-                                )}
-                              </div>
-                              <span
-                                className={cn(
-                                  'text-xs px-2 py-0.5 rounded-full',
-                                  passed
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : unlocked
-                                      ? 'bg-primary/10 text-primary'
-                                      : 'bg-muted text-muted-foreground'
-                                )}
-                              >
-                                {passed ? 'Passed' : unlocked ? 'Unlocked' : 'Locked'}
-                              </span>
-                            </div>
-                            {showingTopicPairs && section.subtitle && (
-                              <p className="text-xs text-muted-foreground mt-1">{section.subtitle}</p>
-                            )}
-                            {isCurrent && (
-                              <p className="text-xs text-primary mt-1">
-                                {showingTopicPairs ? 'Current topic pair' : 'Current module'}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 sm:p-6 shadow-sm">
-                        {!currentQuizAvailable ? (
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <Lock className="w-5 h-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-semibold text-foreground">Quiz unavailable</p>
-                              <p>No quiz has been configured for this topic pair.</p>
-                            </div>
-                          </div>
-                        ) : quizLockedForSection ? (
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <Lock className="w-5 h-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-semibold text-foreground">Quiz locked</p>
-                              <p>Complete the previous topic pair quiz to unlock this one.</p>
-                            </div>
-                          </div>
-                        ) : quizStarting ? (
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                            <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                            <span>Loading quiz questions...</span>
-                          </div>
-                        ) : quizQuestions.length === 0 && quizError ? (
-                          <p className="text-muted-foreground text-sm">{quizError}</p>
-                        ) : quizQuestions.length === 0 ? (
-                          <p className="text-muted-foreground text-sm">No questions available for this module.</p>
-                        ) : (
-                          <div className="space-y-4">
-                            {quizQuestions.map((question, index) => (
-                              <div
-                                key={question.questionId}
-                                className="rounded-xl border border-border/60 bg-background/60 p-4 space-y-3"
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="text-xs uppercase text-muted-foreground">Question {index + 1}</p>
-                                    <p className="font-semibold text-foreground mt-1">{question.prompt}</p>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  {question.options.map((option) => {
-                                    const selected = selectedAnswers[question.questionId] === option.optionId;
-                                    return (
-                                      <label
-                                        key={option.optionId}
-                                        className={cn(
-                                          'flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition',
-                                          selected
-                                            ? 'border-primary bg-primary/5 text-foreground'
-                                            : 'border-border/60 hover:border-primary/60'
-                                        )}
-                                      >
-                                        <input
-                                          type="radio"
-                                          name={`question-${question.questionId}`}
-                                          value={option.optionId}
-                                          checked={selected}
-                                          onChange={() => handleAnswerChange(question.questionId, option.optionId)}
-                                          className="sr-only"
-                                        />
-                                        <span
-                                          className={cn(
-                                            'w-4 h-4 rounded-full border flex items-center justify-center',
-                                            selected ? 'border-primary bg-primary/80' : 'border-muted-foreground/50'
-                                          )}
-                                        >
-                                          <span className="w-2 h-2 rounded-full bg-white/90" />
-                                        </span>
-                                        <span className="text-sm leading-snug">{option.text}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                              <Button
-                                onClick={() =>
-                                  quizAttemptId &&
-                                  submitQuizMutation.mutate({
-                                    attemptId: quizAttemptId,
-                                    answers: Object.entries(selectedAnswers).map(([questionId, optionId]) => ({
-                                      questionId,
-                                      optionId
-                                    }))
-                                  })
-                                }
-                                disabled={!quizAttemptId || !answersComplete || quizSubmitting}
-                                className="w-full sm:w-auto"
-                              >
-                                {quizSubmitting ? 'Submitting...' : 'Submit answers'}
-                              </Button>
-                              {!answersComplete && quizQuestions.length > 0 && (
-                                <span className="text-xs text-muted-foreground">Answer all questions to submit.</span>
-                              )}
-                            </div>
-                            {quizResult && (
-                              <div
-                                className={cn(
-                                  'rounded-xl p-4 border',
-                                  quizResult.passed
-                                    ? 'border-emerald-300 bg-emerald-50/80 text-emerald-800'
-                                    : 'border-amber-200 bg-amber-50/80 text-amber-800'
-                                )}
-                              >
-                                <p className="text-sm font-semibold">
-                                  {quizResult.passed ? 'Quiz passed!' : 'Quiz submitted'}
-                                </p>
-                                <p className="text-xs mt-1">
-                                  Score: {quizResult.scorePercent}% • {quizResult.correctCount} / {quizResult.totalQuestions} correct
-                                </p>
-                                <p className="text-xs">
-                                  Passing score: {quizResult.thresholdPercent ?? PASSING_PERCENT_THRESHOLD}%
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Module progress</p>
-                            <h3 className="text-lg font-semibold">
-                              {sectionPassed ? 'Quiz passed' : 'Quiz pending'}
-                            </h3>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Passing score {PASSING_PERCENT_THRESHOLD}% required to unlock the next module.
-                            </p>
-                          </div>
-                          <span
-                            className={cn(
-                              'text-xs px-2 py-1 rounded-full',
-                              sectionPassed ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            {sectionPassed ? 'Passed' : 'In progress'}
-                          </span>
-                        </div>
-                        <div className="mt-4 space-y-2">
-                          <Progress
-                            value={
-                              quizResult
-                                ? Math.min(quizResult.scorePercent, 100)
-                                : sectionPassed
-                                  ? 100
-                                  : 0
-                            }
-                          />
-                          {quizResult && (
-                            <p className="text-xs text-muted-foreground">
-                              Latest attempt: {quizResult.scorePercent}% ({quizResult.correctCount} / {quizResult.totalQuestions})
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {viewMode === 'video' && (resolvedLesson.type !== 'video' || !resolvedVideoUrl) && (
-                <div className="rounded-xl border border-border/60 bg-card/80 p-6">
-                  <p className="text-sm text-muted-foreground">
-                    No video available for this lesson. Switch to Notes or Quiz view to continue.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-          <ChatBot courseName={course?.title} courseId={courseId} />
-        </div>
-      </div>
-      {sessionExpired ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900">
-            <h2 className="text-xl font-bold text-foreground mb-2">Session expired</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your session has expired. Please sign in again to continue learning.
+  const renderStudyMaterial = () => (
+    <div className="prose prose-slate max-w-none text-left">
+      {(activeLesson.textContent || STUDY_MATERIAL_PLACEHOLDER)
+        .split("\n")
+        .map((line, i) => {
+          if (line.startsWith("## "))
+            return (
+              <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">
+                {line.replace("## ", "")}
+              </h2>
+            );
+          if (line.startsWith("### "))
+            return (
+              <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
+                {line.replace("### ", "")}
+              </h3>
+            );
+          if (line.startsWith("* "))
+            return (
+              <li key={i} className="ml-6 list-disc opacity-80 mb-1">
+                {line.replace("* ", "")}
+              </li>
+            );
+          if (line.startsWith("1. "))
+            return (
+              <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
+                {line.replace("1. ", "")}
+              </li>
+            );
+          if (line.trim() === "") return <div key={i} className="h-2"></div>;
+          return (
+            <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">
+              {line}
             </p>
-            <Button className="w-full" onClick={() => setLocation('/')}>Go to home</Button>
-          </div>
-        </div>
-      ) : null}
+          );
+        })}
     </div>
   );
-}
+
+  const chatWidget = chatOpen && !isQuizMode ? (
+    <div
+      className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
+      style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
+    >
+      <div
+        className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
+      >
+        <div className="flex items-center gap-2 text-white font-bold text-sm">
+          <MessageSquare size={16} /> AI Tutor
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+            <Move size={14} className="text-white" />
+          </button>
+          <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded">
+            <X size={14} className="text-white" />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
+        <div className="text-xs text-[#f8f1e6]/50">AI tutor placeholder. Integrate RAG backend as needed.</div>
+      </div>
+      <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
+        <input
+          className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
+          placeholder="Ask AI..."
+          onKeyDown={(e) => e.key === "Enter" && undefined}
+        />
+        <button className="p-2">
+          <Send size={16} className="text-[#bf2f1f]" />
+        </button>
+      </div>
+      <div
+        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20"
+        onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20"
+        onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl"
+        onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")}
+      />
+    </div>
+  ) : null;
+
+  const notesWidget = notesOpen && !isQuizMode ? (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+          <FileText size={16} /> My Notes
+        </div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+            <Move size={14} />
+          </button>
+          <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+      <textarea
+        className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono"
+        placeholder="Type notes here..."
+      ></textarea>
+      <div
+        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20"
+        onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20"
+        onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl"
+        onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")}
+      />
+    </div>
+  ) : null;
+
+  const studyWidget = studyWidgetOpen && !isQuizMode ? (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "study")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+          <Book size={16} /> Study Material
+        </div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+            <Move size={14} />
+          </button>
+          <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">{renderStudyMaterial()}</div>
+      <div
+        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50"
+        onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50"
+        onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")}
+      />
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl"
+        onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")}
+      />
+    </div>
+  ) : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#000000] text-[#f8f1e6]">
+        <div className="text-center space-y-3">
+          <div className="animate-spin h-10 w-10 border-4 border-[#bf2f1f] border-t-transparent rounded-full mx-auto" />
+          <p className="text-lg font-semibold">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeLesson) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#000000] text-[#f8f1e6]">
+        <div className="text-center">
+          <p className="text-lg">No lessons available.</p>
+          <button className="mt-4 px-4 py-2 bg-[#bf2f1f] text-white rounded-lg" onClick={() => setLocation("/")}>
+            Go Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative"
+      onMouseMove={handleGlobalMouseMove}
+      onClick={handleGlobalMouseMove}
+    >
+      <style>{`
+          @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+          .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+          input[type=range] { -webkit-appearance: none; background: transparent; }
+          input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #bf2f1f; margin-top: -6px; cursor: pointer; border: 2px solid #f8f1e6; }
+          input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #4a4845; border-radius: 2px; }
+      `}</style>
+
+      {/* Sidebar */}
+      <div
+        className={`bg-[#000000] transition-all duration-300 ease-in-out flex flex-col shrink-0 relative z-30 overflow-hidden ${
+          isFullScreen ? "absolute h-full z-40" : ""
+        } ${!isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"} ${
+          sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"
+        }`}
+      >
+        <div className="h-14 flex items-center justify-between px-3 border-b border-[#4a4845]/50 bg-white/5 min-w-[3rem]">
+          {sidebarOpen && <h2 className="font-bold text-sm text-[#f8f1e6] truncate">Course Content</h2>}
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1 hover:bg-[#4a4845]/30 rounded text-[#f8f1e6]"
+            title={sidebarOpen ? "Minimize Sidebar" : "Expand Sidebar"}
+          >
+            {sidebarOpen ? <ChevronLeft size={20} /> : <Book size={20} />}
+          </button>
+        </div>
+
+        {sidebarOpen && (
+          <div className="p-4 border-b border-[#4a4845]/20">
+            <div className="flex justify-between text-xs text-[#f8f1e6] mb-1">
+              <span className="font-bold">Module {currentModuleNo} of {modules.length}</span>
+              <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
+            </div>
+            <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
+              <div className="h-full bg-[#bf2f1f] transition-all duration-500" style={{ width: `${courseProgress}%` }}></div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
+          {modules.map((module) => {
+            const isExpanded = expandedModules.includes(module.id);
+            const isUnlocked = unlockedModules.has(module.id);
+            return (
+              <div key={module.id} className={!sidebarOpen ? "hidden" : ""}>
+                <div
+                  className="flex items-center justify-between cursor-pointer p-2 hover:bg-white/5 rounded group"
+                  onClick={() =>
+                    setExpandedModules((prev) =>
+                      prev.includes(module.id) ? prev.filter((m) => m !== module.id) : [...prev, module.id],
+                    )
+                  }
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-[#4a4845] font-bold truncate group-hover:text-[#f8f1e6] transition-colors">
+                    {module.title}
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-[#4a4845] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                  />
+                </div>
+
+                <div
+                  className={`space-y-1 transition-all duration-300 ${
+                    isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
+                  }`}
+                >
+                  {module.submodules?.map((sub) => {
+                    const active = sub.id === activeLesson.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        onClick={() =>
+                          sub.type === "quiz"
+                            ? handleStartQuiz(module.id, sub.title ? Number(sub.title.split(" ")[0]) || 1 : 1)
+                            : navigateToLesson(lessons.find((l) => l.id === sub.id)?.slug ?? "")
+                        }
+                        disabled={!isUnlocked || (isQuizMode && quizPhase !== "result")}
+                        className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${
+                          active
+                            ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"
+                            : "hover:bg-white/5 border-transparent text-[#f8f1e6]/70"
+                        } ${!isUnlocked ? "opacity-40 cursor-not-allowed" : ""}`}
+                      >
+                        {sub.type === "quiz" ? <FileText size={14} className="flex-shrink-0" /> : <Play size={14} className="flex-shrink-0" />}
+                        <span className="truncate flex-1">{sub.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {!sidebarOpen && (
+          <div className="flex flex-col items-center mt-4 gap-4">
+            <div className="w-8 h-8 rounded bg-[#bf2f1f] flex items-center justify-center text-white shadow-lg">
+              <span className="font-bold text-xs">{currentModuleNo}</span>
+            </div>
+            <div className="space-y-2">
+              {modules
+                .filter((m) => m.id !== currentModuleNo)
+                .map((m) => (
+                  <div key={m.id} className="w-1.5 h-1.5 rounded-full bg-[#4a4845]/50 mx-auto"></div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main stage */}
+      <div className={`flex-1 flex flex-col h-full relative overflow-y-auto scroll-smooth ${isFullScreen ? "overflow-hidden" : ""}`}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#4a4845]/60 bg-[#050505]">
+          <div>
+            <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson.moduleNo} · Topic {activeLesson.topicNumber}</p>
+            <h1 className="text-2xl font-black">{activeLesson.title}</h1>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
+        </div>
+
+        {/* Video */}
+        <div
+          className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
+            isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : "w-full h-[65vh]"
+          }`}
+        >
+          <div className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"}`}>
+            {activeLesson.videoUrl ? (
+              <iframe
+                className="w-full h-full"
+                src={normalizeVideoUrl(activeLesson.videoUrl)}
+                title={activeLesson.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">No video for this lesson.</div>
+            )}
+
+            {showNextOverlay && (
+              <div className="absolute inset-0 bg-[#000000]/95 flex flex-col items-center justify-center z-20 animate-fade-in">
+                <div className="text-[#f8f1e6]/60 text-xl mb-2">Next up...</div>
+                <div className="text-8xl font-black text-[#bf2f1f]">{countdown}</div>
+                <button
+                  onClick={handleNextLesson}
+                  className="mt-8 px-6 py-2 bg-[#f8f1e6] text-[#000000] font-bold rounded-full border-2 border-[#bf2f1f]"
+                >
+                  Continue <SkipForward size={16} className="inline ml-1" />
+                </button>
+              </div>
+            )}
+
+            {!showNextOverlay && !isPlaying && (
+              <div className="absolute inset-0 flex items-center justify-center cursor-pointer" onClick={() => setIsPlaying(true)}>
+                <div className="w-20 h-20 bg-[#bf2f1f]/80 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-[#f8f1e6] hover:scale-110 transition shadow-2xl">
+                  <Play size={32} fill="white" className="ml-1 text-white" />
+                </div>
+              </div>
+            )}
+            {!showNextOverlay && isPlaying && (
+              <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => setIsPlaying(false)}></div>
+            )}
+
+            <div
+              className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pt-14 pb-2 px-4 z-20 transition-opacity duration-300 ${
+                isControlsVisible || !isPlaying ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={(e) => setProgress(Number(e.target.value))}
+                className="w-full h-1 mb-4 accent-[#bf2f1f] cursor-pointer"
+              />
+
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-[#bf2f1f] transition">
+                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                  </button>
+                  <div className="text-xs text-[#f8f1e6]">
+                    <span className="font-bold text-white block">{activeLesson.title}</span>
+                    <span className="opacity-70">{Math.floor((progress * 12) / 100)}:00 / 12:00</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setStudyWidgetOpen(!studyWidgetOpen)}
+                    className={`p-2 rounded-full transition ${
+                      studyWidgetOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                    title="Open Study Material"
+                  >
+                    <Book size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => setNotesOpen(!notesOpen)}
+                    className={`p-2 rounded-full transition ${
+                      notesOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                    title="Open Notes"
+                  >
+                    <FileText size={18} />
+                  </button>
+
+                  <button
+                    onClick={() => setChatOpen(!chatOpen)}
+                    className={`p-2 rounded-full transition ${
+                      chatOpen ? "bg-[#bf2f1f] text-white" : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                    title="Open AI Chat"
+                  >
+                    <MessageSquare size={18} />
+                  </button>
+
+                  <div className="w-px h-6 bg-white/20 mx-1"></div>
+
+                  <button
+                    onClick={() => setIsFullScreen((v) => !v)}
+                    className="text-white hover:text-[#bf2f1f] transition"
+                    title="Cinema Mode"
+                  >
+                    {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Study section */}
+        {!isFullScreen && !isQuizMode && (
+          <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
+            <div className="w-full p-8 md:p-12">
+              <div className="flex items-center justify-between mb-8 border-b-2 border-[#4a4845]/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg">
+                    <Book size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
+                    <p className="text-sm text-[#4a4845]">Companion reading for {activeLesson.title}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsReadingMode(!isReadingMode)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
+                    isReadingMode
+                      ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
+                      : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
+                  }`}
+                >
+                  {isReadingMode ? (
+                    <>
+                      <ArrowUpLeftFromCircle size={16} /> Restore Video
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen size={16} /> Read Mode
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {renderStudyMaterial()}
+            </div>
+          </div>
+        )}
+
+        {/* Quiz overlay */}
+        {isQuizMode && (
+          <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+            <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+              {quizPhase === "intro" && (
+                <div className="text-center space-y-6 animate-fade-in">
+                  <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
+                    <Lock size={48} />
+                  </div>
+                  <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">The Gauntlet</h2>
+                  <p className="text-lg text-[#4a4845] font-medium">
+                    You are about to enter a mandatory evaluation.
+                    <br />
+                    <span className="text-[#bf2f1f] font-bold">Rules are strict:</span>
+                  </p>
+                  <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
+                    <li className="flex gap-2">
+                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 3 Random Questions
+                    </li>
+                    <li className="flex gap-2">
+                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
+                    </li>
+                    <li className="flex gap-2">
+                      <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 2/3 to pass
+                    </li>
+                    <li className="flex gap-2 text-[#bf2f1f]">
+                      <X size={16} /> Failure = Reset to Module 1
+                    </li>
+                  </ul>
+                  <button
+                    onClick={() => setQuizPhase("active")}
+                    className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
+                  >
+                    I Accept the Challenge
+                  </button>
+                </div>
+              )}
+
+              {quizPhase === "active" && (
+                <div className="animate-fade-in">
+                  <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
+                    <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
+                    <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
+                      00:{quizTimer.toString().padStart(2, "0")}
+                    </span>
+                  </div>
+
+                  <div className="space-y-8">
+                    {quizQuestions.map((q, idx) => (
+                      <div key={q.questionId} className="space-y-4">
+                        <h3 className="text-xl font-bold">{idx + 1}. {q.prompt}</h3>
+                        <div className="grid gap-3">
+                          {q.options.map((opt) => (
+                            <button
+                              key={opt.optionId}
+                              onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
+                              className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${
+                                answers[q.questionId] === opt.optionId
+                                  ? "bg-[#000000] text-white border-[#000000]"
+                                  : "bg-white border-[#4a4845]/20 hover:border-[#000000]"
+                              }`}
+                            >
+                              {opt.text}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    disabled={quizQuestions.some((q) => !answers[q.questionId])}
+                    onClick={handleSubmitQuiz}
+                    className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                  >
+                    Submit Assessment
+                  </button>
+                </div>
+              )}
+
+              {quizPhase === "result" && quizResult && (
+                <div className="text-center animate-fade-in space-y-6">
+                  <div
+                    className={`inline-flex p-6 rounded-full border-4 mb-4 ${
+                      quizResult.passed
+                        ? "bg-green-100 border-green-500 text-green-600"
+                        : "bg-red-100 border-red-500 text-red-600"
+                    }`}
+                  >
+                    {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
+                  </div>
+                  <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Gauntlet Passed" : "Protocol Failed"}</h2>
+                  <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
+                  <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
+                  <button
+                    onClick={() => {
+                      setIsQuizMode(false);
+                      setQuizPhase("intro");
+                      setQuizQuestions([]);
+                      setAnswers({});
+                      setSelectedSection(null);
+                      setQuizAttemptId(null);
+                      setQuizResult(null);
+                    }}
+                    className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                  >
+                    Back to course
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+  return (
+    <div
+      className="flex h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative"
+      onMouseMove={handleGlobalMouseMove}
+      onClick={handleGlobalMouseMove}
+    >
+      {/* Sidebar */}
+      {/* ... keep your existing sidebar code ... */}
+
+      {/* Main stage */}
+      <div className={`flex-1 flex flex-col h-full relative overflow-y-auto scroll-smooth ${isFullScreen ? "overflow-hidden" : ""}`}>
+        {/* Header */}
+        {/* ... keep your existing header/video/study/quiz content ... */}
+      </div>
+
+      {/* Chat widget */}
+      {chatOpen && !isQuizMode && (
+        <div
+          className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
+          style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
+        >
+          <div
+            className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
+            onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
+          >
+            <div className="flex items-center gap-2 text-white font-bold text-sm">
+              <MessageSquare size={16} /> AI Tutor
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+                <Move size={14} className="text-white" />
+              </button>
+              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded">
+                <X size={14} className="text-white" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
+            <div className="text-xs text-[#f8f1e6]/50">AI tutor placeholder. Integrate RAG backend as needed.</div>
+          </div>
+          <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
+            <input
+              className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
+              placeholder="Ask AI..."
+              onKeyDown={(e) => e.key === "Enter" && undefined}
+            />
+            <button className="p-2">
+              <Send size={16} className="text-[#bf2f1f]" />
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
+        </div>
+      )}
+
+      {/* Notes widget */}
+      {notesOpen && !isQuizMode && (
+        <div
+          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+          style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
+        >
+          <div
+            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+            onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
+          >
+            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+              <FileText size={16} /> My Notes
+            </div>
+            <div className="flex items-center gap-1 text-[#f8f1e6]">
+              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+                <Move size={14} />
+              </button>
+              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded">
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
+          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover-bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
+        </div>
+      )}
+
+      {/* Study widget */}
+      {studyWidgetOpen && !isQuizMode && (
+        <div
+          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+          style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
+        >
+          <div
+            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+            onMouseDown={(e) => handleMouseDown(e, "move", "study")}
+          >
+            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+              <Book size={16} /> Study Material
+            </div>
+            <div className="flex items-center gap-1 text-[#f8f1e6]">
+              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
+                <Move size={14} />
+              </button>
+              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded">
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">{renderStudyMaterial()}</div>
+          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />
+        </div>
+      )}
+
+      <button
+        onClick={() => setChatOpen(!chatOpen)}
+        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${
+          isFullScreen || isQuizMode ? "hidden" : ""
+        }`}
+        title="Chat with AI Tutor"
+      >
+        {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+      </button>
+    </div>
+  );
+};
+
+export default CoursePlayerPage;
