@@ -10,6 +10,7 @@ import CoursePlayerPage from "@/pages/CoursePlayerPage";
 import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
+import CourseDetailsPage from "@/pages/CourseDetailsPage";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/course/:id/assessment" component={AssessmentPage} />
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
       <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
+      <Route path="/course/:id" component={CourseDetailsPage} />
       <Route path="/auth/callback" component={AuthCallbackPage} />
       
       {/* Default route goes to dashboard */}

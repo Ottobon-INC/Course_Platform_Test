@@ -1,48 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import {
-  ArrowDown,
-  ArrowUpLeftFromCircle,
-  Book,
-  BookOpen,
-  ChevronDown,
-  ChevronLeft,
-  FileText,
-  Lock,
-  Maximize,
-  MessageSquare,
-  Minimize,
-  Move,
-  Pause,
+  Menu,
   Play,
-  Send,
+  Pause,
   SkipForward,
+  MessageSquare,
+  FileText,
+  ChevronLeft,
+  Lock,
+  Book,
+  Maximize,
+  Minimize,
   X,
+  Send,
+  ArrowUpLeftFromCircle,
+  BookOpen,
+  ArrowDown,
+  Move,
+  ChevronDown,
 } from "lucide-react";
-import { buildApiUrl } from "@/lib/api";
-import { readStoredSession } from "@/utils/session";
 import { useToast } from "@/hooks/use-toast";
+import { buildApiUrl } from "@/lib/api";
+import { ensureSessionFresh, readStoredSession } from "@/utils/session";
+import type { StoredSession } from "@/types/session";
 
-// Helpers
-const slugify = (value: string): string =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-");
+type ContentType = "video" | "quiz";
 
-const normalizeVideoUrl = (videoUrl: string | null): string => {
-  if (!videoUrl) return "";
-  if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-    const ytMatch = videoUrl.match(/(?:v=|youtu\.be\/)([\w-]{11})/);
-    const id = ytMatch ? ytMatch[1] : null;
-    return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&controls=1` : videoUrl;
-  }
-  return videoUrl;
-};
-
-// Types
-interface TopicApi {
+interface Lesson {
   topicId: string;
   courseId: string;
   moduleNo: number;
@@ -51,47 +36,36 @@ interface TopicApi {
   topicName: string;
   videoUrl: string | null;
   textContent: string | null;
-  isPreview: boolean;
   contentType: string;
-}
-
-interface LessonItem {
-  id: string;
-  courseId: string;
-  moduleNo: number;
-  moduleName: string;
-  topicNumber: number;
-  title: string;
   slug: string;
-  videoUrl: string | null;
-  textContent: string | null;
-  contentType: string;
 }
 
-interface ModuleSub {
+interface SubModule {
   id: string;
   title: string;
-  duration?: string;
-  type: "video" | "quiz";
+  type: ContentType;
+  slug?: string;
+  moduleNo: number;
+  topicPairIndex?: number;
+  topicNumber?: number;
+  unlocked?: boolean;
 }
 
-interface ModuleDef {
+interface Module {
   id: number;
   title: string;
-  submodules: ModuleSub[];
-}
-
-interface QuizSectionStatus {
-  moduleNo: number;
-  topicPairIndex: number;
-  title?: string | null;
-  subtitle?: string | null;
+  submodules: SubModule[];
   unlocked: boolean;
   passed: boolean;
-  status?: string | null;
-  lastScore?: number | null;
-  attemptedAt?: string | null;
-  questionCount?: number | null;
+}
+
+interface QuizSection {
+  moduleNo: number;
+  topicPairIndex: number;
+  title: string;
+  unlocked: boolean;
+  passed: boolean;
+  questionCount: number;
 }
 
 interface QuizQuestion {
@@ -105,53 +79,74 @@ interface QuizAttemptResult {
   totalQuestions: number;
   scorePercent: number;
   passed: boolean;
-  thresholdPercent?: number;
+  thresholdPercent: number;
 }
 
 const PASSING_PERCENT_THRESHOLD = 70;
-const PLACEHOLDER_IMAGE = "https://picsum.photos/1200/675";
-const STUDY_MATERIAL_PLACEHOLDER = "No notes available for this lesson.";
+
+const slugify = (text: string) =>
+  text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
 
 const CoursePlayerPage: React.FC = () => {
-  const params = useParams();
-  const courseId = params?.id ?? "";
-  const lessonSlugParam = params?.lesson ?? "";
+  const { id: courseKey, lesson: lessonSlugParam } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const session = readStoredSession();
+  const [session, setSession] = useState<StoredSession | null>(null);
 
-  // Layout state
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [sections, setSections] = useState<QuizSection[]>([]);
+  const [courseProgress, setCourseProgress] = useState(0);
+  const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isReadingMode, setIsReadingMode] = useState(false);
+  const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
+  const controlsTimeoutRef = useRef<number | null>(null);
 
-  // Data state
-  const [lessons, setLessons] = useState<LessonItem[]>([]);
-  const [modules, setModules] = useState<ModuleDef[]>([]);
-  const [activeSlug, setActiveSlug] = useState<string>(lessonSlugParam);
-  const [courseProgress, setCourseProgress] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [progressSaving, setProgressSaving] = useState(false);
-
-  // Video state
+  // Video playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showNextOverlay, setShowNextOverlay] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
-  // Widget state
+  // Widgets
   const [chatOpen, setChatOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [chatRect, setChatRect] = useState({ x: 0, y: 0, width: 350, height: 450, initialized: false });
+  const [notesOpen, setNotesOpen] = useState(false);
   const [notesRect, setNotesRect] = useState({ x: 0, y: 0, width: 350, height: 300, initialized: false });
+  const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
-  const dragInfo = useRef({
+
+  // Quiz state
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
+  const [quizPhase, setQuizPhase] = useState<"intro" | "active" | "result">("intro");
+  const [quizTimer, setQuizTimer] = useState(60);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<{ moduleNo: number; topicPairIndex: number } | null>(null);
+
+  const dragInfo = useRef<{
+    isDragging: boolean;
+    widget: "study" | "chat" | "notes" | null;
+    type: string | null;
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+    mouseX: number;
+    mouseY: number;
+  }>({
     isDragging: false,
-    widget: null as "study" | "chat" | "notes" | null,
-    type: null as string | null,
+    widget: null,
+    type: null,
     startX: 0,
     startY: 0,
     startW: 0,
@@ -159,146 +154,173 @@ const CoursePlayerPage: React.FC = () => {
     mouseX: 0,
     mouseY: 0,
   });
-  const controlsTimeoutRef = useRef<number | null>(null);
 
-  // Quiz state
-  const [sections, setSections] = useState<QuizSectionStatus[]>([]);
-  const [selectedSection, setSelectedSection] = useState<{ moduleNo: number; topicPairIndex: number } | null>(null);
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
-  const [quizPhase, setQuizPhase] = useState<"intro" | "active" | "result">("intro");
-  const [quizTimer, setQuizTimer] = useState(60);
-  const [isQuizMode, setIsQuizMode] = useState(false);
-
-  const authHeaders = useMemo(
-    () => (session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined),
-    [session],
+  const activeLesson = useMemo(
+    () => lessons.find((l) => l.slug === activeSlug) ?? lessons[0],
+    [lessons, activeSlug],
   );
-
-  const activeLesson = useMemo(() => lessons.find((l) => l.slug === activeSlug) ?? lessons[0], [lessons, activeSlug]);
-  const resolvedCourseId = useMemo(() => activeLesson?.courseId ?? courseId, [activeLesson, courseId]);
-  const currentModuleNo = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
-
-  const unlockedModules = useMemo(() => {
-    const unlocked = new Set<number>();
-    if (modules.length > 0) unlocked.add(modules[0].id);
-    sections.forEach((s) => {
-      if (s.unlocked) unlocked.add(s.moduleNo);
-      if (s.passed) unlocked.add(s.moduleNo + 1);
-    });
-    return unlocked;
-  }, [sections, modules]);
+  const currentModuleId = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
 
   const fetchTopics = useCallback(async () => {
-    setLoading(true);
+    if (!courseKey) return;
     try {
-      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics`), { credentials: "include" });
+      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/topics`), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load topics");
-      const data = (await res.json()) as { topics: TopicApi[] };
-      const mapped: LessonItem[] = (data.topics ?? []).map((t) => ({
-        id: t.topicId,
+      const data = await res.json();
+      const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
+        topicId: t.topicId,
         courseId: t.courseId,
         moduleNo: t.moduleNo,
         moduleName: t.moduleName,
         topicNumber: t.topicNumber,
-        title: t.topicName,
-        slug: slugify(t.topicName),
+        topicName: t.topicName,
         videoUrl: t.videoUrl,
         textContent: t.textContent,
         contentType: t.contentType,
+        slug: slugify(t.topicName),
       }));
       const sorted = mapped.sort((a, b) => a.moduleNo - b.moduleNo || a.topicNumber - b.topicNumber);
       setLessons(sorted);
-
-      const moduleMap = new Map<number, ModuleDef>();
-      sorted.forEach((t) => {
-        const list = moduleMap.get(t.moduleNo)?.submodules ?? [];
-        list.push({ id: t.id, title: t.title, type: t.contentType === "quiz" ? "quiz" : "video" });
-        moduleMap.set(t.moduleNo, { id: t.moduleNo, title: t.moduleName, submodules: list });
-      });
-      const moduleList = Array.from(moduleMap.values()).sort((a, b) => a.id - b.id);
-      setModules(moduleList);
-      if (moduleList.length > 0) setExpandedModules([moduleList[0].id]);
-
-      const firstSlug = sorted[0]?.slug;
-      if (!lessonSlugParam && firstSlug) {
-        setLocation(`/course/${courseId}/learn/${firstSlug}`);
-        setActiveSlug(firstSlug);
-      } else if (lessonSlugParam && sorted.some((l) => l.slug === lessonSlugParam)) {
-        setActiveSlug(lessonSlugParam);
-      } else if (firstSlug) {
-        setActiveSlug(firstSlug);
+      if (!activeSlug && sorted.length > 0) {
+        setActiveSlug(sorted[0].slug);
+        setLocation(`/course/${courseKey}/learn/${sorted[0].slug}`);
       }
+      // Modules will be built once sections arrive; nothing else here
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Unable to load course",
         description: error instanceof Error ? error.message : "Please try again.",
       });
-    } finally {
-      setLoading(false);
     }
-  }, [courseId, lessonSlugParam, setLocation, toast]);
+  }, [courseKey, activeSlug, expandedModules.length, setLocation, toast]);
+
+  const fetchSections = useCallback(async () => {
+    if (!courseKey) return;
+    const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
+    try {
+      const res = await fetch(buildApiUrl(`/api/quiz/sections/${courseKey}`), {
+        credentials: "include",
+        headers,
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list: QuizSection[] = (data.sections ?? []).map((s: any) => ({
+        moduleNo: s.moduleNo,
+        topicPairIndex: s.topicPairIndex,
+        title: s.title ?? `Module ${s.moduleNo} • Topic pair ${s.topicPairIndex}`,
+        unlocked: Boolean(s.unlocked),
+        passed: Boolean(s.passed),
+        questionCount: s.questionCount ?? 5,
+      }));
+      setSections(list);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [courseKey, session?.accessToken]);
 
   const fetchProgress = useCallback(async () => {
-    if (!resolvedCourseId) return;
+    if (!courseKey) return;
+    const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
     try {
-      const res = await fetch(buildApiUrl(`/api/lessons/courses/${resolvedCourseId}/progress`), {
+      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/progress`), {
         credentials: "include",
-        headers: authHeaders,
+        headers,
       });
       if (!res.ok) return;
       const data = await res.json();
       setCourseProgress(data?.percent ?? 0);
-    } catch {
-      /* ignore */
+    } catch (error) {
+      console.error(error);
     }
-  }, [resolvedCourseId, authHeaders]);
+  }, [courseKey, session?.accessToken]);
 
-  const fetchSections = useCallback(async () => {
-    if (!resolvedCourseId) return;
-    try {
-      const res = await fetch(buildApiUrl(`/api/quiz/sections/${resolvedCourseId}`), {
-        credentials: "include",
-        headers: authHeaders,
+  // Hydrate modules with quizzes when lessons/sections change
+  useEffect(() => {
+    if (lessons.length === 0) return;
+    const grouped = new Map<number, Lesson[]>();
+    lessons.forEach((lesson) => {
+      const list = grouped.get(lesson.moduleNo) ?? [];
+      list.push(lesson);
+      grouped.set(lesson.moduleNo, list);
+    });
+    const newModules: Module[] = Array.from(grouped.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([moduleNo, lessonsForModule]) => {
+        const sorted = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
+        const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+
+        // Unlock rules: module 0 always unlocked; others gated by previous module quiz pass (backend gives section.unlocked)
+        let allowedMaxTopic = moduleNo === 0 ? Number.POSITIVE_INFINITY : 2;
+        sectionForModule.forEach((sec) => {
+          if (sec.passed) {
+            allowedMaxTopic = Math.max(allowedMaxTopic, (sec.topicPairIndex + 1) * 2);
+          }
+        });
+        const moduleUnlocked = moduleNo === 0 ? true : Boolean(sectionForModule[0]?.unlocked);
+
+        const submodules: SubModule[] = [];
+        sorted.forEach((lesson) => {
+          const lessonUnlocked = moduleUnlocked && (moduleNo === 0 || lesson.topicNumber <= allowedMaxTopic);
+          submodules.push({
+            id: lesson.topicId,
+            title: lesson.topicName,
+            type: "video",
+            slug: lesson.slug,
+            moduleNo: lesson.moduleNo,
+            topicNumber: lesson.topicNumber,
+            unlocked: lessonUnlocked,
+          });
+          if (lesson.moduleNo > 0 && lesson.topicNumber % 2 === 0) {
+            const pairIdx = lesson.topicNumber / 2;
+            const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
+            const quizUnlocked = moduleUnlocked && (section?.unlocked ?? false) && allowedMaxTopic >= pairIdx * 2;
+            submodules.push({
+              id: `quiz-${moduleNo}-${pairIdx}`,
+              title: section?.title ?? `Quiz ${pairIdx}`,
+              type: "quiz",
+              moduleNo,
+              topicPairIndex: pairIdx,
+              unlocked: quizUnlocked,
+            });
+          }
+        });
+        const passed = sectionForModule.some((s) => s.passed);
+        return { id: moduleNo, title: sorted[0]?.moduleName ?? `Module ${moduleNo}`, submodules, unlocked: moduleUnlocked, passed };
       });
-      if (!res.ok) return;
-      const data = await res.json();
-      setSections(data?.sections ?? data ?? []);
-    } catch {
-      /* ignore */
+    setModules(newModules);
+
+    // If no active slug set yet, jump to first unlocked lesson
+    if (!activeSlug) {
+      const firstUnlockedLesson = newModules
+        .flatMap((m) => m.submodules)
+        .find((s) => s.type === "video" && s.unlocked && s.slug);
+      if (firstUnlockedLesson?.slug) {
+        setActiveSlug(firstUnlockedLesson.slug);
+        setLocation(`/course/${courseKey}/learn/${firstUnlockedLesson.slug}`);
+      }
     }
-  }, [resolvedCourseId, authHeaders]);
+  }, [lessons, sections]);
 
   useEffect(() => {
     void fetchTopics();
-  }, [fetchTopics]);
-
-  useEffect(() => {
-    void fetchProgress();
-  }, [fetchProgress]);
-
-  useEffect(() => {
     void fetchSections();
-  }, [fetchSections]);
+    void fetchProgress();
+  }, [fetchTopics, fetchSections, fetchProgress]);
 
-  // Next overlay timer
   useEffect(() => {
-    let timer: number;
-    if (showNextOverlay && countdown > 0) {
-      timer = window.setInterval(() => setCountdown((c) => c - 1), 1000);
-    } else if (showNextOverlay && countdown === 0) {
-      handleNextLesson();
-    }
-    return () => clearInterval(timer);
-  }, [showNextOverlay, countdown]);
+    const hydrateSession = async () => {
+      const stored = readStoredSession();
+      const fresh = await ensureSessionFresh(stored);
+      setSession(fresh);
+    };
+    void hydrateSession();
+  }, []);
 
-  // Video progress UI (cosmetic)
+  // Video progress timers
   useEffect(() => {
     let interval: number;
-    if (isPlaying && !showNextOverlay && progress < 100 && !isReadingMode) {
+    if (isPlaying && !showNextOverlay && progress < 100 && !isQuizMode) {
       interval = window.setInterval(() => {
         setProgress((p) => {
           const next = p + 0.1;
@@ -312,7 +334,7 @@ const CoursePlayerPage: React.FC = () => {
       }, 50);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, showNextOverlay, progress, isReadingMode]);
+  }, [isPlaying, showNextOverlay, progress, isQuizMode]);
 
   // Quiz timer
   useEffect(() => {
@@ -325,7 +347,26 @@ const CoursePlayerPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [isQuizMode, quizPhase, quizTimer]);
 
-  // Drag/resize events
+  // Widget positioning
+  const centerWidget = (widget: "study" | "chat" | "notes") => {
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    if (widget === "study") setStudyWidgetRect({ x: winW / 2 - 300, y: winH / 2 - 225, width: 600, height: 450, initialized: true });
+    if (widget === "chat") setChatRect({ x: winW - 374, y: winH - 546, width: 350, height: 450, initialized: true });
+    if (widget === "notes") setNotesRect({ x: 24, y: winH - 374, width: 350, height: 300, initialized: true });
+  };
+
+  useEffect(() => {
+    if (studyWidgetOpen && !studyWidgetRect.initialized) centerWidget("study");
+  }, [studyWidgetOpen, studyWidgetRect.initialized]);
+  useEffect(() => {
+    if (chatOpen && !chatRect.initialized) centerWidget("chat");
+  }, [chatOpen, chatRect.initialized]);
+  useEffect(() => {
+    if (notesOpen && !notesRect.initialized) centerWidget("notes");
+  }, [notesOpen, notesRect.initialized]);
+
+  // Drag
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragInfo.current.isDragging) return;
@@ -359,26 +400,13 @@ const CoursePlayerPage: React.FC = () => {
     };
   }, []);
 
-  // Cleanup controls timeout
   useEffect(() => {
     return () => {
       if (controlsTimeoutRef.current) window.clearTimeout(controlsTimeoutRef.current);
     };
   }, []);
 
-  const centerWidget = (widget: "study" | "chat" | "notes") => {
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
-    if (widget === "study") setStudyWidgetRect({ x: winW / 2 - 300, y: winH / 2 - 225, width: 600, height: 450, initialized: true });
-    if (widget === "chat") setChatRect({ x: winW - 374, y: winH - 546, width: 350, height: 450, initialized: true });
-    if (widget === "notes") setNotesRect({ x: 24, y: winH - 374, width: 350, height: 300, initialized: true });
-  };
-
-  const handleMouseDown = (
-    e: React.MouseEvent,
-    type: string,
-    widget: "study" | "chat" | "notes",
-  ) => {
+  const handleMouseDown = (e: React.MouseEvent, type: string, widget: "study" | "chat" | "notes") => {
     e.preventDefault();
     const rect = widget === "study" ? studyWidgetRect : widget === "chat" ? chatRect : notesRect;
     dragInfo.current = {
@@ -391,87 +419,59 @@ const CoursePlayerPage: React.FC = () => {
       startY: rect.y,
       startW: rect.width,
       startH: rect.height,
-    } as typeof dragInfo.current;
+    };
     if (type === "move") document.body.style.cursor = "move";
     if (type === "resize-r") document.body.style.cursor = "ew-resize";
     if (type === "resize-b") document.body.style.cursor = "ns-resize";
     if (type === "resize-br") document.body.style.cursor = "nwse-resize";
   };
 
-  const navigateToLesson = (slug: string) => {
-    const lesson = lessons.find((l) => l.slug === slug);
-    if (lesson && !unlockedModules.has(lesson.moduleNo)) return;
-    setActiveSlug(slug);
-    setIsReadingMode(false);
-    setIsPlaying(false);
-    setProgress(0);
-    setIsQuizMode(false);
-    setQuizPhase("intro");
-    setQuizQuestions([]);
-    setView("video");
-    setLocation(`/course/${courseId}/learn/${slug}`);
-  };
-
-  const handleNextLesson = () => {
-    if (!activeLesson) return;
-    const idx = lessons.findIndex((l) => l.slug === activeSlug);
-    for (let i = idx + 1; i < lessons.length; i++) {
-      if (unlockedModules.has(lessons[i].moduleNo)) {
-        navigateToLesson(lessons[i].slug);
-        break;
-      }
+  const handleGlobalMouseMove = () => {
+    setIsControlsVisible(true);
+    if (controlsTimeoutRef.current) {
+      window.clearTimeout(controlsTimeoutRef.current);
     }
-    setShowNextOverlay(false);
-    setCountdown(5);
+    controlsTimeoutRef.current = window.setTimeout(() => {
+      if (isPlaying) setIsControlsVisible(false);
+    }, 3000);
   };
 
-  const handleMarkComplete = async () => {
-    if (!activeLesson?.id) return;
-    setProgressSaving(true);
-    try {
-      await fetch(buildApiUrl(`/api/lessons/${activeLesson.id}/progress`), {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeaders ?? {}),
-        },
-        body: JSON.stringify({ progress: 100, status: "completed" }),
-      });
-      toast({ title: "Progress saved", description: "Lesson marked complete." });
-      void fetchProgress();
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Could not save progress",
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setProgressSaving(false);
+  const handleSubmoduleSelect = (sub: SubModule) => {
+    if (!sub.unlocked) return;
+    if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
+    if (sub.type === "quiz") {
+      void handleStartQuiz(sub.moduleNo, sub.topicPairIndex ?? 1);
+    } else if (sub.slug) {
+      setIsQuizMode(false);
+      setQuizPhase("intro");
+      setActiveSlug(sub.slug);
+      setLocation(`/course/${courseKey}/learn/${sub.slug}`);
+      setProgress(0);
+      setIsPlaying(true);
     }
   };
 
   const handleStartQuiz = async (moduleNo: number, topicPairIndex: number) => {
-    if (!resolvedCourseId) return;
+    if (!courseKey) return;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
     try {
-      setQuizPhase("intro");
-      setQuizTimer(60);
       const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeaders ?? {}),
-        },
-        body: JSON.stringify({ courseId: resolvedCourseId, moduleNo, topicPairIndex, limit: 3 }),
+        headers,
+        body: JSON.stringify({ courseId: courseKey, moduleNo, topicPairIndex, limit: 5 }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setSelectedSection({ moduleNo, topicPairIndex });
-      setQuizAttemptId(data?.attemptId ?? null);
-      setQuizQuestions(data?.questions ?? []);
+      setQuizAttemptId(data.attemptId ?? null);
+      setQuizQuestions(data.questions ?? []);
+      setAnswers({});
       setQuizResult(null);
       setIsQuizMode(true);
+      setQuizPhase("intro");
+      setQuizTimer(60);
       setSidebarOpen(false);
       setChatOpen(false);
       setNotesOpen(false);
@@ -487,15 +487,14 @@ const CoursePlayerPage: React.FC = () => {
 
   const handleSubmitQuiz = async () => {
     if (!quizAttemptId) return;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
     try {
       const payload = Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId }));
       const res = await fetch(buildApiUrl(`/api/quiz/attempts/${quizAttemptId}/submit`), {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeaders ?? {}),
-        },
+        headers,
         body: JSON.stringify({ answers: payload }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -511,211 +510,18 @@ const CoursePlayerPage: React.FC = () => {
       setQuizPhase("result");
       toast({ title: base?.passed ? "Module unlocked" : "Quiz submitted" });
       void fetchSections();
+      void fetchProgress();
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Submit failed",
+        title: "Could not submit quiz",
         description: error instanceof Error ? error.message : "Please try again",
       });
     }
   };
 
-  const handleGlobalMouseMove = () => {
-    setIsControlsVisible(true);
-    if (controlsTimeoutRef.current) window.clearTimeout(controlsTimeoutRef.current);
-    controlsTimeoutRef.current = window.setTimeout(() => {
-      if (isPlaying) setIsControlsVisible(false);
-    }, 3000);
-  };
-
-  const renderStudyMaterial = () => (
-    <div className="prose prose-slate max-w-none text-left">
-      {(activeLesson.textContent || STUDY_MATERIAL_PLACEHOLDER)
-        .split("\n")
-        .map((line, i) => {
-          if (line.startsWith("## "))
-            return (
-              <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">
-                {line.replace("## ", "")}
-              </h2>
-            );
-          if (line.startsWith("### "))
-            return (
-              <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
-                {line.replace("### ", "")}
-              </h3>
-            );
-          if (line.startsWith("* "))
-            return (
-              <li key={i} className="ml-6 list-disc opacity-80 mb-1">
-                {line.replace("* ", "")}
-              </li>
-            );
-          if (line.startsWith("1. "))
-            return (
-              <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
-                {line.replace("1. ", "")}
-              </li>
-            );
-          if (line.trim() === "") return <div key={i} className="h-2"></div>;
-          return (
-            <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">
-              {line}
-            </p>
-          );
-        })}
-    </div>
-  );
-
-  const chatWidget = chatOpen && !isQuizMode ? (
-    <div
-      className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
-      style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
-    >
-      <div
-        className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
-        onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
-      >
-        <div className="flex items-center gap-2 text-white font-bold text-sm">
-          <MessageSquare size={16} /> AI Tutor
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-            <Move size={14} className="text-white" />
-          </button>
-          <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded">
-            <X size={14} className="text-white" />
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
-        <div className="text-xs text-[#f8f1e6]/50">AI tutor placeholder. Integrate RAG backend as needed.</div>
-      </div>
-      <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
-        <input
-          className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
-          placeholder="Ask AI..."
-          onKeyDown={(e) => e.key === "Enter" && undefined}
-        />
-        <button className="p-2">
-          <Send size={16} className="text-[#bf2f1f]" />
-        </button>
-      </div>
-      <div
-        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20"
-        onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20"
-        onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl"
-        onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")}
-      />
-    </div>
-  ) : null;
-
-  const notesWidget = notesOpen && !isQuizMode ? (
-    <div
-      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-      style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
-    >
-      <div
-        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-        onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
-      >
-        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-          <FileText size={16} /> My Notes
-        </div>
-        <div className="flex items-center gap-1 text-[#f8f1e6]">
-          <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-            <Move size={14} />
-          </button>
-          <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded">
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-      <textarea
-        className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono"
-        placeholder="Type notes here..."
-      ></textarea>
-      <div
-        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20"
-        onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20"
-        onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl"
-        onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")}
-      />
-    </div>
-  ) : null;
-
-  const studyWidget = studyWidgetOpen && !isQuizMode ? (
-    <div
-      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-      style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
-    >
-      <div
-        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-        onMouseDown={(e) => handleMouseDown(e, "move", "study")}
-      >
-        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-          <Book size={16} /> Study Material
-        </div>
-        <div className="flex items-center gap-1 text-[#f8f1e6]">
-          <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-            <Move size={14} />
-          </button>
-          <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded">
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">{renderStudyMaterial()}</div>
-      <div
-        className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50"
-        onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50"
-        onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl"
-        onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")}
-      />
-    </div>
-  ) : null;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#000000] text-[#f8f1e6]">
-        <div className="text-center space-y-3">
-          <div className="animate-spin h-10 w-10 border-4 border-[#bf2f1f] border-t-transparent rounded-full mx-auto" />
-          <p className="text-lg font-semibold">Loading course...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!activeLesson) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#000000] text-[#f8f1e6]">
-        <div className="text-center">
-          <p className="text-lg">No lessons available.</p>
-          <button className="mt-4 px-4 py-2 bg-[#bf2f1f] text-white rounded-lg" onClick={() => setLocation("/")}>
-            Go Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const activeStudyText = activeLesson?.textContent ?? "";
+  const activeVideoUrl = activeLesson?.videoUrl ?? "";
 
   return (
     <div
@@ -753,7 +559,7 @@ const CoursePlayerPage: React.FC = () => {
         {sidebarOpen && (
           <div className="p-4 border-b border-[#4a4845]/20">
             <div className="flex justify-between text-xs text-[#f8f1e6] mb-1">
-              <span className="font-bold">Module {currentModuleNo} of {modules.length}</span>
+              <span className="font-bold">Module {currentModuleId} of {modules.length}</span>
               <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
             </div>
             <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
@@ -765,7 +571,6 @@ const CoursePlayerPage: React.FC = () => {
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
           {modules.map((module) => {
             const isExpanded = expandedModules.includes(module.id);
-            const isUnlocked = unlockedModules.has(module.id);
             return (
               <div key={module.id} className={!sidebarOpen ? "hidden" : ""}>
                 <div
@@ -791,24 +596,21 @@ const CoursePlayerPage: React.FC = () => {
                   }`}
                 >
                   {module.submodules?.map((sub) => {
-                    const active = sub.id === activeLesson.id;
+                    const active = sub.slug ? sub.slug === activeLesson?.slug : false;
                     return (
                       <button
                         key={sub.id}
-                        onClick={() =>
-                          sub.type === "quiz"
-                            ? handleStartQuiz(module.id, sub.title ? Number(sub.title.split(" ")[0]) || 1 : 1)
-                            : navigateToLesson(lessons.find((l) => l.id === sub.id)?.slug ?? "")
-                        }
-                        disabled={!isUnlocked || (isQuizMode && quizPhase !== "result")}
+                        onClick={() => sub.unlocked && handleSubmoduleSelect(sub)}
+                        disabled={!sub.unlocked}
                         className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${
                           active
                             ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"
                             : "hover:bg-white/5 border-transparent text-[#f8f1e6]/70"
-                        } ${!isUnlocked ? "opacity-40 cursor-not-allowed" : ""}`}
+                        } ${!sub.unlocked ? "opacity-40 cursor-not-allowed hover:bg-transparent" : ""}`}
                       >
                         {sub.type === "quiz" ? <FileText size={14} className="flex-shrink-0" /> : <Play size={14} className="flex-shrink-0" />}
                         <span className="truncate flex-1">{sub.title}</span>
+                        {sub.type === "quiz" && !sub.slug && <span className="text-[10px] text-[#f8f1e6]/50">Quiz</span>}
                       </button>
                     );
                   })}
@@ -821,11 +623,11 @@ const CoursePlayerPage: React.FC = () => {
         {!sidebarOpen && (
           <div className="flex flex-col items-center mt-4 gap-4">
             <div className="w-8 h-8 rounded bg-[#bf2f1f] flex items-center justify-center text-white shadow-lg">
-              <span className="font-bold text-xs">{currentModuleNo}</span>
+              <span className="font-bold text-xs">{currentModuleId}</span>
             </div>
             <div className="space-y-2">
               {modules
-                .filter((m) => m.id !== currentModuleNo)
+                .filter((m) => m.id !== currentModuleId)
                 .map((m) => (
                   <div key={m.id} className="w-1.5 h-1.5 rounded-full bg-[#4a4845]/50 mx-auto"></div>
                 ))}
@@ -839,125 +641,143 @@ const CoursePlayerPage: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#4a4845]/60 bg-[#050505]">
           <div>
-            <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson.moduleNo} · Topic {activeLesson.topicNumber}</p>
-            <h1 className="text-2xl font-black">{activeLesson.title}</h1>
+            <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo} · Topic {activeLesson?.topicNumber}</p>
+            <h1 className="text-2xl font-black">{activeLesson?.topicName ?? "Loading..."}</h1>
           </div>
           <div className="flex items-center gap-2 text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
         </div>
 
         {/* Video */}
-        <div
-          className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
-            isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : "w-full h-[65vh]"
-          }`}
-        >
-          <div className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"}`}>
-            {activeLesson.videoUrl ? (
-              <iframe
-                className="w-full h-full"
-                src={normalizeVideoUrl(activeLesson.videoUrl)}
-                title={activeLesson.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">No video for this lesson.</div>
-            )}
-
-            {showNextOverlay && (
-              <div className="absolute inset-0 bg-[#000000]/95 flex flex-col items-center justify-center z-20 animate-fade-in">
-                <div className="text-[#f8f1e6]/60 text-xl mb-2">Next up...</div>
-                <div className="text-8xl font-black text-[#bf2f1f]">{countdown}</div>
-                <button
-                  onClick={handleNextLesson}
-                  className="mt-8 px-6 py-2 bg-[#f8f1e6] text-[#000000] font-bold rounded-full border-2 border-[#bf2f1f]"
-                >
-                  Continue <SkipForward size={16} className="inline ml-1" />
-                </button>
-              </div>
-            )}
-
-            {!showNextOverlay && !isPlaying && (
-              <div className="absolute inset-0 flex items-center justify-center cursor-pointer" onClick={() => setIsPlaying(true)}>
-                <div className="w-20 h-20 bg-[#bf2f1f]/80 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-[#f8f1e6] hover:scale-110 transition shadow-2xl">
-                  <Play size={32} fill="white" className="ml-1 text-white" />
-                </div>
-              </div>
-            )}
-            {!showNextOverlay && isPlaying && (
-              <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => setIsPlaying(false)}></div>
-            )}
-
+        {!isQuizMode && (
+          <div
+            className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
+              isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : "w-full h-[65vh]"
+            }`}
+          >
             <div
-              className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pt-14 pb-2 px-4 z-20 transition-opacity duration-300 ${
-                isControlsVisible || !isPlaying ? "opacity-100" : "opacity-0"
+              className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${
+                isFullScreen ? "w-auto h-auto" : "w-full h-full"
               }`}
             >
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={progress}
-                onChange={(e) => setProgress(Number(e.target.value))}
-                className="w-full h-1 mb-4 accent-[#bf2f1f] cursor-pointer"
-              />
+              {activeVideoUrl ? (
+                <iframe
+                  className="w-full h-full"
+                  src={activeVideoUrl}
+                  title={activeLesson?.topicName ?? "Lesson video"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">No video for this lesson.</div>
+              )}
 
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-[#bf2f1f] transition">
-                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+              {showNextOverlay && (
+                <div className="absolute inset-0 bg-[#000000]/95 flex flex-col items-center justify-center z-20 animate-fade-in">
+                  <div className="text-[#f8f1e6]/60 text-xl mb-2">Next up...</div>
+                  <div className="text-8xl font-black text-[#bf2f1f]">{countdown}</div>
+                  <button
+                    onClick={() => {
+                      // Go to next lesson (video only)
+                      const idx = lessons.findIndex((l) => l.slug === activeLesson?.slug);
+                      if (idx >= 0 && idx < lessons.length - 1) {
+                        const next = lessons[idx + 1];
+                        setActiveSlug(next.slug);
+                        setLocation(`/course/${courseKey}/learn/${next.slug}`);
+                        setProgress(0);
+                        setIsPlaying(true);
+                      }
+                      setShowNextOverlay(false);
+                      setCountdown(5);
+                    }}
+                    className="mt-8 px-6 py-2 bg-[#f8f1e6] text-[#000000] font-bold rounded-full border-2 border-[#bf2f1f]"
+                  >
+                    Continue <SkipForward size={16} className="inline ml-1" />
                   </button>
-                  <div className="text-xs text-[#f8f1e6]">
-                    <span className="font-bold text-white block">{activeLesson.title}</span>
-                    <span className="opacity-70">{Math.floor((progress * 12) / 100)}:00 / 12:00</span>
+                </div>
+              )}
+
+              {!showNextOverlay && !isPlaying && (
+                <div className="absolute inset-0 flex items-center justify-center cursor-pointer" onClick={() => setIsPlaying(true)}>
+                  <div className="w-20 h-20 bg-[#bf2f1f]/80 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-[#f8f1e6] hover:scale-110 transition shadow-2xl">
+                    <Play size={32} fill="white" className="ml-1 text-white" />
                   </div>
                 </div>
+              )}
+              {!showNextOverlay && isPlaying && (
+                <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => setIsPlaying(false)}></div>
+              )}
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setStudyWidgetOpen(!studyWidgetOpen)}
-                    className={`p-2 rounded-full transition ${
-                      studyWidgetOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                    title="Open Study Material"
-                  >
-                    <Book size={18} />
-                  </button>
+              <div
+                className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pt-14 pb-2 px-4 z-20 transition-opacity duration-300 ${
+                  isControlsVisible || !isPlaying ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={progress}
+                  onChange={(e) => setProgress(Number(e.target.value))}
+                  className="w-full h-1 mb-4 accent-[#bf2f1f] cursor-pointer"
+                />
 
-                  <button
-                    onClick={() => setNotesOpen(!notesOpen)}
-                    className={`p-2 rounded-full transition ${
-                      notesOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                    title="Open Notes"
-                  >
-                    <FileText size={18} />
-                  </button>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-[#bf2f1f] transition">
+                      {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                    </button>
+                    <div className="text-xs text-[#f8f1e6]">
+                      <span className="font-bold text-white block">{activeLesson?.topicName ?? ""}</span>
+                      <span className="opacity-70">{Math.floor((progress * 12) / 100)}:00 / 12:00</span>
+                    </div>
+                  </div>
 
-                  <button
-                    onClick={() => setChatOpen(!chatOpen)}
-                    className={`p-2 rounded-full transition ${
-                      chatOpen ? "bg-[#bf2f1f] text-white" : "bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                    title="Open AI Chat"
-                  >
-                    <MessageSquare size={18} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setStudyWidgetOpen(!studyWidgetOpen)}
+                      className={`p-2 rounded-full transition ${
+                        studyWidgetOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
+                      }`}
+                      title="Open Study Material"
+                    >
+                      <Book size={18} />
+                    </button>
 
-                  <div className="w-px h-6 bg-white/20 mx-1"></div>
+                    <button
+                      onClick={() => setNotesOpen(!notesOpen)}
+                      className={`p-2 rounded-full transition ${
+                        notesOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
+                      }`}
+                      title="Open Notes"
+                    >
+                      <FileText size={18} />
+                    </button>
 
-                  <button
-                    onClick={() => setIsFullScreen((v) => !v)}
-                    className="text-white hover:text-[#bf2f1f] transition"
-                    title="Cinema Mode"
-                  >
-                    {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                  </button>
+                    <button
+                      onClick={() => setChatOpen(!chatOpen)}
+                      className={`p-2 rounded-full transition ${
+                        chatOpen ? "bg-[#bf2f1f] text-white" : "bg-white/10 text-white hover:bg-white/20"
+                      }`}
+                      title="Open AI Chat"
+                    >
+                      <MessageSquare size={18} />
+                    </button>
+
+                    <div className="w-px h-6 bg-white/20 mx-1"></div>
+
+                    <button
+                      onClick={() => setIsFullScreen((v) => !v)}
+                      className="text-white hover:text-[#bf2f1f] transition"
+                      title="Cinema Mode"
+                    >
+                      {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Study section */}
         {!isFullScreen && !isQuizMode && (
@@ -970,7 +790,7 @@ const CoursePlayerPage: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
-                    <p className="text-sm text-[#4a4845]">Companion reading for {activeLesson.title}</p>
+                    <p className="text-sm text-[#4a4845]">Companion reading for {activeLesson?.topicName ?? ""}</p>
                   </div>
                 </div>
 
@@ -994,7 +814,18 @@ const CoursePlayerPage: React.FC = () => {
                 </button>
               </div>
 
-              {renderStudyMaterial()}
+              <div className="prose prose-slate max-w-none text-left">
+                {activeStudyText
+                  ? activeStudyText.split("\n").map((line, i) => {
+                      if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
+                      if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
+                      if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
+                      if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
+                      if (line.trim() === "") return <div key={i} className="h-2"></div>;
+                      return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
+                    })
+                  : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+              </div>
             </div>
           </div>
         )}
@@ -1017,13 +848,13 @@ const CoursePlayerPage: React.FC = () => {
                   </p>
                   <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
                     <li className="flex gap-2">
-                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 3 Random Questions
+                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
                     </li>
                     <li className="flex gap-2">
                       <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
                     </li>
                     <li className="flex gap-2">
-                      <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 2/3 to pass
+                      <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 70% to pass
                     </li>
                     <li className="flex gap-2 text-[#bf2f1f]">
                       <X size={16} /> Failure = Reset to Module 1
@@ -1069,6 +900,7 @@ const CoursePlayerPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
+
                   <button
                     disabled={quizQuestions.some((q) => !answers[q.questionId])}
                     onClick={handleSubmitQuiz}
@@ -1114,21 +946,6 @@ const CoursePlayerPage: React.FC = () => {
         )}
       </div>
 
-  return (
-    <div
-      className="flex h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative"
-      onMouseMove={handleGlobalMouseMove}
-      onClick={handleGlobalMouseMove}
-    >
-      {/* Sidebar */}
-      {/* ... keep your existing sidebar code ... */}
-
-      {/* Main stage */}
-      <div className={`flex-1 flex flex-col h-full relative overflow-y-auto scroll-smooth ${isFullScreen ? "overflow-hidden" : ""}`}>
-        {/* Header */}
-        {/* ... keep your existing header/video/study/quiz content ... */}
-      </div>
-
       {/* Chat widget */}
       {chatOpen && !isQuizMode && (
         <div
@@ -1139,16 +956,10 @@ const CoursePlayerPage: React.FC = () => {
             className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
           >
-            <div className="flex items-center gap-2 text-white font-bold text-sm">
-              <MessageSquare size={16} /> AI Tutor
-            </div>
+            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16}/> AI Tutor</div>
             <div className="flex items-center gap-1">
-              <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-                <Move size={14} className="text-white" />
-              </button>
-              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded">
-                <X size={14} className="text-white" />
-              </button>
+              <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} className="text-white"/></button>
+              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white"/></button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
@@ -1160,9 +971,7 @@ const CoursePlayerPage: React.FC = () => {
               placeholder="Ask AI..."
               onKeyDown={(e) => e.key === "Enter" && undefined}
             />
-            <button className="p-2">
-              <Send size={16} className="text-[#bf2f1f]" />
-            </button>
+            <button className="p-2"><Send size={16} className="text-[#bf2f1f]" /></button>
           </div>
           <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
           <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
@@ -1180,21 +989,15 @@ const CoursePlayerPage: React.FC = () => {
             className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
           >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-              <FileText size={16} /> My Notes
-            </div>
+            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16}/> My Notes</div>
             <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-                <Move size={14} />
-              </button>
-              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded">
-                <X size={14} />
-              </button>
+              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14}/></button>
+              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14}/></button>
             </div>
           </div>
           <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
           <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover-bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
           <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
         </div>
       )}
@@ -1210,18 +1013,25 @@ const CoursePlayerPage: React.FC = () => {
             onMouseDown={(e) => handleMouseDown(e, "move", "study")}
           >
             <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-              <Book size={16} /> Study Material
+              <Book size={16}/> Study Material
             </div>
             <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position">
-                <Move size={14} />
-              </button>
-              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded">
-                <X size={14} />
-              </button>
+              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14}/></button>
+              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14}/></button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">{renderStudyMaterial()}</div>
+          <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
+            {activeStudyText
+              ? activeStudyText.split("\n").map((line, i) => {
+                  if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
+                  if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
+                  if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
+                  if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
+                  if (line.trim() === "") return <div key={i} className="h-2"></div>;
+                  return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
+                })
+              : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+          </div>
           <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
           <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
           <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />

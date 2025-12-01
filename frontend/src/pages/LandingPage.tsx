@@ -1829,7 +1829,7 @@ function App() {
       return;
     }
 
-    setLocation(`/course/${primaryCourseId}/learn/${primaryLessonSlug}`);
+    setLocation(`/course/${primaryCourseId}`);
   };
 
   const handlePlayVideo = () => handleEnroll(primaryCourseId);
