@@ -132,6 +132,7 @@ classDiagram
 - **Flexible Lesson Types**: Video, reading, quiz support
 - **Preview System**: Free preview lessons for marketing
 - **Resource Management**: Attached files and links per lesson
+- **Canonical Slug**: `Course.slug` doubles as the identifier used by the Neo4j RAG pipeline, so ingestion and frontend queries must reference the same slug (e.g., `ai-in-web-development`).
 
 ### 3. Enhanced Lesson Content
 - **Synchronized Navigation**: Active lesson tracking in sidebar

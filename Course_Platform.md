@@ -259,6 +259,7 @@ Shared utilities (e.g., `frontend/src/lib/format.ts`) can be added as needed for
 - **JWT Handling**: Access token expected in `Authorization: Bearer <token>` header. Refresh token only stored client-side and used via API endpoints.
 - **Error Handling**: Global Express error middleware logs and returns JSON. Frontend toasts surface meaningful messages.
 - **Security**: Refresh token hashes stored with SHA-256; session mismatch detection.
+- **AI Tutor Consistency**: The Neo4j dataset is keyed by course slug (e.g., `ai-in-web-development`). Both the ingestion script and the course player now use that slug so `/assistant/query` always finds the right vector contexts before calling OpenAI.
 - **Analytics**: Not yet integrated (space left for future Replit cartographer data).
 
 ---
@@ -279,15 +280,19 @@ cd backend
 npx prisma generate
 npx prisma migrate dev --name init
 
-# 4. Run backend (port 4000 by default)
+# 4. (Optional) Ingest the course PDF into Neo4j for the AI tutor
+cd backend
+npm run rag:ingest "../Web Dev using AI Course Content.pdf" ai-in-web-development "AI in Web Development"
+
+# 5. Run backend (port 4000 by default)
    (Optional) To share your local backend over HTTPS, open a new terminal and run  `ssh -R 80:localhost:4000 serveo.net`. Use the printed `https://�serveo.net` URL for `VITE_API_BASE_URL`, `FRONTEND_APP_URLS`, and `GOOGLE_REDIRECT_URI`. 
 npm run dev
 
-# 5. In a second terminal, run frontend (port 5173)
+# 6. In a second terminal, run frontend (port 5173)
 cd ../frontend
 npm run dev
 
-# 6. Open http://localhost:5173, log in via Google, and enter the course player from the landing page.
+# 7. Open http://localhost:5173, log in via Google, and enter the course player from the landing page.
 ```
 
 ### Directory-specific scripts
@@ -339,6 +344,8 @@ npm run dev
    - `GET http://localhost:4000/users/me` with Bearer token returns JSON profile.
 7. **Logout**  
    - Logout clears local storage and redirects to `/`.
+8. **AI tutor**  
+   - Ask a question from the course PDF in the player chat. The response should include course-specific guidance; unrelated questions should politely state that the material is unavailable.
 
 ---
 

@@ -80,3 +80,11 @@
   “Enroll” actions on landing page course cards only deep-link the published course (`ai-in-web-development`); other cards show a “Coming soon” toast instead of hitting the backend and causing 400/404s.
 - **Navigation tightened**  
   Site header/nav links now point Home → `/` and Become a Tutor → `/become-a-tutor`; all other legacy links were removed to prevent reaching old pages.
+
+## 2025-12-02 — RAG Assistant Alignment
+
+- **Course slug enforced in tutor payloads**  
+  Fixed `handleSendChat` so `/assistant/query` always receives the same slug that was used during `npm run rag:ingest`. Neo4j now returns relevant chunks again and the OpenAI response is grounded in the PDF material.
+
+- **Documentation sweep**  
+  Refreshed README, `Course_Platform.md`, `CP_Arc.md`, `docs/App Changes.md`, `docs/project-structure.md`, `docs/databaseSchema.md`, and `rag/rag.md` with the ingestion command, slug requirement, and AI tutor smoke test.

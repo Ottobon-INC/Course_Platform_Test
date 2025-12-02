@@ -56,3 +56,4 @@ The actual PostgreSQL instance and pgAdmin UI are defined under `../infrastructu
    ```
    Defaults are `../Web Dev using AI Course Content.pdf`, `ai-in-web-development`, and `AI in Web Development`.
 4. Start the backend (`npm run dev`). The Express route `POST /assistant/query` now returns mentor-style answers sourced from Neo4j. The route requires an authenticated JWT, strips basic PII before calling OpenAI, enforces per-user rate limits, and only logs timestamp/user/status metadata.
+5. Make sure the `courseSlug` you pass above matches the slug that the SPA uses in its URL (currently `ai-in-web-development`). The assistant filters Neo4j chunks by this slug, so mismatched identifiers will always fall back to “I don’t have enough details…” responses.

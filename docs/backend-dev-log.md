@@ -20,3 +20,7 @@
 - Diagnosed quiz API failures caused by the frontend `apiRequest` helper clobbering `Content-Type: application/json` whenever callers supplied custom headers. Without the header, Express treated quiz POST bodies as empty, Zod reported `courseId`/`moduleNo` as missing, and `quiz_attempts` rows showed the anonymous fallback user id.
 - Updated the helper so it now merges headers before sending the `fetch` request, guaranteeing both the bearer `Authorization` header and JSON content type reach the backend. 
 - Verified the `/api/quiz/sections`, `/api/quiz/progress`, `/api/quiz/attempts`, and submission endpoints now return full question sets for all 12 topic pairs and persist attempts against the signed-in learner, thereby unlocking subsequent modules through `module_progress`.
+
+## 2025-12-02
+- **AI tutor identifier fix** – Frontend and backend now consistently use the public course slug (`ai-in-web-development`) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so Neo4j could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
+- **Documentation refresh** – README, `Course_Platform.md`, `CP_Arc.md`, and `rag/rag.md` explicitly describe the ingestion command and the slug requirement so future contributors do not regress the behavior.

@@ -1,5 +1,5 @@
 import neo4j from "neo4j-driver";
-import { ensureVectorIndex, getSession, VECTOR_INDEX_NAME } from "./neo4jClient";
+import { ensureVectorIndex, getSession, resetNeo4jDriver, VECTOR_INDEX_NAME } from "./neo4jClient";
 import { createEmbedding, generateAnswerFromContext } from "./openAiClient";
 import { scrubPossiblePii } from "./pii";
 import { logRagUsage } from "./usageLogger";
@@ -26,7 +26,7 @@ export async function replaceCourseChunks(courseTitle: string, chunks: ChunkPayl
   }
 
   await ensureVectorIndex();
-  const session = getSession();
+  const session = await getSession();
 
   const courseId = chunks[0]?.courseId;
   if (!courseId) {
@@ -92,11 +92,9 @@ export async function askCourseAssistant(options: {
     throw new Error("A question is required.");
   }
 
-  const session = getSession();
-
   try {
     const queryEmbedding = await createEmbedding(sanitizedQuestion);
-    const contexts = await fetchRelevantContexts(session, options.courseId, queryEmbedding);
+    const contexts = await fetchRelevantContexts(options.courseId, queryEmbedding);
 
     if (contexts.length === 0) {
       logRagUsage(options.userId, "success");
@@ -118,36 +116,47 @@ export async function askCourseAssistant(options: {
   } catch (error) {
     logRagUsage(options.userId, "fail");
     throw error;
-  } finally {
-    await session.close();
   }
 }
 
-async function fetchRelevantContexts(session: ReturnType<typeof getSession>, courseId: string, embedding: number[]) {
+async function fetchRelevantContexts(courseId: string, embedding: number[], attempt = 0): Promise<QueryContext[]> {
+  let session: neo4j.Session | null = null;
   const topK = neo4j.int(VECTOR_QUERY_LIMIT);
-  const result = await session.run(
-    `
+
+  try {
+    session = await getSession();
+    const result = await session.run(
+      `
     CALL db.index.vector.queryNodes($indexName, $topK, $embedding)
     YIELD node, score
     WHERE node.courseId = $courseId
     RETURN node.chunkId AS chunkId, node.content AS content, score
     LIMIT $topK
   `,
-    {
-      indexName: VECTOR_INDEX_NAME,
-      topK,
-      embedding,
-      courseId,
-    },
-  );
+      {
+        indexName: VECTOR_INDEX_NAME,
+        topK,
+        embedding,
+        courseId,
+      },
+    );
 
-  const contexts: QueryContext[] = result.records.map((record) => ({
-    chunkId: record.get("chunkId") as string,
-    content: record.get("content") as string,
-    score: record.get("score") as number,
-  }));
+    const contexts: QueryContext[] = result.records.map((record) => ({
+      chunkId: record.get("chunkId") as string,
+      content: record.get("content") as string,
+      score: record.get("score") as number,
+    }));
 
-  return contexts;
+    return contexts;
+  } catch (error) {
+    if (shouldResetDriver(error) && attempt < 1) {
+      await resetNeo4jDriver();
+      return fetchRelevantContexts(courseId, embedding, attempt + 1);
+    }
+    throw error;
+  } finally {
+    await session?.close();
+  }
 }
 
 function buildPrompt(params: { courseTitle: string; question: string; contexts: QueryContext[] }): string {
@@ -167,4 +176,16 @@ function buildPrompt(params: { courseTitle: string; question: string; contexts: 
     `Learner question: ${params.question}`,
     "Answer:",
   ].join("\n");
+}
+
+function shouldResetDriver(error: unknown): boolean {
+  if (!(error instanceof neo4j.Neo4jError)) {
+    return false;
+  }
+
+  if (error.code === "ServiceUnavailable" || error.code === "SessionExpired") {
+    return true;
+  }
+
+  return /No routing servers available/i.test(error.message ?? "");
 }

@@ -548,7 +548,7 @@ const CoursePlayerPage: React.FC = () => {
   const handleSendChat = async () => {
     const question = chatInput.trim();
     if (!question || chatLoading) return;
-    const courseIdForChat = activeLesson?.courseId ?? courseKey;
+    const courseIdForChat = (courseKey ?? activeLesson?.courseId ?? "").trim();
     if (!courseIdForChat) {
       toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
       return;

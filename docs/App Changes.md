@@ -168,3 +168,16 @@ This flow keeps the course player dynamic, secure, and resilient to session expi
 
 - **Associated pages**  
   Course/Become Tutor/About/Enrollment/Cart/Auth pages were updated to use the new home/course-player redirects when offering login or “back” actions, preventing accidental navigation to legacy screens.
+
+---
+
+## AI Tutor Identifier Alignment (2025-12-02)
+
+- **frontend/src/pages/CoursePlayerPage.tsx (`handleSendChat`)**  
+  The chatbot payload now always prefers the route slug (`courseKey`) when calling `/assistant/query`. This matches the identifier used during `npm run rag:ingest`, so Neo4j returns the correct chunk contexts when embedding questions.
+
+- **rag/rag.md & Course docs**  
+  Documentation now highlights that ingestion and querying must share the same slug; otherwise the assistant falls back to “I don’t have enough details…” even for in-scope questions.
+
+- **Verification checklist**  
+  Added an explicit “AI tutor” smoke test reminding engineers to ask a PDF-sourced question after every deployment.

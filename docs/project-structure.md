@@ -37,12 +37,14 @@
     - `auth.ts`: Google OAuth code exchange, JWT issuance, refresh, and logout.
     - `users.ts`: authenticated profile lookup (`/users/me`).
     - `quiz.ts`: dynamic quiz sections/progress plus attempt start/submit endpoints backed by `quiz_questions`, `quiz_options`, `quiz_attempts`, and `module_progress`.
+    - `assistant.ts`: authenticated RAG assistant endpoint (`/assistant/query`) that rate-limits requests and forwards them to the Neo4j/OpenAI pipeline.
   - `middleware/requireAuth.ts`: verifies bearer JWTs and attaches auth context to requests.
   - `services/`: shared business utilities:
     - `prisma.ts`: Prisma client singleton bound to `DATABASE_URL`.
     - `googleOAuth.ts`: OAuth2 client helper to build the consent URL & fetch Google profile data.
     - `userService.ts`: creates or returns users sourced from Google accounts.
     - `sessionService.ts`: manages JWT creation, rotation, hashing, and persistence in `user_sessions`.
+  - `rag/`: helper modules for the AI tutor (Neo4j driver, OpenAI wrapper, text chunker, rate limiter, usage logger).
   - `config/env.ts`: Zod-backed environment parsing for DB, Google OAuth, and JWT settings.
   - `utils/asyncHandler.ts`: promise-aware Express handler wrapper.
   - `utils/oauthState.ts`: signs/validates OAuth state cookies used during the Google redirect handshake.
@@ -60,6 +62,7 @@
 
 ## Scripts (`scripts/`)
 - `dev.sh`, `dev.ps1`: convenience scripts to launch both frontend and backend dev servers together.
+- `backend/scripts/ingestCourseContent.ts`: CLI entrypoint that chunks the course PDF, calls OpenAI embeddings, and loads the resulting vectors into Neo4j using the canonical course slug.
 
 ## Documentation (`docs/`)
 - `project-structure.md` *(this file)*: living map explaining how code maps to the visual experience.

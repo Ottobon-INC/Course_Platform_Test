@@ -118,7 +118,7 @@ Express API (4000) ── Prisma ──► PostgreSQL (Supabase)
 - `/become-a-tutor` form submits to `/api/tutor-applications` (validation via zod), persisting the structured application for internal review.
 
 ### 5.5 Retrieval-Augmented Q&A
-1. Content ingestion (`npm run rag:ingest`) reads a PDF, runs `textChunker` (default chunk 900 chars, overlap 150), builds embeddings via OpenAI, and writes `(Course)-[:HAS_CHUNK]->(CourseChunk)` nodes to Neo4j after wiping old chunks per course.
+1. Content ingestion (`npm run rag:ingest`) reads a PDF, runs `textChunker` (default chunk 900 chars, overlap 150), builds embeddings via OpenAI, and writes `(Course)-[:HAS_CHUNK]->(CourseChunk)` nodes to Neo4j after wiping old chunks per course. The `courseId` argument must be the public slug (e.g., `ai-in-web-development`) because the course player reuses that slug when calling the tutor API.
 2. Learner opens the chatbot panel; `ChatBot.tsx` checks `readStoredSession()` for tokens.
 3. When a question is sent, the component POSTs `/assistant/query` with `{ courseId, courseTitle?, question }` and `Authorization` header.
 4. `assistantRouter` enforces auth + `assertWithinRagRateLimit`, scrubs PII (`rag/pii.ts`), then:
@@ -127,6 +127,7 @@ Express API (4000) ── Prisma ──► PostgreSQL (Supabase)
    - Builds a prompt + context list and obtains a completion from OpenAI.
    - Logs success/failure via `logRagUsage` and returns `{ answer }` to the frontend.
 5. Frontend appends the bot response to the chat; errors surface as friendly messages (401 → session expired, 429 → slow down, others → generic failure).
+6. If Neo4j returns zero matching contexts, the backend emits the “I don’t have enough details…” fallback so learners know the topic is outside the current curriculum.
 
 ## 6. Environments & Configuration
 
