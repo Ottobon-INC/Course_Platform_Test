@@ -366,15 +366,13 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
   });
   const moduleOrder = Array.from(sectionsByModule.keys()).sort((a, b) => a - b);
 
-  const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(
-    Prisma.sql`
+  const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(Prisma.sql`
       SELECT module_no, topic_pair_index, status, score, completed_at, updated_at
       FROM quiz_attempts
       WHERE course_id = ${params.courseId}::uuid
         AND user_id = ${params.userId}::uuid
       ORDER BY completed_at DESC NULLS LAST, updated_at DESC NULLS LAST
-    `,
-  );
+    `);
 
   const latestAttemptByKey = new Map<string, QuizSectionAttemptRow>();
   attempts.forEach((attempt) => {
@@ -382,18 +380,6 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
     if (!latestAttemptByKey.has(key)) {
       latestAttemptByKey.set(key, attempt);
     }
-  });
-
-  const moduleCompletion = new Map<number, boolean>();
-  moduleOrder.forEach((moduleNo) => {
-    const sections = sectionsByModule.get(moduleNo) ?? [];
-    const allPassed =
-      sections.length > 0 &&
-      sections.every((row) => {
-        const key = `${row.module_no}:${row.topic_pair_index}`;
-        return latestAttemptByKey.get(key)?.status === "passed";
-      });
-    moduleCompletion.set(moduleNo, allPassed);
   });
 
   const results: {
@@ -409,7 +395,7 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
     attemptedAt: string | null;
   }[] = [];
 
-  let previousModulesPassed = true;
+  let previousModuleLastPairPassed = true;
   moduleOrder.forEach((moduleNo) => {
     const sections = (sectionsByModule.get(moduleNo) ?? []).sort((a, b) => {
       const orderA =
@@ -423,7 +409,7 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
       return orderA - orderB;
     });
 
-    let modulePairGate = previousModulesPassed;
+    let gate = previousModuleLastPairPassed || sections.length === 0 || moduleNo === 1;
     sections.forEach((row) => {
       const key = `${row.module_no}:${row.topic_pair_index}`;
       const attempt = latestAttemptByKey.get(key);
@@ -440,18 +426,21 @@ async function buildQuizSections(params: { courseId: string; userId: string }) {
         title: `Module ${row.module_no} • Topic pair ${row.topic_pair_index}`,
         subtitle: null,
         questionCount,
-        unlocked: modulePairGate,
+        unlocked: gate,
         passed: Boolean(passed),
         status: attempt?.status ?? null,
         lastScore: typeof attempt?.score === "number" ? attempt.score : null,
         attemptedAt,
       });
 
-      modulePairGate = modulePairGate && Boolean(passed);
+      gate = gate && Boolean(passed);
     });
 
-    const modulePassed = moduleCompletion.get(moduleNo) ?? false;
-    previousModulesPassed = previousModulesPassed && modulePassed;
+    const lastPair = sections[sections.length - 1];
+    const lastPairPassed = lastPair
+      ? latestAttemptByKey.get(`${lastPair.module_no}:${lastPair.topic_pair_index}`)?.status === "passed"
+      : true;
+    previousModuleLastPairPassed = Boolean(lastPairPassed);
   });
 
   return results;

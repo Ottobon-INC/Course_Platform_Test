@@ -19,6 +19,48 @@ type LessonStatus = "not_started" | "in_progress" | "completed";
 
 const clampProgress = (value: number) => Math.max(0, Math.min(100, value));
 
+function normalizeVideoUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+
+    const toEmbed = (id: string | null) => (id ? `https://www.youtube.com/embed/${id}` : trimmed);
+
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname.startsWith("/embed/")) {
+        return `https://www.youtube.com${parsed.pathname}`;
+      }
+      if (parsed.pathname === "/watch") {
+        return toEmbed(parsed.searchParams.get("v"));
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        return toEmbed(parsed.pathname.split("/").pop() ?? null);
+      }
+    }
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\/+/, "");
+      return toEmbed(id || null);
+    }
+
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
+const mapTopicForResponse = <T extends { videoUrl: string | null | undefined }>(topic: T) => ({
+  ...topic,
+  videoUrl: normalizeVideoUrl(topic.videoUrl),
+});
+
 async function resolveCourseId(courseKey: string): Promise<string | null> {
   const trimmedKey = courseKey?.trim();
   if (!trimmedKey) {
@@ -98,7 +140,7 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics });
+    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
   }),
 );
 
@@ -134,7 +176,7 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics });
+    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
   }),
 );
 

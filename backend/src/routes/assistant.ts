@@ -16,16 +16,16 @@ assistantRouter.post(
       return;
     }
 
-    const question = typeof req.body?.question === "string" ? req.body.question : "";
-    const courseId = typeof req.body?.courseId === "string" ? req.body.courseId : "";
+    const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+    const courseId = typeof req.body?.courseId === "string" ? req.body.courseId.trim() : "";
     const courseTitle = typeof req.body?.courseTitle === "string" ? req.body.courseTitle : undefined;
 
-    if (!question.trim()) {
+    if (!question) {
       res.status(400).json({ message: "Question is required" });
       return;
     }
 
-    if (!courseId.trim()) {
+    if (!courseId) {
       res.status(400).json({ message: "courseId is required" });
       return;
     }
@@ -40,13 +40,19 @@ assistantRouter.post(
       throw error;
     }
 
-    const result = await askCourseAssistant({
-      courseId: courseId.trim(),
-      courseTitle,
-      question,
-      userId: auth.userId,
-    });
-
-    res.status(200).json(result);
+    try {
+      const result = await askCourseAssistant({
+        courseId,
+        courseTitle,
+        question,
+        userId: auth.userId,
+      });
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Assistant query failed", error);
+      const message =
+        error instanceof Error && error.message ? error.message : "Tutor is unavailable right now. Please try again later.";
+      res.status(500).json({ message });
+    }
   }),
 );

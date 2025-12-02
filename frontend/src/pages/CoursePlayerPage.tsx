@@ -82,6 +82,18 @@ interface QuizAttemptResult {
   thresholdPercent: number;
 }
 
+type ChatMessage = {
+  id: string;
+  text: string;
+  isBot: boolean;
+  error?: boolean;
+};
+
+const makeId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+
 const PASSING_PERCENT_THRESHOLD = 70;
 
 const slugify = (text: string) =>
@@ -101,6 +113,7 @@ const CoursePlayerPage: React.FC = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [sections, setSections] = useState<QuizSection[]>([]);
   const [courseProgress, setCourseProgress] = useState(0);
+  const isComplete = useMemo(() => Math.round(courseProgress) >= 100, [courseProgress]);
   const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -108,6 +121,7 @@ const CoursePlayerPage: React.FC = () => {
   const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<number | null>(null);
+  const [passedQuizzes, setPassedQuizzes] = useState<Set<string>>(new Set());
 
   // Video playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -122,6 +136,11 @@ const CoursePlayerPage: React.FC = () => {
   const [notesRect, setNotesRect] = useState({ x: 0, y: 0, width: 350, height: 300, initialized: false });
   const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: "welcome", text: "Hi! Ask anything about this course.", isBot: true },
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -160,10 +179,12 @@ const CoursePlayerPage: React.FC = () => {
     [lessons, activeSlug],
   );
   const currentModuleId = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
+  const realModules = useMemo(() => modules.filter((m) => m.id > 0), [modules]);
   const currentModuleDisplay = useMemo(() => {
-    const idx = modules.findIndex((m) => m.id === currentModuleId);
-    return idx >= 0 ? idx + 1 : currentModuleId > 0 ? currentModuleId : 1;
-  }, [modules, currentModuleId]);
+    if (currentModuleId === 0) return 0;
+    const idx = realModules.findIndex((m) => m.id === currentModuleId);
+    return idx >= 0 ? idx + 1 : currentModuleId;
+  }, [realModules, currentModuleId]);
 
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
@@ -199,15 +220,15 @@ const CoursePlayerPage: React.FC = () => {
     }
   }, [courseKey, activeSlug, expandedModules.length, setLocation, toast]);
 
+  // Lock system disabled: keep sections empty and progress at 0
   const fetchSections = useCallback(async () => {
-    if (!courseKey) return;
-    const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
+    if (!courseKey || !session?.accessToken) return;
     try {
       const res = await fetch(buildApiUrl(`/api/quiz/sections/${courseKey}`), {
         credentials: "include",
-        headers,
+        headers: { Authorization: `Bearer ${session.accessToken}` },
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const list: QuizSection[] = (data.sections ?? []).map((s: any) => ({
         moduleNo: s.moduleNo,
@@ -218,30 +239,17 @@ const CoursePlayerPage: React.FC = () => {
         questionCount: s.questionCount ?? 5,
       }));
       setSections(list);
-      const totalSections = list.length;
-      const passedSections = list.filter((s) => s.passed).length;
-      setCourseProgress(totalSections > 0 ? Math.round((passedSections / totalSections) * 100) : 0);
+      const total = list.length;
+      const passed = list.filter((s) => s.passed).length;
+      setCourseProgress(total > 0 ? Math.round((passed / total) * 100) : 0);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to load quiz sections", error);
     }
   }, [courseKey, session?.accessToken]);
 
   const fetchProgress = useCallback(async () => {
-    if (!courseKey) return;
-    const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
-    try {
-      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/progress`), {
-        credentials: "include",
-        headers,
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      // Keep the higher of lesson progress and quiz progress
-      setCourseProgress((prev) => Math.max(prev, data?.percent ?? 0));
-    } catch (error) {
-      console.error(error);
-    }
-  }, [courseKey, session?.accessToken]);
+    // courseProgress derived from sections
+  }, []);
 
   // Hydrate modules with quizzes when lessons/sections change
   useEffect(() => {
@@ -252,33 +260,42 @@ const CoursePlayerPage: React.FC = () => {
       list.push(lesson);
       grouped.set(lesson.moduleNo, list);
     });
-    const sortedModules = Array.from(grouped.entries()).sort(([a], [b]) => a - b);
-    let prevModulesPassed = true; // intro baseline
-    const newModules: Module[] = sortedModules.map(([moduleNo, lessonsForModule]) => {
-      const sorted = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
-      const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
-      const moduleSectionsPassed = sectionForModule.length > 0 ? sectionForModule.every((s) => s.passed) : false;
+    const moduleEntries = Array.from(grouped.entries()).sort(([a], [b]) => a - b);
 
-      // Unlock: intro always unlocked; later modules unlocked only if ALL previous modules are passed
-      const moduleUnlocked = moduleNo === 0 ? true : prevModulesPassed;
+    let prevModuleLastPairPassed = true;
+    const newModules: Module[] = moduleEntries.map(([moduleNo, lessonsForModule]) => {
+      const sortedLessons = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
+      const submodules: SubModule[] = [];
 
-      // Update gate for next module: require this module passed as well
-      if (moduleNo > 0) {
-        prevModulesPassed = prevModulesPassed && moduleSectionsPassed;
+      if (moduleNo === 0) {
+        sortedLessons.forEach((lesson) => {
+          submodules.push({
+            id: lesson.topicId,
+            title: lesson.topicName,
+            type: "video",
+            slug: lesson.slug,
+            moduleNo: lesson.moduleNo,
+            topicNumber: lesson.topicNumber,
+            unlocked: true,
+          });
+        });
+        return {
+          id: moduleNo,
+          title: sortedLessons[0]?.moduleName ?? "Introduction",
+          submodules,
+          unlocked: true,
+          passed: true,
+        };
       }
 
-      // Allowed topics within module
-      let allowedMaxTopic = moduleNo === 0 ? Number.POSITIVE_INFINITY : 2;
-      sectionForModule.forEach((sec) => {
-        if (sec.passed) {
-          allowedMaxTopic = Math.max(allowedMaxTopic, (sec.topicPairIndex + 1) * 2);
-        }
-      });
-      if (!moduleUnlocked) allowedMaxTopic = 0;
+      const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+      const moduleUnlocked = moduleNo === 1 || prevModuleLastPairPassed || sectionForModule.some((s) => s.unlocked);
+      const modulePassed = sectionForModule.length === 0 || sectionForModule.every((s) => s.passed);
 
-      const submodules: SubModule[] = [];
-      sorted.forEach((lesson) => {
-        const lessonUnlocked = moduleUnlocked && (moduleNo === 0 || lesson.topicNumber <= allowedMaxTopic);
+      sortedLessons.forEach((lesson, idx) => {
+        const pairIdx = Math.ceil((idx + 1) / 2);
+        const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
+        const unlocked = moduleUnlocked && (section?.unlocked ?? true);
         submodules.push({
           id: lesson.topicId,
           title: lesson.topicName,
@@ -286,24 +303,31 @@ const CoursePlayerPage: React.FC = () => {
           slug: lesson.slug,
           moduleNo: lesson.moduleNo,
           topicNumber: lesson.topicNumber,
-          unlocked: lessonUnlocked,
+          topicPairIndex: pairIdx,
+          unlocked,
         });
-        if (lesson.moduleNo > 0 && lesson.topicNumber % 2 === 0) {
-          const pairIdx = lesson.topicNumber / 2;
-          const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
-          const quizUnlocked = moduleUnlocked && (section?.unlocked ?? moduleUnlocked) && allowedMaxTopic >= pairIdx * 2;
+        if ((idx + 1) % 2 === 0) {
           submodules.push({
             id: `quiz-${moduleNo}-${pairIdx}`,
-            title: section?.title ?? `Quiz ${pairIdx}`,
+            title: `Quiz ${pairIdx}`,
             type: "quiz",
             moduleNo,
             topicPairIndex: pairIdx,
-            unlocked: quizUnlocked,
+            unlocked,
           });
         }
       });
-      const passed = moduleSectionsPassed;
-      return { id: moduleNo, title: sorted[0]?.moduleName ?? `Module ${moduleNo}`, submodules, unlocked: moduleUnlocked, passed };
+
+      const lastSection = sectionForModule[sectionForModule.length - 1];
+      prevModuleLastPairPassed = lastSection ? Boolean(lastSection.passed) : prevModuleLastPairPassed;
+
+      return {
+        id: moduleNo,
+        title: sortedLessons[0]?.moduleName ?? `Module ${moduleNo}`,
+        submodules,
+        unlocked: moduleUnlocked,
+        passed: modulePassed,
+      };
     });
     setModules(newModules);
 
@@ -321,9 +345,11 @@ const CoursePlayerPage: React.FC = () => {
 
   useEffect(() => {
     void fetchTopics();
+  }, [fetchTopics]);
+
+  useEffect(() => {
     void fetchSections();
-    void fetchProgress();
-  }, [fetchTopics, fetchSections, fetchProgress]);
+  }, [fetchSections]);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -333,25 +359,6 @@ const CoursePlayerPage: React.FC = () => {
     };
     void hydrateSession();
   }, []);
-
-  // Video progress timers
-  useEffect(() => {
-    let interval: number;
-    if (isPlaying && !showNextOverlay && progress < 100 && !isQuizMode) {
-      interval = window.setInterval(() => {
-        setProgress((p) => {
-          const next = p + 0.1;
-          if (next >= 100) {
-            setIsPlaying(false);
-            setShowNextOverlay(true);
-            return 100;
-          }
-          return next;
-        });
-      }, 50);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, showNextOverlay, progress, isQuizMode]);
 
   // Quiz timer
   useEffect(() => {
@@ -526,14 +533,63 @@ const CoursePlayerPage: React.FC = () => {
       });
       setQuizPhase("result");
       toast({ title: base?.passed ? "Module unlocked" : "Quiz submitted" });
-      void fetchSections();
-      void fetchProgress();
+      if (base?.passed) {
+        void fetchSections();
+      }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Could not submit quiz",
         description: error instanceof Error ? error.message : "Please try again",
       });
+    }
+  };
+
+  const handleSendChat = async () => {
+    const question = chatInput.trim();
+    if (!question || chatLoading) return;
+    const courseIdForChat = activeLesson?.courseId ?? courseKey;
+    if (!courseIdForChat) {
+      toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
+      return;
+    }
+    const userMsg: ChatMessage = { id: makeId(), text: question, isBot: false };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      if (!session?.accessToken) {
+        throw new Error("Please sign in to chat with the tutor.");
+      }
+      const res = await fetch(buildApiUrl("/assistant/query"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          question,
+          courseId: courseIdForChat,
+          courseTitle: activeLesson?.moduleName ?? undefined,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = payload?.message || (await res.text()) || "Tutor unavailable";
+        throw new Error(msg);
+      }
+      const answer = payload?.answer ?? "I could not find an answer for that right now.";
+      setChatMessages((prev) => [...prev, { id: makeId(), text: answer, isBot: true }]);
+    } catch (error) {
+      const raw = error instanceof Error ? error.message : "Tutor unavailable";
+      const friendly = raw.toLowerCase().includes("internal server error")
+        ? "Tutor is unavailable right now. Please try again soon."
+        : raw;
+      setChatMessages((prev) => [...prev, { id: makeId(), text: friendly, isBot: true, error: true }]);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -575,9 +631,19 @@ const CoursePlayerPage: React.FC = () => {
 
         {sidebarOpen && (
           <div className="p-4 border-b border-[#4a4845]/20">
-            <div className="flex justify-between text-xs text-[#f8f1e6] mb-1">
-              <span className="font-bold">Module {currentModuleDisplay} of {modules.length}</span>
-              <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
+            <div className="flex justify-between items-center text-xs text-[#f8f1e6] mb-1">
+              <span className="font-bold">
+                {currentModuleId === 0
+                  ? `Intro (of ${realModules.length})`
+                  : `Module ${currentModuleDisplay} of ${realModules.length}`}
+              </span>
+              {isComplete ? (
+                <button className="px-2 py-1 rounded-md bg-[#bf2f1f] text-white text-[11px] font-bold hover:bg-[#a02a19] transition">
+                  Certificate
+                </button>
+              ) : (
+                <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
+              )}
             </div>
             <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
               <div className="h-full bg-[#bf2f1f] transition-all duration-500" style={{ width: `${courseProgress}%` }}></div>
@@ -688,110 +754,6 @@ const CoursePlayerPage: React.FC = () => {
                 <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">No video for this lesson.</div>
               )}
 
-              {showNextOverlay && (
-                <div className="absolute inset-0 bg-[#000000]/95 flex flex-col items-center justify-center z-20 animate-fade-in">
-                  <div className="text-[#f8f1e6]/60 text-xl mb-2">Next up...</div>
-                  <div className="text-8xl font-black text-[#bf2f1f]">{countdown}</div>
-                  <button
-                    onClick={() => {
-                      // Go to next lesson (video only)
-                      const idx = lessons.findIndex((l) => l.slug === activeLesson?.slug);
-                      if (idx >= 0 && idx < lessons.length - 1) {
-                        const next = lessons[idx + 1];
-                        setActiveSlug(next.slug);
-                        setLocation(`/course/${courseKey}/learn/${next.slug}`);
-                        setProgress(0);
-                        setIsPlaying(true);
-                      }
-                      setShowNextOverlay(false);
-                      setCountdown(5);
-                    }}
-                    className="mt-8 px-6 py-2 bg-[#f8f1e6] text-[#000000] font-bold rounded-full border-2 border-[#bf2f1f]"
-                  >
-                    Continue <SkipForward size={16} className="inline ml-1" />
-                  </button>
-                </div>
-              )}
-
-              {!showNextOverlay && !isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center cursor-pointer" onClick={() => setIsPlaying(true)}>
-                  <div className="w-20 h-20 bg-[#bf2f1f]/80 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-[#f8f1e6] hover:scale-110 transition shadow-2xl">
-                    <Play size={32} fill="white" className="ml-1 text-white" />
-                  </div>
-                </div>
-              )}
-              {!showNextOverlay && isPlaying && (
-                <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={() => setIsPlaying(false)}></div>
-              )}
-
-              <div
-                className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/80 to-transparent pt-14 pb-2 px-4 z-20 transition-opacity duration-300 ${
-                  isControlsVisible || !isPlaying ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={progress}
-                  onChange={(e) => setProgress(Number(e.target.value))}
-                  className="w-full h-1 mb-4 accent-[#bf2f1f] cursor-pointer"
-                />
-
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setIsPlaying(!isPlaying)} className="text-white hover:text-[#bf2f1f] transition">
-                      {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                    </button>
-                    <div className="text-xs text-[#f8f1e6]">
-                      <span className="font-bold text-white block">{activeLesson?.topicName ?? ""}</span>
-                      <span className="opacity-70">{Math.floor((progress * 12) / 100)}:00 / 12:00</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setStudyWidgetOpen(!studyWidgetOpen)}
-                      className={`p-2 rounded-full transition ${
-                        studyWidgetOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
-                      }`}
-                      title="Open Study Material"
-                    >
-                      <Book size={18} />
-                    </button>
-
-                    <button
-                      onClick={() => setNotesOpen(!notesOpen)}
-                      className={`p-2 rounded-full transition ${
-                        notesOpen ? "bg-[#f8f1e6] text-[#000000]" : "bg-white/10 text-white hover:bg-white/20"
-                      }`}
-                      title="Open Notes"
-                    >
-                      <FileText size={18} />
-                    </button>
-
-                    <button
-                      onClick={() => setChatOpen(!chatOpen)}
-                      className={`p-2 rounded-full transition ${
-                        chatOpen ? "bg-[#bf2f1f] text-white" : "bg-white/10 text-white hover:bg-white/20"
-                      }`}
-                      title="Open AI Chat"
-                    >
-                      <MessageSquare size={18} />
-                    </button>
-
-                    <div className="w-px h-6 bg-white/20 mx-1"></div>
-
-                    <button
-                      onClick={() => setIsFullScreen((v) => !v)}
-                      className="text-white hover:text-[#bf2f1f] transition"
-                      title="Cinema Mode"
-                    >
-                      {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -980,15 +942,36 @@ const CoursePlayerPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
-            <div className="text-xs text-[#f8f1e6]/50">AI tutor placeholder. Integrate RAG backend as needed.</div>
+            {chatMessages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${
+                  msg.error ? "border-red-500/60 text-red-200" : ""
+                }`}
+              >
+                <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
+                <div className="whitespace-pre-line">{msg.text}</div>
+              </div>
+            ))}
+            {chatLoading && <div className="text-xs text-[#f8f1e6]/60">Tutor is thinking...</div>}
           </div>
           <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
             <input
               className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
               placeholder="Ask AI..."
-              onKeyDown={(e) => e.key === "Enter" && undefined}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSendChat();
+                }
+              }}
+              disabled={chatLoading}
             />
-            <button className="p-2"><Send size={16} className="text-[#bf2f1f]" /></button>
+            <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
+              <Send size={16} className="text-[#bf2f1f]" />
+            </button>
           </div>
           <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
           <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
