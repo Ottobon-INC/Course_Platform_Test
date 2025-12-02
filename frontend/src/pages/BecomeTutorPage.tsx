@@ -12,6 +12,7 @@ import {
   Rocket
 } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { buildApiUrl } from "@/lib/api";
 
 // --- 1. TYPES & INTERFACES ---
 interface TutorApplication {
@@ -46,7 +47,7 @@ const generateCourseDescription = async (
 // --- 3. SUB-COMPONENTS ---
 
 // Sub-component for the Scroll-Scrubbing Number Animation
-const ScrollFillNumber = ({ number }: { number: string }) => {
+const ScrollFillNumber = ({ number, sizeClass }: { number: string; sizeClass?: string }) => {
   const ref = useRef<HTMLDivElement>(null);
   
   // Track scroll progress of this specific element
@@ -62,7 +63,7 @@ const ScrollFillNumber = ({ number }: { number: string }) => {
     <div className="p-4 overflow-visible relative">
       <motion.div
         ref={ref}
-        className="text-[8rem] md:text-[12rem] font-black leading-[0.85] tracking-tighter shrink-0 select-none"
+        className={`${sizeClass ?? "text-[8rem] md:text-[12rem]"} font-black leading-[0.85] tracking-tighter shrink-0 select-none`}
         style={{
           // Base styles for the outline text
           WebkitTextStroke: '3px rgba(30, 58, 71, 0.15)',
@@ -88,21 +89,25 @@ const ScrollFillNumber = ({ number }: { number: string }) => {
 };
 
 // --- 4. MAIN COMPONENT ---
+const initialFormState: TutorApplication = {
+  fullName: "",
+  email: "",
+  phone: "",
+  headline: "",
+  expertiseArea: "",
+  yearsExperience: 0,
+  courseTitle: "",
+  availability: "",
+  courseDescription: "",
+  targetAudience: "",
+};
+
 const BecomeTutor: React.FC = () => {
-  const [formData, setFormData] = useState<TutorApplication>({
-    fullName: '',
-    email: '',
-    phone: '',
-    headline: '',
-    expertiseArea: '',
-    yearsExperience: 0,
-    courseTitle: '',
-    availability: '',
-    courseDescription: '',
-    targetAudience: ''
-  });
+  const [formData, setFormData] = useState<TutorApplication>({ ...initialFormState });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   
   // Typewriter state
   const fullText = "Your knowledge can change a career.";
@@ -200,10 +205,43 @@ const BecomeTutor: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form Submitted:", formData);
-    alert("Proposal submitted successfully!");
+    setSubmitMessage(null);
+    setIsSubmitting(true);
+
+    const payload = {
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone?.trim() || undefined,
+      headline: formData.headline.trim(),
+      courseTitle: formData.courseTitle.trim(),
+      courseDescription: formData.courseDescription.trim(),
+      targetAudience: formData.targetAudience.trim(),
+      expertiseArea: formData.expertiseArea.trim(),
+      experienceYears: Number(formData.yearsExperience) || 0,
+      availability: formData.availability.trim(),
+    };
+
+    try {
+      const res = await fetch(buildApiUrl("/tutor-applications"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        throw new Error(error?.message ?? "Failed to submit tutor application.");
+      }
+
+      setSubmitMessage("Proposal submitted successfully! Our team will be in touch soon.");
+      setFormData({ ...initialFormState });
+    } catch (error) {
+      setSubmitMessage(error instanceof Error ? error.message : "Submission failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -256,31 +294,6 @@ const BecomeTutor: React.FC = () => {
         </div>
       </section>
 
-      {/* --- Impact Metrics (Scroll-fill numbers) --- */}
-      <section className="px-6 md:px-12 max-w-[1400px] mx-auto pb-10">
-        <div className="rounded-[2.5rem] bg-white border border-[#1E3A47]/5 shadow-xl shadow-[#1E3A47]/5 overflow-hidden grid md:grid-cols-3">
-          {[
-            {
-              value: "60",
-              label: "Active tutors launched new cohorts with us this year.",
-            },
-            {
-              value: "4800",
-              label: "Learners graduated from AI tracks designed with partner instructors.",
-            },
-            {
-              value: "92",
-              label: "Percent of mentors report higher income within 3 months.",
-            },
-          ].map((stat) => (
-            <div key={stat.value} className="flex flex-col items-center text-center px-6 py-10 border-[#1E3A47]/5 md:border-r last:border-r-0">
-              <ScrollFillNumber number={stat.value} />
-              <p className="text-[#1E3A47]/70 font-medium max-w-xs">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* --- Why Teach Section (Centered) --- */}
       <section className="py-16 px-6 md:px-12 max-w-[1400px] mx-auto">
         <div className="text-center mb-16 reveal">
@@ -324,48 +337,28 @@ const BecomeTutor: React.FC = () => {
         </div>
       </section>
 
-      {/* --- How It Works Section (Expanding Circle Scrollytelling) --- */}
-      <section ref={howItWorksRef} className="relative h-[350vh] bg-[#FFFBF5]">
-        <div className="sticky top-0 h-screen overflow-hidden flex flex-col items-center justify-center">
-          
-          {/* 1. The Expanding Circle Background */}
-          <motion.div 
-            style={{ scale: circleScale }}
-            className="w-[10vw] h-[10vw] bg-[#1E3A47] rounded-full absolute z-10"
-          />
-
-          {/* 2. Initial "How it Works" Title (Visible before circle expands) */}
-          <motion.div 
-            style={{ opacity: useTransform(howItWorksScroll, [0, 0.1], [1, 0]) }}
-            className="absolute z-0 text-center"
-          >
-             <h3 className="text-5xl md:text-6xl font-black text-[#1E3A47] tracking-tight">How it works</h3>
-          </motion.div>
-
-          {/* 3. The Steps (Visible after circle expands) */}
-          <div className="z-20 w-full max-w-4xl px-6 pointer-events-none">
-            {steps.map((step) => (
-              <motion.div 
-                key={step.id}
-                style={{ opacity: step.opacity }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center flex flex-col items-center"
-              >
-                <div className="mb-8 p-6 rounded-3xl bg-[#FFFFFF]/10 backdrop-blur-sm border border-[#FFFFFF]/10 shadow-2xl">
-                  {step.icon}
-                </div>
-                <h2 className="text-[#FFFBF5] text-8xl md:text-9xl font-black mb-6 tracking-tighter opacity-10">
-                  {step.id}
-                </h2>
-                <h3 className="text-[#FFFBF5] text-4xl md:text-6xl font-black mb-6">
-                  {step.title}
-                </h3>
-                <p className="text-[#FFFBF5]/80 text-xl md:text-2xl font-medium max-w-xl mx-auto">
-                  {step.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-
+      {/* --- How It Works Section (Three-step billboard) --- */}
+      <section className="bg-[#FFFBF5] py-20">
+        <div className="max-w-[1200px] mx-auto px-6 md:px-12 space-y-16">
+          {[
+            { id: "01", title: "Submit Idea", desc: "Tell us about your expertise and proposed topic." },
+            { id: "02", title: "Design Syllabus", desc: "Collaborate with our curriculum experts." },
+            { id: "03", title: "Launch & Earn", desc: "Go live on the platform. Track analytics and get paid." },
+          ].map((step, index) => (
+            <div
+              key={step.id}
+              className="reveal flex flex-col md:flex-row md:items-center gap-6 border-b border-[#1E3A47]/10 pb-12 last:border-b-0"
+              style={{ transitionDelay: `${index * 150}ms` }}
+            >
+              <div className="w-[140px] flex items-center justify-center">
+                <ScrollFillNumber number={step.id} sizeClass="text-6xl md:text-[120px]" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-3xl md:text-4xl font-black text-[#1E3A47]">{step.title}</h4>
+                <p className="text-lg text-[#1E3A47]/70 mt-2">{step.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -549,13 +542,19 @@ const BecomeTutor: React.FC = () => {
                     We respect your privacy.
                   </p>
                 </div>
-                <button 
-                  type="submit"
-                  className="w-full md:w-auto px-12 py-5 bg-[#C03520] hover:bg-[#A02C1B] text-[#FFFBF5] font-black text-lg rounded-xl shadow-lg shadow-[#C03520]/20 transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95"
-                >
-                  Submit Application
-                  <ArrowRight size={20} strokeWidth={3} />
-                </button>
+                <div className="flex flex-col gap-3 w-full md:w-auto">
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full md:w-auto px-12 py-5 bg-[#C03520] hover:bg-[#A02C1B] disabled:bg-[#C03520]/60 text-[#FFFBF5] font-black text-lg rounded-xl shadow-lg shadow-[#C03520]/20 transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                    {!isSubmitting && <ArrowRight size={20} strokeWidth={3} />}
+                  </button>
+                  {submitMessage && (
+                    <p className="text-sm text-[#FFFBF5]/90 md:text-left text-center">{submitMessage}</p>
+                  )}
+                </div>
               </div>
 
             </form>
