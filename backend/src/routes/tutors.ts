@@ -4,6 +4,8 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { requireTutor } from "../middleware/requireRole";
+import { verifyPassword } from "../utils/password";
+import { createSession } from "../services/sessionService";
 
 const tutorsRouter = express.Router();
 
@@ -18,6 +20,67 @@ async function isTutorForCourse(userId: string, courseId: string): Promise<boole
   });
   return Boolean(assignment);
 }
+
+tutorsRouter.post(
+  "/login",
+  asyncHandler(async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+    if (!email || !password) {
+      res.status(400).json({ message: "Email and password are required" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        userId: true,
+        email: true,
+        fullName: true,
+        role: true,
+        passwordHash: true,
+        tutorProfile: {
+          select: {
+            tutorId: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    if (!user || (user.role !== "tutor" && user.role !== "admin")) {
+      res.status(403).json({ message: "Tutor account required" });
+      return;
+    }
+
+    const passwordValid = await verifyPassword(password, user.passwordHash);
+    if (!passwordValid) {
+      res.status(401).json({ message: "Wrong email or wrong password" });
+      return;
+    }
+
+    const tokens = await createSession(user.userId, user.role);
+
+    res.status(200).json({
+      user: {
+        id: user.userId,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        tutorId: user.tutorProfile?.tutorId,
+        displayName: user.tutorProfile?.displayName ?? user.fullName,
+      },
+      session: {
+        accessToken: tokens.accessToken,
+        accessTokenExpiresAt: tokens.accessTokenExpiresAt.toISOString(),
+        refreshToken: tokens.refreshToken,
+        refreshTokenExpiresAt: tokens.refreshTokenExpiresAt.toISOString(),
+        sessionId: tokens.sessionId,
+      },
+    });
+  }),
+);
 
 tutorsRouter.get(
   "/me/courses",

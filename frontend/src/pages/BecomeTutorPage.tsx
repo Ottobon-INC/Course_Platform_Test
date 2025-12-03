@@ -239,7 +239,7 @@ const BecomeTutor: React.FC = () => {
     setIsLoggingIn(true);
 
     try {
-      const response = await fetch(buildApiUrl("/tutors/login"), {
+      const response = await fetch(buildApiUrl("/api/tutors/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPassword }),

@@ -22,7 +22,10 @@ export default function TutorLoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest('POST', '/api/tutors/login', { email, password });
+      const response = await apiRequest('POST', '/api/tutors/login', {
+        email: email.trim().toLowerCase(),
+        password
+      });
       const payload = await response.json();
       const session: StoredSession = {
         accessToken: payload.session?.accessToken,
@@ -37,8 +40,20 @@ export default function TutorLoginPage() {
       };
       writeStoredSession(session);
       resetSessionHeartbeat();
+      localStorage.setItem(
+        'user',
+        JSON.stringify({
+          id: payload.user?.id,
+          email: payload.user?.email,
+          fullName: payload.user?.fullName,
+          role: payload.user?.role,
+          tutorId: payload.user?.tutorId,
+          displayName: payload.user?.displayName
+        })
+      );
+      localStorage.setItem('isAuthenticated', 'true');
       toast({ title: 'Welcome back', description: 'Tutor session active' });
-      setLocation('/');
+      setLocation('/tutors');
     } catch (error: any) {
       toast({
         variant: 'destructive',
