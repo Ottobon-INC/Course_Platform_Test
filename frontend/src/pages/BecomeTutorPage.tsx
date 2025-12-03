@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  BarChart3, 
-  Video, 
-  Globe, 
-  ArrowRight, 
-  Sparkles, 
+import { useLocation } from 'wouter';
+import {
+  BarChart3,
+  Video,
+  Globe,
+  ArrowRight,
+  Sparkles,
   Loader2,
   CheckCircle2,
   Lightbulb,
   PenTool,
-  Rocket
+  Rocket,
+  X
 } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { buildApiUrl } from "@/lib/api";
+import { writeStoredSession, resetSessionHeartbeat } from '@/utils/session';
+import type { StoredSession } from '@/types/session';
 
 // --- 1. TYPES & INTERFACES ---
 interface TutorApplication {
@@ -104,14 +108,33 @@ const initialFormState: TutorApplication = {
 
 const BecomeTutor: React.FC = () => {
   const [formData, setFormData] = useState<TutorApplication>({ ...initialFormState });
+  const [, setLocation] = useLocation();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   // Typewriter state
   const fullText = "Your knowledge can change a career.";
   const [typedText, setTypedText] = useState("");
+
+  const openLoginModal = () => {
+    setLoginError(null);
+    setShowLoginModal(true);
+  };
+
+  const closeLoginModal = () => {
+    setShowLoginModal(false);
+    setLoginEmail("");
+    setLoginPassword("");
+    setLoginError(null);
+    setIsLoggingIn(false);
+  };
   
   useEffect(() => {
     let index = 0;
@@ -205,6 +228,65 @@ const BecomeTutor: React.FC = () => {
     }
   };
 
+  const handleTutorLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      setLoginError("Please enter both email and password.");
+      return;
+    }
+
+    setLoginError(null);
+    setIsLoggingIn(true);
+
+    try {
+      const response = await fetch(buildApiUrl("/tutors/login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim().toLowerCase(), password: loginPassword }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message ?? "Wrong email or wrong password");
+      }
+
+      const payload = await response.json();
+      const session: StoredSession = {
+        accessToken: payload.session?.accessToken,
+        accessTokenExpiresAt: payload.session?.accessTokenExpiresAt,
+        refreshToken: payload.session?.refreshToken,
+        refreshTokenExpiresAt: payload.session?.refreshTokenExpiresAt,
+        sessionId: payload.session?.sessionId,
+        role: payload.user?.role,
+        userId: payload.user?.id,
+        email: payload.user?.email,
+        fullName: payload.user?.fullName,
+      };
+
+      writeStoredSession(session);
+      resetSessionHeartbeat();
+
+      const userPayload = {
+        id: payload.user?.id,
+        email: payload.user?.email,
+        fullName: payload.user?.fullName,
+        role: payload.user?.role,
+        tutorId: payload.user?.tutorId,
+        displayName: payload.user?.displayName,
+      };
+
+      localStorage.setItem("user", JSON.stringify(userPayload));
+      localStorage.setItem("isAuthenticated", "true");
+
+      closeLoginModal();
+      setLocation("/tutors");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Wrong email or wrong password");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitMessage(null);
@@ -291,6 +373,19 @@ const BecomeTutor: React.FC = () => {
           <p className="text-lg md:text-2xl text-[#1E3A47]/70 font-medium max-w-2xl mx-auto reveal stagger-1 leading-relaxed">
             Become a tutor and lead the AI revolution.
           </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10 reveal stagger-2">
+            <button
+              type="button"
+              onClick={openLoginModal}
+              className="inline-flex items-center gap-2 rounded-full px-8 py-3 bg-[#1E3A47] text-white font-semibold text-sm uppercase tracking-widest shadow-lg shadow-[#1E3A47]/30 transition hover:-translate-y-0.5 hover:bg-[#16232B]"
+            >
+              Login as Tutor
+            </button>
+            <p className="text-sm text-[#1E3A47]/60 text-center max-w-sm">
+              Already teaching with us? Sign in to access your studio dashboard and resources.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -561,6 +656,73 @@ const BecomeTutor: React.FC = () => {
           </div>
         </section>
       </div>
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[60] bg-[#0F172A]/70 backdrop-blur-sm px-6 flex items-center justify-center">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl text-left">
+            <button
+              type="button"
+              onClick={closeLoginModal}
+              className="absolute right-4 top-4 text-[#1E3A47]/60 hover:text-[#1E3A47] transition"
+              aria-label="Close login dialog"
+            >
+              <X size={22} />
+            </button>
+            <div className="space-y-2">
+              <p className="text-[11px] font-black uppercase tracking-[0.4em] text-[#E5583E]">
+                Tutor Console
+              </p>
+              <h3 className="text-3xl font-black text-[#1E3A47]">Log in to continue</h3>
+              <p className="text-sm text-[#1E3A47]/70">
+                Access your studio, briefs, and cohort analytics with your tutor credentials.
+              </p>
+            </div>
+            <form className="mt-8 space-y-5" onSubmit={handleTutorLogin}>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wide text-[#1E3A47]">
+                  Work Email
+                </label>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(event) => setLoginEmail(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-transparent bg-[#F8F9FB] px-4 py-4 text-[#1E3A47] font-semibold placeholder:text-[#1E3A47]/30 focus:border-[#E5583E]/40 focus:outline-none focus:ring-4 focus:ring-[#E5583E]/10"
+                  placeholder="you@metatutor.com"
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wide text-[#1E3A47]">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={loginPassword}
+                  onChange={(event) => setLoginPassword(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-transparent bg-[#F8F9FB] px-4 py-4 text-[#1E3A47] font-semibold placeholder:text-[#1E3A47]/30 focus:border-[#E5583E]/40 focus:outline-none focus:ring-4 focus:ring-[#E5583E]/10"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+              </div>
+              {loginError && (
+                <p className="text-sm font-semibold text-[#C03520] bg-[#FEECEC] rounded-2xl px-4 py-2">
+                  {loginError}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full rounded-2xl bg-[#1E3A47] py-4 text-lg font-black uppercase tracking-widest text-white shadow-lg shadow-[#1E3A47]/30 transition hover:-translate-y-0.5 hover:bg-[#16232B] disabled:bg-[#1E3A47]/40 disabled:cursor-not-allowed"
+              >
+                {isLoggingIn ? "Signing in..." : "Continue"}
+              </button>
+              <p className="text-center text-xs text-[#1E3A47]/60">
+                Need an account? Contact the program team to be onboarded.
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

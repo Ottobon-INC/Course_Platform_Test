@@ -9,6 +9,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { readStoredSession, clearStoredSession, resetSessionHeartbeat } from '@/utils/session';
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 type TutorCourse = {
   courseId: string;
@@ -37,11 +38,21 @@ type ProgressRow = {
   percent: number;
 };
 
+type TutorAssistantMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+};
+
 export default function TutorDashboardPage() {
   const session = readStoredSession();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [assistantMessages, setAssistantMessages] = useState<TutorAssistantMessage[]>([]);
+  const [assistantInput, setAssistantInput] = useState('');
+  const [assistantLoading, setAssistantLoading] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -77,6 +88,10 @@ export default function TutorDashboardPage() {
     }
   }, [courses, selectedCourseId]);
 
+  useEffect(() => {
+    setAssistantMessages([]);
+  }, [selectedCourseId]);
+
   const {
     data: enrollmentsResponse,
     isLoading: enrollmentsLoading
@@ -111,7 +126,56 @@ export default function TutorDashboardPage() {
   const handleLogout = () => {
     clearStoredSession();
     toast({ title: 'Signed out' });
-    setLocation('/tutor/login');
+    setLocation('/become-a-tutor');
+  };
+
+  const handleAssistantSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedCourseId || !assistantInput.trim()) {
+      return;
+    }
+
+    if (!headers) {
+      toast({ variant: 'destructive', title: 'Session missing', description: 'Please sign in again.' });
+      return;
+    }
+
+    const question = assistantInput.trim();
+    const userMessage: TutorAssistantMessage = {
+      id: `${Date.now()}-${Math.random()}`,
+      role: 'user',
+      content: question,
+      timestamp: new Date().toISOString()
+    };
+
+    setAssistantMessages((prev) => [...prev, userMessage]);
+    setAssistantInput('');
+    setAssistantLoading(true);
+
+    try {
+      const response = await apiRequest(
+        'POST',
+        '/api/tutors/assistant/query',
+        { courseId: selectedCourseId, question },
+        { headers }
+      );
+      const payload = await response.json();
+      const assistantMessage: TutorAssistantMessage = {
+        id: `${Date.now()}-${Math.random()}`,
+        role: 'assistant',
+        content: payload?.answer ?? 'No response available.',
+        timestamp: new Date().toISOString()
+      };
+      setAssistantMessages((prev) => [...prev, assistantMessage]);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Assistant unavailable',
+        description: error?.message ?? 'Unable to fetch response'
+      });
+    } finally {
+      setAssistantLoading(false);
+    }
   };
 
   if (!session) {
@@ -124,7 +188,7 @@ export default function TutorDashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-muted-foreground text-sm">Use your tutor credentials to access the dashboard.</p>
-              <Button onClick={() => setLocation('/tutor/login')}>Go to tutor login</Button>
+              <Button onClick={() => setLocation('/become-a-tutor')}>Go to tutor login</Button>
             </CardContent>
           </Card>
         </div>
@@ -263,6 +327,59 @@ export default function TutorDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Tutor Copilot</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Ask about enrollments, trends, or learners who need attention. Answers use only the selected course.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="h-64 overflow-y-auto rounded-md border bg-muted/40 p-3 text-sm">
+              {assistantMessages.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Example: “Which learners have been inactive for 7 days?” or “Summarize completion by module.”
+                </p>
+              ) : (
+                assistantMessages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`mb-3 rounded-lg px-3 py-2 ${
+                      message.role === 'assistant' ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'
+                    }`}
+                  >
+                    <p className="text-[10px] uppercase tracking-wide opacity-70">
+                      {message.role === 'assistant' ? 'Copilot' : 'You'}
+                    </p>
+                    <p>{message.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <form className="space-y-3" onSubmit={handleAssistantSubmit}>
+              <Textarea
+                value={assistantInput}
+                onChange={(event) => setAssistantInput(event.target.value)}
+                placeholder="Ask about enrollments, stuck learners, quiz performance..."
+                disabled={!selectedCourseId}
+              />
+              <div className="flex items-center gap-3">
+                <Button type="submit" disabled={!selectedCourseId || assistantLoading}>
+                  {assistantLoading ? 'Thinking...' : 'Ask Copilot'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-xs"
+                  onClick={() => setAssistantInput('List learners below 50% completion and note their last activity.')}
+                >
+                  Suggestion
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </SiteLayout>
   );

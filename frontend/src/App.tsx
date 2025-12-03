@@ -11,6 +11,7 @@ import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
 import CourseDetailsPage from "@/pages/CourseDetailsPage";
+import TutorDashboardPage from "@/pages/TutorDashboardPage";
 
 function Router() {
   return (
@@ -19,13 +20,14 @@ function Router() {
 
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
-      <Route path="/course/:id/enroll" component={EnrollmentPage} />
-      <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
-      <Route path="/course/:id" component={CourseDetailsPage} />
-      <Route path="/auth/callback" component={AuthCallbackPage} />
-      
-      {/* Default route goes to dashboard */}
-      <Route path="/" component={LandingPage} />
+       <Route path="/course/:id/enroll" component={EnrollmentPage} />
+       <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
+       <Route path="/course/:id" component={CourseDetailsPage} />
+       <Route path="/auth/callback" component={AuthCallbackPage} />
+       <Route path="/tutors" component={TutorDashboardPage} />
+
+       {/* Default route goes to dashboard */}
+       <Route path="/" component={LandingPage} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

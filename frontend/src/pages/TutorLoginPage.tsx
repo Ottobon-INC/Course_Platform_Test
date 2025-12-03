@@ -13,7 +13,7 @@ import { SiteLayout } from '@/components/layout/SiteLayout';
 export default function TutorLoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [email, setEmail] = useState('jaswanthvanapalli12@gmail.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +22,7 @@ export default function TutorLoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest('POST', '/api/auth/login', { email, password });
+      const response = await apiRequest('POST', '/api/tutors/login', { email, password });
       const payload = await response.json();
       const session: StoredSession = {
         accessToken: payload.session?.accessToken,
