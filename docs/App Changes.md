@@ -181,3 +181,24 @@ This flow keeps the course player dynamic, secure, and resilient to session expi
 
 - **Verification checklist**  
   Added an explicit “AI tutor” smoke test reminding engineers to ask a PDF-sourced question after every deployment.
+---
+
+## Tutor Copilot Endpoint (2025-12-04)
+
+- **Symptom**  
+  The /tutors dashboard's "Ask Copilot" button always showed Assistant unavailable 404: ... Cannot POST /api/tutors/assistant/query. The frontend already sent { courseId, question } with a tutor JWT, but there was no backend route, so Express returned the default 404 HTML.
+
+- **Resolution**  
+  Added POST /tutors/assistant/query inside **backend/src/routes/tutors.ts:87-137**. The handler:
+  - Requires equireAuth and equireTutor.
+  - Validates courseId and question, then ensures the tutor is assigned via isTutorForCourse.
+  - Builds a course snapshot via uildTutorCourseSnapshot / ormatTutorSnapshot and feeds it to OpenAI through generateTutorCopilotAnswer.
+  - Returns { answer }, surfacing meaningful 4xx/5xx errors instead of falling back to 404.
+
+- **Supporting change**  
+  ackend/src/rag/openAiClient.ts now exposes a shared chat helper plus generateTutorCopilotAnswer, which applies a tutor-centric system prompt (analytics tone, refer only to provided stats). The learner assistant continues to use generateAnswerFromContext, so the course-player chatbot is untouched.
+
+- **Troubleshooting checklist**  
+  1. curl the endpoint with a tutor token; it should return JSON, not HTML.  
+  2. Check course_tutors for the tutor/course pair if you see 403s.  
+  3. OpenAI failures surface as 500 Tutor assistant is unavailable...; verify the API key and usage limits.

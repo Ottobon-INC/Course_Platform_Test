@@ -6,6 +6,8 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAut
 import { requireTutor } from "../middleware/requireRole";
 import { verifyPassword } from "../utils/password";
 import { createSession } from "../services/sessionService";
+import { buildTutorCourseSnapshot, formatTutorSnapshot } from "../services/tutorInsights";
+import { generateTutorCopilotAnswer } from "../rag/openAiClient";
 
 const tutorsRouter = express.Router();
 
@@ -79,6 +81,58 @@ tutorsRouter.post(
         sessionId: tokens.sessionId,
       },
     });
+  }),
+);
+
+tutorsRouter.post(
+  "/assistant/query",
+  requireAuth,
+  requireTutor,
+  asyncHandler(async (req, res) => {
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const courseId = typeof req.body?.courseId === "string" ? req.body.courseId.trim() : "";
+    const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+
+    if (!courseId) {
+      res.status(400).json({ message: "courseId is required" });
+      return;
+    }
+    if (!question) {
+      res.status(400).json({ message: "question is required" });
+      return;
+    }
+
+    const allowed = await isTutorForCourse(auth.userId, courseId);
+    if (!allowed) {
+      res.status(403).json({ message: "Tutor is not assigned to this course" });
+      return;
+    }
+
+    try {
+      const snapshot = await buildTutorCourseSnapshot(courseId);
+      const snapshotText = formatTutorSnapshot(snapshot);
+      const prompt = [
+        snapshotText,
+        "",
+        `Tutor question: ${question}`,
+        "Answer:",
+      ].join("\n");
+
+      const answer = await generateTutorCopilotAnswer(prompt);
+      res.status(200).json({ answer });
+    } catch (error) {
+      console.error("Tutor assistant query failed", error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Tutor assistant is unavailable right now. Please try again.";
+      res.status(500).json({ message });
+    }
   }),
 );
 
