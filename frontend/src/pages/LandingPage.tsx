@@ -1804,6 +1804,18 @@ function App() {
 
   const handleApplyTutor = () => setLocation('/become-a-tutor');
 
+  const requireCourseAccess = () => {
+    if (session?.accessToken && isAuthenticated) {
+      return true;
+    }
+    toast({
+      title: 'Sign in required',
+      description: 'Please log in with Google to access the course experience.',
+    });
+    handleLogin();
+    return false;
+  };
+
   const slugifyCourse = (value: string) =>
     value
       .toLowerCase()
@@ -1812,6 +1824,9 @@ function App() {
       .replace(/\s+/g, '-');
 
   const handleEnroll = (courseId?: string, courseTitle?: string) => {
+    if (!requireCourseAccess()) {
+      return;
+    }
     const targetCourse = courseId ?? primaryCourseId;
     const normalized = slugifyCourse(targetCourse);
     const normalizedTitle = courseTitle ? slugifyCourse(courseTitle) : '';
