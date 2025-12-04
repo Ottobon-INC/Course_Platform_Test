@@ -202,3 +202,20 @@ This flow keeps the course player dynamic, secure, and resilient to session expi
   1. curl the endpoint with a tutor token; it should return JSON, not HTML.  
   2. Check course_tutors for the tutor/course pair if you see 403s.  
   3. OpenAI failures surface as 500 Tutor assistant is unavailable...; verify the API key and usage limits.
+---
+
+## Auto Enrollment CTA (2025-12-04)
+
+- **Problem**  
+  Learners who joined via Google OAuth and jumped straight into the course never touched the enrollments table because the SPA simply navigated from the landing page to the player. Tutor Copilot and analytics therefore missed anyone who hadn’t been inserted manually.
+
+- **Backend**  
+  - ackend/src/routes/courses.ts now exposes POST /courses/:courseKey/enroll (lines 104-153) behind equireAuth.  
+  - The handler reuses the course-resolution logic, calls ensureEnrollment(userId, courseId), and responds with { status: "enrolled" }, making the operation idempotent for repeat visits.
+
+- **Frontend**  
+  - rontend/src/pages/CourseDetailsPage.tsx wires the "Enroll Now" CTA to enrollLearner(), which refreshes the learner’s session (via ensureSessionFresh), calls the new endpoint, handles errors with toasts, and only then routes to the course player.
+  - The button shows a disabled “Processing…” state while the enrollment request is in flight, preventing duplicate clicks.
+
+- **Result**  
+  Every learner who accepts the enrollment modal now gets an enrollments row automatically (or reuses the existing one) without touching the course player logic.

@@ -339,7 +339,7 @@ export default function TutorDashboardPage() {
             <div className="h-64 overflow-y-auto rounded-md border bg-muted/40 p-3 text-sm">
               {assistantMessages.length === 0 ? (
                 <p className="text-muted-foreground">
-                  Example: “Which learners have been inactive for 7 days?” or “Summarize completion by module.”
+                  Example: GǣWhich learners have been inactive for 7 days?Gǥ or GǣSummarize completion by module.Gǥ
                 </p>
               ) : (
                 assistantMessages.map((message) => (

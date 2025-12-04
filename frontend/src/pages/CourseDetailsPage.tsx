@@ -16,6 +16,7 @@ import {
 import { useLocation, useParams } from "wouter";
 import { buildApiUrl } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 
 type ContentType = "video" | "quiz";
 
@@ -134,6 +135,7 @@ const CourseDetailsPage: React.FC = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [firstLessonSlug, setFirstLessonSlug] = useState<string | null>(null);
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -225,13 +227,64 @@ const CourseDetailsPage: React.FC = () => {
     [courseTitle, modules],
   );
 
-  const handleEnrollAccept = () => {
-    setIsModalOpen(false);
+  const enrollLearner = async (): Promise<boolean> => {
+    try {
+      const stored = readStoredSession();
+      const session = await ensureSessionFresh(stored);
+      if (!session?.accessToken) {
+        toast({
+          variant: "destructive",
+          title: "Sign in required",
+          description: "Please sign in before enrolling.",
+        });
+        return false;
+      }
+
+      const response = await fetch(buildApiUrl(`/courses/${courseId}/enroll`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message ?? "Unable to enroll in this course.");
+      }
+
+      return true;
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Enrollment failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+      return false;
+    }
+  };
+
+  const navigateToPlayer = () => {
     if (firstLessonSlug) {
       setLocation(`/course/${courseId}/learn/${firstLessonSlug}`);
     } else {
       setLocation(`/course/${courseId}/learn/welcome-to-ai-journey`);
     }
+  };
+
+  const handleEnrollAccept = () => {
+    if (enrolling) {
+      return;
+    }
+    setEnrolling(true);
+    void (async () => {
+      const success = await enrollLearner();
+      if (success) {
+        setIsModalOpen(false);
+        navigateToPlayer();
+      }
+      setEnrolling(false);
+    })();
   };
 
   if (loading) {
@@ -323,10 +376,11 @@ const CourseDetailsPage: React.FC = () => {
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-6">
             <button
-              className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
+              className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
               onClick={() => setIsModalOpen(true)}
+              disabled={enrolling}
             >
-              Enroll Now
+              {enrolling ? "Processing..." : "Enroll Now"}
             </button>
             <div className="text-[#f8f1e6]">
               <div className="text-3xl font-black">₹499</div>
