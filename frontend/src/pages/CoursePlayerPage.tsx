@@ -27,6 +27,8 @@ import type { StoredSession } from "@/types/session";
 
 type ContentType = "video" | "quiz";
 
+type StudyPersona = "normal" | "sports" | "cooking" | "adventure";
+
 interface Lesson {
   topicId: string;
   courseId: string;
@@ -36,6 +38,9 @@ interface Lesson {
   topicName: string;
   videoUrl: string | null;
   textContent: string | null;
+  textContentSports?: string | null;
+  textContentCooking?: string | null;
+  textContentAdventure?: string | null;
   contentType: string;
   slug: string;
 }
@@ -95,6 +100,25 @@ const makeId = () =>
     : Math.random().toString(36).slice(2);
 
 const PASSING_PERCENT_THRESHOLD = 70;
+const PERSONALIZED_PERSONAS: StudyPersona[] = ["sports", "cooking", "adventure"];
+const personaOptions: Record<StudyPersona, { label: string; description: string }> = {
+  normal: {
+    label: "Standard",
+    description: "Original narrator voice focused purely on course content.",
+  },
+  sports: {
+    label: "Sports",
+    description: "Analogies drawn from coaching, training blocks, and playbooks.",
+  },
+  cooking: {
+    label: "Cooking",
+    description: "Relate modules to kitchen workflows, prep lists, and plating.",
+  },
+  adventure: {
+    label: "Adventure",
+    description: "Progress framed like planning expeditions and leveling up gear.",
+  },
+};
 
 const slugify = (text: string) =>
   text
@@ -143,6 +167,13 @@ const CoursePlayerPage: React.FC = () => {
   const [notesRect, setNotesRect] = useState({ x: 0, y: 0, width: 350, height: 300, initialized: false });
   const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
+  const [studyPersona, setStudyPersona] = useState<StudyPersona>("normal");
+  const [hasPersonaPreference, setHasPersonaPreference] = useState(false);
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
+  const [personaPending, setPersonaPending] = useState<StudyPersona>("normal");
+  const [personaSaving, setPersonaSaving] = useState(false);
+  const [personaReady, setPersonaReady] = useState(false);
+  const [personaPromptDismissed, setPersonaPromptDismissed] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { id: "welcome", text: buildTopicGreeting(), isBot: true },
   ]);
@@ -198,6 +229,26 @@ const CoursePlayerPage: React.FC = () => {
     setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greetingMessage, isBot: true }]);
   }, [activeLesson?.slug, greetingMessage]);
 
+  const getLessonTextForPersona = useCallback((lesson: Lesson | null | undefined, persona: StudyPersona) => {
+    if (!lesson) {
+      return "";
+    }
+    if (persona === "sports" && lesson.textContentSports) {
+      return lesson.textContentSports;
+    }
+    if (persona === "cooking" && lesson.textContentCooking) {
+      return lesson.textContentCooking;
+    }
+    if (persona === "adventure" && lesson.textContentAdventure) {
+      return lesson.textContentAdventure;
+    }
+    return lesson.textContent ?? "";
+  }, []);
+
+  const coercePersona = (value: unknown): StudyPersona => {
+    return value === "sports" || value === "cooking" || value === "adventure" ? value : "normal";
+  };
+
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
     try {
@@ -213,6 +264,9 @@ const CoursePlayerPage: React.FC = () => {
         topicName: t.topicName,
         videoUrl: t.videoUrl,
         textContent: t.textContent,
+        textContentSports: t.textContentSports,
+        textContentCooking: t.textContentCooking,
+        textContentAdventure: t.textContentAdventure,
         contentType: t.contentType,
         slug: slugify(t.topicName),
       }));
@@ -231,6 +285,42 @@ const CoursePlayerPage: React.FC = () => {
       });
     }
   }, [courseKey, activeSlug, expandedModules.length, setLocation, toast]);
+
+  const fetchPersonaPreference = useCallback(async () => {
+    if (!courseKey) {
+      return;
+    }
+    if (!session?.accessToken) {
+      setPersonaReady(true);
+      setHasPersonaPreference(false);
+      setStudyPersona("normal");
+      setPersonaPending("normal");
+      setShowPersonaModal(false);
+      return;
+    }
+    try {
+      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/personalization`), {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const data = await res.json();
+      const persona = coercePersona(data?.persona);
+      setStudyPersona(persona);
+      setPersonaPending(persona);
+      const hasPref = Boolean(data?.hasPreference);
+      setHasPersonaPreference(hasPref);
+      setShowPersonaModal(!hasPref && !personaPromptDismissed);
+    } catch (error) {
+      console.error("Failed to load personalization", error);
+      setHasPersonaPreference(false);
+      setShowPersonaModal(false);
+    } finally {
+      setPersonaReady(true);
+    }
+  }, [courseKey, session?.accessToken, personaPromptDismissed]);
 
   // Lock system disabled: keep sections empty and progress at 0
   const fetchSections = useCallback(async () => {
@@ -261,6 +351,62 @@ const CoursePlayerPage: React.FC = () => {
 
   const fetchProgress = useCallback(async () => {
     // courseProgress derived from sections
+  }, []);
+
+  const handleOpenPersonaModal = useCallback(() => {
+    if (!session?.accessToken) {
+      toast({
+        variant: "destructive",
+        title: "Sign in required",
+        description: "Sign in to personalize how the study material is narrated.",
+      });
+      return;
+    }
+    setPersonaPromptDismissed(false);
+    setPersonaPending(studyPersona);
+    setShowPersonaModal(true);
+  }, [session?.accessToken, studyPersona, toast]);
+
+  const handleSavePersonaPreference = useCallback(async () => {
+    const choice = personaPending;
+    if (!courseKey || !session?.accessToken) {
+      setStudyPersona(choice);
+      setShowPersonaModal(false);
+      return;
+    }
+    setPersonaSaving(true);
+    try {
+      const response = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/personalization`), {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({ persona: choice }),
+      });
+      if (!response.ok && response.status !== 204) {
+        throw new Error(await response.text());
+      }
+      setStudyPersona(choice);
+      setHasPersonaPreference(true);
+      setPersonaPromptDismissed(false);
+      setShowPersonaModal(false);
+      toast({ title: "Study style updated" });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Unable to save preference",
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setPersonaSaving(false);
+    }
+  }, [courseKey, personaPending, session?.accessToken, toast]);
+
+  const handleDismissPersonaModal = useCallback(() => {
+    setShowPersonaModal(false);
+    setPersonaPromptDismissed(true);
   }, []);
 
   // Hydrate modules with quizzes when lessons/sections change
@@ -355,17 +501,21 @@ const CoursePlayerPage: React.FC = () => {
     }
   }, [lessons, sections]);
 
-  useEffect(() => {
-    void fetchTopics();
-  }, [fetchTopics]);
+useEffect(() => {
+  void fetchTopics();
+}, [fetchTopics]);
 
-  useEffect(() => {
-    void fetchSections();
-  }, [fetchSections]);
+useEffect(() => {
+  void fetchSections();
+}, [fetchSections]);
 
-  useEffect(() => {
-    const hydrateSession = async () => {
-      const stored = readStoredSession();
+useEffect(() => {
+  void fetchPersonaPreference();
+}, [fetchPersonaPreference]);
+
+useEffect(() => {
+  const hydrateSession = async () => {
+    const stored = readStoredSession();
       const fresh = await ensureSessionFresh(stored);
       setSession(fresh);
     };
@@ -605,7 +755,10 @@ const CoursePlayerPage: React.FC = () => {
     }
   };
 
-  const activeStudyText = activeLesson?.textContent ?? "";
+  const activeStudyText = useMemo(
+    () => getLessonTextForPersona(activeLesson, studyPersona),
+    [activeLesson, studyPersona, getLessonTextForPersona],
+  );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
 
   return (
@@ -791,6 +944,17 @@ const CoursePlayerPage: React.FC = () => {
                   <div>
                     <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
                     <p className="text-sm text-[#4a4845]">Companion reading for {activeLesson?.topicName ?? ""}</p>
+                    {personaReady && (
+                      <button
+                        type="button"
+                        onClick={handleOpenPersonaModal}
+                        className="mt-2 text-xs font-semibold text-[#bf2f1f] hover:underline"
+                      >
+                        {studyPersona === "normal"
+                          ? "Personalize this text"
+                          : `${personaOptions[studyPersona].label} style · Change`}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1068,6 +1232,61 @@ const CoursePlayerPage: React.FC = () => {
       >
         {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
+
+      {showPersonaModal && (
+        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase text-[#bf2f1f] tracking-wide">
+                  {hasPersonaPreference ? "Update study style" : "Choose your study style"}
+                </p>
+                <h3 className="text-2xl font-bold text-[#000000]">How should we narrate the lessons?</h3>
+                <p className="text-sm text-[#4a4845]">
+                  Pick the vibe that keeps you focused. You can switch at any time.
+                </p>
+              </div>
+              <button onClick={handleDismissPersonaModal} className="text-[#4a4845] hover:text-[#000000]">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid gap-3">
+              {(["normal", "sports", "cooking", "adventure"] as StudyPersona[]).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setPersonaPending(option)}
+                  className={`text-left border rounded-xl p-4 transition focus:outline-none ${
+                    personaPending === option
+                      ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
+                      : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
+                  }`}
+                >
+                  <div className="font-semibold text-[#000000]">{personaOptions[option].label}</div>
+                  <p className="text-sm text-[#4a4845]">{personaOptions[option].description}</p>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleDismissPersonaModal}
+                className="text-sm font-semibold text-[#4a4845] hover:text-[#000000]"
+              >
+                Not now
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePersonaPreference}
+                disabled={personaSaving}
+                className="px-4 py-2 rounded-lg bg-[#bf2f1f] text-white font-semibold disabled:opacity-50"
+              >
+                {personaSaving ? "Saving..." : "Use this style"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

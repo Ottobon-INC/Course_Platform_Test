@@ -13,6 +13,8 @@ const progressPayloadSchema = z.object({
   status: z.enum(["not_started", "in_progress", "completed"]),
 });
 
+const studyPersonaSchema = z.enum(["normal", "sports", "cooking", "adventure"]);
+
 export const lessonsRouter = express.Router();
 
 type LessonStatus = "not_started" | "in_progress" | "completed";
@@ -135,6 +137,9 @@ lessonsRouter.get(
         topicName: true,
         videoUrl: true,
         textContent: true,
+        textContentSports: true,
+        textContentCooking: true,
+        textContentAdventure: true,
         isPreview: true,
         contentType: true,
       },
@@ -171,12 +176,95 @@ lessonsRouter.get(
         topicName: true,
         videoUrl: true,
         textContent: true,
+        textContentSports: true,
+        textContentCooking: true,
+        textContentAdventure: true,
         isPreview: true,
         contentType: true,
       },
     });
 
     res.status(200).json({ topics: topics.map(mapTopicForResponse) });
+  }),
+);
+
+lessonsRouter.get(
+  "/courses/:courseKey/personalization",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { courseKey } = req.params;
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth?.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const resolvedCourseId = await resolveCourseId(courseKey);
+    if (!resolvedCourseId) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    const record = await prisma.topicPersonalization.findUnique({
+      where: {
+        userId_courseId: {
+          userId: auth.userId,
+          courseId: resolvedCourseId,
+        },
+      },
+      select: {
+        persona: true,
+      },
+    });
+
+    res.status(200).json({
+      persona: record?.persona ?? "normal",
+      hasPreference: Boolean(record),
+    });
+  }),
+);
+
+lessonsRouter.post(
+  "/courses/:courseKey/personalization",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { courseKey } = req.params;
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth?.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const resolvedCourseId = await resolveCourseId(courseKey);
+    if (!resolvedCourseId) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    const body = z
+      .object({
+        persona: studyPersonaSchema,
+      })
+      .parse(req.body ?? {});
+
+    await prisma.topicPersonalization.upsert({
+      where: {
+        userId_courseId: {
+          userId: auth.userId,
+          courseId: resolvedCourseId,
+        },
+      },
+      create: {
+        userId: auth.userId,
+        courseId: resolvedCourseId,
+        persona: body.persona,
+      },
+      update: {
+        persona: body.persona,
+      },
+    });
+
+    res.status(204).end();
   }),
 );
 
