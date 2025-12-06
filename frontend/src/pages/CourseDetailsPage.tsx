@@ -40,6 +40,18 @@ interface CourseData {
   modules: Module[];
 }
 
+interface CourseMeta {
+  subtitle: string;
+  displayPriceCents: number | null;
+  compareAtCents: number | null;
+  originalPriceCents: number | null;
+  rating: number | null;
+  students: number | null;
+  badge: string;
+  category?: string;
+  promoActive: boolean;
+}
+
 interface TopicApi {
   topicId: string;
   moduleNo: number;
@@ -63,6 +75,41 @@ const slugify = (value: string): string =>
     .trim()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-");
+
+const DEFAULT_SUBTITLE = "Complete bootcamp for job-ready AI engineers.";
+const DEFAULT_BADGE = "New for 2025";
+const PROMO_PRICING: Record<
+  string,
+  {
+    priceCents: number;
+    compareAtCents?: number;
+    badge?: string;
+  }
+> = {
+  "ai-in-web-development": {
+    priceCents: 0,
+    compareAtCents: 49900,
+    badge: "Limited time: free cohort",
+  },
+};
+
+const formatCurrency = (cents: number | null | undefined, fallback: string): string => {
+  if (typeof cents === "number" && Number.isFinite(cents)) {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(cents / 100);
+  }
+  return fallback;
+};
+
+const formatCount = (value: number | null | undefined, fallback: string): string => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toLocaleString("en-IN");
+  }
+  return fallback;
+};
 
 const ProtocolModal: React.FC<ProtocolModalProps> = ({ isOpen, onClose, onAccept }) => {
   if (!isOpen) return null;
@@ -136,6 +183,17 @@ const CourseDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [firstLessonSlug, setFirstLessonSlug] = useState<string | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+  const [courseMeta, setCourseMeta] = useState<CourseMeta>({
+    subtitle: DEFAULT_SUBTITLE,
+    displayPriceCents: null,
+    compareAtCents: null,
+    originalPriceCents: null,
+    rating: null,
+    students: null,
+    badge: DEFAULT_BADGE,
+    category: "Hands-on projects",
+    promoActive: false,
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -145,7 +203,32 @@ const CourseDetailsPage: React.FC = () => {
         if (courseRes.ok) {
           const payload = await courseRes.json();
           if (mounted) {
-            setCourseTitle(payload?.course?.title ?? payload?.course?.courseName ?? "AI Engineer Bootcamp");
+            const course = payload?.course;
+            const slug = course?.slug ?? courseId;
+            setCourseTitle(course?.title ?? course?.courseName ?? "AI Engineer Bootcamp");
+            const normalizedPrice =
+              typeof course?.priceCents === "number" && Number.isFinite(course.priceCents)
+                ? course.priceCents
+                : null;
+            const promo = slug && typeof slug === "string" ? PROMO_PRICING[slug] : undefined;
+            const displayPriceCents = promo?.priceCents ?? normalizedPrice;
+            const compareAtFromPromo =
+              promo?.compareAtCents ?? (normalizedPrice ? Math.round(normalizedPrice * 1.8) : null);
+            setCourseMeta({
+              subtitle: course?.description ?? DEFAULT_SUBTITLE,
+              displayPriceCents,
+              compareAtCents: compareAtFromPromo,
+              originalPriceCents: normalizedPrice,
+              rating:
+                typeof course?.rating === "number" && Number.isFinite(course.rating) ? course.rating : null,
+              students:
+                typeof course?.students === "number" && Number.isFinite(course.students)
+                  ? course.students
+                  : null,
+              badge: promo?.badge ?? (course?.level ? `${course.level} level` : DEFAULT_BADGE),
+              category: course?.category ?? "Hands-on projects",
+              promoActive: Boolean(promo),
+            });
           }
         }
 
@@ -354,24 +437,27 @@ const CourseDetailsPage: React.FC = () => {
 
         <div className="relative z-10 container mx-auto px-6 md:px-12">
           <div className="inline-flex items-center gap-2 bg-[#4a4845] text-[#f8f1e6] px-3 py-1 rounded-full text-xs font-semibold mb-4">
-            New for 2025
+            {courseMeta.badge}
           </div>
-          <h1 className="text-4xl md:text-5xl font-black leading-tight max-w-3xl">
-            The AI Engineer Course 2025: <span className="text-[#bf2f1f]">Complete Bootcamp</span>
-          </h1>
+          <h1 className="text-4xl md:text-5xl font-black leading-tight max-w-3xl">{courseTitle}</h1>
+          <p className="mt-3 text-lg text-[#f8f1e6]/80 max-w-2xl">{courseMeta.subtitle}</p>
           <div className="flex flex-wrap items-center gap-6 mt-4 text-sm text-[#f8f1e6]/80">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 text-yellow-300" />
-              <span className="font-semibold text-[#f8f1e6]">4.8</span>
-              <span className="text-[#f8f1e6]/60">(148,000 ratings)</span>
+              <span className="font-semibold text-[#f8f1e6]">
+                {courseMeta.rating != null ? courseMeta.rating.toFixed(1) : "4.8"}
+              </span>
+              <span className="text-[#f8f1e6]/60">
+                ({formatCount(courseMeta.students, "148,000")} ratings)
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <span>148,000 students</span>
+              <span>{formatCount(courseMeta.students, "148,000")} students</span>
             </div>
             <div className="flex items-center gap-2">
               <Code2 className="h-4 w-4" />
-              <span>Hands-on projects</span>
+              <span>{courseMeta.category ?? "Hands-on projects"}</span>
             </div>
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-6">
@@ -383,8 +469,15 @@ const CourseDetailsPage: React.FC = () => {
               {enrolling ? "Processing..." : "Enroll Now"}
             </button>
             <div className="text-[#f8f1e6]">
-              <div className="text-3xl font-black">₹499</div>
-              <div className="text-sm text-[#f8f1e6]/60 line-through">₹3,999</div>
+              <div className="text-3xl font-black">
+                {formatCurrency(courseMeta.displayPriceCents, "₹1,499")}
+              </div>
+              <div className="text-sm text-[#f8f1e6]/60 line-through">
+                {formatCurrency(courseMeta.compareAtCents ?? courseMeta.originalPriceCents, "₹3,999")}
+              </div>
+              {courseMeta.promoActive && (
+                <div className="text-xs font-semibold text-[#bf2f1f] mt-1">Limited-time enrollment</div>
+              )}
             </div>
           </div>
         </div>
@@ -395,28 +488,34 @@ const CourseDetailsPage: React.FC = () => {
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-3 text-sm text-[#000000]/80">
               <Check className="text-[#bf2f1f] h-4 w-4" />
-              Fundamental AI engineering concepts and architecture
+              Interactive build weeks that mirror real client briefs
             </div>
             <div className="flex items-center gap-3 text-sm text-[#000000]/80">
               <Check className="text-[#bf2f1f] h-4 w-4" />
-              Build generative AI apps with production-ready patterns
+              Simulation exercises to pressure-test AI features end-to-end
             </div>
             <div className="flex items-center gap-3 text-sm text-[#000000]/80">
               <Check className="text-[#bf2f1f] h-4 w-4" />
               Mandatory quizzes to unlock each module and earn certificate
             </div>
+            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
+              <Check className="text-[#bf2f1f] h-4 w-4" />
+              Pay only when you’re ready for the completion certificate
+            </div>
           </div>
           <div className="space-y-3">
             <p className="text-sm font-semibold text-[#000000]/70">Skills you'll gain</p>
             <div className="flex flex-wrap gap-2">
-              {["RAG", "Vector DBs", "LangChain", "LLM APIs", "MLOps", "Agents"].map((skill) => (
-                <span
-                  key={skill}
-                  className="px-3 py-1 rounded-full border-2 border-[#000000] text-xs font-bold uppercase tracking-wide bg-white hover:bg-[#000000] hover:text-white transition"
-                >
-                  {skill}
-                </span>
-              ))}
+              {["Next.js Automation", "Tailwind Systems", "Prompt Engineering", "LangChain Agents", "AI QA Pipelines", "Edge Deployments"].map(
+                (skill) => (
+                  <span
+                    key={skill}
+                    className="px-3 py-1 rounded-full border-2 border-[#000000] text-xs font-bold uppercase tracking-wide bg-white hover:bg-[#000000] hover:text-white transition"
+                  >
+                    {skill}
+                  </span>
+                ),
+              )}
             </div>
           </div>
         </section>

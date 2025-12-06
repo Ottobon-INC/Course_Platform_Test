@@ -16,6 +16,7 @@ const courseSelect = {
   courseName: true,
   description: true,
   priceCents: true,
+  slug: true,
   createdAt: true,
 } as const;
 
@@ -27,6 +28,7 @@ function mapCourse(course: CourseRecord) {
 
   return {
     id: course.courseId,
+    slug: course.slug,
     title: course.courseName,
     description: course.description,
     price: Math.round(priceCents / 100),

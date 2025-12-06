@@ -103,6 +103,13 @@ const slugify = (text: string) =>
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-");
 
+const buildTopicGreeting = (lesson?: Lesson | null) => {
+  if (!lesson) {
+    return "Hi! Ask anything about this course.";
+  }
+  return `Learning about "${lesson.topicName}"? I can summarize the takeaways or offer a quick practice prompt.`;
+};
+
 const CoursePlayerPage: React.FC = () => {
   const { id: courseKey, lesson: lessonSlugParam } = useParams();
   const [, setLocation] = useLocation();
@@ -137,7 +144,7 @@ const CoursePlayerPage: React.FC = () => {
   const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: "welcome", text: "Hi! Ask anything about this course.", isBot: true },
+    { id: "welcome", text: buildTopicGreeting(), isBot: true },
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -185,6 +192,11 @@ const CoursePlayerPage: React.FC = () => {
     const idx = realModules.findIndex((m) => m.id === currentModuleId);
     return idx >= 0 ? idx + 1 : currentModuleId;
   }, [realModules, currentModuleId]);
+  const greetingMessage = useMemo(() => buildTopicGreeting(activeLesson), [activeLesson]);
+
+  useEffect(() => {
+    setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greetingMessage, isBot: true }]);
+  }, [activeLesson?.slug, greetingMessage]);
 
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
@@ -723,9 +735,18 @@ const CoursePlayerPage: React.FC = () => {
       <div className={`flex-1 flex flex-col h-full relative overflow-y-auto scroll-smooth ${isFullScreen ? "overflow-hidden" : ""}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#4a4845]/60 bg-[#050505]">
-          <div>
-            <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo} · Topic {activeLesson?.topicNumber}</p>
-            <h1 className="text-2xl font-black">{activeLesson?.topicName ?? "Loading..."}</h1>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setLocation("/")}
+              className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
+            >
+              <ChevronLeft size={18} /> Home
+            </button>
+            <div>
+              <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo} · Topic {activeLesson?.topicNumber}</p>
+              <h1 className="text-2xl font-black">{activeLesson?.topicName ?? "Loading..."}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
         </div>
