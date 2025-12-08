@@ -14,6 +14,10 @@ const progressPayloadSchema = z.object({
 });
 
 const studyPersonaSchema = z.enum(["normal", "sports", "cooking", "adventure"]);
+const promptQuerySchema = z.object({
+  topicId: z.string().uuid().optional(),
+  parentSuggestionId: z.string().uuid().optional(),
+});
 
 export const lessonsRouter = express.Router();
 
@@ -61,6 +65,12 @@ function normalizeVideoUrl(url: string | null | undefined): string | null {
 const mapTopicForResponse = <T extends { videoUrl: string | null | undefined }>(topic: T) => ({
   ...topic,
   videoUrl: normalizeVideoUrl(topic.videoUrl),
+});
+
+const mapPromptSuggestion = (suggestion: { suggestionId: string; promptText: string; answer: string | null }) => ({
+  id: suggestion.suggestionId,
+  promptText: suggestion.promptText,
+  answer: suggestion.answer,
 });
 
 async function resolveCourseId(courseKey: string): Promise<string | null> {
@@ -265,6 +275,63 @@ lessonsRouter.post(
     });
 
     res.status(204).end();
+  }),
+);
+
+lessonsRouter.get(
+  "/courses/:courseKey/prompts",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { courseKey } = req.params;
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth?.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const resolvedCourseId = await resolveCourseId(courseKey);
+    if (!resolvedCourseId) {
+      res.status(404).json({ message: "Course not found" });
+      return;
+    }
+
+    const parsed = promptQuerySchema.safeParse({
+      topicId: typeof req.query.topicId === "string" ? req.query.topicId : undefined,
+      parentSuggestionId: typeof req.query.parentSuggestionId === "string" ? req.query.parentSuggestionId : undefined,
+    });
+
+    if (!parsed.success) {
+      res.status(400).json({ message: "Invalid query parameters" });
+      return;
+    }
+
+    const { topicId, parentSuggestionId } = parsed.data;
+    const suggestionWhere: Record<string, unknown> = {
+      isActive: true,
+    };
+
+    if (parentSuggestionId) {
+      suggestionWhere.parentSuggestionId = parentSuggestionId;
+    } else {
+      suggestionWhere.parentSuggestionId = null;
+      const orClauses: Array<Record<string, unknown>> = [
+        { AND: [{ courseId: resolvedCourseId }, { topicId: null }] },
+      ];
+      if (topicId) {
+        orClauses.push({ topicId });
+      }
+      suggestionWhere.OR = orClauses;
+    }
+
+    const prompts = await prisma.topicPromptSuggestion.findMany({
+      where: suggestionWhere,
+      orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+      select: { suggestionId: true, promptText: true, answer: true },
+    });
+
+    res.status(200).json({
+      suggestions: prompts.map(mapPromptSuggestion),
+    });
   }),
 );
 

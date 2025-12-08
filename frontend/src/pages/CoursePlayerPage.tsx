@@ -92,7 +92,14 @@ type ChatMessage = {
   text: string;
   isBot: boolean;
   error?: boolean;
+  suggestionContext?: PromptSuggestion | null;
 };
+
+interface PromptSuggestion {
+  id: string;
+  promptText: string;
+  answer?: string | null;
+}
 
 const makeId = () =>
   typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -179,6 +186,11 @@ const CoursePlayerPage: React.FC = () => {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [starterSuggestions, setStarterSuggestions] = useState<PromptSuggestion[]>([]);
+  const [inlineFollowUps, setInlineFollowUps] = useState<Record<string, PromptSuggestion[]>>({});
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [usedSuggestionIds, setUsedSuggestionIds] = useState<Set<string>>(new Set());
+  const [pendingSuggestion, setPendingSuggestion] = useState<PromptSuggestion | null>(null);
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -224,10 +236,17 @@ const CoursePlayerPage: React.FC = () => {
     return idx >= 0 ? idx + 1 : currentModuleId;
   }, [realModules, currentModuleId]);
   const greetingMessage = useMemo(() => buildTopicGreeting(activeLesson), [activeLesson]);
+  const availableStarterSuggestions = useMemo(() => {
+    if (starterSuggestions.length === 0) return [];
+    return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
+  }, [starterSuggestions, usedSuggestionIds]);
 
-  useEffect(() => {
-    setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greetingMessage, isBot: true }]);
-  }, [activeLesson?.slug, greetingMessage]);
+useEffect(() => {
+  setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greetingMessage, isBot: true }]);
+  setUsedSuggestionIds(new Set());
+  setPendingSuggestion(null);
+  setInlineFollowUps({});
+}, [activeLesson?.slug, greetingMessage]);
 
   const getLessonTextForPersona = useCallback((lesson: Lesson | null | undefined, persona: StudyPersona) => {
     if (!lesson) {
@@ -321,6 +340,41 @@ const CoursePlayerPage: React.FC = () => {
       setPersonaReady(true);
     }
   }, [courseKey, session?.accessToken, personaPromptDismissed]);
+
+  const fetchPromptSuggestions = useCallback(async () => {
+    if (!courseKey || !session?.accessToken) {
+      setStarterSuggestions([]);
+      return;
+    }
+    const topicId = activeLesson?.topicId;
+    const query = new URLSearchParams();
+    if (topicId) {
+      query.set("topicId", topicId);
+    }
+    const queryString = query.toString();
+    setSuggestionsLoading(true);
+    try {
+      const res = await fetch(
+        buildApiUrl(`/lessons/courses/${courseKey}/prompts${queryString ? `?${queryString}` : ""}`),
+        {
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        },
+      );
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const data = await res.json();
+      setStarterSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+    } catch (error) {
+      console.error("Failed to load prompt suggestions", error);
+      setStarterSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [courseKey, session?.accessToken, activeLesson?.topicId]);
 
   // Lock system disabled: keep sections empty and progress at 0
   const fetchSections = useCallback(async () => {
@@ -512,6 +566,11 @@ useEffect(() => {
 useEffect(() => {
   void fetchPersonaPreference();
 }, [fetchPersonaPreference]);
+
+useEffect(() => {
+  setInlineFollowUps({});
+  void fetchPromptSuggestions();
+}, [fetchPromptSuggestions]);
 
 useEffect(() => {
   const hydrateSession = async () => {
@@ -707,53 +766,116 @@ useEffect(() => {
     }
   };
 
-  const handleSendChat = async () => {
-    const question = chatInput.trim();
-    if (!question || chatLoading) return;
-    const courseIdForChat = (courseKey ?? activeLesson?.courseId ?? "").trim();
-    if (!courseIdForChat) {
-      toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
-      return;
-    }
-    const userMsg: ChatMessage = { id: makeId(), text: question, isBot: false };
-    setChatMessages((prev) => [...prev, userMsg]);
-    setChatInput("");
-    setChatLoading(true);
-
-    try {
-      if (!session?.accessToken) {
-        throw new Error("Please sign in to chat with the tutor.");
+  const handleSendChat = useCallback(
+    async (options?: { suggestion?: PromptSuggestion }) => {
+      const suggestion = options?.suggestion ?? null;
+      const questionSource = suggestion?.promptText ?? chatInput;
+      const question = questionSource.trim();
+      if (!question || chatLoading) return;
+      const courseIdForChat = (courseKey ?? activeLesson?.courseId ?? "").trim();
+      if (!courseIdForChat) {
+        toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
+        return;
       }
-      const res = await fetch(buildApiUrl("/assistant/query"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-        credentials: "include",
-        body: JSON.stringify({
+
+      const userMsg: ChatMessage = { id: makeId(), text: question, isBot: false, suggestionContext: suggestion };
+      setChatMessages((prev) => [...prev, userMsg]);
+      if (!suggestion) {
+        setChatInput("");
+      } else {
+        setUsedSuggestionIds((prev) => {
+          const next = new Set(prev);
+          next.add(suggestion.id);
+          return next;
+        });
+        setPendingSuggestion(suggestion);
+      }
+      setChatLoading(true);
+      setInlineFollowUps((prev) => {
+        const next = { ...prev };
+        if (suggestion) {
+          next[userMsg.id] = [];
+        }
+        return next;
+      });
+
+      try {
+        if (!session?.accessToken) {
+          throw new Error("Please sign in to chat with the tutor.");
+        }
+        const body: Record<string, unknown> = {
           question,
           courseId: courseIdForChat,
           courseTitle: activeLesson?.moduleName ?? undefined,
-        }),
-      });
-      const payload = await res.json().catch(() => null);
-      if (!res.ok) {
-        const msg = payload?.message || (await res.text()) || "Tutor unavailable";
-        throw new Error(msg);
+        };
+        if (suggestion) {
+          body.suggestionId = suggestion.id;
+        }
+        const res = await fetch(buildApiUrl("/assistant/query"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg = payload?.message || (await res.text()) || "Tutor unavailable";
+          throw new Error(msg);
+        }
+        const answer = payload?.answer ?? "I could not find an answer for that right now.";
+        const botId = makeId();
+        setChatMessages((prev) => [...prev, { id: botId, text: answer, isBot: true, suggestionContext: suggestion }]);
+        const next = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
+        if (suggestion) {
+          setInlineFollowUps((prev) => ({
+            ...prev,
+            [botId]: next,
+          }));
+        } else {
+          setInlineFollowUps((prev) => ({
+            ...prev,
+            [botId]: next,
+          }));
+        }
+      } catch (error) {
+        const raw = error instanceof Error ? error.message : "Tutor unavailable";
+        const friendly = raw.toLowerCase().includes("internal server error")
+          ? "Tutor is unavailable right now. Please try again soon."
+          : raw;
+        setChatMessages((prev) => [...prev, { id: makeId(), text: friendly, isBot: true, error: true }]);
+        if (suggestion) {
+          setInlineFollowUps((prev) => {
+            const updated = { ...prev };
+            delete updated[userMsg.id];
+            return updated;
+          });
+        }
+      } finally {
+        setPendingSuggestion(null);
+        setChatLoading(false);
       }
-      const answer = payload?.answer ?? "I could not find an answer for that right now.";
-      setChatMessages((prev) => [...prev, { id: makeId(), text: answer, isBot: true }]);
-    } catch (error) {
-      const raw = error instanceof Error ? error.message : "Tutor unavailable";
-      const friendly = raw.toLowerCase().includes("internal server error")
-        ? "Tutor is unavailable right now. Please try again soon."
-        : raw;
-      setChatMessages((prev) => [...prev, { id: makeId(), text: friendly, isBot: true, error: true }]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
+    },
+    [
+      chatInput,
+      chatLoading,
+      courseKey,
+      activeLesson?.courseId,
+      activeLesson?.moduleName,
+      session?.accessToken,
+      toast,
+    ],
+  );
+
+  const handleSuggestionSelect = useCallback(
+    (suggestion: PromptSuggestion) => {
+      if (chatLoading) return;
+      void handleSendChat({ suggestion });
+    },
+    [handleSendChat, chatLoading],
+  );
 
   const activeStudyText = useMemo(
     () => getLessonTextForPersona(activeLesson, studyPersona),
@@ -1127,18 +1249,88 @@ useEffect(() => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
-            {chatMessages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${
-                  msg.error ? "border-red-500/60 text-red-200" : ""
-                }`}
-              >
-                <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
-                <div className="whitespace-pre-line">{msg.text}</div>
+            <div className="space-y-2 mb-4">
+              <div className="text-[11px] uppercase tracking-wide text-[#f8f1e6]/60">Not sure what to ask?</div>
+              {suggestionsLoading ? (
+                <div className="flex gap-2">
+                  <div className="h-7 w-24 rounded-full bg-white/10 animate-pulse" />
+                  <div className="h-7 w-32 rounded-full bg-white/10 animate-pulse" />
+                  <div className="h-7 w-20 rounded-full bg-white/10 animate-pulse" />
+                </div>
+              ) : availableStarterSuggestions.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {availableStarterSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      type="button"
+                      disabled={chatLoading}
+                      onClick={() => handleSuggestionSelect(suggestion)}
+                      className={`px-3 py-1 rounded-full text-xs border transition ${
+                        chatLoading
+                          ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                          : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                      }`}
+                    >
+                      {suggestion.promptText}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear once this topic loads or when new ones are added.</p>
+              )}
+            </div>
+            {chatMessages.map((msg) => {
+              const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
+              const showInlineChip =
+                !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length);
+
+              return (
+                <div key={msg.id} className="space-y-2">
+                  <div
+                    className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${
+                      msg.error ? "border-red-500/60 text-red-200" : ""
+                    }`}
+                  >
+                    <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
+                    <div className="whitespace-pre-line">{msg.text}</div>
+                  </div>
+                  {showInlineChip && (
+                    <div className="flex justify-end">
+                      <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
+                        {msg.suggestionContext?.promptText}
+                      </span>
+                    </div>
+                  )}
+                  {followUpsForMessage.length > 0 && (
+                    <div className="pl-2 border-l border-white/10 space-y-1">
+                      <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
+                      <div className="flex flex-wrap gap-2">
+                        {followUpsForMessage.map((suggestion) => (
+                          <button
+                            key={`${msg.id}-${suggestion.id}`}
+                            type="button"
+                            disabled={chatLoading}
+                            onClick={() => handleSuggestionSelect(suggestion)}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${
+                              chatLoading
+                                ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                                : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
+                            }`}
+                          >
+                            {suggestion.promptText}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {chatLoading && (
+              <div className="text-xs text-[#f8f1e6]/60">
+                Tutor is thinking…
               </div>
-            ))}
-            {chatLoading && <div className="text-xs text-[#f8f1e6]/60">Tutor is thinking...</div>}
+            )}
           </div>
           <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
             <input

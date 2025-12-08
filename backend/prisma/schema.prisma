@@ -61,6 +61,7 @@ model Course {
   topics      Topic[]
   tutors      CourseTutor[]
   personalizations TopicPersonalization[]
+  promptSuggestions TopicPromptSuggestion[]
 
   @@map("courses")
 }
@@ -126,6 +127,7 @@ model Topic {
   createdAt   DateTime        @default(now()) @map("created_at")
   course      Course          @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
   progress    TopicProgress[]
+  promptSuggestions TopicPromptSuggestion[]
 
   @@unique([courseId, moduleNo, topicNumber], map: "uq_topic_per_module")
   @@map("topics")
@@ -158,6 +160,28 @@ model TopicPersonalization {
 
   @@unique([userId, courseId], map: "uq_topic_personalization_user_course")
   @@map("topic_personalization")
+}
+
+model TopicPromptSuggestion {
+  suggestionId       String   @id @default(dbgenerated("gen_random_uuid()")) @map("suggestion_id") @db.Uuid
+  courseId           String?  @map("course_id") @db.Uuid
+  topicId            String?  @map("topic_id") @db.Uuid
+  parentSuggestionId String?  @map("parent_suggestion_id") @db.Uuid
+  promptText         String   @map("prompt_text")
+  answer             String?  @map("answer")
+  displayOrder       Int      @default(0) @map("display_order")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  course             Course?  @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  topic              Topic?   @relation(fields: [topicId], references: [topicId], onDelete: Cascade)
+  parent             TopicPromptSuggestion? @relation("SuggestionChildren", fields: [parentSuggestionId], references: [suggestionId], onDelete: Cascade)
+  children           TopicPromptSuggestion[] @relation("SuggestionChildren")
+
+  @@index([courseId], map: "idx_prompt_course")
+  @@index([topicId], map: "idx_prompt_topic")
+  @@index([parentSuggestionId], map: "idx_prompt_parent")
+  @@map("topic_prompt_suggestions")
 }
 
 model UserSession {
