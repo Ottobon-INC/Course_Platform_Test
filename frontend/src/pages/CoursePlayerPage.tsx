@@ -1249,37 +1249,7 @@ useEffect(() => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
-            <div className="space-y-2 mb-4">
-              <div className="text-[11px] uppercase tracking-wide text-[#f8f1e6]/60">Not sure what to ask?</div>
-              {suggestionsLoading ? (
-                <div className="flex gap-2">
-                  <div className="h-7 w-24 rounded-full bg-white/10 animate-pulse" />
-                  <div className="h-7 w-32 rounded-full bg-white/10 animate-pulse" />
-                  <div className="h-7 w-20 rounded-full bg-white/10 animate-pulse" />
-                </div>
-              ) : availableStarterSuggestions.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {availableStarterSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      disabled={chatLoading}
-                      onClick={() => handleSuggestionSelect(suggestion)}
-                      className={`px-3 py-1 rounded-full text-xs border transition ${
-                        chatLoading
-                          ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                          : "border-white/25 text-white/80 hover:border-white hover:text-white"
-                      }`}
-                    >
-                      {suggestion.promptText}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear once this topic loads or when new ones are added.</p>
-              )}
-            </div>
-            {chatMessages.map((msg) => {
+            {chatMessages.map((msg, index) => {
               const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
               const showInlineChip =
                 !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length);
@@ -1294,6 +1264,40 @@ useEffect(() => {
                     <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
                     <div className="whitespace-pre-line">{msg.text}</div>
                   </div>
+                  {index === 0 && (
+                    <div className="pl-3 border-l border-white/10 space-y-2">
+                      <p className="text-xs text-[#f8f1e6]/70">
+                        Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
+                      </p>
+                      {suggestionsLoading ? (
+                        <div className="space-y-2">
+                          <div className="h-7 w-40 rounded-full bg-white/10 animate-pulse" />
+                          <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
+                          <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
+                        </div>
+                      ) : availableStarterSuggestions.length > 0 ? (
+                        <div className="flex flex-col gap-2 items-start">
+                          {availableStarterSuggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              type="button"
+                              disabled={chatLoading}
+                              onClick={() => handleSuggestionSelect(suggestion)}
+                              className={`px-4 py-1.5 rounded-full text-xs border transition ${
+                                chatLoading
+                                  ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                                  : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                              }`}
+                            >
+                              {suggestion.promptText}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
+                      )}
+                    </div>
+                  )}
                   {showInlineChip && (
                     <div className="flex justify-end">
                       <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
