@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { readStoredSession } from '@/utils/session';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import certificateHero from '@/Certificate.png';
 
 // --- Types ---
 
@@ -263,9 +264,9 @@ const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onE
               className="text-5xl md:text-7xl font-bold text-retro-teal tracking-tight leading-[1.1]"
               variants={itemVariants}
             >
-              The Last Course <br />
+              The First Course    <br />
               <span className="text-retro-salmon inline-block relative">
-                You Will Ever Need.
+                you will ever need <br/>to take off.
                 <motion.svg
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
@@ -1249,9 +1250,10 @@ const Certification: React.FC = () => {
           {/* Certificate Image */}
           <div className="rounded shadow-2xl transform hover:scale-105 transition-transform duration-500">
             <img
-              src="/certificate.png"
+              src={certificateHero}
               alt="Certificate of Completion"
               className="w-full h-auto rounded"
+              loading="lazy"
             />
           </div>
         </motion.div>
@@ -1321,7 +1323,7 @@ const Testimonials: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4">Don't take our word for it.</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4">Don't trust our words, experience yourself to decide</h2>
           <p className="text-retro-teal/70 text-lg">Join a community of serious learners.</p>
         </motion.div>
 
@@ -1890,9 +1892,11 @@ function App() {
       <PlatformStats />
       <Certification />
       <Testimonials />
-      <Faculty />
+      {/* Faculty section removed */}
+      {/* <Faculty /> */}
       <MentorCTA onApplyTutor={handleApplyTutor} />
-      <Pricing onEnroll={handleEnroll} />
+      {/* Pricing section removed */}
+      {/* <Pricing onEnroll={handleEnroll} /> */}
       <FAQ />
       <CallToAction onEnroll={handleEnroll} onViewCurriculum={handleViewCurriculum} />
       <Footer />
