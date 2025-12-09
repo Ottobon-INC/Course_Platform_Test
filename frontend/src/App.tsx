@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
 import CoursePlayerPage from "@/pages/CoursePlayerPage";
+import LearningPathPage from "@/pages/LearningPathPage";
 import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
@@ -21,6 +22,7 @@ function Router() {
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
        <Route path="/course/:id/enroll" component={EnrollmentPage} />
+       <Route path="/course/:id/path" component={LearningPathPage} />
        <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
        <Route path="/course/:id" component={CourseDetailsPage} />
        <Route path="/auth/callback" component={AuthCallbackPage} />

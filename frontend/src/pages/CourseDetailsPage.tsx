@@ -310,7 +310,7 @@ const CourseDetailsPage: React.FC = () => {
     [courseTitle, modules],
   );
 
-  const enrollLearner = async (): Promise<boolean> => {
+  const enrollLearner = async (): Promise<{ success: boolean; token?: string }> => {
     try {
       const stored = readStoredSession();
       const session = await ensureSessionFresh(stored);
@@ -320,7 +320,7 @@ const CourseDetailsPage: React.FC = () => {
           title: "Sign in required",
           description: "Please sign in before enrolling.",
         });
-        return false;
+        return { success: false };
       }
 
       const response = await fetch(buildApiUrl(`/courses/${courseId}/enroll`), {
@@ -336,14 +336,14 @@ const CourseDetailsPage: React.FC = () => {
         throw new Error(payload?.message ?? "Unable to enroll in this course.");
       }
 
-      return true;
+      return { success: true, token: session.accessToken };
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Enrollment failed",
         description: error instanceof Error ? error.message : "Please try again.",
       });
-      return false;
+      return { success: false };
     }
   };
 
@@ -355,16 +355,57 @@ const CourseDetailsPage: React.FC = () => {
     }
   };
 
+  const routeAfterEnrollment = async (providedToken?: string) => {
+    const ensureToken = async () => {
+      if (providedToken) {
+        return providedToken;
+      }
+      const stored = readStoredSession();
+      const refreshed = await ensureSessionFresh(stored);
+      return refreshed?.accessToken;
+    };
+
+    const token = await ensureToken();
+    if (!token) {
+      navigateToPlayer();
+      return;
+    }
+
+    try {
+      const res = await fetch(buildApiUrl(`/lessons/courses/${courseId}/personalization`), {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.hasPreference) {
+          navigateToPlayer();
+        } else {
+          const targetLesson = firstLessonSlug ?? "start-your-revolutionary-learning-journey";
+          setLocation(`/course/${courseId}/path${targetLesson ? `?lesson=${targetLesson}` : ""}`);
+        }
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to resolve personalization preference", error);
+    }
+
+    navigateToPlayer();
+  };
+
   const handleEnrollAccept = () => {
     if (enrolling) {
       return;
     }
     setEnrolling(true);
     void (async () => {
-      const success = await enrollLearner();
-      if (success) {
+      const result = await enrollLearner();
+      if (result.success) {
         setIsModalOpen(false);
-        navigateToPlayer();
+        await routeAfterEnrollment(result.token);
       }
       setEnrolling(false);
     })();

@@ -106,6 +106,20 @@ const makeId = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
+const pickRandomSubset = <T,>(items: T[], count: number): T[] => {
+  if (items.length <= count) {
+    return items;
+  }
+  const pool = [...items];
+  const result: T[] = [];
+  while (result.length < count && pool.length > 0) {
+    const idx = Math.floor(Math.random() * pool.length);
+    result.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  return result;
+};
+
 const PASSING_PERCENT_THRESHOLD = 70;
 const PERSONALIZED_PERSONAS: StudyPersona[] = ["sports", "cooking", "adventure"];
 const personaOptions: Record<StudyPersona, { label: string; description: string }> = {
@@ -176,6 +190,7 @@ const CoursePlayerPage: React.FC = () => {
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
   const [studyPersona, setStudyPersona] = useState<StudyPersona>("normal");
   const [hasPersonaPreference, setHasPersonaPreference] = useState(false);
+  const [lockedPersona, setLockedPersona] = useState<StudyPersona>("normal");
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [personaPending, setPersonaPending] = useState<StudyPersona>("normal");
   const [personaSaving, setPersonaSaving] = useState(false);
@@ -191,6 +206,9 @@ const CoursePlayerPage: React.FC = () => {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [usedSuggestionIds, setUsedSuggestionIds] = useState<Set<string>>(new Set());
   const [pendingSuggestion, setPendingSuggestion] = useState<PromptSuggestion | null>(null);
+  const [visibleStarterSuggestions, setVisibleStarterSuggestions] = useState<PromptSuggestion[]>([]);
+  const [shouldRefreshStarterBatch, setShouldRefreshStarterBatch] = useState(true);
+  const [starterAnchorMessageId, setStarterAnchorMessageId] = useState<string | null>(null);
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -236,16 +254,46 @@ const CoursePlayerPage: React.FC = () => {
     return idx >= 0 ? idx + 1 : currentModuleId;
   }, [realModules, currentModuleId]);
   const greetingMessage = useMemo(() => buildTopicGreeting(activeLesson), [activeLesson]);
-  const availableStarterSuggestions = useMemo(() => {
-    if (starterSuggestions.length === 0) return [];
-    return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
-  }, [starterSuggestions, usedSuggestionIds]);
+const availableStarterSuggestions = useMemo(() => {
+  if (starterSuggestions.length === 0) return [];
+  return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
+}, [starterSuggestions, usedSuggestionIds]);
+
+  useEffect(() => {
+    if (!shouldRefreshStarterBatch) {
+      return;
+    }
+
+    if (starterSuggestions.length === 0) {
+      setVisibleStarterSuggestions([]);
+      setShouldRefreshStarterBatch(false);
+      return;
+    }
+
+    if (availableStarterSuggestions.length === 0) {
+      if (starterSuggestions.length > 0) {
+        setVisibleStarterSuggestions([]);
+        setUsedSuggestionIds(new Set());
+      } else {
+        setVisibleStarterSuggestions([]);
+        setShouldRefreshStarterBatch(false);
+      }
+      return;
+    }
+
+    setVisibleStarterSuggestions(pickRandomSubset(availableStarterSuggestions, 3));
+    setShouldRefreshStarterBatch(false);
+  }, [availableStarterSuggestions, shouldRefreshStarterBatch, starterSuggestions]);
 
 useEffect(() => {
-  setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greetingMessage, isBot: true }]);
+  const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
+  setChatMessages([{ id: welcomeId, text: greetingMessage, isBot: true }]);
   setUsedSuggestionIds(new Set());
   setPendingSuggestion(null);
   setInlineFollowUps({});
+  setVisibleStarterSuggestions([]);
+  setShouldRefreshStarterBatch(true);
+  setStarterAnchorMessageId(welcomeId);
 }, [activeLesson?.slug, greetingMessage]);
 
   const getLessonTextForPersona = useCallback((lesson: Lesson | null | undefined, persona: StudyPersona) => {
@@ -331,6 +379,7 @@ useEffect(() => {
       setPersonaPending(persona);
       const hasPref = Boolean(data?.hasPreference);
       setHasPersonaPreference(hasPref);
+      setLockedPersona(hasPref ? persona : "normal");
       setShowPersonaModal(!hasPref && !personaPromptDismissed);
     } catch (error) {
       console.error("Failed to load personalization", error);
@@ -375,6 +424,10 @@ useEffect(() => {
       setSuggestionsLoading(false);
     }
   }, [courseKey, session?.accessToken, activeLesson?.topicId]);
+
+  useEffect(() => {
+    setShouldRefreshStarterBatch(true);
+  }, [starterSuggestions]);
 
   // Lock system disabled: keep sections empty and progress at 0
   const fetchSections = useCallback(async () => {
@@ -444,6 +497,7 @@ useEffect(() => {
       }
       setStudyPersona(choice);
       setHasPersonaPreference(true);
+      setLockedPersona((prev) => (hasPersonaPreference ? prev : choice));
       setPersonaPromptDismissed(false);
       setShowPersonaModal(false);
       toast({ title: "Study style updated" });
@@ -456,7 +510,7 @@ useEffect(() => {
     } finally {
       setPersonaSaving(false);
     }
-  }, [courseKey, personaPending, session?.accessToken, toast]);
+  }, [courseKey, personaPending, session?.accessToken, toast, hasPersonaPreference]);
 
   const handleDismissPersonaModal = useCallback(() => {
     setShowPersonaModal(false);
@@ -799,6 +853,7 @@ useEffect(() => {
         return next;
       });
 
+      let botMessageId: string | null = null;
       try {
         if (!session?.accessToken) {
           throw new Error("Please sign in to chat with the tutor.");
@@ -827,6 +882,8 @@ useEffect(() => {
         }
         const answer = payload?.answer ?? "I could not find an answer for that right now.";
         const botId = makeId();
+        botMessageId = botId;
+        setStarterAnchorMessageId(botId);
         setChatMessages((prev) => [...prev, { id: botId, text: answer, isBot: true, suggestionContext: suggestion }]);
         const next = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
         if (suggestion) {
@@ -856,6 +913,9 @@ useEffect(() => {
       } finally {
         setPendingSuggestion(null);
         setChatLoading(false);
+        if (botMessageId) {
+          setShouldRefreshStarterBatch(true);
+        }
       }
     },
     [
@@ -1264,7 +1324,7 @@ useEffect(() => {
                     <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
                     <div className="whitespace-pre-line">{msg.text}</div>
                   </div>
-                  {index === 0 && (
+                  {starterAnchorMessageId === msg.id && (
                     <div className="pl-3 border-l border-white/10 space-y-2">
                       <p className="text-xs text-[#f8f1e6]/70">
                         Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
@@ -1275,9 +1335,9 @@ useEffect(() => {
                           <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
                           <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
                         </div>
-                      ) : availableStarterSuggestions.length > 0 ? (
+                      ) : visibleStarterSuggestions.length > 0 ? (
                         <div className="flex flex-col gap-2 items-start">
-                          {availableStarterSuggestions.map((suggestion) => (
+                          {visibleStarterSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
                               type="button"
@@ -1293,8 +1353,10 @@ useEffect(() => {
                             </button>
                           ))}
                         </div>
-                      ) : (
+                      ) : availableStarterSuggestions.length === 0 ? (
                         <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
+                      ) : (
+                        <p className="text-xs text-[#f8f1e6]/50">Refreshing prompts...</p>
                       )}
                     </div>
                   )}
@@ -1446,12 +1508,17 @@ useEffect(() => {
                 <X size={20} />
               </button>
             </div>
-            <div className="grid gap-3">
-              {(["normal", "sports", "cooking", "adventure"] as StudyPersona[]).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setPersonaPending(option)}
+              <div className="grid gap-3">
+                {(hasPersonaPreference
+                  ? (lockedPersona === "normal"
+                      ? (["normal"] as StudyPersona[])
+                      : (["normal", lockedPersona] as StudyPersona[]))
+                  : (["normal", "sports", "cooking", "adventure"] as StudyPersona[])
+                ).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setPersonaPending(option)}
                   className={`text-left border rounded-xl p-4 transition focus:outline-none ${
                     personaPending === option
                       ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
