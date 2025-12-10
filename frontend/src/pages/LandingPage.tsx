@@ -1553,8 +1553,8 @@ const Pricing: React.FC<{ onEnroll: () => void }> = ({ onEnroll }) => {
 
 const faqs = [
   { question: "How does the Lock System work?", answer: "The Lock System ensures you master a concept before moving forward. You must score at least 80% on the module assessment to unlock the next video." },
-  { question: "Is the certificate valid for jobs?", answer: "Yes! Our certificates are industry-recognized and come with a unique verification ID that recruiters can validate directly on our platform." },
-  { question: "Can I get a refund?", answer: "Absolutely. If you are not satisfied with the learning experience, we offer a 14-day no-questions-asked money-back guarantee." },
+  { question: "Is the certificate valid for jobs?", answer: "Yes! Our certificates are industry-recognized and can be used to showcase your skills when applying for jobs." },
+  { question: "Are the courses free?", answer: "Yes the courses are completely free, Payment is only required for the certificate after completing the course." },
 ];
 
 const FAQ: React.FC = () => {
