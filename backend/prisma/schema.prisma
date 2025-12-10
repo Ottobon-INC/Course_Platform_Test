@@ -118,6 +118,7 @@ model Topic {
   topicNumber Int             @map("topic_number")
   topicName   String          @map("topic_name")
   contentType String          @default("video") @map("content_type")
+  pptUrl      String?         @map("ppt_url")
   videoUrl    String?         @map("video_url")
   textContent String?         @map("text_content")
   textContentSports String?   @map("text_content_sports")

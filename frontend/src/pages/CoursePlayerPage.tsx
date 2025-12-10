@@ -26,6 +26,13 @@ import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 
+const buildOfficeViewerUrl = (rawUrl?: string | null) => {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(trimmed)}`;
+};
+
 type ContentType = "video" | "quiz";
 
 type StudyPersona = "normal" | "sports" | "cooking" | "adventure";
@@ -43,6 +50,7 @@ interface Lesson {
   textContentCooking?: string | null;
   textContentAdventure?: string | null;
   contentType: string;
+  pptUrl?: string | null;
   slug: string;
   simulation?: SimulationPayload | null;
 }
@@ -248,6 +256,7 @@ const CoursePlayerPage: React.FC = () => {
     () => lessons.find((l) => l.slug === activeSlug) ?? lessons[0],
     [lessons, activeSlug],
   );
+  const activePptEmbedUrl = useMemo(() => buildOfficeViewerUrl(activeLesson?.pptUrl), [activeLesson?.pptUrl]);
   const currentModuleId = activeLesson?.moduleNo ?? modules[0]?.id ?? 1;
   const realModules = useMemo(() => modules.filter((m) => m.id > 0), [modules]);
   const currentModuleDisplay = useMemo(() => {
@@ -337,6 +346,7 @@ useEffect(() => {
         textContentCooking: t.textContentCooking,
         textContentAdventure: t.textContentAdventure,
         contentType: t.contentType,
+        pptUrl: t.pptUrl ?? null,
         slug: slugify(t.topicName),
         simulation: t.simulation ?? null,
       }));
@@ -1171,10 +1181,31 @@ useEffect(() => {
                       if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
                       if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
                       if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                      return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
-                    })
+                    return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
+                  })
                   : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
               </div>
+              {activePptEmbedUrl && activeLesson?.pptUrl && (
+                <div className="mt-6 space-y-3">
+                  <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                      <FileText size={16} className="text-[#bf2f1f]" />
+                      <span>Slides Viewer</span>
+                    </div>
+                    <div className="w-full bg-[#000000]/5 h-[500px] rounded-b-2xl overflow-hidden">
+                      <iframe
+                        title={`Slides for ${activeLesson.topicName}`}
+                        src={activePptEmbedUrl}
+                        className="w-full h-full border-0"
+                        referrerPolicy="no-referrer"
+                        allowFullScreen
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+                  
+                </div>
+              )}
               {activeLesson?.simulation && (
                 <SimulationExercise simulation={activeLesson.simulation} />
               )}
@@ -1477,9 +1508,30 @@ useEffect(() => {
                   if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
                   if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
                   if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                  return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
-                })
+                return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
+              })
               : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+            {activePptEmbedUrl && activeLesson?.pptUrl && (
+              <div className="mt-6 space-y-2">
+                <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
+                    <FileText size={14} />
+                    <span>Slides Viewer</span>
+                  </div>
+                  <div className="bg-[#f6f2eb] h-[360px] rounded-b-xl overflow-hidden">
+                    <iframe
+                      title={`Slides for ${activeLesson.topicName} (Study widget)`}
+                      src={activePptEmbedUrl}
+                      className="w-full h-full border-0"
+                      referrerPolicy="no-referrer"
+                      allowFullScreen
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-[#4a4845]">Use the embedded Microsoft viewer controls to move between slides.</p>
+              </div>
+            )}
             {activeLesson?.simulation && (
               <SimulationExercise simulation={activeLesson.simulation} />
             )}
