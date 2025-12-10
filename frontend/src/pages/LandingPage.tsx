@@ -560,10 +560,11 @@ const steps: Step[] = [
     color: "bg-retro-teal" // #244855
   },
   {
-    icon: <Lock size={28} className="text-white" />,
-    title: "The Smart Lock System",
-    description: "You can't skip ahead. Master the current module to unlock the next. Assessment score > 80% required.",
-    color: "bg-retro-salmon" // #E64833
+    icon: <Sparkles size={28} className="text-white" />,
+    title: "Personalized Learning Path",
+    description:
+      "Learners can choose a personalized study persona—or stay with the standard track—while AI keeps the journey aligned with their goals.",
+    color: "bg-retro-salmon" // keep brand palette for visibility
   },
   {
     icon: <Brain size={28} className="text-white" />,
@@ -844,7 +845,7 @@ const CurriculumStructure: React.FC = () => {
 
         <div className="relative">
           {/* Vertical connection line */}
-          <div className="absolute left-8 top-8 bottom-8 w-0.5 bg-retro-bg hidden md:block z-0"></div>
+          <div className="absolute left-5 top-8 bottom-8 w-0.5 bg-retro-bg hidden md:block z-0"></div>
 
           <div className="space-y-6 relative z-10">
             {modules.map((module, index) => (
