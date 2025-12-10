@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
 import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
+import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 
 type ContentType = "video" | "quiz";
 
@@ -43,6 +44,7 @@ interface Lesson {
   textContentAdventure?: string | null;
   contentType: string;
   slug: string;
+  simulation?: SimulationPayload | null;
 }
 
 interface SubModule {
@@ -336,6 +338,7 @@ useEffect(() => {
         textContentAdventure: t.textContentAdventure,
         contentType: t.contentType,
         slug: slugify(t.topicName),
+        simulation: t.simulation ?? null,
       }));
       const sorted = mapped.sort((a, b) => a.moduleNo - b.moduleNo || a.topicNumber - b.topicNumber);
       setLessons(sorted);
@@ -1172,6 +1175,9 @@ useEffect(() => {
                     })
                   : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
               </div>
+              {activeLesson?.simulation && (
+                <SimulationExercise simulation={activeLesson.simulation} />
+              )}
             </div>
           </div>
         )}
@@ -1474,6 +1480,9 @@ useEffect(() => {
                   return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
                 })
               : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+            {activeLesson?.simulation && (
+              <SimulationExercise simulation={activeLesson.simulation} />
+            )}
           </div>
           <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
           <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />

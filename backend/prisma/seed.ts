@@ -200,6 +200,15 @@ type CsvTopicRow = {
   is_preview: string | null;
 };
 
+type SimulationBody = {
+  overview: string;
+  steps: Array<{
+    title: string;
+    challenge: string;
+    task: string;
+  }>;
+};
+
 function toBoolean(value: string | null | undefined): boolean {
   if (!value) {
     return false;
@@ -300,6 +309,65 @@ async function seedTopics(topics: Prisma.TopicCreateManyInput[]): Promise<void> 
   console.log(`Seeded ${topics.length} topics from CSV`);
 }
 
+function buildSimulationBody(topic: Prisma.TopicCreateManyInput): SimulationBody {
+  const topicLabel = topic.topicName?.trim() || "this lesson";
+  return {
+    overview: `Apply the ideas from "${topicLabel}" by walking through real-world tradeoffs. Choose a strategy, defend your reasoning, and predict downstream impact.`,
+    steps: [
+      {
+        title: "Tool Alignment",
+        challenge: "Your AI design output doesn't match the expectations of your coding assistant.",
+        task: "Decide whether to refactor prompts, regenerate assets, or adjust the runtime to keep the flow unblocked.",
+      },
+      {
+        title: "Feedback Loop Diagnosis",
+        challenge: "A downstream AI flags regressions after deployment.",
+        task: "Identify where the feedback loop failed—communication gap, missing human checkpoint, or incorrect assumptions.",
+      },
+      {
+        title: "Prompt Precision",
+        challenge: "Stakeholders gave vague instructions for the feature.",
+        task: "Rewrite the request into a structured, AI-ready prompt with constraints, intent, and hand-off notes.",
+      },
+      {
+        title: "System Failure Choice",
+        challenge: "One supporting AI tool becomes unavailable mid-build.",
+        task: "Choose which outage would be most disruptive for this topic and justify it with dependency/risk analysis.",
+      },
+    ],
+  };
+}
+
+async function seedSimulationExercises(topics: Prisma.TopicCreateManyInput[]): Promise<void> {
+  if (topics.length === 0) {
+    console.warn("Skipping simulation seeding because no topics were loaded.");
+    return;
+  }
+
+  const payload = topics.map((topic) => ({
+    topicId: topic.topicId!,
+    title: `${topic.topicName?.trim() || "Lesson"} Simulation Exercise`,
+    body: buildSimulationBody(topic),
+  }));
+
+  await prisma.simulationExercise.deleteMany({
+    where: {
+      topicId: { in: payload.map((entry) => entry.topicId) },
+    },
+  });
+
+  const chunkSize = 100;
+  for (let index = 0; index < payload.length; index += chunkSize) {
+    const chunk = payload.slice(index, index + chunkSize);
+    await prisma.simulationExercise.createMany({
+      data: chunk,
+      skipDuplicates: true,
+    });
+  }
+
+  console.log(`Seeded ${payload.length} simulation exercises`);
+}
+
 async function main(): Promise<void> {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const csvPath = path.resolve(__dirname, "..", "..", "topics_all_modules.csv");
@@ -310,6 +378,7 @@ async function main(): Promise<void> {
   const topics = await loadTopicsFromCsv(csvPath, COURSE_ID);
   if (topics.length > 0) {
     await seedTopics(topics);
+    await seedSimulationExercises(topics);
   } else {
     console.warn("No topics were seeded because the CSV was missing.");
   }

@@ -152,6 +152,12 @@ lessonsRouter.get(
         textContentAdventure: true,
         isPreview: true,
         contentType: true,
+        simulation: {
+          select: {
+            title: true,
+            body: true,
+          },
+        },
       },
     });
 
@@ -191,6 +197,12 @@ lessonsRouter.get(
         textContentAdventure: true,
         isPreview: true,
         contentType: true,
+        simulation: {
+          select: {
+            title: true,
+            body: true,
+          },
+        },
       },
     });
 
