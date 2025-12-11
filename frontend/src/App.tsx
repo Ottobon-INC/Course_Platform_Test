@@ -8,6 +8,8 @@ import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
 import CoursePlayerPage from "@/pages/CoursePlayerPage";
 import CongratsPage from "@/pages/CongratsPage";
+import CongratsFeedbackPage from "@/pages/CongratsFeedbackPage";
+import CourseCertificatePage from "@/pages/CourseCertificatePage";
 import LearningPathPage from "@/pages/LearningPathPage";
 import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
@@ -25,6 +27,8 @@ function Router() {
        <Route path="/course/:id/enroll" component={EnrollmentPage} />
        <Route path="/course/:id/path" component={LearningPathPage} />
        <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
+       <Route path="/course/:id/congrats/certificate" component={CourseCertificatePage} />
+       <Route path="/course/:id/congrats/feedback" component={CongratsFeedbackPage} />
        <Route path="/course/:id/congrats" component={CongratsPage} />
        <Route path="/course/:id" component={CourseDetailsPage} />
        <Route path="/auth/callback" component={AuthCallbackPage} />

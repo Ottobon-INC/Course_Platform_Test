@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import {
   Menu,
@@ -982,9 +982,7 @@ useEffect(() => {
     [activeLesson, studyPersona, getLessonTextForPersona],
   );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
-  const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} ${
-    isFullScreen ? "h-screen" : "min-h-screen"
-  } bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
+  const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
   const sidebarBaseClasses = "bg-[#000000] transition-all duration-300 ease-in-out flex flex-col overflow-hidden";
@@ -1126,13 +1124,9 @@ useEffect(() => {
       )}
 
       {/* Main stage */}
-      <div
-        className={`flex-1 flex flex-col ${
-          isFullScreen ? "h-full overflow-hidden" : "min-h-screen overflow-y-auto"
-        } relative scroll-smooth`}
-      >
+      <div className="flex-1 flex flex-col h-full relative scroll-smooth overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-[#4a4845]/60 bg-[#050505] sticky top-0 z-20">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-[#4a4845]/60 bg-[#050505] z-20">
           <div className="flex items-center gap-3 md:gap-4 flex-wrap">
             {isCompactLayout && (
               <button
@@ -1158,162 +1152,164 @@ useEffect(() => {
               <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
+            Progress {Math.round(courseProgress)}%
+          </div>
         </div>
-        {/* Video */}
-        {!isQuizMode && (
-          <div
-            className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
-              isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
-            }`}
-          >
+        <div className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}>
+          {/* Video */}
+          {!isQuizMode && (
             <div
-              className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${
-                isFullScreen ? "w-auto h-auto" : "w-full h-full"
+              className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
+                isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
               }`}
             >
-              {activeVideoUrl ? (
-                <iframe
-                  className="w-full h-full"
-                  src={activeVideoUrl}
-                  title={activeLesson?.topicName ?? "Lesson video"}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">No video for this lesson.</div>
-              )}
-
+              <div
+                className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${
+                  isFullScreen ? "w-auto h-auto" : "w-full h-full"
+                }`}
+              >
+                {activeVideoUrl ? (
+                  <iframe
+                    className="w-full h-full"
+                    src={activeVideoUrl}
+                    title={activeLesson?.topicName ?? "Lesson video"}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
+                    No video for this lesson.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Study section */}
-        {!isFullScreen && !isQuizMode && (
-          <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
-            <div className={`w-full ${studySectionPadding} space-y-8`}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
-                <div className="flex items-start gap-3 text-left">
-                  <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg flex-shrink-0">
-                    <Book size={24} />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
-                    <p className="text-sm text-[#4a4845]">
-                      Companion reading for {activeLesson?.topicName ?? ""}
-                    </p>
-                    {personaReady && (
-                      <button
-                        type="button"
-                        onClick={handleOpenPersonaModal}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#bf2f1f] hover:underline"
-                      >
-                        {studyPersona === "normal"
-                          ? "Personalize this text"
-                          : `${personaOptions[studyPersona].label} style - Change`}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                  <button
-                    onClick={() => setIsReadingMode(!isReadingMode)}
-                    className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
-                      isReadingMode
-                        ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
-                        : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
-                    }`}
-                  >
-                    {isReadingMode ? (
-                      <>
-                        <ArrowUpLeftFromCircle size={16} /> Restore Video
-                      </>
-                    ) : (
-                      <>
-                        <BookOpen size={16} /> Read Mode
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="prose prose-slate max-w-none text-left text-base sm:text-lg">
-                {activeStudyText
-                  ? activeStudyText.split("\n").map((line, i) => {
-                      if (line.startsWith("## "))
-                        return (
-                          <h2
-                            key={i}
-                            className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3"
-                          >
-                            {line.replace("## ", "")}
-                          </h2>
-                        );
-                      if (line.startsWith("### "))
-                        return (
-                          <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
-                            {line.replace("### ", "")}
-                          </h3>
-                        );
-                      if (line.startsWith("* "))
-                        return (
-                          <li key={i} className="ml-6 list-disc opacity-80 mb-1">
-                            {line.replace("* ", "")}
-                          </li>
-                        );
-                      if (line.startsWith("1. "))
-                        return (
-                          <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
-                            {line.replace("1. ", "")}
-                          </li>
-                        );
-                      if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                      return (
-                        <p key={i} className="mb-3 leading-relaxed opacity-90">
-                          {line}
-                        </p>
-                      );
-                    })
-                  : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
-              </div>
-
-              {activePptEmbedUrl && activeLesson?.pptUrl && (
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
-                      <FileText size={16} className="text-[#bf2f1f]" />
-                      <span>Slides Viewer</span>
+          {/* Study section */}
+          {!isFullScreen && !isQuizMode && (
+            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
+              <div className={`w-full ${studySectionPadding} space-y-8`}>
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
+                  <div className="flex items-start gap-3 text-left">
+                    <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg flex-shrink-0">
+                      <Book size={24} />
                     </div>
-                    <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
-                      <iframe
-                        title={`Slides for ${activeLesson.topicName}`}
-                        src={activePptEmbedUrl}
-                        className="w-full h-full border-0"
-                        referrerPolicy="no-referrer"
-                        allowFullScreen
-                        loading="lazy"
-                      />
+                    <div className="space-y-1">
+                      <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
+                      <p className="text-sm text-[#4a4845]">
+                        Companion reading for {activeLesson?.topicName ?? ""}
+                      </p>
+                      {personaReady && (
+                        <button
+                          type="button"
+                          onClick={handleOpenPersonaModal}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#bf2f1f] hover:underline"
+                        >
+                          {studyPersona === "normal"
+                            ? "Personalize this text"
+                            : `${personaOptions[studyPersona].label} style - Change`}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <p className="text-xs text-[#4a4845]">
-                    Use the embedded controls to browse the slides. The viewer scales for mobile, tablet, and desktop.
-                  </p>
-                </div>
-              )}
 
-              {activeLesson?.simulation && (
-                <div className="space-y-4">
-                  <SimulationExercise simulation={activeLesson.simulation} />
+                  <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                    <button
+                      onClick={() => setIsReadingMode(!isReadingMode)}
+                      className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
+                        isReadingMode
+                          ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
+                          : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
+                      }`}
+                    >
+                      {isReadingMode ? (
+                        <>
+                          <ArrowUpLeftFromCircle size={16} /> Restore Video
+                        </>
+                      ) : (
+                        <>
+                          <BookOpen size={16} /> Read Mode
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                <div className="prose prose-slate max-w-none text-left text-base sm:text-lg">
+                  {activeStudyText
+                    ? activeStudyText.split("\n").map((line, i) => {
+                        if (line.startsWith("## "))
+                          return (
+                            <h2
+                              key={i}
+                              className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3"
+                            >
+                              {line.replace("## ", "")}
+                            </h2>
+                          );
+                        if (line.startsWith("### "))
+                          return (
+                            <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
+                              {line.replace("### ", "")}
+                            </h3>
+                          );
+                        if (line.startsWith("* "))
+                          return (
+                            <li key={i} className="ml-6 list-disc opacity-80 mb-1">
+                              {line.replace("* ", "")}
+                            </li>
+                          );
+                        if (line.startsWith("1. "))
+                          return (
+                            <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
+                              {line.replace("1. ", "")}
+                            </li>
+                          );
+                        if (line.trim() === "") return <div key={i} className="h-2"></div>;
+                        return (
+                          <p key={i} className="mb-3 leading-relaxed opacity-90">
+                            {line}
+                          </p>
+                        );
+                      })
+                    : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+                </div>
+
+                {activePptEmbedUrl && activeLesson?.pptUrl && (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                        <FileText size={16} className="text-[#bf2f1f]" />
+                        <span>Slides Viewer</span>
+                      </div>
+                      <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                        <iframe
+                          title={`Slides for ${activeLesson.topicName}`}
+                          src={activePptEmbedUrl}
+                          className="w-full h-full border-0"
+                          referrerPolicy="no-referrer"
+                          allowFullScreen
+                          loading="lazy"
+                        />
+                      </div>
+                    </div>
+                    
+                  </div>
+                )}
+
+                {activeLesson?.simulation && (
+                  <div className="space-y-4">
+                    <SimulationExercise simulation={activeLesson.simulation} />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Quiz overlay */}
-        {isQuizMode && (
-          <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+          {/* Quiz overlay */}
+          {isQuizMode && (
+            <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative">
             <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
             <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
               {quizPhase === "intro" && (
@@ -1424,7 +1420,8 @@ useEffect(() => {
               )}
             </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Chat widget */}
@@ -1712,10 +1709,6 @@ useEffect(() => {
 };
 
 export default CoursePlayerPage;
-
-
-
-
 
 
 
