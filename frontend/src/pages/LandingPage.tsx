@@ -4,7 +4,7 @@ import {
   Play, ChevronRight, Search, Terminal, Users, LifeBuoy,
   PlayCircle, Lock, Brain, GitBranch, Award, FileCode, ShieldCheck, Clock,
   Star, Bot, Unlock, ArrowDown, Sparkles, Check, Quote, Linkedin, Twitter,
-  Plus, Minus, ArrowRight, BookOpen, User, Settings, LogOut
+  Plus, Minus, ArrowRight, BookOpen, User, Settings, LogOut, Menu, X
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
@@ -43,11 +43,22 @@ const Navbar: React.FC<{
   onLogout?: () => void;
 }> = ({ onLogin, onApplyTutor, isAuthenticated = false, user, onLogout }) => {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const scrollToSection = (id: string) => {
@@ -83,7 +94,7 @@ const Navbar: React.FC<{
         <div className="flex items-center gap-3">
           <button
             onClick={onApplyTutor}
-            className="bg-white text-retro-teal border-2 border-retro-teal px-6 py-2 rounded-full font-medium hover:bg-retro-teal hover:text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
+            className="hidden md:inline-flex bg-white text-retro-teal border-2 border-retro-teal px-6 py-2 rounded-full font-medium hover:bg-retro-teal hover:text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
           >
             Apply as Tutor
           </button>
@@ -92,7 +103,7 @@ const Navbar: React.FC<{
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="group flex items-center gap-3 rounded-full border border-retro-sage/60 bg-white/90 px-3 py-1.5 text-left text-sm font-medium text-retro-teal shadow-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-salmon/40"
+                  className="hidden md:flex group items-center gap-3 rounded-full border border-retro-sage/60 bg-white/90 px-3 py-1.5 text-left text-sm font-medium text-retro-teal shadow-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-salmon/40"
                 >
                   <Avatar className="h-9 w-9 bg-retro-sage">
                     {user.picture ? (
@@ -142,13 +153,99 @@ const Navbar: React.FC<{
           ) : (
             <button
               onClick={onLogin}
-              className="bg-retro-salmon text-white px-6 py-2 rounded-full font-medium hover:bg-retro-teal transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
+              className="hidden md:inline-flex bg-retro-salmon text-white px-6 py-2 rounded-full font-medium hover:bg-retro-teal transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
             >
               Log In
             </button>
           )}
+          <button
+            className="md:hidden inline-flex items-center justify-center rounded-full border border-retro-teal/30 p-2 text-retro-teal bg-white/80 shadow-sm"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            aria-label="Toggle navigation"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden px-6 pt-3 pb-6"
+          >
+            <div className="flex flex-col gap-3 rounded-2xl border border-retro-sage/30 bg-white/90 p-4 shadow-lg">
+              <button
+                onClick={() => {
+                  scrollToSection('how');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left font-semibold text-retro-teal hover:text-retro-salmon transition"
+              >
+                Methodology
+              </button>
+              <button
+                onClick={() => {
+                  scrollToSection('courses');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left font-semibold text-retro-teal hover:text-retro-salmon transition"
+              >
+                Courses
+              </button>
+              <button
+                onClick={() => {
+                  onApplyTutor();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full bg-white text-retro-teal border border-retro-teal px-4 py-2 rounded-full font-semibold hover:bg-retro-teal hover:text-white transition"
+              >
+                Apply as Tutor
+              </button>
+              {isAuthenticated && user ? (
+                <div className="flex items-center justify-between gap-3 border border-retro-sage/30 rounded-full px-3 py-2 bg-white">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8 bg-retro-sage">
+                      {user.picture ? (
+                        <AvatarImage src={user.picture} alt={user.fullName ?? 'User'} referrerPolicy="no-referrer" />
+                      ) : (
+                        <AvatarFallback className="text-xs font-semibold text-retro-teal">
+                          {(user.fullName ?? user.email ?? 'U').split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-xs text-retro-teal/70">Signed in</span>
+                      <span className="text-sm font-semibold text-retro-teal max-w-[140px] truncate">{user.fullName ?? user.email}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onLogout?.();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-xs font-semibold text-retro-salmon"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    onLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-retro-salmon text-white px-4 py-2 rounded-full font-semibold hover:bg-retro-teal transition"
+                >
+                  Log In
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.nav>
   );
 };

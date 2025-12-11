@@ -198,6 +198,33 @@ const CoursePlayerPage: React.FC = () => {
   const [notesRect, setNotesRect] = useState({ x: 0, y: 0, width: 350, height: 300, initialized: false });
   const [studyWidgetOpen, setStudyWidgetOpen] = useState(false);
   const [studyWidgetRect, setStudyWidgetRect] = useState({ x: 0, y: 0, width: 600, height: 450, initialized: false });
+  const [viewport, setViewport] = useState({ isMobile: false, isTablet: false });
+  const isCompactLayout = viewport.isMobile || viewport.isTablet;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const nextMobile = width < 640;
+      const nextTablet = width >= 640 && width < 1024;
+      setViewport((prev) => {
+        if (prev.isMobile === nextMobile && prev.isTablet === nextTablet) {
+          return prev;
+        }
+        const wasCompact = prev.isMobile || prev.isTablet;
+        const nextCompact = nextMobile || nextTablet;
+        if (wasCompact !== nextCompact) {
+          setSidebarOpen(nextCompact ? false : true);
+        }
+        return { isMobile: nextMobile, isTablet: nextTablet };
+      });
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const [studyPersona, setStudyPersona] = useState<StudyPersona>("normal");
   const [hasPersonaPreference, setHasPersonaPreference] = useState(false);
   const [lockedPersona, setLockedPersona] = useState<StudyPersona>("normal");
@@ -455,7 +482,7 @@ useEffect(() => {
       const list: QuizSection[] = (data.sections ?? []).map((s: any) => ({
         moduleNo: s.moduleNo,
         topicPairIndex: s.topicPairIndex,
-        title: s.title ?? `Module ${s.moduleNo} • Topic pair ${s.topicPairIndex}`,
+        title: s.title ?? `Module ${s.moduleNo} - Topic pair ${s.topicPairIndex}`,
         unlocked: Boolean(s.unlocked),
         passed: Boolean(s.passed),
         questionCount: s.questionCount ?? 5,
@@ -955,10 +982,23 @@ useEffect(() => {
     [activeLesson, studyPersona, getLessonTextForPersona],
   );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
+  const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} ${
+    isFullScreen ? "h-screen" : "min-h-screen"
+  } bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
+  const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
+  const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
+  const sidebarBaseClasses = "bg-[#000000] transition-all duration-300 ease-in-out flex flex-col overflow-hidden";
+  const sidebarClassName = isCompactLayout
+    ? `${sidebarBaseClasses} fixed top-0 left-0 h-full w-72 max-w-[85vw] transform ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+      } border-r border-[#4a4845]/70 shadow-2xl z-40`
+    : `${sidebarBaseClasses} shrink-0 relative z-30 ${isFullScreen ? "absolute h-full z-40" : ""} ${
+        !isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"
+      } ${sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"}`;
 
   return (
     <div
-      className="flex h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative"
+      className={rootClassName}
       onMouseMove={handleGlobalMouseMove}
       onClick={handleGlobalMouseMove}
     >
@@ -971,13 +1011,7 @@ useEffect(() => {
       `}</style>
 
       {/* Sidebar */}
-      <div
-        className={`bg-[#000000] transition-all duration-300 ease-in-out flex flex-col shrink-0 relative z-30 overflow-hidden ${
-          isFullScreen ? "absolute h-full z-40" : ""
-        } ${!isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"} ${
-          sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"
-        }`}
-      >
+      <div className={sidebarClassName}>
         <div className="h-14 flex items-center justify-between px-3 border-b border-[#4a4845]/50 bg-white/5 min-w-[3rem]">
           {sidebarOpen && <h2 className="font-bold text-sm text-[#f8f1e6] truncate">Course Content</h2>}
           <button
@@ -998,7 +1032,10 @@ useEffect(() => {
                   : `Module ${currentModuleDisplay} of ${realModules.length}`}
               </span>
               {isComplete ? (
-                <button className="px-2 py-1 rounded-md bg-[#bf2f1f] text-white text-[11px] font-bold hover:bg-[#a02a19] transition">
+                <button
+                  onClick={() => setLocation(`/course/${courseKey}/congrats`)}
+                  className="px-2 py-1 rounded-md bg-[#bf2f1f] text-white text-[11px] font-bold hover:bg-[#a02a19] transition"
+                >
                   Certificate
                 </button>
               ) : (
@@ -1079,11 +1116,34 @@ useEffect(() => {
         )}
       </div>
 
+      {isCompactLayout && sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+          role="button"
+          aria-label="Close course navigation"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main stage */}
-      <div className={`flex-1 flex flex-col h-full relative overflow-y-auto scroll-smooth ${isFullScreen ? "overflow-hidden" : ""}`}>
+      <div
+        className={`flex-1 flex flex-col ${
+          isFullScreen ? "h-full overflow-hidden" : "min-h-screen overflow-y-auto"
+        } relative scroll-smooth`}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#4a4845]/60 bg-[#050505]">
-          <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-[#4a4845]/60 bg-[#050505] sticky top-0 z-20">
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
+            {isCompactLayout && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-white/80 p-2"
+                aria-label="Open course navigation"
+              >
+                <Menu size={18} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setLocation("/")}
@@ -1092,18 +1152,19 @@ useEffect(() => {
               <ChevronLeft size={18} /> Home
             </button>
             <div>
-              <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo} · Topic {activeLesson?.topicNumber}</p>
-              <h1 className="text-2xl font-black">{activeLesson?.topicName ?? "Loading..."}</h1>
+              <p className="text-xs text-[#f8f1e6]/60">
+                Module {activeLesson?.moduleNo} - Topic {activeLesson?.topicNumber}
+              </p>
+              <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">Progress {Math.round(courseProgress)}%</div>
         </div>
-
         {/* Video */}
         {!isQuizMode && (
           <div
             className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
-              isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : "w-full h-[65vh]"
+              isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
             }`}
           >
             <div
@@ -1130,69 +1191,101 @@ useEffect(() => {
         {/* Study section */}
         {!isFullScreen && !isQuizMode && (
           <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
-            <div className="w-full p-8 md:p-12">
-              <div className="flex items-center justify-between mb-8 border-b-2 border-[#4a4845]/20 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg">
+            <div className={`w-full ${studySectionPadding} space-y-8`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
+                <div className="flex items-start gap-3 text-left">
+                  <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg flex-shrink-0">
                     <Book size={24} />
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
-                    <p className="text-sm text-[#4a4845]">Companion reading for {activeLesson?.topicName ?? ""}</p>
+                    <p className="text-sm text-[#4a4845]">
+                      Companion reading for {activeLesson?.topicName ?? ""}
+                    </p>
                     {personaReady && (
                       <button
                         type="button"
                         onClick={handleOpenPersonaModal}
-                        className="mt-2 text-xs font-semibold text-[#bf2f1f] hover:underline"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#bf2f1f] hover:underline"
                       >
                         {studyPersona === "normal"
                           ? "Personalize this text"
-                          : `${personaOptions[studyPersona].label} style · Change`}
+                          : `${personaOptions[studyPersona].label} style - Change`}
                       </button>
                     )}
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setIsReadingMode(!isReadingMode)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
-                    isReadingMode
-                      ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
-                      : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
-                  }`}
-                >
-                  {isReadingMode ? (
-                    <>
-                      <ArrowUpLeftFromCircle size={16} /> Restore Video
-                    </>
-                  ) : (
-                    <>
-                      <BookOpen size={16} /> Read Mode
-                    </>
-                  )}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                  <button
+                    onClick={() => setIsReadingMode(!isReadingMode)}
+                    className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
+                      isReadingMode
+                        ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
+                        : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
+                    }`}
+                  >
+                    {isReadingMode ? (
+                      <>
+                        <ArrowUpLeftFromCircle size={16} /> Restore Video
+                      </>
+                    ) : (
+                      <>
+                        <BookOpen size={16} /> Read Mode
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
-              <div className="prose prose-slate max-w-none text-left">
+              <div className="prose prose-slate max-w-none text-left text-base sm:text-lg">
                 {activeStudyText
                   ? activeStudyText.split("\n").map((line, i) => {
-                      if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
-                      if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
-                      if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
-                      if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
+                      if (line.startsWith("## "))
+                        return (
+                          <h2
+                            key={i}
+                            className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3"
+                          >
+                            {line.replace("## ", "")}
+                          </h2>
+                        );
+                      if (line.startsWith("### "))
+                        return (
+                          <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
+                            {line.replace("### ", "")}
+                          </h3>
+                        );
+                      if (line.startsWith("* "))
+                        return (
+                          <li key={i} className="ml-6 list-disc opacity-80 mb-1">
+                            {line.replace("* ", "")}
+                          </li>
+                        );
+                      if (line.startsWith("1. "))
+                        return (
+                          <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
+                            {line.replace("1. ", "")}
+                          </li>
+                        );
                       if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                    return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
-                  })
+                      return (
+                        <p key={i} className="mb-3 leading-relaxed opacity-90">
+                          {line}
+                        </p>
+                      );
+                    })
                   : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
               </div>
+
               {activePptEmbedUrl && activeLesson?.pptUrl && (
-                <div className="mt-6 space-y-3">
+                <div className="space-y-3">
                   <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
                     <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
                       <FileText size={16} className="text-[#bf2f1f]" />
                       <span>Slides Viewer</span>
                     </div>
-                    <div className="w-full bg-[#000000]/5 h-[500px] rounded-b-2xl overflow-hidden">
+                    <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
                       <iframe
                         title={`Slides for ${activeLesson.topicName}`}
                         src={activePptEmbedUrl}
@@ -1203,11 +1296,16 @@ useEffect(() => {
                       />
                     </div>
                   </div>
-                  
+                  <p className="text-xs text-[#4a4845]">
+                    Use the embedded controls to browse the slides. The viewer scales for mobile, tablet, and desktop.
+                  </p>
                 </div>
               )}
+
               {activeLesson?.simulation && (
-                <SimulationExercise simulation={activeLesson.simulation} />
+                <div className="space-y-4">
+                  <SimulationExercise simulation={activeLesson.simulation} />
+                </div>
               )}
             </div>
           </div>
@@ -1430,9 +1528,7 @@ useEffect(() => {
               );
             })}
             {chatLoading && (
-              <div className="text-xs text-[#f8f1e6]/60">
-                Tutor is thinking…
-              </div>
+              <div className="text-xs text-[#f8f1e6]/60">Tutor is thinking...</div>
             )}
           </div>
           <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
@@ -1616,3 +1712,10 @@ useEffect(() => {
 };
 
 export default CoursePlayerPage;
+
+
+
+
+
+
+
