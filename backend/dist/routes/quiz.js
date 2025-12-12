@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "../services/prisma";
 import { asyncHandler } from "../utils/asyncHandler";
 import { createHash } from "node:crypto";
+import { requireAuth } from "../middleware/requireAuth";
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DEFAULT_ANONYMOUS_USER_ID = "00000000-0000-0000-0000-000000000000";
 const LEGACY_COURSE_SLUGS = {
@@ -12,6 +13,14 @@ const LEGACY_COURSE_SLUGS = {
 };
 const DEFAULT_QUIZ_LIMIT = 5;
 const PASSING_PERCENT_THRESHOLD = 70;
+const MODULE_WINDOW_DURATION = "7d"; // Change this string (e.g., "3h", "2d") to adjust the study window per module.
+const MODULE_WINDOW_MS = parseDurationToMs(MODULE_WINDOW_DURATION);
+const DURATION_UNIT_MS = {
+    d: 24 * 60 * 60 * 1000,
+    h: 60 * 60 * 1000,
+    m: 60 * 1000,
+    s: 1000,
+};
 export const quizRouter = express.Router();
 const startAttemptSchema = z.object({
     courseId: z.string().min(1),
@@ -33,12 +42,40 @@ const questionsQuerySchema = z.object({
     topicPairIndex: z.coerce.number().int().positive(),
     limit: z.coerce.number().int().positive().max(20).optional(),
 });
-function normalizeUserId(raw) {
-    const trimmed = raw?.trim();
-    if (trimmed && uuidRegex.test(trimmed)) {
-        return trimmed;
+function parseDurationToMs(rawInput) {
+    const fallback = 7 * 24 * 60 * 60 * 1000;
+    if (!rawInput) {
+        return fallback;
     }
-    return DEFAULT_ANONYMOUS_USER_ID;
+    const input = rawInput.trim();
+    const pattern = /(\d+)\s*(d|h|m|s)/gi;
+    let total = 0;
+    let match;
+    while ((match = pattern.exec(input)) !== null) {
+        const amount = Number.parseInt(match[1], 10);
+        const unit = match[2]?.toLowerCase?.() ?? "";
+        if (!Number.isFinite(amount) || !DURATION_UNIT_MS[unit]) {
+            continue;
+        }
+        total += amount * DURATION_UNIT_MS[unit];
+    }
+    return total > 0 ? total : fallback;
+}
+function resolveCooldownUntil(record) {
+    if (!record?.unlocked_at) {
+        return null;
+    }
+    if (record.cooldown_until) {
+        return record.cooldown_until;
+    }
+    return new Date(record.unlocked_at.getTime() + MODULE_WINDOW_MS);
+}
+function getAuthenticatedUserId(req) {
+    const auth = req.auth;
+    if (!auth?.userId) {
+        throw new Error("Missing authenticated user context");
+    }
+    return auth.userId;
 }
 async function resolveCourseId(courseKey) {
     const trimmed = courseKey.trim();
@@ -91,6 +128,109 @@ async function ensureUserExists(userId) {
             passwordHash: placeholderHash,
         },
     });
+}
+async function getCourseModuleNumbers(courseId) {
+    const records = await prisma.topic.findMany({
+        where: { courseId, moduleNo: { gt: 0 } },
+        select: { moduleNo: true },
+        distinct: ["moduleNo"],
+        orderBy: { moduleNo: "asc" },
+    });
+    return Array.from(new Set(records.map((entry) => entry.moduleNo))).sort((a, b) => a - b);
+}
+async function ensureModuleUnlockRow(params) {
+    await ensureUserExists(params.userId);
+    const [row] = await prisma.$queryRaw(Prisma.sql `
+    WITH inserted AS (
+      INSERT INTO module_progress (
+        user_id,
+        course_id,
+        module_no,
+        videos_completed,
+        quiz_passed,
+        unlocked_at,
+        cooldown_until,
+        completed_at,
+        updated_at,
+        passed_at
+      )
+      VALUES (
+        ${params.userId}::uuid,
+        ${params.courseId}::uuid,
+        ${params.moduleNo},
+        '[]'::jsonb,
+        FALSE,
+        NOW(),
+        NOW() + ${MODULE_WINDOW_MS} * INTERVAL '1 millisecond',
+        NULL,
+        NOW(),
+        NULL
+      )
+      ON CONFLICT (user_id, course_id, module_no)
+      DO NOTHING
+      RETURNING module_no, quiz_passed, unlocked_at, cooldown_until, completed_at, passed_at, updated_at
+    )
+    SELECT module_no, quiz_passed, unlocked_at, cooldown_until, completed_at, passed_at, updated_at
+    FROM inserted
+    UNION ALL
+    SELECT module_no, quiz_passed, unlocked_at, cooldown_until, completed_at, passed_at, updated_at
+    FROM module_progress
+    WHERE user_id = ${params.userId}::uuid
+      AND course_id = ${params.courseId}::uuid
+      AND module_no = ${params.moduleNo}
+    LIMIT 1
+  `);
+    return row ?? null;
+}
+async function buildModuleStates(params) {
+    const moduleNumbers = params.moduleNumbers ?? (await getCourseModuleNumbers(params.courseId));
+    if (moduleNumbers.length === 0) {
+        return { moduleNumbers, states: new Map() };
+    }
+    const rows = moduleNumbers.length === 0
+        ? []
+        : await prisma.$queryRaw(Prisma.sql `
+          SELECT module_no, quiz_passed, unlocked_at, cooldown_until, completed_at, passed_at, updated_at
+          FROM module_progress
+          WHERE user_id = ${params.userId}::uuid
+            AND course_id = ${params.courseId}::uuid
+            AND module_no IN (${Prisma.join(moduleNumbers)})
+        `);
+    const recordMap = new Map();
+    rows.forEach((row) => recordMap.set(row.module_no, row));
+    const states = new Map();
+    const now = Date.now();
+    let previousState = null;
+    for (const moduleNo of moduleNumbers) {
+        const isFirstModule = previousState === null;
+        const prevRecord = previousState?.record ?? null;
+        const prevQuizPassed = isFirstModule ? true : Boolean(prevRecord?.quiz_passed);
+        const prevCooldownUntil = prevRecord ? resolveCooldownUntil(prevRecord) : null;
+        const waitingOnQuiz = !isFirstModule && !prevQuizPassed;
+        const waitingOnCooldown = !isFirstModule && prevQuizPassed && Boolean(prevCooldownUntil && prevCooldownUntil.getTime() > now);
+        const canUnlock = isFirstModule ? true : !waitingOnQuiz && !waitingOnCooldown;
+        let record = recordMap.get(moduleNo) ?? null;
+        if (canUnlock && !record) {
+            record = await ensureModuleUnlockRow({
+                userId: params.userId,
+                courseId: params.courseId,
+                moduleNo,
+            });
+            if (record) {
+                recordMap.set(moduleNo, record);
+            }
+        }
+        const state = {
+            moduleNo,
+            record,
+            lockedDueToCooldown: !record && waitingOnCooldown,
+            cooldownUnlockAt: !record && waitingOnCooldown ? prevCooldownUntil : null,
+            lockedDueToQuiz: !record && waitingOnQuiz,
+        };
+        states.set(moduleNo, state);
+        previousState = state;
+    }
+    return { moduleNumbers, states };
 }
 async function loadQuestionSet(params) {
     const limit = Math.max(1, Math.min(params.limit ?? DEFAULT_QUIZ_LIMIT, 20));
@@ -146,54 +286,162 @@ function withoutAnswerMetadata(questionSet) {
     }));
 }
 async function upsertModuleProgress(params) {
-    await ensureUserExists(params.userId);
-    await prisma.$executeRaw(Prisma.sql `
-      INSERT INTO module_progress (user_id, course_id, module_no, videos_completed, quiz_passed, unlocked_at, completed_at, updated_at)
-      VALUES (${params.userId}::uuid, ${params.courseId}::uuid, ${params.moduleNo}, '[]'::jsonb, ${params.quizPassed}, NOW(), ${params.quizPassed ? Prisma.sql `NOW()` : null}, NOW())
-      ON CONFLICT (user_id, course_id, module_no)
-      DO UPDATE SET
-        quiz_passed = ${params.quizPassed},
-        updated_at = NOW(),
-        completed_at = CASE WHEN ${params.quizPassed} THEN NOW() ELSE module_progress.completed_at END;
-    `);
-}
-async function getModuleProgressSummary(params) {
-    const moduleNumbers = await prisma.topic.findMany({
-        where: { courseId: params.courseId },
-        select: { moduleNo: true },
-        distinct: ["moduleNo"],
-        orderBy: { moduleNo: "asc" },
+    await ensureModuleUnlockRow({
+        userId: params.userId,
+        courseId: params.courseId,
+        moduleNo: params.moduleNo,
     });
-    const dedupedModules = Array.from(new Set(moduleNumbers.map((entry) => entry.moduleNo).filter((num) => num > 0))).sort((a, b) => a - b);
-    if (dedupedModules.length === 0) {
-        return [];
-    }
-    const rows = await prisma.$queryRaw(Prisma.sql `
-      SELECT module_no, quiz_passed, unlocked_at, completed_at, updated_at
-      FROM module_progress
+    await prisma.$executeRaw(Prisma.sql `
+      UPDATE module_progress
+      SET
+        quiz_passed = module_progress.quiz_passed OR ${params.quizPassed},
+        passed_at = CASE
+          WHEN ${params.quizPassed} THEN COALESCE(module_progress.passed_at, NOW())
+          ELSE module_progress.passed_at
+        END,
+        completed_at = CASE
+          WHEN ${params.quizPassed} THEN COALESCE(module_progress.completed_at, NOW())
+          ELSE module_progress.completed_at
+        END,
+        updated_at = NOW()
       WHERE user_id = ${params.userId}::uuid
         AND course_id = ${params.courseId}::uuid
-        AND module_no IN (${Prisma.join(dedupedModules)})
+        AND module_no = ${params.moduleNo};
     `);
-    const progressByModule = new Map();
-    rows.forEach((row) => progressByModule.set(row.module_no, row));
-    let previousPassed = true;
-    const summary = dedupedModules.map((moduleNo) => {
-        const record = progressByModule.get(moduleNo);
-        const quizPassed = record?.quiz_passed ?? false;
-        const unlocked = previousPassed;
-        if (!quizPassed) {
-            previousPassed = false;
-        }
+}
+async function getMaxTopicPairIndex(courseId, moduleNo) {
+    const rows = await prisma.$queryRaw(Prisma.sql `
+      SELECT MAX(topic_pair_index) AS max_pair
+      FROM quiz_questions
+      WHERE course_id = ${courseId}::uuid AND module_no = ${moduleNo}
+    `);
+    const value = rows[0]?.max_pair;
+    return typeof value === "number" ? value : 0;
+}
+async function getModuleProgressSummary(params) {
+    const moduleNumbers = await getCourseModuleNumbers(params.courseId);
+    if (moduleNumbers.length === 0) {
+        return [];
+    }
+    const { states } = await buildModuleStates({
+        userId: params.userId,
+        courseId: params.courseId,
+        moduleNumbers,
+    });
+    return moduleNumbers.map((moduleNo) => {
+        const state = states.get(moduleNo);
+        const record = state?.record ?? null;
+        const cooldownUntil = resolveCooldownUntil(record);
         return {
             moduleNo,
-            quizPassed,
-            unlocked,
+            quizPassed: Boolean(record?.quiz_passed),
+            unlocked: Boolean(record),
             completedAt: record?.completed_at?.toISOString() ?? null,
             updatedAt: (record?.updated_at ?? new Date(0)).toISOString(),
+            cooldownUntil: cooldownUntil?.toISOString() ?? null,
+            unlockAvailableAt: state?.lockedDueToCooldown && state.cooldownUnlockAt
+                ? state.cooldownUnlockAt.toISOString()
+                : null,
+            lockedDueToCooldown: state?.lockedDueToCooldown ?? false,
+            lockedDueToQuiz: state?.lockedDueToQuiz ?? false,
+            passedAt: record?.passed_at?.toISOString() ?? null,
         };
     });
-    return summary;
+}
+async function loadQuizSectionsMetadata(courseId) {
+    return prisma.$queryRaw(Prisma.sql `
+      SELECT module_no,
+             topic_pair_index,
+             MIN(order_index) AS order_index,
+             COUNT(*)::bigint AS question_count
+      FROM quiz_questions
+      WHERE course_id = ${courseId}::uuid
+      GROUP BY module_no, topic_pair_index
+      ORDER BY module_no ASC, topic_pair_index ASC
+    `);
+}
+async function buildQuizSections(params) {
+    const metadata = await loadQuizSectionsMetadata(params.courseId);
+    if (metadata.length === 0) {
+        return [];
+    }
+    const sectionsByModule = new Map();
+    metadata.forEach((row) => {
+        const existing = sectionsByModule.get(row.module_no) ?? [];
+        existing.push(row);
+        sectionsByModule.set(row.module_no, existing);
+    });
+    const moduleOrder = Array.from(sectionsByModule.keys()).sort((a, b) => a - b);
+    const positiveModuleOrder = moduleOrder.filter((moduleNo) => moduleNo > 0);
+    const { states: moduleStates } = await buildModuleStates({
+        userId: params.userId,
+        courseId: params.courseId,
+        moduleNumbers: positiveModuleOrder,
+    });
+    const attempts = await prisma.$queryRaw(Prisma.sql `
+      SELECT module_no, topic_pair_index, status, score, completed_at, updated_at
+      FROM quiz_attempts
+      WHERE course_id = ${params.courseId}::uuid
+        AND user_id = ${params.userId}::uuid
+      ORDER BY completed_at DESC NULLS LAST, updated_at DESC NULLS LAST
+    `);
+    const latestAttemptByKey = new Map();
+    attempts.forEach((attempt) => {
+        const key = `${attempt.module_no}:${attempt.topic_pair_index}`;
+        if (!latestAttemptByKey.has(key)) {
+            latestAttemptByKey.set(key, attempt);
+        }
+    });
+    const results = [];
+    moduleOrder.forEach((moduleNo) => {
+        const sections = (sectionsByModule.get(moduleNo) ?? []).sort((a, b) => {
+            const orderA = (typeof a.order_index === "number" ? a.order_index : null) ??
+                (typeof a.order_index === "bigint" ? Number(a.order_index) : null) ??
+                a.topic_pair_index;
+            const orderB = (typeof b.order_index === "number" ? b.order_index : null) ??
+                (typeof b.order_index === "bigint" ? Number(b.order_index) : null) ??
+                b.topic_pair_index;
+            return orderA - orderB;
+        });
+        const moduleState = moduleNo > 0 ? moduleStates.get(moduleNo) : undefined;
+        const moduleUnlocked = moduleNo === 0 ? true : Boolean(moduleState?.record);
+        const moduleLockedDueToCooldown = moduleNo === 0 ? false : Boolean(moduleState?.lockedDueToCooldown);
+        const moduleLockedDueToQuiz = moduleNo === 0 ? false : Boolean(moduleState?.lockedDueToQuiz);
+        const cooldownUnlockAtIso = moduleLockedDueToCooldown && moduleState?.cooldownUnlockAt
+            ? moduleState.cooldownUnlockAt.toISOString()
+            : null;
+        const moduleUnlockedAtIso = moduleState?.record?.unlocked_at?.toISOString() ?? null;
+        const moduleWindowEndsAtDate = moduleState?.record ? resolveCooldownUntil(moduleState.record) : null;
+        const moduleWindowEndsAtIso = moduleWindowEndsAtDate?.toISOString() ?? null;
+        let gate = sections.length === 0 ? true : moduleUnlocked;
+        sections.forEach((row) => {
+            const key = `${row.module_no}:${row.topic_pair_index}`;
+            const attempt = latestAttemptByKey.get(key);
+            const passed = attempt?.status === "passed";
+            const rawCount = typeof row.question_count === "bigint" ? Number(row.question_count) : row.question_count ?? 0;
+            const questionCount = Number(rawCount) || 0;
+            const attemptedAt = attempt?.completed_at?.toISOString?.() ?? attempt?.updated_at?.toISOString?.() ?? null;
+            results.push({
+                moduleNo: row.module_no,
+                topicPairIndex: row.topic_pair_index,
+                title: `Module ${row.module_no} • Topic pair ${row.topic_pair_index}`,
+                subtitle: null,
+                questionCount,
+                unlocked: gate,
+                passed: Boolean(passed),
+                status: attempt?.status ?? null,
+                lastScore: typeof attempt?.score === "number" ? attempt.score : null,
+                attemptedAt,
+                moduleLockedDueToCooldown,
+                moduleLockedDueToQuiz,
+                moduleCooldownUnlockAt: cooldownUnlockAtIso,
+                moduleUnlockedAt: moduleUnlockedAtIso,
+                moduleWindowEndsAt: moduleWindowEndsAtIso,
+            });
+            gate = gate && Boolean(passed);
+        });
+    });
+    return results;
 }
 quizRouter.get("/questions", asyncHandler(async (req, res) => {
     const parsed = questionsQuerySchema.safeParse(req.query);
@@ -217,7 +465,18 @@ quizRouter.get("/questions", asyncHandler(async (req, res) => {
         count: questionSet.length,
     });
 }));
-quizRouter.post("/attempts", asyncHandler(async (req, res) => {
+quizRouter.get("/sections/:courseKey", requireAuth, asyncHandler(async (req, res) => {
+    const courseKey = req.params.courseKey ?? "";
+    const courseId = await resolveCourseId(courseKey);
+    if (!courseId) {
+        res.status(404).json({ message: "Course not found" });
+        return;
+    }
+    const userId = getAuthenticatedUserId(req);
+    const sections = await buildQuizSections({ courseId, userId });
+    res.status(200).json({ sections });
+}));
+quizRouter.post("/attempts", requireAuth, asyncHandler(async (req, res) => {
     const parsed = startAttemptSchema.safeParse(req.body);
     if (!parsed.success) {
         res.status(400).json({ message: "Invalid payload", issues: parsed.error.flatten() });
@@ -228,7 +487,7 @@ quizRouter.post("/attempts", asyncHandler(async (req, res) => {
         res.status(404).json({ message: "Course not found" });
         return;
     }
-    const userId = normalizeUserId(req.headers["x-user-id"]);
+    const userId = getAuthenticatedUserId(req);
     await ensureUserExists(userId);
     const questionSet = await loadQuestionSet({
         courseId: resolvedCourseId,
@@ -245,12 +504,6 @@ quizRouter.post("/attempts", asyncHandler(async (req, res) => {
         VALUES (${userId}::uuid, ${resolvedCourseId}::uuid, ${parsed.data.moduleNo}, ${parsed.data.topicPairIndex}, ${JSON.stringify(questionSet)}::jsonb)
         RETURNING attempt_id
       `);
-    await upsertModuleProgress({
-        userId,
-        courseId: resolvedCourseId,
-        moduleNo: parsed.data.moduleNo,
-        quizPassed: false,
-    });
     res.status(201).json({
         attemptId: inserted?.attempt_id ?? randomUUID(),
         courseId: resolvedCourseId,
@@ -259,7 +512,7 @@ quizRouter.post("/attempts", asyncHandler(async (req, res) => {
         questions: withoutAnswerMetadata(questionSet),
     });
 }));
-quizRouter.post("/attempts/:attemptId/submit", asyncHandler(async (req, res) => {
+quizRouter.post("/attempts/:attemptId/submit", requireAuth, asyncHandler(async (req, res) => {
     const parsedBody = submitAttemptSchema.safeParse(req.body);
     if (!parsedBody.success) {
         res.status(400).json({ message: "Invalid payload", issues: parsedBody.error.flatten() });
@@ -270,7 +523,7 @@ quizRouter.post("/attempts/:attemptId/submit", asyncHandler(async (req, res) => 
         res.status(400).json({ message: "Invalid attempt identifier" });
         return;
     }
-    const userId = normalizeUserId(req.headers["x-user-id"]);
+    const userId = getAuthenticatedUserId(req);
     const attemptRows = await prisma.$queryRaw(Prisma.sql `
         SELECT attempt_id, user_id, course_id, module_no, topic_pair_index, question_set
         FROM quiz_attempts
@@ -323,12 +576,16 @@ quizRouter.post("/attempts/:attemptId/submit", asyncHandler(async (req, res) => 
           updated_at = NOW()
         WHERE attempt_id = ${attemptId}::uuid
       `);
-    await upsertModuleProgress({
-        userId,
-        courseId: attempt.course_id,
-        moduleNo: attempt.module_no,
-        quizPassed: passed,
-    });
+    const maxPair = await getMaxTopicPairIndex(attempt.course_id, attempt.module_no);
+    const shouldMarkModulePassed = passed && attempt.topic_pair_index === maxPair;
+    if (shouldMarkModulePassed) {
+        await upsertModuleProgress({
+            userId,
+            courseId: attempt.course_id,
+            moduleNo: attempt.module_no,
+            quizPassed: true,
+        });
+    }
     const progress = await getModuleProgressSummary({ userId, courseId: attempt.course_id });
     res.status(200).json({
         attemptId,
@@ -343,13 +600,13 @@ quizRouter.post("/attempts/:attemptId/submit", asyncHandler(async (req, res) => 
         progress,
     });
 }));
-quizRouter.get("/progress/:courseKey", asyncHandler(async (req, res) => {
+quizRouter.get("/progress/:courseKey", requireAuth, asyncHandler(async (req, res) => {
     const courseId = await resolveCourseId(req.params.courseKey);
     if (!courseId) {
         res.status(404).json({ message: "Course not found" });
         return;
     }
-    const userId = normalizeUserId(req.headers["x-user-id"]);
+    const userId = getAuthenticatedUserId(req);
     const summary = await getModuleProgressSummary({ userId, courseId });
     res.status(200).json({
         courseId,

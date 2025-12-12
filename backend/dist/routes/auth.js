@@ -5,7 +5,46 @@ import { findOrCreateUserFromGoogle } from "../services/userService";
 import { createSession, deleteSessionByRefreshToken, renewSessionTokens } from "../services/sessionService";
 import { createOauthStateCookie, readOauthStateCookie, clearOauthStateCookie } from "../utils/oauthState";
 import { env } from "../config/env";
+import { prisma } from "../services/prisma";
+import { verifyPassword } from "../utils/password";
 export const authRouter = express.Router();
+authRouter.post("/login", asyncHandler(async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    if (!email || !password) {
+        res.status(400).json({ message: "email and password are required" });
+        return;
+    }
+    const user = await prisma.user.findUnique({
+        where: { email },
+        select: { userId: true, passwordHash: true, fullName: true, role: true },
+    });
+    if (!user || user.role === "learner") {
+        res.status(403).json({ message: "Tutor or admin account required" });
+        return;
+    }
+    const passwordValid = await verifyPassword(password, user.passwordHash);
+    if (!passwordValid) {
+        res.status(401).json({ message: "Invalid credentials" });
+        return;
+    }
+    const tokens = await createSession(user.userId, user.role);
+    res.status(200).json({
+        user: {
+            id: user.userId,
+            email,
+            fullName: user.fullName,
+            role: user.role,
+        },
+        session: {
+            accessToken: tokens.accessToken,
+            accessTokenExpiresAt: tokens.accessTokenExpiresAt.toISOString(),
+            refreshToken: tokens.refreshToken,
+            refreshTokenExpiresAt: tokens.refreshTokenExpiresAt.toISOString(),
+            sessionId: tokens.sessionId,
+        },
+    });
+}));
 authRouter.get("/google", (req, res) => {
     const redirectPath = typeof req.query.redirect === "string" ? req.query.redirect : undefined;
     const state = createOauthStateCookie(res, redirectPath);
@@ -45,7 +84,7 @@ authRouter.get("/google/callback", asyncHandler(async (req, res) => {
     try {
         const { profile } = await exchangeCodeForTokens(code);
         const user = await findOrCreateUserFromGoogle(profile);
-        const tokens = await createSession(user.userId);
+        const tokens = await createSession(user.userId, user.role);
         redirectToFrontend({
             accessToken: tokens.accessToken,
             accessTokenExpiresAt: tokens.accessTokenExpiresAt.toISOString(),
@@ -75,7 +114,7 @@ authRouter.post("/google/exchange", asyncHandler(async (req, res) => {
     }
     const { profile } = await exchangeCodeForTokens(code);
     const user = await findOrCreateUserFromGoogle(profile);
-    const tokens = await createSession(user.userId);
+    const tokens = await createSession(user.userId, user.role);
     res.status(200).json({
         user: {
             id: user.userId,
@@ -104,7 +143,7 @@ authRouter.post("/google/id-token", asyncHandler(async (req, res) => {
     }
     const profile = await verifyGoogleIdToken(idToken.trim());
     const user = await findOrCreateUserFromGoogle(profile);
-    const tokens = await createSession(user.userId);
+    const tokens = await createSession(user.userId, user.role);
     res.status(200).json({
         user: {
             id: user.userId,

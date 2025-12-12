@@ -11,11 +11,11 @@ function calculateRefreshExpiry() {
     now.setUTCDate(now.getUTCDate() + env.jwtRefreshTokenTtlDays);
     return now;
 }
-export async function createSession(userId) {
+export async function createSession(userId, userRole) {
     const sessionId = crypto.randomUUID();
     const jwtId = crypto.randomUUID();
     const refreshExpiresAt = calculateRefreshExpiry();
-    const accessToken = jwt.sign({ sub: userId, sid: sessionId, jti: jwtId }, env.jwtSecret, { expiresIn: env.jwtAccessTokenTtlSeconds });
+    const accessToken = jwt.sign({ sub: userId, sid: sessionId, jti: jwtId, role: userRole }, env.jwtSecret, { expiresIn: env.jwtAccessTokenTtlSeconds });
     const accessDecoded = jwt.decode(accessToken);
     const refreshToken = jwt.sign({ sub: userId, sid: sessionId, tokenType: "refresh" }, env.jwtRefreshSecret, { expiresIn: `${env.jwtRefreshTokenTtlDays}d`, jwtid: jwtId });
     await prisma.userSession.create({
@@ -64,7 +64,11 @@ export async function renewSessionTokens(refreshToken) {
         throw new Error("Session token mismatch");
     }
     const newJwtId = crypto.randomUUID();
-    const newAccessToken = jwt.sign({ sub: payload.sub, sid: payload.sid, jti: newJwtId }, env.jwtSecret, { expiresIn: env.jwtAccessTokenTtlSeconds });
+    const user = await prisma.user.findUnique({
+        where: { userId: payload.sub },
+        select: { role: true },
+    });
+    const newAccessToken = jwt.sign({ sub: payload.sub, sid: payload.sid, jti: newJwtId, role: user?.role }, env.jwtSecret, { expiresIn: env.jwtAccessTokenTtlSeconds });
     const decoded = jwt.decode(newAccessToken);
     const newRefreshToken = jwt.sign({ sub: payload.sub, sid: payload.sid, tokenType: "refresh" }, env.jwtRefreshSecret, { expiresIn: `${env.jwtRefreshTokenTtlDays}d`, jwtid: newJwtId });
     const newRefreshExpiresAt = calculateRefreshExpiry();

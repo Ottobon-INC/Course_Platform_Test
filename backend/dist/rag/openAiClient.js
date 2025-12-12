@@ -14,19 +14,13 @@ export async function createEmbedding(text) {
     }
     return vector;
 }
-export async function generateAnswerFromContext(prompt) {
+async function runChatCompletion(options) {
     const completion = await client.chat.completions.create({
         model: env.llmModel,
-        temperature: 0.2,
+        temperature: options.temperature ?? 0.2,
         messages: [
-            {
-                role: "system",
-                content: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
-            },
-            {
-                role: "user",
-                content: prompt,
-            },
+            { role: "system", content: options.systemPrompt },
+            { role: "user", content: options.userPrompt },
         ],
         max_tokens: 500,
     });
@@ -35,4 +29,18 @@ export async function generateAnswerFromContext(prompt) {
         throw new Error("OpenAI did not return a chat completion");
     }
     return message;
+}
+export async function generateAnswerFromContext(prompt) {
+    return runChatCompletion({
+        systemPrompt: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
+        userPrompt: prompt,
+    });
+}
+export async function generateTutorCopilotAnswer(prompt) {
+    return runChatCompletion({
+        systemPrompt: "You are MetaLearn's tutor analytics copilot. Use only the provided learner roster and stats. Call out concrete numbers, " +
+            "flag at-risk learners, and keep responses concise (3-5 sentences). If information is missing, say so directly.",
+        userPrompt: prompt,
+        temperature: 0.15,
+    });
 }

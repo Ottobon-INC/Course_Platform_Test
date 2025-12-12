@@ -64,6 +64,9 @@ interface SubModule {
   topicPairIndex?: number;
   topicNumber?: number;
   unlocked?: boolean;
+  lockedDueToCooldown?: boolean;
+  lockedDueToQuiz?: boolean;
+  cooldownUnlockAt?: string | null;
 }
 
 interface Module {
@@ -81,6 +84,11 @@ interface QuizSection {
   unlocked: boolean;
   passed: boolean;
   questionCount: number;
+  lockedDueToCooldown?: boolean;
+  lockedDueToQuiz?: boolean;
+  cooldownUnlockAt?: string | null;
+  moduleUnlockedAt?: string | null;
+  moduleWindowEndsAt?: string | null;
 }
 
 interface QuizQuestion {
@@ -495,6 +503,11 @@ useEffect(() => {
         unlocked: Boolean(s.unlocked),
         passed: Boolean(s.passed),
         questionCount: s.questionCount ?? 5,
+        lockedDueToCooldown: Boolean(s.moduleLockedDueToCooldown),
+        lockedDueToQuiz: Boolean(s.moduleLockedDueToQuiz),
+        cooldownUnlockAt: s.moduleCooldownUnlockAt ?? null,
+        moduleUnlockedAt: s.moduleUnlockedAt ?? null,
+        moduleWindowEndsAt: s.moduleWindowEndsAt ?? null,
       }));
       setSections(list);
       const total = list.length;
@@ -577,7 +590,6 @@ useEffect(() => {
     });
     const moduleEntries = Array.from(grouped.entries()).sort(([a], [b]) => a - b);
 
-    let prevModuleLastPairPassed = true;
     const newModules: Module[] = moduleEntries.map(([moduleNo, lessonsForModule]) => {
       const sortedLessons = lessonsForModule.sort((a, b) => a.topicNumber - b.topicNumber);
       const submodules: SubModule[] = [];
@@ -604,8 +616,15 @@ useEffect(() => {
       }
 
       const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
-      const moduleUnlocked = moduleNo === 1 || prevModuleLastPairPassed || sectionForModule.some((s) => s.unlocked);
+      const moduleUnlocked =
+        moduleNo === 0
+          ? true
+          : sectionForModule.some((s) => s.unlocked) || moduleNo === 1;
       const modulePassed = sectionForModule.length === 0 || sectionForModule.every((s) => s.passed);
+      const moduleLockedDueToCooldown = sectionForModule.some((s) => s.lockedDueToCooldown);
+      const moduleLockedDueToQuiz = sectionForModule.some((s) => s.lockedDueToQuiz);
+      const moduleCooldownUnlockAt =
+        sectionForModule.find((s) => s.cooldownUnlockAt)?.cooldownUnlockAt ?? null;
 
       sortedLessons.forEach((lesson, idx) => {
         const pairIdx = Math.ceil((idx + 1) / 2);
@@ -620,6 +639,9 @@ useEffect(() => {
           topicNumber: lesson.topicNumber,
           topicPairIndex: pairIdx,
           unlocked,
+          lockedDueToCooldown: moduleLockedDueToCooldown,
+          lockedDueToQuiz: moduleLockedDueToQuiz,
+          cooldownUnlockAt: moduleCooldownUnlockAt,
         });
         if ((idx + 1) % 2 === 0) {
           submodules.push({
@@ -629,12 +651,12 @@ useEffect(() => {
             moduleNo,
             topicPairIndex: pairIdx,
             unlocked,
+            lockedDueToCooldown: moduleLockedDueToCooldown,
+            lockedDueToQuiz: moduleLockedDueToQuiz,
+            cooldownUnlockAt: moduleCooldownUnlockAt,
           });
         }
       });
-
-      const lastSection = sectionForModule[sectionForModule.length - 1];
-      prevModuleLastPairPassed = lastSection ? Boolean(lastSection.passed) : prevModuleLastPairPassed;
 
       return {
         id: moduleNo,
@@ -754,6 +776,21 @@ useEffect(() => {
     };
   }, []);
 
+  const formatUnlockDate = useCallback((iso?: string | null) => {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent, type: string, widget: "study" | "chat" | "notes") => {
     e.preventDefault();
     const rect = widget === "study" ? studyWidgetRect : widget === "chat" ? chatRect : notesRect;
@@ -785,7 +822,28 @@ useEffect(() => {
   };
 
   const handleSubmoduleSelect = (sub: SubModule) => {
-    if (!sub.unlocked) return;
+    if (!sub.unlocked) {
+      if (sub.lockedDueToCooldown) {
+        const unlockLabel = formatUnlockDate(sub.cooldownUnlockAt);
+        toast({
+          title: "Module unlock pending",
+          description: unlockLabel
+            ? `Module ${sub.moduleNo} unlocks on ${unlockLabel}. Use this window to finish the simulation exercise in your current module.`
+            : "This module will unlock after the current study window closes. Focus on the simulation exercise to get ready.",
+        });
+      } else if (sub.lockedDueToQuiz) {
+        toast({
+          title: "Pass the quiz to proceed",
+          description: "Complete and pass the current module quiz to unlock the next set of lessons.",
+        });
+      } else {
+        toast({
+          title: "Locked lesson",
+          description: "Finish the previous lessons before opening this module.",
+        });
+      }
+      return;
+    }
     if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
     if (sub.type === "quiz") {
       void handleStartQuiz(sub.moduleNo, sub.topicPairIndex ?? 1);
@@ -848,6 +906,18 @@ useEffect(() => {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const base = data?.result ?? {};
+      const progressModules: {
+        moduleNo: number;
+        unlocked?: boolean;
+        lockedDueToCooldown?: boolean;
+        unlockAvailableAt?: string | null;
+        cooldownUntil?: string | null;
+      }[] = Array.isArray(data?.progress) ? data.progress : [];
+      const currentModuleNo = selectedSection?.moduleNo ?? null;
+      const nextModuleNo = currentModuleNo ? currentModuleNo + 1 : null;
+      const nextModuleProgress = nextModuleNo
+        ? progressModules.find((module) => module?.moduleNo === nextModuleNo)
+        : null;
       setQuizResult({
         correctCount: base.correctCount ?? 0,
         totalQuestions: base.totalQuestions ?? quizQuestions.length,
@@ -856,9 +926,26 @@ useEffect(() => {
         thresholdPercent: base.thresholdPercent ?? PASSING_PERCENT_THRESHOLD,
       });
       setQuizPhase("result");
-      toast({ title: base?.passed ? "Module unlocked" : "Quiz submitted" });
       if (base?.passed) {
+        let toastTitle = "Quiz passed";
+        let toastDescription: string | undefined;
+        if (nextModuleProgress && nextModuleNo) {
+          if (nextModuleProgress.lockedDueToCooldown) {
+            const unlockIso = nextModuleProgress.unlockAvailableAt ?? nextModuleProgress.cooldownUntil;
+            const unlockLabel = formatUnlockDate(unlockIso);
+            toastTitle = "Keep building momentum";
+            toastDescription = unlockLabel
+              ? `Module ${nextModuleNo} unlocks on ${unlockLabel}. Use this time to master the simulation exercise in Module ${currentModuleNo}.`
+              : `Module ${nextModuleNo} will unlock soon. Focus on the simulation exercise in Module ${currentModuleNo} until then.`;
+          } else if (nextModuleProgress.unlocked) {
+            toastTitle = `Module ${nextModuleNo} unlocked`;
+            toastDescription = "Jump in whenever you're ready.";
+          }
+        }
+        toast({ title: toastTitle, description: toastDescription });
         void fetchSections();
+      } else {
+        toast({ title: "Quiz submitted" });
       }
     } catch (error) {
       toast({
@@ -1098,8 +1185,9 @@ useEffect(() => {
                     return (
                       <button
                         key={sub.id}
-                        onClick={() => sub.unlocked && handleSubmoduleSelect(sub)}
-                        disabled={!sub.unlocked}
+                        type="button"
+                        onClick={() => handleSubmoduleSelect(sub)}
+                        aria-disabled={!sub.unlocked}
                         className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${
                           active
                             ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"

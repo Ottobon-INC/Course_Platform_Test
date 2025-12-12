@@ -16,6 +16,7 @@ export function requireAuth(req, res, next) {
             userId: payload.sub,
             sessionId: payload.sid,
             jwtId: payload.jti,
+            role: payload.role,
         };
     }
     catch (error) {
