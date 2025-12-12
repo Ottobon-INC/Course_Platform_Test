@@ -4,14 +4,72 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { askCourseAssistant } from "../rag/ragService";
 import { assertWithinRagRateLimit, RateLimitError } from "../rag/rateLimiter";
 import { prisma } from "../services/prisma";
+import {
+  getModulePromptUsageCount,
+  incrementModulePromptUsage,
+  PROMPT_LIMIT_PER_MODULE,
+} from "../services/promptUsageService";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const LEGACY_COURSE_SLUGS: Record<string, string> = {
+  "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
+};
 
 const mapSuggestionForResponse = (suggestion: { suggestionId: string; promptText: string; answer: string | null }) => ({
   id: suggestion.suggestionId,
   promptText: suggestion.promptText,
   answer: suggestion.answer,
 });
+
+async function resolveCourseRecordId(courseKey: string): Promise<string | null> {
+  const trimmed = courseKey.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (uuidRegex.test(trimmed)) {
+    return trimmed;
+  }
+
+  let decoded = trimmed;
+  try {
+    decoded = decodeURIComponent(trimmed);
+  } catch {
+    // keep original if decode fails
+  }
+  const normalizedSlug = decoded.toLowerCase();
+  const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
+  if (aliasMatch) {
+    return aliasMatch;
+  }
+
+  const courseBySlug = await prisma.course.findFirst({
+    where: {
+      slug: {
+        equals: normalizedSlug,
+        mode: "insensitive",
+      },
+    },
+    select: { courseId: true },
+  });
+  if (courseBySlug) {
+    return courseBySlug.courseId;
+  }
+
+  const normalizedName = decoded.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+  const courseByName = await prisma.course.findFirst({
+    where: {
+      OR: [
+        { courseName: { equals: decoded.trim(), mode: "insensitive" } },
+        { courseName: { equals: normalizedName, mode: "insensitive" } },
+      ],
+    },
+    select: { courseId: true },
+  });
+
+  return courseByName?.courseId ?? null;
+}
 
 export const assistantRouter = express.Router();
 
@@ -30,6 +88,15 @@ assistantRouter.post(
     const courseTitle = typeof req.body?.courseTitle === "string" ? req.body.courseTitle : undefined;
     const suggestionIdRaw = typeof req.body?.suggestionId === "string" ? req.body.suggestionId.trim() : "";
     const suggestionId = suggestionIdRaw && uuidRegex.test(suggestionIdRaw) ? suggestionIdRaw : "";
+    const parsedModuleNo =
+      typeof req.body?.moduleNo === "number"
+        ? Number(req.body.moduleNo)
+        : typeof req.body?.moduleNo === "string" && req.body.moduleNo.trim()
+          ? Number.parseInt(req.body.moduleNo.trim(), 10)
+          : undefined;
+    const moduleNo = Number.isFinite(parsedModuleNo) ? (parsedModuleNo as number) : null;
+    const isTypedPrompt = !suggestionId;
+    let usageCourseId: string | null = null;
 
     if (!courseId) {
       res.status(400).json({ message: "courseId is required" });
@@ -73,6 +140,29 @@ assistantRouter.post(
       return;
     }
 
+    if (isTypedPrompt) {
+      if (moduleNo === null || !Number.isInteger(moduleNo)) {
+        res.status(400).json({ message: "moduleNo is required for typed prompts" });
+        return;
+      }
+
+      usageCourseId = await resolveCourseRecordId(courseId);
+      if (!usageCourseId) {
+        res.status(404).json({ message: "Course not found" });
+        return;
+      }
+
+      const currentCount = await getModulePromptUsageCount(auth.userId, usageCourseId, moduleNo);
+      if (currentCount >= PROMPT_LIMIT_PER_MODULE) {
+        res
+          .status(429)
+          .json({
+            message: `You've reached the tutor question limit for module ${moduleNo}. Please continue to the next module to unlock more questions.`,
+          });
+        return;
+      }
+    }
+
     try {
       assertWithinRagRateLimit(auth.userId);
     } catch (error) {
@@ -95,6 +185,11 @@ assistantRouter.post(
         question: effectiveQuestion,
         userId: auth.userId,
       });
+
+      if (isTypedPrompt && moduleNo !== null && usageCourseId) {
+        await incrementModulePromptUsage(auth.userId, usageCourseId, moduleNo);
+      }
+
       res.status(200).json({
         answer: result.answer,
         nextSuggestions,

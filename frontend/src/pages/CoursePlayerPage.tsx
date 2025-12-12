@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import {
   Menu,
@@ -296,6 +296,15 @@ const availableStarterSuggestions = useMemo(() => {
   if (starterSuggestions.length === 0) return [];
   return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
 }, [starterSuggestions, usedSuggestionIds]);
+
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const container = chatListRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTop = container.scrollHeight;
+  }, [chatMessages]);
 
   useEffect(() => {
     if (!shouldRefreshStarterBatch) {
@@ -871,6 +880,15 @@ useEffect(() => {
         toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
         return;
       }
+      const moduleNoForChat = activeLesson?.moduleNo ?? null;
+      if (!suggestion && (moduleNoForChat === null || moduleNoForChat === undefined)) {
+        toast({
+          variant: "destructive",
+          title: "No module context",
+          description: "Open a module lesson before asking the tutor.",
+        });
+        return;
+      }
 
       const userMsg: ChatMessage = { id: makeId(), text: question, isBot: false, suggestionContext: suggestion };
       setChatMessages((prev) => [...prev, userMsg]);
@@ -905,6 +923,8 @@ useEffect(() => {
         };
         if (suggestion) {
           body.suggestionId = suggestion.id;
+        } else if (moduleNoForChat !== null && moduleNoForChat !== undefined) {
+          body.moduleNo = moduleNoForChat;
         }
         const res = await fetch(buildApiUrl("/assistant/query"), {
           method: "POST",
@@ -1440,7 +1460,10 @@ useEffect(() => {
               <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white"/></button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80">
+          <div
+            ref={chatListRef}
+            className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
+          >
             {chatMessages.map((msg, index) => {
               const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
               const showInlineChip =
@@ -1709,6 +1732,3 @@ useEffect(() => {
 };
 
 export default CoursePlayerPage;
-
-
-

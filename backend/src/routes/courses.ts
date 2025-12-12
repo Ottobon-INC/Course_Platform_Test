@@ -103,7 +103,7 @@ coursesRouter.get(
   asyncHandler(async (_req, res) => {
     const courses = await prisma.course.findMany({
       select: courseSelect,
-      orderBy: [{ createdAt: "desc" }],
+      orderBy: [{ createdAt: "asc" }],
     });
 
     res.status(200).json({

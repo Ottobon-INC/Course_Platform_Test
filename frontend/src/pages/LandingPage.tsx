@@ -4,7 +4,7 @@ import {
   Play, ChevronRight, Search, Terminal, Users, LifeBuoy,
   PlayCircle, Lock, Brain, GitBranch, Award, FileCode, ShieldCheck, Clock,
   Star, Bot, Unlock, ArrowDown, Sparkles, Check, Quote, Linkedin, Twitter,
-  Plus, Minus, ArrowRight, BookOpen, User, Settings, LogOut, Menu, X
+  Plus, Minus, ArrowRight, BookOpen, LogOut, Menu, X
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
@@ -131,15 +131,6 @@ const Navbar: React.FC<{
                     <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  Settings
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="flex items-center gap-2 text-destructive focus:text-destructive"

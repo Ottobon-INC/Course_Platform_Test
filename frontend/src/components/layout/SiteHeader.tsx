@@ -18,8 +18,6 @@ import {
   LogOut,
   Menu,
   Search,
-  Settings,
-  User,
   X,
 } from "lucide-react";
 import { BRAND_ACCENT_TEXT, BRAND_PRIMARY_TEXT } from "@/constants/theme";
@@ -40,8 +38,6 @@ export interface SiteHeaderProps {
   showSearch?: boolean;
   isAuthenticated?: boolean;
   user?: SiteHeaderUser;
-  onProfileClick?: () => void;
-  onSettingsClick?: () => void;
   onLogout?: () => void;
   onLoginClick?: () => void;
   className?: string;
@@ -56,8 +52,6 @@ export function SiteHeader({
   showSearch = true,
   isAuthenticated = false,
   user,
-  onProfileClick,
-  onSettingsClick,
   onLogout,
   onLoginClick,
   className,
@@ -179,15 +173,6 @@ export function SiteHeader({
                     <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex items-center gap-2" onSelect={onProfileClick}>
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2" onSelect={onSettingsClick}>
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  Settings
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="flex items-center gap-2 text-destructive focus:text-destructive"

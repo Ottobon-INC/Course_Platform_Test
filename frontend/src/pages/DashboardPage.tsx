@@ -587,20 +587,6 @@ export default function DashboardPage() {
         });
     };
 
-    const handleProfileClick = () => {
-        toast({
-            title: "Profile coming soon",
-            description: "We're polishing your profile experience.",
-        });
-    };
-
-    const handleSettingsClick = () => {
-        toast({
-            title: "Settings coming soon",
-            description: "Personalized settings will arrive shortly.",
-        });
-    };
-
     // --- NEW LOGIC FOR SCROLLER AND VIDEO MODAL ---
     const scrollRail = (direction: number) => {
         if (railRef.current) {
@@ -654,8 +640,6 @@ export default function DashboardPage() {
                           initials: userInitials,
                       }
                     : undefined,
-                onProfileClick: handleProfileClick,
-                onSettingsClick: handleSettingsClick,
                 onLogout: handleLogout,
                 onLoginClick: () => setShowAuthModal(true),
             }}
@@ -850,4 +834,3 @@ export default function DashboardPage() {
         </SiteLayout>
     );
 }
-
