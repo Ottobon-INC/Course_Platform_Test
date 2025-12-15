@@ -25,6 +25,10 @@ import { buildApiUrl } from "@/lib/api";
 import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import type { Components } from "react-markdown";
 
 const buildOfficeViewerUrl = (rawUrl?: string | null) => {
   if (!rawUrl) return null;
@@ -171,6 +175,104 @@ const buildTopicGreeting = (lesson?: Lesson | null) => {
     return "Hi! Ask anything about this course.";
   }
   return `Learning about "${lesson.topicName}"? I can summarize the takeaways or offer a quick practice prompt.`;
+};
+
+const DEFAULT_STUDY_FALLBACK =
+  "### Study material coming soon\nWe'll keep this lesson updated with fresh guidance. Check back later or explore the simulation exercise below.";
+
+const noteRegex = /^note[:\-]\s*/i;
+const transitionRegex = /^(transition|tip)[:\-]\s*/i;
+
+const normalizeStudyMarkdown = (raw?: string | null): string => {
+  const text = raw?.trim();
+  if (!text) {
+    return "";
+  }
+
+  if (/#\s|<h[1-6]/i.test(text)) {
+    return text;
+  }
+
+  const lines = text.split(/\r?\n/).map((line) => line.trim());
+  const bulletRegex = /^[-*\u2022]\s+/;
+  const numberedRegex = /^\d+\.\s+/;
+  const transformed: string[] = [];
+
+  lines.forEach((line, index) => {
+    if (!line) {
+      transformed.push("");
+      return;
+    }
+
+    if (noteRegex.test(line)) {
+      transformed.push(`> **Note:** ${line.replace(noteRegex, "").trim()}`);
+      return;
+    }
+
+    if (transitionRegex.test(line)) {
+      transformed.push(`> **Tip:** ${line.replace(transitionRegex, "").trim()}`);
+      return;
+    }
+
+    if (bulletRegex.test(line)) {
+      transformed.push(line.replace(bulletRegex, "- "));
+      return;
+    }
+
+    if (numberedRegex.test(line)) {
+      transformed.push(line.replace(numberedRegex, (match) => `${match.trim()} `));
+      return;
+    }
+
+    const looksLikeHeading = /^[A-Z0-9][A-Za-z0-9\s'"-]*$/.test(line) && line.length <= 90;
+    const endsWithColon = line.endsWith(":");
+
+    if (index === 0 && looksLikeHeading) {
+      transformed.push(`# ${line.replace(/:$/, "")}`);
+    } else if (looksLikeHeading && endsWithColon) {
+      transformed.push(`### ${line.replace(/:$/, "")}`);
+    } else if (looksLikeHeading) {
+      transformed.push(`## ${line}`);
+    } else {
+      transformed.push(line);
+    }
+  });
+
+  const result = transformed.join("\n\n").trim();
+  return result || "";
+};
+
+const studyMarkdownComponents: Components = {
+  h1: (props) => (
+    <h1 className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
+  ),
+  h2: (props) => (
+    <h2
+      className="text-2xl font-bold text-[#bf2f1f] mt-8 mb-4 border-l-4 border-[#bf2f1f] pl-3"
+      {...props}
+    />
+  ),
+  h3: (props) => (
+    <h3 className="text-xl font-semibold text-[#1e3a47] mt-6 mb-3 uppercase tracking-wide" {...props} />
+  ),
+  p: (props) => (
+    <p className="text-base sm:text-lg leading-7 text-[#2c3e50] mb-4" {...props} />
+  ),
+  ul: (props) => (
+    <ul className="list-disc marker:text-[#bf2f1f] pl-6 space-y-2 text-[#2c3e50]" {...props} />
+  ),
+  ol: (props) => (
+    <ol className="list-decimal pl-6 space-y-2 text-[#2c3e50]" {...props} />
+  ),
+  li: (props) => <li className="leading-relaxed" {...props} />,
+  blockquote: (props) => (
+    <blockquote
+      className="border-l-4 border-[#bf2f1f]/60 bg-white/80 rounded-r-2xl px-4 py-3 text-[#4a4845] italic shadow-sm"
+      {...props}
+    />
+  ),
+  strong: (props) => <strong className="font-semibold text-[#111827]" {...props} />,
+  em: (props) => <em className="italic text-[#374151]" {...props} />,
 };
 
 const CoursePlayerPage: React.FC = () => {
@@ -1088,6 +1190,13 @@ useEffect(() => {
     () => getLessonTextForPersona(activeLesson, studyPersona),
     [activeLesson, studyPersona, getLessonTextForPersona],
   );
+  const formattedStudyText = useMemo(() => {
+    const normalized = normalizeStudyMarkdown(activeStudyText);
+    if (normalized) {
+      return normalized;
+    }
+    return normalizeStudyMarkdown(DEFAULT_STUDY_FALLBACK);
+  }, [activeStudyText]);
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
@@ -1166,12 +1275,12 @@ useEffect(() => {
                     )
                   }
                 >
-                  <div className="text-[10px] uppercase tracking-wider text-[#4a4845] font-bold truncate group-hover:text-[#f8f1e6] transition-colors">
-                    {module.title}
+                  <div className="text-[10px] uppercase tracking-wider text-white font-bold transition-colors whitespace-normal break-words">
+                    {module.id > 0 ? `Module ${module.id}: ${module.title}` : module.title}
                   </div>
                   <ChevronDown
                     size={14}
-                    className={`text-[#4a4845] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                    className={`text-white/70 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                   />
                 </div>
 
@@ -1344,44 +1453,22 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className="prose prose-slate max-w-none text-left text-base sm:text-lg">
-                  {activeStudyText
-                    ? activeStudyText.split("\n").map((line, i) => {
-                        if (line.startsWith("## "))
-                          return (
-                            <h2
-                              key={i}
-                              className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3"
-                            >
-                              {line.replace("## ", "")}
-                            </h2>
-                          );
-                        if (line.startsWith("### "))
-                          return (
-                            <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">
-                              {line.replace("### ", "")}
-                            </h3>
-                          );
-                        if (line.startsWith("* "))
-                          return (
-                            <li key={i} className="ml-6 list-disc opacity-80 mb-1">
-                              {line.replace("* ", "")}
-                            </li>
-                          );
-                        if (line.startsWith("1. "))
-                          return (
-                            <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">
-                              {line.replace("1. ", "")}
-                            </li>
-                          );
-                        if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                        return (
-                          <p key={i} className="mb-3 leading-relaxed opacity-90">
-                            {line}
-                          </p>
-                        );
-                      })
-                    : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
+                <div className="space-y-4 text-left">
+                  {formattedStudyText ? (
+                    <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                      <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeSanitize]}
+                          components={studyMarkdownComponents}
+                        >
+                          {formattedStudyText}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+                  )}
                 </div>
 
                 {activePptEmbedUrl && activeLesson?.pptUrl && (

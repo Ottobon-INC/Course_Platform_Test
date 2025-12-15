@@ -4,28 +4,38 @@ import { Trophy, ArrowLeft } from "lucide-react";
 import { readStoredSession } from "@/utils/session";
 
 const CertificateFrame = ({ userName, courseName }: { userName: string; courseName: string }) => (
-  <div
-    className="relative w-full max-w-4xl aspect-[1.414/1] overflow-hidden rounded-md shadow-[0_15px_40px_rgba(0,0,0,0.4)]"
-    style={{
-      backgroundImage: "url(https://app.trickle.so/storage/public/images/usr_175de77758000001/7e0aea35-6032-47d0-92dd-c792f1d9826f.png?w=1280&h=904)",
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-    }}
-  >
-    <div className="absolute inset-0 flex flex-col justify-center pl-16 pr-12 sm:pl-20 sm:pr-16">
-      <div className="mt-24 space-y-6 sm:mt-32">
-        <div>
-          <p className="text-sm uppercase tracking-[0.4em] text-[#2d2d2d]/70">Awarded to</p>
-          <h2 className="text-2xl font-semibold text-[#2d2d2d]" style={{ fontFamily: "serif" }}>
-            {userName}
-          </h2>
+  <div className="relative w-full max-w-4xl">
+    <div
+      className="relative w-full aspect-[1.414/1] overflow-hidden rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.4)] opacity-80 pointer-events-none"
+      style={{
+        filter: "blur(5px)",
+      }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "url(https://app.trickle.so/storage/public/images/usr_175de77758000001/7e0aea35-6032-47d0-92dd-c792f1d9826f.png?w=1280&h=904)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+      <div className="absolute inset-0 flex flex-col justify-center pl-16 pr-12 sm:pl-20 sm:pr-16 text-transparent select-none">
+        <div className="mt-24 space-y-6 sm:mt-32">
+          <div>
+            <p className="text-sm uppercase tracking-[0.4em]">Awarded to</p>
+            <h2 className="text-2xl font-semibold">{userName}</h2>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em]">For completing</p>
+            <h3 className="text-lg font-medium">{courseName}</h3>
+          </div>
         </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-[#2d2d2d]/70">For completing</p>
-          <h3 className="text-lg font-medium text-[#2d2d2d]" style={{ fontFamily: "serif" }}>
-            {courseName}
-          </h3>
-        </div>
+      </div>
+    </div>
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <div className="inline-flex items-center gap-2 rounded-full bg-black/70 backdrop-blur px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg">
+        Complete payment to unlock a clear, downloadable certificate
       </div>
     </div>
   </div>
@@ -97,15 +107,9 @@ const CourseCertificatePage = () => {
               onClick={handlePayment}
               className="inline-flex items-center justify-center rounded-2xl border border-[#fbe9d0]/20 bg-[#E64833] px-6 py-3 text-lg font-semibold text-[#FBE9D0] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#d23a25]"
             >
-              Complete Payment
+              Get Your Certificate
             </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center justify-center rounded-2xl border border-white/20 px-6 py-3 text-lg font-semibold text-white transition hover:bg-white/10"
-            >
-              Download (Print)
-            </button>
+            
           </div>
         </div>
       </div>

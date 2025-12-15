@@ -489,12 +489,12 @@ const CourseDetailsPage: React.FC = () => {
                 {courseMeta.rating != null ? courseMeta.rating.toFixed(1) : "4.8"}
               </span>
               <span className="text-[#f8f1e6]/60">
-                ({formatCount(courseMeta.students, "148,000")} ratings)
+                ({formatCount(courseMeta.students, "3,369")} ratings)
               </span>
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <span>{formatCount(courseMeta.students, "148,000")} students</span>
+              <span>{formatCount(courseMeta.students, "8,485")} students</span>
             </div>
             <div className="flex items-center gap-2">
               <Code2 className="h-4 w-4" />

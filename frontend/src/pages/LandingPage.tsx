@@ -26,6 +26,57 @@ interface Course {
   status: 'Available' | 'Coming Soon';
 }
 
+const DEFAULT_COURSE_IMAGE =
+  'https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=600&auto=format&fit=crop';
+
+const courseImageMap: Record<string, string> = {
+  'ai in web development':
+    'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=800&q=80',
+  'ai data labeling':
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop',
+  'ai in marketing':
+    'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=800&auto=format&fit=crop',
+  'ai agent development':
+    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=800&auto=format&fit=crop',
+  'ai tools for web development':
+    'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?q=80&w=800&auto=format&fit=crop',
+  'ai in web development foundations':
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80',
+  'full stack react mastery':
+    'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&w=800&q=80',
+  'python for automation':
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+  'advanced javascript concepts':
+    'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=800&q=80',
+  'human-centered ui design':
+    'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&fit=crop&w=800&q=80',
+  'ai for marketing':
+    'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=600&auto=format&fit=crop',
+  'web development 2025':
+    'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=600&auto=format&fit=crop',
+  'data science basics':
+    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop',
+  'ux/ui design systems':
+    'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=600&auto=format&fit=crop',
+  'cybersecurity intro':
+    'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600&auto=format&fit=crop',
+  'mobile app development':
+    'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=600&auto=format&fit=crop',
+  'cloud computing aws':
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop',
+  'blockchain fundamentals':
+    'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=600&auto=format&fit=crop',
+  'devops engineering':
+    'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?q=80&w=600&auto=format&fit=crop',
+  'game development unity':
+    'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=600&auto=format&fit=crop',
+};
+
+const getCourseImage = (title?: string) => {
+  const key = title?.toLowerCase().trim() ?? '';
+  return courseImageMap[key] ?? DEFAULT_COURSE_IMAGE;
+};
+
 interface Feature {
   id: number;
   title: string;
@@ -241,16 +292,19 @@ const Navbar: React.FC<{
   );
 };
 
-const TypewriterInput = () => {
-  const placeholders = [
-    "Search for 'AI in Web Development'...",
-    "Search for 'Machine Learning Basics'...",
-    "Search for 'Full Stack Development'..."
-  ];
+const TypewriterInput: React.FC<{ suggestions: string[]; onSearch: (term: string) => void }> = ({
+  suggestions,
+  onSearch,
+}) => {
+  const placeholders =
+    suggestions.length > 0
+      ? suggestions
+      : ["Search for 'AI in Web Development'...", "Search for 'Machine Learning Basics'...", "Search for 'Full Stack Development'..."];
   const [currentText, setCurrentText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [loopNum, setLoopNum] = useState(0);
+  const [inputValue, setInputValue] = useState("");
   const typingSpeed = 100;
   const deletingSpeed = 50;
   const pauseTime = 2000;
@@ -279,26 +333,39 @@ const TypewriterInput = () => {
   }, [currentText, isDeleting, loopNum, placeholders]);
 
   return (
-    <div className="relative max-w-3xl w-full mt-8">
+    <form
+      className="relative max-w-3xl w-full mt-8"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const term = (inputValue || currentText).trim();
+        if (term) {
+          onSearch(term);
+        }
+      }}
+    >
       <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
         <Search className="h-6 w-6 text-[#90AEAD]" />
       </div>
       <input
         type="text"
-        readOnly
+        value={inputValue}
+        onChange={(event) => setInputValue(event.target.value)}
         placeholder={currentText}
         className="w-full py-5 pl-14 pr-16 text-lg text-[#244855] bg-white/80 backdrop-blur-md border border-[#90AEAD]/40 rounded-2xl shadow-[0_10px_30px_rgba(36,72,85,0.18)] focus:outline-none focus:ring-2 focus:ring-[#E64833]/60 transition-all placeholder:text-[#90AEAD]"
       />
       <div className="absolute inset-y-0 right-3 flex items-center">
-        <button className="bg-[#E64833] hover:bg-[#c93b29] text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_6px_18px_rgba(230,72,51,0.3)]">
+        <button
+          type="submit"
+          className="bg-[#E64833] hover:bg-[#c93b29] text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_6px_18px_rgba(230,72,51,0.3)]"
+        >
           <Search className="h-5 w-5" />
         </button>
       </div>
-    </div>
+    </form>
   );
 };
 
-const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onEnroll, onPlayVideo }) => {
+const Hero: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }> = ({ onEnroll, onSearch }) => {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -376,13 +443,10 @@ const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onE
           </motion.p>
 
           <motion.div variants={itemVariants} className="w-full flex justify-center md:justify-start">
-            <TypewriterInput />
+            <TypewriterInput suggestions={["AI in Web Development", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
           </motion.div>
 
-          <motion.div
-            variants={itemVariants}
-            className="flex flex-wrap justify-center md:justify-start gap-4 pt-4"
-          >
+          <motion.div variants={itemVariants} className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
             <motion.button
               onClick={onEnroll}
               whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(230, 72, 51, 0.2)" }}
@@ -390,15 +454,6 @@ const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onE
               className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all"
             >
               Enroll <ChevronRight size={20} />
-            </motion.button>
-
-            <motion.button
-              onClick={onPlayVideo}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white/80 hover:bg-white text-retro-teal px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 border border-retro-sage/30 backdrop-blur-sm shadow-sm transition-all"
-            >
-              <Play size={18} fill="currentColor" /> Play Video
             </motion.button>
           </motion.div>
         </motion.div>
@@ -452,18 +507,6 @@ const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onE
             </motion.div>
           </div>
 
-          {/* Floating Badge */}
-          <motion.div
-            animate={{ y: [0, -15, 0] }}
-            transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
-            className="absolute -bottom-8 -left-8 bg-white/90 backdrop-blur-md p-5 rounded-2xl shadow-xl flex items-center gap-4 border border-retro-sage/20"
-          >
-            <div className="bg-retro-salmon/20 p-3 rounded-full text-retro-teal font-bold text-xl">A+</div>
-            <div>
-              <p className="text-xs text-retro-teal/60 uppercase tracking-wide font-semibold">Course Rating</p>
-              <p className="font-bold text-retro-teal text-lg">4.9/5 Stars</p>
-            </div>
-          </motion.div>
         </motion.div>
       </div>
 
@@ -473,7 +516,6 @@ const Hero: React.FC<{ onEnroll: () => void; onPlayVideo: () => void }> = ({ onE
         transition={{ repeat: Infinity, duration: 2 }}
       >
         <div className="flex flex-col items-center gap-2">
-          <span className="text-xs uppercase tracking-widest font-medium">Scroll to Explore</span>
           <div className="w-px h-12 bg-gradient-to-b from-retro-sage to-transparent"></div>
         </div>
       </motion.div>
@@ -947,16 +989,16 @@ const CurriculumStructure: React.FC = () => {
 };
 
 const courses: Course[] = [
-  { id: 'ai-for-marketing', title: 'AI for Marketing', rating: 4.8, students: 1200, description: 'Master generative AI tools for content creation and strategy.', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'web-development-2025', title: 'Web Development 2025', rating: 4.9, students: 3400, description: 'React, Node, and AI integration for modern web apps.', image: 'https://images.unsplash.com/photo-1587620962725-abab7fe55159?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'data-science-basics', title: 'Data Science Basics', rating: 4.7, students: 850, description: 'Python for data analysis and machine learning foundations.', image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=600&auto=format&fit=crop', status: 'Coming Soon' },
-  { id: 'ux-ui-design-systems', title: 'UX/UI Design Systems', rating: 4.9, students: 2100, description: 'Design scalable interfaces with Figma and design tokens.', image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'cybersecurity-intro', title: 'Cybersecurity Intro', rating: 4.6, students: 900, description: 'Protect digital assets and understand network security.', image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600&auto=format&fit=crop', status: 'Coming Soon' },
-  { id: 'mobile-app-development', title: 'Mobile App Development', rating: 4.8, students: 1650, description: 'Build cross-platform apps with React Native and Flutter.', image: 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'cloud-computing-aws', title: 'Cloud Computing AWS', rating: 4.7, students: 1340, description: 'Master AWS services, deployment, and cloud architecture.', image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'blockchain-fundamentals', title: 'Blockchain Fundamentals', rating: 4.5, students: 720, description: 'Understand cryptocurrency, NFTs, and decentralized apps.', image: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=600&auto=format&fit=crop', status: 'Coming Soon' },
-  { id: 'devops-engineering', title: 'DevOps Engineering', rating: 4.9, students: 1890, description: 'CI/CD pipelines, Docker, Kubernetes, and automation.', image: 'https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?q=80&w=600&auto=format&fit=crop', status: 'Available' },
-  { id: 'game-development-unity', title: 'Game Development Unity', rating: 4.6, students: 1120, description: 'Create 2D and 3D games with Unity and C# programming.', image: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?q=80&w=600&auto=format&fit=crop', status: 'Available' },
+  { id: 'ai-for-marketing', title: 'AI for Marketing', rating: 4.8, students: 1200, description: 'Master generative AI tools for content creation and strategy.', image: getCourseImage('AI for Marketing'), status: 'Available' },
+  { id: 'web-development-2025', title: 'Web Development 2025', rating: 4.9, students: 3400, description: 'React, Node, and AI integration for modern web apps.', image: getCourseImage('Web Development 2025'), status: 'Available' },
+  { id: 'data-science-basics', title: 'Data Science Basics', rating: 4.7, students: 850, description: 'Python for data analysis and machine learning foundations.', image: getCourseImage('Data Science Basics'), status: 'Coming Soon' },
+  { id: 'ux-ui-design-systems', title: 'UX/UI Design Systems', rating: 4.9, students: 2100, description: 'Design scalable interfaces with Figma and design tokens.', image: getCourseImage('UX/UI Design Systems'), status: 'Available' },
+  { id: 'cybersecurity-intro', title: 'Cybersecurity Intro', rating: 4.6, students: 900, description: 'Protect digital assets and understand network security.', image: getCourseImage('Cybersecurity Intro'), status: 'Coming Soon' },
+  { id: 'mobile-app-development', title: 'Mobile App Development', rating: 4.8, students: 1650, description: 'Build cross-platform apps with React Native and Flutter.', image: getCourseImage('Mobile App Development'), status: 'Available' },
+  { id: 'cloud-computing-aws', title: 'Cloud Computing AWS', rating: 4.7, students: 1340, description: 'Master AWS services, deployment, and cloud architecture.', image: getCourseImage('Cloud Computing AWS'), status: 'Available' },
+  { id: 'blockchain-fundamentals', title: 'Blockchain Fundamentals', rating: 4.5, students: 720, description: 'Understand cryptocurrency, NFTs, and decentralized apps.', image: getCourseImage('Blockchain Fundamentals'), status: 'Coming Soon' },
+  { id: 'devops-engineering', title: 'DevOps Engineering', rating: 4.9, students: 1890, description: 'CI/CD pipelines, Docker, Kubernetes, and automation.', image: getCourseImage('DevOps Engineering'), status: 'Available' },
+  { id: 'game-development-unity', title: 'Game Development Unity', rating: 4.6, students: 1120, description: 'Create 2D and 3D games with Unity and C# programming.', image: getCourseImage('Game Development Unity'), status: 'Available' },
 ];
 
 const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string, courseTitle?: string) => void }> = ({ course, onEnroll }) => {
@@ -964,16 +1006,13 @@ const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string, course
     <div
       className={`w-[320px] md:w-[380px] h-[450px] bg-white rounded-3xl shadow-lg border border-retro-sage/20 overflow-hidden flex flex-col shrink-0`}
     >
-      <div className="relative h-56 overflow-hidden group shrink-0">
-        <img
-          src={course.image}
-          alt={course.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-retro-teal shadow-sm">
-          {course.status}
+        <div className="relative h-56 overflow-hidden group shrink-0">
+          <img
+            src={course.image}
+            alt={course.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
         </div>
-      </div>
 
       <div className="p-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-2">
@@ -1008,10 +1047,11 @@ const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string, course
   );
 };
 
-const TrendingCourses: React.FC<{ onEnroll: (courseId: string, courseTitle?: string) => void; courseCatalog?: Course[] }> = ({
-  onEnroll,
-  courseCatalog,
-}) => {
+const TrendingCourses: React.FC<{
+  onEnroll: (courseId: string, courseTitle?: string) => void;
+  courseCatalog?: Course[];
+  searchTerm?: string;
+}> = ({ onEnroll, courseCatalog, searchTerm }) => {
   const targetRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: targetRef,
@@ -1020,6 +1060,17 @@ const TrendingCourses: React.FC<{ onEnroll: (courseId: string, courseTitle?: str
   // Transform scroll progress to horizontal movement
   // Adjust the percentage based on how many cards and card width
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-60%"]);
+
+  const normalizedSearch = searchTerm?.toLowerCase().trim() ?? "";
+  const catalog = courseCatalog ?? courses;
+  const filtered = normalizedSearch
+    ? catalog.filter(
+        (course) =>
+          course.title.toLowerCase().includes(normalizedSearch) ||
+          course.description.toLowerCase().includes(normalizedSearch),
+      )
+    : catalog;
+  const visibleCourses = filtered.length > 0 ? filtered : catalog;
 
   return (
     <section ref={targetRef} id="courses" className="relative h-[300vh] bg-retro-bg">
@@ -1037,9 +1088,14 @@ const TrendingCourses: React.FC<{ onEnroll: (courseId: string, courseTitle?: str
         </div>
 
         <motion.div style={{ x }} className="flex gap-8 px-6 md:px-24">
-          {(courseCatalog ?? courses).map((course) => (
+          {visibleCourses.map((course) => (
             <CourseCard key={course.id} course={course} onEnroll={onEnroll} />
           ))}
+          {filtered.length === 0 && (
+            <div className="w-[320px] md:w-[380px] h-[450px] bg-white/70 rounded-3xl shadow-inner border border-dashed border-retro-sage/60 flex items-center justify-center text-center px-6 text-retro-teal/70 font-semibold">
+              No courses match “{searchTerm}”. Showing all trending courses instead.
+            </div>
+          )}
         </motion.div>
       </div>
     </section>
@@ -1838,6 +1894,7 @@ function App() {
     }
   });
   const [catalog, setCatalog] = useState<Course[]>(courses);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     // Ensure light theme when landing page mounts (prevents dark-mode bleed from course player)
@@ -1850,15 +1907,19 @@ function App() {
         const res = await fetch(buildApiUrl('/api/courses'));
         if (!res.ok) return;
         const payload = await res.json();
-        const mapped: Course[] = (payload?.courses ?? []).map((course: any, idx: number) => ({
-          id: course.id ?? course.courseId ?? course.slug ?? course.title ?? `course-${idx}`,
-          title: course.title ?? course.courseName ?? 'Course',
-          rating: course.rating ?? 4.8,
-          students: course.students ?? 0,
-          description: course.description ?? 'Learn with MetaLearn.',
-          image: course.thumbnail ?? 'https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=600&auto=format&fit=crop',
-          status: 'Available',
-        }));
+        const mapped: Course[] = (payload?.courses ?? []).map((course: any, idx: number) => {
+          const title = course.title ?? course.courseName ?? 'Course';
+          const thumbnail = course.thumbnail ?? course.thumbnailUrl ?? null;
+          return {
+            id: course.id ?? course.courseId ?? course.slug ?? course.title ?? `course-${idx}`,
+            title,
+            rating: course.rating ?? 4.8,
+            students: course.students ?? 0,
+            description: course.description ?? 'Learn with MetaLearn.',
+            image: thumbnail ?? getCourseImage(title),
+            status: 'Available',
+          };
+        });
         if (mounted && mapped.length > 0) {
           setCatalog(mapped);
         }
@@ -1938,7 +1999,16 @@ function App() {
     setLocation(`/course/${primaryCourseId}`);
   };
 
-  const handlePlayVideo = () => handleEnroll(primaryCourseId);
+  const handleSearchCourses = (term: string) => {
+    const cleaned = term.trim();
+    setSearchQuery(cleaned);
+    const el = document.getElementById('courses');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      setLocation('/courses');
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('session');
@@ -1971,13 +2041,13 @@ function App() {
         user={user ?? undefined}
         onLogout={handleLogout}
       />
-      <Hero onEnroll={() => handleEnroll()} onPlayVideo={handlePlayVideo} />
+      <Hero onEnroll={() => handleEnroll()} onSearch={handleSearchCourses} />
       <TrustedBy />
       <ValueProp />
       <Methodology />
       <CurriculumStructure />
       <AiStructure />
-      <TrendingCourses onEnroll={handleEnroll} courseCatalog={catalog} />
+      <TrendingCourses onEnroll={handleEnroll} courseCatalog={catalog} searchTerm={searchQuery} />
       <PlatformStats />
       <Certification />
       <Testimonials />
