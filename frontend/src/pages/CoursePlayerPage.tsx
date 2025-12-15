@@ -163,6 +163,75 @@ const personaOptions: Record<StudyPersona, { label: string; description: string 
   },
 };
 
+const personaSurveyQuestions = [
+  {
+    id: "motivation",
+    prompt: "What keeps you most energized while learning?",
+    options: [
+      { value: "sports" as StudyPersona, label: "Competitive drills and team strategy" },
+      { value: "cooking" as StudyPersona, label: "Experimenting with recipes and plating" },
+      { value: "adventure" as StudyPersona, label: "Unlocking new quests and gear" },
+    ],
+  },
+  {
+    id: "planning",
+    prompt: "How do you prefer to plan your projects?",
+    options: [
+      { value: "cooking" as StudyPersona, label: "Mise en place: prep every ingredient first" },
+      { value: "sports" as StudyPersona, label: "Training blocks with clear drills" },
+      { value: "adventure" as StudyPersona, label: "Scouting unknown territory step-by-step" },
+    ],
+  },
+  {
+    id: "wins",
+    prompt: "What kind of wins feel the best?",
+    options: [
+      { value: "adventure" as StudyPersona, label: "Finishing epic missions with teammates" },
+      { value: "sports" as StudyPersona, label: "Improving the scorecard after every sprint" },
+      { value: "cooking" as StudyPersona, label: "Serving a refined dish that delights others" },
+    ],
+  },
+];
+
+const SURVEY_DEFAULT_PERSONA: StudyPersona = "sports";
+
+const readRememberedPersona = (key: string | null): StudyPersona | null => {
+  if (!key || typeof window === "undefined") {
+    return null;
+  }
+  const stored = window.localStorage.getItem(key);
+  return stored === "sports" || stored === "cooking" || stored === "adventure" ? (stored as StudyPersona) : null;
+};
+
+const persistRememberedPersona = (key: string | null, value: StudyPersona | null) => {
+  if (!key || typeof window === "undefined") {
+    return;
+  }
+  if (!value) {
+    window.localStorage.removeItem(key);
+    return;
+  }
+  if (value === "sports" || value === "cooking" || value === "adventure") {
+    window.localStorage.setItem(key, value);
+  }
+};
+
+const determineRecommendedPersona = (responses: Record<string, StudyPersona | "">): StudyPersona => {
+  const counts: Record<StudyPersona, number> = {
+    sports: 0,
+    cooking: 0,
+    adventure: 0,
+    normal: 0,
+  };
+  Object.values(responses).forEach((value) => {
+    if (value === "sports" || value === "cooking" || value === "adventure") {
+      counts[value] += 1;
+    }
+  });
+  const sorted = PERSONALIZED_PERSONAS.slice().sort((a, b) => counts[b] - counts[a]);
+  return sorted[0] ?? SURVEY_DEFAULT_PERSONA;
+};
+
 const slugify = (text: string) =>
   text
     .toLowerCase()
@@ -343,6 +412,36 @@ const CoursePlayerPage: React.FC = () => {
   const [personaSaving, setPersonaSaving] = useState(false);
   const [personaReady, setPersonaReady] = useState(false);
   const [personaPromptDismissed, setPersonaPromptDismissed] = useState(false);
+  const [storedUserId, setStoredUserId] = useState<string | null>(null);
+  const [storedUserEmail, setStoredUserEmail] = useState<string | null>(null);
+  const personaHistoryKey = useMemo(() => {
+    const uniqueUserKey = session?.userId || storedUserId || session?.email || storedUserEmail || null;
+    if (!uniqueUserKey || !courseKey) {
+      return null;
+    }
+    return `metacourse:persona-history:${uniqueUserKey}:${courseKey}`;
+  }, [session?.userId, storedUserId, session?.email, storedUserEmail, courseKey]);
+  const [rememberedPersona, setRememberedPersona] = useState<StudyPersona | null>(null);
+  const [surveyResponses, setSurveyResponses] = useState<Record<string, StudyPersona | "">>({});
+  const [surveyComplete, setSurveyComplete] = useState(false);
+  const [recommendedPersona, setRecommendedPersona] = useState<StudyPersona | null>(null);
+  const [forceSurvey, setForceSurvey] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem("user");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setStoredUserId(typeof parsed?.id === "string" && parsed.id ? parsed.id : null);
+        setStoredUserEmail(typeof parsed?.email === "string" && parsed.email ? parsed.email : null);
+      }
+    } catch (error) {
+      console.error("Failed to hydrate stored user profile", error);
+    }
+  }, []);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { id: "welcome", text: buildTopicGreeting(), isBot: true },
   ]);
@@ -406,6 +505,37 @@ const availableStarterSuggestions = useMemo(() => {
   if (starterSuggestions.length === 0) return [];
   return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
 }, [starterSuggestions, usedSuggestionIds]);
+  const activePersonalizedPersona = useMemo(() => {
+    if (lockedPersona !== "normal") {
+      return lockedPersona;
+    }
+    if (rememberedPersona && rememberedPersona !== "normal") {
+      return rememberedPersona;
+    }
+    return null;
+  }, [lockedPersona, rememberedPersona]);
+  const personaChoices = useMemo<StudyPersona[]>(() => {
+    if (activePersonalizedPersona) {
+      return ["normal", activePersonalizedPersona];
+    }
+    if (recommendedPersona) {
+      return ["normal", recommendedPersona];
+    }
+    return ["normal"];
+  }, [activePersonalizedPersona, recommendedPersona]);
+  const shouldShowSurvey = (!activePersonalizedPersona && !surveyComplete) || forceSurvey;
+  const surveyHasMissingAnswers = useMemo(
+    () => personaSurveyQuestions.some((question) => !surveyResponses[question.id]),
+    [surveyResponses],
+  );
+
+  useEffect(() => {
+    if (!personaHistoryKey) {
+      setRememberedPersona(null);
+      return;
+    }
+    setRememberedPersona(readRememberedPersona(personaHistoryKey));
+  }, [personaHistoryKey]);
 
   const chatListRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
@@ -537,9 +667,27 @@ useEffect(() => {
       setStudyPersona(persona);
       setPersonaPending(persona);
       const hasPref = Boolean(data?.hasPreference);
-      setHasPersonaPreference(hasPref);
-      setLockedPersona(hasPref ? persona : "normal");
-      setShowPersonaModal(!hasPref && !personaPromptDismissed);
+      const fallback = personaHistoryKey ? readRememberedPersona(personaHistoryKey) : null;
+      if (fallback && fallback !== rememberedPersona) {
+        setRememberedPersona(fallback);
+      }
+      if (hasPref && persona !== "normal") {
+        setLockedPersona(persona);
+        persistRememberedPersona(personaHistoryKey, persona);
+        setRememberedPersona(persona);
+      } else if (fallback) {
+        setLockedPersona(fallback);
+      } else {
+        setLockedPersona("normal");
+      }
+      const effectiveHasPreference = hasPref || Boolean(fallback);
+      setHasPersonaPreference(effectiveHasPreference);
+      setShowPersonaModal(!effectiveHasPreference && !personaPromptDismissed);
+      if (!effectiveHasPreference) {
+        setSurveyResponses({});
+        setSurveyComplete(false);
+        setRecommendedPersona(null);
+      }
     } catch (error) {
       console.error("Failed to load personalization", error);
       setHasPersonaPreference(false);
@@ -547,7 +695,7 @@ useEffect(() => {
     } finally {
       setPersonaReady(true);
     }
-  }, [courseKey, session?.accessToken, personaPromptDismissed]);
+  }, [courseKey, session?.accessToken, personaPromptDismissed, personaHistoryKey, rememberedPersona]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {
@@ -624,6 +772,28 @@ useEffect(() => {
     // courseProgress derived from sections
   }, []);
 
+  const handleSurveyResponseChange = useCallback((questionId: string, value: StudyPersona) => {
+    setSurveyResponses((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  }, []);
+
+  const handleSurveySubmit = useCallback(() => {
+    const recommended = determineRecommendedPersona(surveyResponses);
+    setRecommendedPersona(recommended);
+    setPersonaPending(recommended);
+    setSurveyComplete(true);
+    setForceSurvey(false);
+  }, [surveyResponses]);
+
+  const handleSurveyRestart = useCallback(() => {
+    setSurveyResponses({});
+    setSurveyComplete(false);
+    setRecommendedPersona(null);
+    setForceSurvey(true);
+  }, []);
+
   const handleOpenPersonaModal = useCallback(() => {
     if (!session?.accessToken) {
       toast({
@@ -633,10 +803,15 @@ useEffect(() => {
       });
       return;
     }
+    if (!activePersonalizedPersona) {
+      setSurveyResponses({});
+      setSurveyComplete(false);
+      setRecommendedPersona(null);
+    }
     setPersonaPromptDismissed(false);
     setPersonaPending(studyPersona);
     setShowPersonaModal(true);
-  }, [session?.accessToken, studyPersona, toast]);
+  }, [session?.accessToken, studyPersona, toast, activePersonalizedPersona]);
 
   const handleSavePersonaPreference = useCallback(async () => {
     const choice = personaPending;
@@ -660,8 +835,16 @@ useEffect(() => {
         throw new Error(await response.text());
       }
       setStudyPersona(choice);
-      setHasPersonaPreference(true);
-      setLockedPersona((prev) => (hasPersonaPreference ? prev : choice));
+      if (choice !== "normal") {
+        setLockedPersona(choice);
+        setRememberedPersona(choice);
+        persistRememberedPersona(personaHistoryKey, choice);
+        setSurveyComplete(true);
+        setRecommendedPersona(null);
+      }
+      setForceSurvey(false);
+      const stillHasPersona = choice !== "normal" || Boolean(activePersonalizedPersona);
+      setHasPersonaPreference(stillHasPersona);
       setPersonaPromptDismissed(false);
       setShowPersonaModal(false);
       toast({ title: "Study style updated" });
@@ -674,11 +857,12 @@ useEffect(() => {
     } finally {
       setPersonaSaving(false);
     }
-  }, [courseKey, personaPending, session?.accessToken, toast, hasPersonaPreference]);
+  }, [courseKey, personaPending, session?.accessToken, toast, activePersonalizedPersona, personaHistoryKey]);
 
   const handleDismissPersonaModal = useCallback(() => {
     setShowPersonaModal(false);
     setPersonaPromptDismissed(true);
+    setForceSurvey(false);
   }, []);
 
   // Hydrate modules with quizzes when lessons/sections change
@@ -1860,28 +2044,99 @@ useEffect(() => {
                 <X size={20} />
               </button>
             </div>
-              <div className="grid gap-3">
-                {(hasPersonaPreference
-                  ? (lockedPersona === "normal"
-                      ? (["normal"] as StudyPersona[])
-                      : (["normal", lockedPersona] as StudyPersona[]))
-                  : (["normal", "sports", "cooking", "adventure"] as StudyPersona[])
-                ).map((option) => (
+            {shouldShowSurvey ? (
+              <div className="space-y-4 rounded-xl border border-[#4a4845]/20 bg-[#f8f1e6] p-4">
+                <div>
+                  <p className="text-sm font-semibold text-[#000000]">Let’s find your personalized narrator.</p>
+                  <p className="text-xs text-[#4a4845]">Answer three quick prompts—we’ll recommend the best vibe.</p>
+                </div>
+                {personaSurveyQuestions.map((question) => (
+                  <div key={question.id} className="space-y-2">
+                    <p className="text-sm font-semibold text-[#1e3a47]">{question.prompt}</p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {question.options.map((option) => {
+                        const checked = surveyResponses[question.id] === option.value;
+                        return (
+                          <label
+                            key={option.value}
+                            className={`cursor-pointer rounded-lg border p-3 text-sm font-medium transition text-[#1f1c1a] ${
+                              checked ? "border-[#bf2f1f] bg-[#bf2f1f]/10" : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={question.id}
+                              value={option.value}
+                              className="sr-only"
+                              checked={checked}
+                              onChange={() => handleSurveyResponseChange(question.id, option.value)}
+                            />
+                            {option.label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex flex-wrap items-center gap-3">
                   <button
-                    key={option}
                     type="button"
-                    onClick={() => setPersonaPending(option)}
-                  className={`text-left border rounded-xl p-4 transition focus:outline-none ${
-                    personaPending === option
-                      ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
-                      : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
-                  }`}
-                >
-                  <div className="font-semibold text-[#000000]">{personaOptions[option].label}</div>
-                  <p className="text-sm text-[#4a4845]">{personaOptions[option].description}</p>
-                </button>
-              ))}
-            </div>
+                    onClick={handleSurveySubmit}
+                    disabled={surveyHasMissingAnswers}
+                    className="px-4 py-2 rounded-lg bg-[#bf2f1f] text-white font-semibold disabled:opacity-40"
+                  >
+                    See my study style
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDismissPersonaModal}
+                    className="text-sm font-semibold text-[#4a4845] hover:text-[#000000]"
+                  >
+                    Maybe later
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {recommendedPersona && !activePersonalizedPersona && (
+                  <div className="rounded-lg border border-[#bf2f1f]/40 bg-[#bf2f1f]/5 p-4 text-sm text-[#4a4845]">
+                    We recommend the <strong>{personaOptions[recommendedPersona].label}</strong> narrator for you.
+                  </div>
+                )}
+                <div className="grid gap-3">
+                  {personaChoices.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setPersonaPending(option)}
+                      className={`text-left border rounded-xl p-4 transition focus:outline-none ${
+                        personaPending === option
+                          ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
+                          : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-[#000000]">{personaOptions[option].label}</div>
+                        <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#bf2f1f]">
+                          {recommendedPersona === option && !activePersonalizedPersona && <span>Recommended</span>}
+                          {activePersonalizedPersona === option && option !== "normal" && <span>Saved</span>}
+                        </div>
+                      </div>
+                      <p className="text-sm text-[#4a4845]">{personaOptions[option].description}</p>
+                    </button>
+                  ))}
+                </div>
+                {activePersonalizedPersona && (
+                  <button
+                    type="button"
+                    onClick={handleSurveyRestart}
+                    className="text-xs font-semibold text-[#4a4845] hover:text-[#000000]"
+                  >
+                    Try a different narrator (retake questionnaire)
+                  </button>
+                )}
+              </>
+            )}
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -1893,7 +2148,7 @@ useEffect(() => {
               <button
                 type="button"
                 onClick={handleSavePersonaPreference}
-                disabled={personaSaving}
+                disabled={personaSaving || shouldShowSurvey}
                 className="px-4 py-2 rounded-lg bg-[#bf2f1f] text-white font-semibold disabled:opacity-50"
               >
                 {personaSaving ? "Saving..." : "Use this style"}
