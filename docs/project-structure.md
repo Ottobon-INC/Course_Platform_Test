@@ -1,70 +1,62 @@
-# Course Platform Project Structure
+﻿# Course Platform Project Structure
+
+Use this guide to understand where each major feature lives. Pair it with `Course_Platform.md` for behavioural context.
 
 ## Root
-- `.editorconfig`, `.gitignore`, `.replit`: repository-wide tooling defaults.
-- `README.md`: high-level onboarding for the whole monorepo.
-- `docs/`: documentation bundle (see individual files below).
-- `backend/`, `frontend/`, `shared/`, `infrastructure/`, `scripts/`: top-level workspaces described later.
+- `CP_Arc.md`, `Course_Platform.md`, `docs/` – documentation packet to share with external reviewers or LLMs.
+- `task_progress.md`, `docs/App Changes.md` – running task log + changelog.
+- `backend/`, `frontend/`, `shared/`, `infrastructure/`, `scripts/` – main workspaces.
 
 ## Frontend (`frontend/`)
-- `index.html`, `vite.config.ts`, `tsconfig.json`: Vite + TypeScript spa bootstrapping.
-- `src/main.tsx`, `src/App.tsx`: entry pipeline wiring React Router, global providers, and layout shell.
-- `src/pages/`: route-level screens that drive the visual experience:
-  - `LandingPage.tsx`: the sole public home/marketing page with course cards and CTAs.
-  - `AuthCallbackPage.tsx`: handles Google OAuth callback, stores tokens, and routes directly into the course player.
-  - `AuthPage.tsx`: login + signup UI with animated background, tabs, and form flows.
-  - `CoursePlayerPage.tsx`: two-column lesson player (video/text/quiz) with topic sidebar.
-  - `EnrollmentPage.tsx`, `AssessmentPage.tsx`: purchase funnel placeholder and quiz experience.
-  - `pages/examples/`: frozen design references for demo scenarios.
-  - `pages/not-found.tsx`: fallback 404 screen.
-- `src/components/`: reusable UI parts used to compose screens.
-  - `components/layout/`: navigation shell, sidebars, headers, and responsive wrappers.
-  - `components/dashboard/`, `components/courses/`, `components/auth/`: feature-focused widgets (some legacy dashboard widgets remain for future reuse).
-  - `components/examples/`: self-contained demo blocks mirroring mockups.
-  - `components/ui/`: shadcn/ui primitives (buttons, dialogs, tabs, tables) that power styling.
-- `src/hooks/`: custom hooks (`use-toast`, `use-mobile`) that centralize behavior for toasts & responsive checks.
-- `src/lib/`: utility helpers like `queryClient.ts` (TanStack Query setup) and `utils.ts` (class name helpers).
-- `public/`: static assets (favicons, logos, placeholder cover images).
-- `.env.example`: front-end environment sample (API URLs, feature flags).
-- `package.json`: npm workspace for Vite app (React, Tailwind, shadcn/ui stack).
+- `package.json`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig.json` – tooling.
+- `src/main.tsx` (bootstraps React), `src/App.tsx` (routes + providers).
+- `src/pages/`
+  - `LandingPage.tsx` – marketing hero + CTA entry.
+  - `CourseDetailsPage.tsx` – curriculum timeline, MetaLearn modal, auto enrollment + questionnaire redirection.
+  - `CoursePlayerPage.tsx` – orchestrates modules, progress, personas, quiz tab, tutor chat.
+  - `CourseCertificatePage.tsx` – certificate preview & upgrade CTA.
+  - `EnrollmentPage.tsx`, `AssessmentPage.tsx` – purchase/quiz scaffolds.
+  - `AuthCallbackPage.tsx` – Google OAuth redirect handler.
+  - `BecomeTutorPage.tsx`, `AboutPage.tsx`, `not-found.tsx` – supporting routes.
+- `src/components/`
+  - `CourseSidebar.tsx` – module accordion + progress stats.
+  - `LessonTabs.tsx` – study material/practice tabs with Markdown rendering.
+  - `ChatBot.tsx` – AI tutor dock (suggestions, typed prompts, quota messaging).
+  - `layout/` (SiteHeader, SiteLayout) and `ui/` (shadcn primitives) reused across pages.
+- `src/lib/queryClient.ts`, `src/lib/api.ts` – fetch wrappers.
+- `src/utils/session.ts` – session storage, refresh heartbeat, subscribe/unsubscribe API.
 
 ## Backend (`backend/`)
-- `src/`: Express + TypeScript API.
-  - `server.ts`: boots the HTTP server after loading validated environment settings.
-  - `app.ts`: Express app wiring JSON + URL-encoded parsing, routes, and global error handler.
-  - `routes/`: modular endpoints:
-    - `health.ts`: liveliness check (includes Postgres connectivity probe).
-    - `auth.ts`: Google OAuth code exchange, JWT issuance, refresh, and logout.
-    - `users.ts`: authenticated profile lookup (`/users/me`).
-    - `quiz.ts`: dynamic quiz sections/progress plus attempt start/submit endpoints backed by `quiz_questions`, `quiz_options`, `quiz_attempts`, and `module_progress`.
-    - `assistant.ts`: authenticated RAG assistant endpoint (`/assistant/query`) that rate-limits requests and forwards them to the Neo4j/OpenAI pipeline.
-  - `middleware/requireAuth.ts`: verifies bearer JWTs and attaches auth context to requests.
-  - `services/`: shared business utilities:
-    - `prisma.ts`: Prisma client singleton bound to `DATABASE_URL`.
-    - `googleOAuth.ts`: OAuth2 client helper to build the consent URL & fetch Google profile data.
-    - `userService.ts`: creates or returns users sourced from Google accounts.
-    - `sessionService.ts`: manages JWT creation, rotation, hashing, and persistence in `user_sessions`.
-  - `rag/`: helper modules for the AI tutor (Neo4j driver, OpenAI wrapper, text chunker, rate limiter, usage logger).
-  - `config/env.ts`: Zod-backed environment parsing for DB, Google OAuth, and JWT settings.
-  - `utils/asyncHandler.ts`: promise-aware Express handler wrapper.
-  - `utils/oauthState.ts`: signs/validates OAuth state cookies used during the Google redirect handshake.
-- `prisma/schema.prisma`: Prisma data model mirroring the production Postgres schema (users, courses, topics, user_sessions, etc.).
-- `.env.example`: backend environment sample pre-filled with Google + Postgres credentials and JWT placeholders.
-- `package.json`, `tsconfig*.json`, `vitest.config.ts`: tooling for TypeScript build, tests, and development.
+- `src/server.ts`, `src/app.ts` – Express bootstrap.
+- `src/routes/`
+  - `auth.ts` – Google OAuth + JWT lifecycle.
+  - `courses.ts` – catalog fetch + POST enroll.
+  - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
+  - `quiz.ts` – sections/progress/attempts/submit endpoints.
+  - `assistant.ts` – RAG tutor with rate limiting and prompt quotas.
+  - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
+- `src/services/`
+  - `sessionService.ts`, `googleOAuth.ts`, `userService.ts` – auth helpers.
+  - `enrollmentService.ts` – ensures unique enrollments.
+  - `promptUsageService.ts` – typed prompt quota helpers.
+  - `cartService.ts`, `prisma.ts` – commerce + DB helpers.
+- `src/rag/`
+  - `neo4jClient.ts` / `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
+- `prisma/schema.prisma`, `prisma/migrations/*` – data model + migrations.
+- `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Neo4j.
 
 ## Shared (`shared/`)
-- `schema.ts`: cross-cutting TypeScript types (e.g., course, topic, enrollment contracts) used by both front and back for consistency.
+- `schema.ts` – placeholder for future shared types between the SPA and API.
 
 ## Infrastructure (`infrastructure/`)
-- `docker-compose.yml`: local orchestration for Postgres + pgAdmin.
-- `README.md`: boot instructions for the infrastructure stack.
-- `db/`: folder reserved for database assets/backups.
+- `docker-compose.yml` – Postgres + pgAdmin stack for local development.
+- `README.md` – instructions for running the infrastructure layer.
+
+## Docs (`docs/`)
+- `App Changes.md`, `backend-dev-log.md`, `databaseSchema.md`, `design_guidelines.md`, `project-walkthrough.md`, `project-structure.md` (this file).
+- `legacy/` – archived drizzle/Express files kept for reference during the migration.
 
 ## Scripts (`scripts/`)
-- `dev.sh`, `dev.ps1`: convenience scripts to launch both frontend and backend dev servers together.
-- `backend/scripts/ingestCourseContent.ts`: CLI entrypoint that chunks the course PDF, calls OpenAI embeddings, and loads the resulting vectors into Neo4j using the canonical course slug.
+- `dev.sh`, `dev.ps1` – convenience wrappers to start frontend + backend concurrently.
 
-## Documentation (`docs/`)
-- `project-structure.md` *(this file)*: living map explaining how code maps to the visual experience.
-- `backend-dev-log.md`: chronological backend implementation log (see that file for step-by-step backend changes).
-- `databaseSchema.md`, `design_guidelines.md`, `legacy/`: historical references and design notes.
+With this map you can quickly locate the React components, Express routers, and documentation needed to trace any feature end to end.

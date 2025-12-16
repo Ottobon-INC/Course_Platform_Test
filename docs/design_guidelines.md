@@ -1,70 +1,52 @@
-# Course Learning Platform Design Guidelines
+﻿# Course Platform Design Guidelines
 
-## Design Approach
-**Reference-Based Approach** - Drawing inspiration from leading online learning platforms like Coursera, Udemy, and Khan Academy for their proven educational UX patterns while maintaining modern aesthetics.
+These guidelines summarise the visual language used across the SPA so new components match the rest of the experience and external reviewers (or LLMs) understand the intent behind the Tailwind tokens.
 
-## Core Design Elements
+## 1. Visual Principles
+1. **High-contrast hero sections** – dark backgrounds (#000000) with warm accent highlights (#bf2f1f, #f8f1e6) and subtle gradient lines borrowed from the CourseDetails hero.
+2. **Education-first tone** – layouts mimic Coursera/Udemy (clean typography, well-defined whitespace, minimal distractions) with celebratory touches (progress beams, shimmering gradients) reserved for moments of delight.
+3. **Responsive-first** – every major layout (landing hero, CourseDetails timeline, player sidebar, tutor dock) collapses gracefully on narrow viewports.
+4. **Accessible interactions** – buttons, toasts, and prompts use at least AA contrast; questionnaire answers now render in solid black text so copy is visible even before hover.
 
-### Color Palette
-**Light Mode:**
-- Primary: 220 85% 45% (Professional blue for trust and learning)
-- Secondary: 220 15% 95% (Light gray backgrounds)
-- Accent: 142 76% 36% (Success green for progress/completion)
-- Text: 220 13% 18% (Dark charcoal for readability)
+## 2. Color Tokens
+| Token | Light Mode | Usage |
+| --- | --- | --- |
+| `--background` | #f8f1e6 | Body backgrounds, neutral cards |
+| `--foreground` | #000000 | Primary text |
+| `--primary` | #bf2f1f | CTAs, hero chip borders, quiz state badges |
+| `--muted` | #4a4845 | Secondary text, helper labels |
+| `--sidebar` | rgba(8, 8, 8, 0.9) | Course player sidebar background |
+| Persona modal | #f6f2eb base, #000 text | Ensures questionnaire options remain legible |
 
-**Dark Mode:**
-- Primary: 220 85% 60% (Lighter blue for contrast)
-- Secondary: 220 13% 10% (Dark background)
-- Accent: 142 76% 45% (Brighter success green)
-- Text: 220 15% 95% (Light text)
+Dark mode relies on Tailwind's class toggles and mirrors the same hues at higher luminance: backgrounds shift to #000000, text to #f8f1e6, while accent reds stay saturated.
 
-### Typography
-- **Primary Font:** Inter (Google Fonts) - Clean, professional, excellent readability
-- **Headings:** Inter 600-700 weights
-- **Body:** Inter 400-500 weights
-- **Code/Technical:** JetBrains Mono for syntax highlighting
+## 3. Typography
+- **Primary font**: Inter (weights 400-800) for headings and body copy.
+- **Code/monospace**: JetBrains Mono used sparingly for inline code or CLI snippets inside docs.
+- Headings emphasise tight tracking and uppercase micro labels (e.g., certificate CTA, MetaLearn modal).
 
-### Layout System
-**Tailwind Spacing Units:** Consistent use of 2, 4, 6, 8, 12, 16 units
-- Micro spacing: p-2, m-2 (8px)
-- Standard spacing: p-4, m-4 (16px) 
-- Section spacing: p-8, m-8 (32px)
-- Large spacing: p-12, m-12 (48px)
+## 4. Layout Patterns
+- **Landing & CourseDetails** – large left-aligned hero text with background line art, CTA buttons aligned to the grid, skills badges as pill buttons.
+- **Course player** – two-column layout: resizable sidebar (search, progress, module accordion) and main content area with LessonTabs, video embeds, study material cards, and tutor/chat panel.
+- **MetaLearn Protocol modal** – glassmorphism card with bold typography, red highlights, and a two-button footer (Accept vs Not ready).
+- **Study persona dialog** – stacked questionnaire cards with pill buttons and a footer containing “See my study style”, “Maybe later”, and “Use this style”. Buttons gain gradient fills on hover.
+- **Tutor dock** – floating card with blurred background, message bubbles (muted background + gradient border), suggestion chips, and warning banners for quota/cooldown messages.
 
-## Component Library
+## 5. Components
+- **Buttons** – follow shadcn variants (`primary`, `secondary`, `ghost`, `outline`). Icon buttons adopt circular shapes with drop shadows for hero CTAs.
+- **Inputs** – rounded corners, subtle border + inset shadow, leading icon for search (CourseSidebar).
+- **Badges** – uppercase labels with pill shapes indicating preview/free/locked states.
+- **Progress indicators** – linear progress bars for module completion; quiz cards show status badges (`Locked`, `Unlocked`, `Passed`).
 
-### Navigation & Structure
-- **Sidebar Curriculum Tree:** Collapsible with nested lesson structure, progress indicators, and smooth expand/collapse animations
-- **Top Navigation:** Clean header with course title, progress bar, and user controls
-- **Tabbed Content:** Professional tabs for Transcript, Notes, Resources, Quizzes
+## 6. Motion & Micro-interactions
+- Use soft easing (`transition-all duration-200`) for hover/press states.
+- Sidebar buttons animate rotation on chevrons, persona chips pulse on selection, and certificate actions rise on hover.
+- Skeletons appear when hydrating course data or processing OAuth callbacks; keep them subtle to avoid distracting the learner.
 
-### Interactive Elements
-- **Video Player:** Custom controls with progress bar, speed controls (0.5x-2x), chapter markers, and keyboard shortcuts
-- **Progress Indicators:** Circular progress rings, completion badges, and milestone celebrations
-- **Assessment Components:** Interactive quiz cards with immediate feedback and explanation reveals
-- **Form Elements:** Clean input styling with validation states and helpful error messages
+## 7. Accessibility Notes
+- Minimum 16px body copy with 1.5 line height in reading contexts.
+- Interactive elements expose `aria-label`/`aria-pressed` (e.g., sidebar completion toggles) and keyboard handlers for Enter/Space.
+- Modal dialogs trap focus (shadcn dialog primitives) and provide ESC/backdrop dismissal.
+- Tutor errors report descriptive messages (401 session expired, 429 prompt limit reached, 500 fallback text) rather than generic "Something wrong" alerts.
 
-### Content Displays
-- **Course Cards:** Professional layout with thumbnails, titles, progress, and enrollment status
-- **Lesson Content:** Rich text with syntax highlighting for code blocks
-- **Results Pages:** Clean data visualization for assessment scores and recommendations
-
-### Overlays & Feedback
-- **Toast Notifications:** Subtle success/error messages for user actions
-- **Loading States:** Smooth skeleton screens and progress indicators
-- **Modals:** Clean overlay design for enrollment forms and confirmations
-
-## Key Design Principles
-
-1. **Educational Focus:** Clean, distraction-free interface that prioritizes content consumption
-2. **Progress Visibility:** Clear visual feedback on learning progress and achievements
-3. **Professional Aesthetics:** Coursera/Udemy-inspired design with modern touches
-4. **Responsive Design:** Seamless experience across desktop, tablet, and mobile devices
-5. **Accessibility First:** High contrast ratios, keyboard navigation, and screen reader support
-
-## Special Interactions
-- **Minimal Animations:** Subtle fade-ins, smooth transitions, and gentle hover states
-- **Progress Persistence:** Visual continuity when resuming courses
-- **Contextual Help:** Tooltips and guidance without overwhelming the interface
-
-This design system creates a professional, trustworthy learning environment that encourages course completion while maintaining visual appeal and usability across all device types.
+These practices keep the application cohesive and make it easy for additional contributors (human or AI) to extend the UI without diverging from the existing experience.

@@ -1,380 +1,193 @@
-# Course Platform — Full Project Documentation
+﻿# Course Platform – Full Project Documentation
 
-> Version: 2025-10-15  
-> Repository layout: monorepo (frontend + backend + shared assets)
-
----
+> Version: December 2025 monorepo snapshot (frontend + backend + shared assets)
 
 ## Table of Contents
-
-1. [Project Overview](#project-overview)  
-2. [Repository Structure](#repository-structure)  
-3. [Technology Stack](#technology-stack)  
-4. [Environment & Configuration](#environment--configuration)  
-5. [Backend Architecture](#backend-architecture)  
-   - [Runtime & Server Bootstrap](#runtime--server-bootstrap)  
-   - [API Surface](#api-surface)  
-   - [Authentication Flow](#authentication-flow)  
-   - [Database Schema](#database-schema)  
-6. [Frontend Architecture](#frontend-architecture)  
-   - [Routing & Navigation](#routing--navigation)  
-   - [State Management & Data Fetching](#state-management--data-fetching)  
-   - [Design System & Styling](#design-system--styling)  
-   - [Major Screens](#major-screens)  
-7. [Cross-Cutting Concerns](#cross-cutting-concerns)  
-8. [Local Development Workflow](#local-development-workflow)  
-9. [Deployment Notes](#deployment-notes)  
-10. [Verification Checklist](#verification-checklist)  
-11. [Future Enhancements](#future-enhancements)
-
----
-
-## Project Overview
-
-The Course Platform is a full-stack web application that delivers a LearnHub-branded experience for browsing, enrolling in, and tracking online courses. It features:
-
-- A single landing page with hero stats, course cards, and direct CTAs into the primary course player.
-- Fully authenticated user flows via Google OAuth 2.0, issuing signed JWT access/refresh tokens.
-- Direct course-player routing (no legacy dashboard/cart pages) with guarded enroll behavior for unpublished courses.
-- Responsive, theme-aware UI built with Tailwind CSS, Radix UI primitives, and shadcn-style components.
-- Type-safe configuration, validation, and database access using Zod + Prisma.
-
-The codebase is intentionally structured so another engineer (or an LLM agent) can reconstruct the entire app—including UI/UX, styling, routing, backend APIs, and database schema—from this documentation.
-
----
-
-## Repository Structure
-
-| Path | Description |
-| --- | --- |
-| `frontend/` | Vite + React SPA, Tailwind styling, component library, route pages. |
-| `backend/` | Express API written in TypeScript, Prisma ORM, Google OAuth, cart/session services. |
-| `shared/` | Shared TypeScript utilities and assets consumed by the frontend. |
-| `infrastructure/` | Deployment scripts/placeholders (na). |
-| `scripts/` | Auxiliary automation (currently empty scaffolding). |
-| `.replit`, `replit.nix` | Replit-specific run configuration (optional). |
-| `task_progress.md` | Running changelog of all implemented features. |
-
----
-
-## Technology Stack
-
-| Layer | Technology | Notes |
-| --- | --- | --- |
-| Frontend runtime | React 18 + TypeScript | `frontend/src/main.tsx`, `frontend/src/App.tsx`. |
-| Frontend tooling | Vite 5, vite-plugin-react, Vite Replit plugins | `frontend/vite.config.ts`. |
-| UI foundation | Tailwind CSS 3, shadcn-like components (Radix UI headless primitives) | `frontend/index.css`, `frontend/src/components/ui/*`. |
-| Routing | `wouter` | Lightweight SPA router. |
-| State/Data | React Query (`@tanstack/react-query`), React Hook Form, Zod | Query client defined in `frontend/src/lib/queryClient.ts`. |
-| Animations | Framer Motion, Embla carousel, custom CSS keyframes | Example: `frontend/index.css`. |
-| Icons | Lucide-react, react-icons | See `frontend/package.json`. |
-| Backend runtime | Node.js 20+, Express 4, TypeScript | Entry `backend/src/server.ts`. |
-| Backend tooling | tsx (hot reload), tsc (build), Vitest (tests) | See `backend/package.json`. |
-| Auth | Google OAuth 2.0 (`google-auth-library`), JWT (`jsonwebtoken`), secure cookies | Flow defined in `backend/src/routes/auth.ts`. |
-| ORM & DB | Prisma 6, PostgreSQL | Schema `backend/prisma/schema.prisma`, DB URL via `DATABASE_URL`. |
-| Config validation | dotenv + Zod | `backend/src/config/env.ts`. |
-| Testing | Vitest + Supertest scaffolding (no tests yet). |
-| Hosting | Designed for Replit; portable to Render/Fly/Heroku (Express + Postgres). |
-
----
-
-## Environment & Configuration
-
-### Prerequisites
-- Node.js >= 20
-- pnpm or npm (repo uses npm scripts)
-- PostgreSQL instance with the ability to create UUID columns (uses `gen_random_uuid()`).
-- Google Cloud project with OAuth 2.0 credentials.
-
-### Environment Variables
-
-All backend variables validated in `backend/src/config/env.ts`.
-
-| Variable | Local Example | Purpose / Used By |
-| --- | --- | --- |
-| `NODE_ENV` | `development` | Enables dev defaults. |
-| `PORT` | `4000` | Express listen port (`server.ts`). |
-| `DATABASE_URL` | `postgresql://user:pass@host:5432/db` | Prisma datasource. |
-| `GOOGLE_CLIENT_ID` | (from Google console) | OAuth client. |
-| `GOOGLE_CLIENT_SECRET` | (secret) | OAuth client. |
-| `GOOGLE_REDIRECT_URI` | `http://localhost:4000/auth/google/callback` | OAuth redirect. |
-| `JWT_SECRET` | 32+ char string | Signs access tokens. |
-| `JWT_REFRESH_SECRET` | 32+ char string | Signs refresh tokens. |
-| `JWT_ACCESS_TOKEN_TTL_SECONDS` | `900` | Access token TTL. |
-| `JWT_REFRESH_TOKEN_TTL_DAYS` | `30` | Refresh token TTL. |
-- **CORS**: Configured to allow credentials from every origin listed in  `FRONTEND_APP_URLS`. 
-| `GOOGLE_STATE_COOKIE_NAME` | `cp_oauth_state` | Name for CSRF state cookie. |
-| `GOOGLE_STATE_MAX_AGE_SECONDS` | `600` | Cookie TTL. |
-
-Frontend expects `VITE_API_BASE_URL` pointing to the backend (`http://localhost:4000` in dev) plus any analytics keys if needed.
-
----
-
-## Backend Architecture
-
-### Runtime & Server Bootstrap
-
-- Entry point `backend/src/server.ts` imports `createApp()` and `env`, then calls `app.listen(env.port)`.
-- `backend/src/app.ts` constructs an Express app with CORS configured to allow `env.frontendAppUrls`, JSON parsing, cookie parser, and registers routers:
-  - `GET /` health message (JSON).
-  - `GET /health` additional checks (see `routes/health.ts`).
-  - `authRouter` on `/auth`.
-  - `usersRouter` on `/users`.
-  - `cartRouter` on `/cart`.
-- Global error handler logs and returns a 500 JSON error.
-
-### API Surface
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/` | Inline | Returns `{message: "Course Platform API"}`. |
-| `GET` | `/health` | `healthRouter` | Basic up-check (not shown but simple). |
-| `GET` | `/auth/google` | `authRouter` | Initiates Google OAuth, sets state cookie, redirects to Google. |
-| `GET` | `/auth/google/callback` | `authRouter` | Exchanges code for tokens, creates user/session, redirects to SPA with query params. |
-| `POST` | `/auth/google/exchange` | `authRouter` | Programmatic code exchange; returns session JSON. |
-| `POST` | `/auth/google/id-token` | `authRouter` | Verifies Google ID token for one-tap flows. |
-| `POST` | `/auth/refresh` | `authRouter` | Exchanges refresh token for new session tokens. |
-| `POST` | `/auth/logout` | `authRouter` | Revokes refresh token + session. |
-| `GET` | `/users/me` | `usersRouter` | Requires Bearer access token; returns profile. |
-| `GET` | `/cart` | `cartRouter` | Requires auth; returns array of cart items. |
-| `POST` | `/cart` | `cartRouter` | Adds or updates a course in the cart. |
-| `DELETE` | `/cart/items/:courseSlug` | `cartRouter` | Removes course from cart. |
-| `DELETE` | `/cart` | `cartRouter` | Clears entire cart. |
-
-All authenticated routes use `requireAuth` (`backend/src/middleware/requireAuth.ts`) which verifies Bearer access tokens issued by the session service.
-
-### Authentication Flow
-
-1. SPA triggers `/auth/google?redirect=/post-login-url` (e.g., Dashboard).
-2. Backend sets a signed state cookie (with optional redirect) and redirects to Google.
-3. Google returns to `/auth/google/callback` with `code` + `state`.
-4. Backend validates state, exchanges code for tokens via `exchangeCodeForTokens`.
-5. `findOrCreateUserFromGoogle` ensures the user exists in DB.
-6. `createSession` issues access + refresh tokens; refresh hash stored in `user_sessions`.
-7. Backend redirects the browser to `${FRONTEND_APP_URLS[0]}/auth/callback` (the first configured origin) with tokens in query params.
-8. Frontend handles callback in `frontend/src/pages/AuthCallbackPage.tsx`, persisting `session`, `user`, and `isAuthenticated` in localStorage, then routes to the course player by default.
-
-Refresh tokens are hashed in the database (`sessionService.ts`). Access tokens are short-lived and verified via `verifyAccessToken`.
-
-### Database Schema
-
-Defined in `backend/prisma/schema.prisma`. Key models:
-
-- **User**: `user_id` UUID primary key, unique email & phone, `full_name`, `password_hash` (placeholder for future password auth). Relations to cart, enrollments, progress, sessions.
-- **Course**: Static metadata plus relations to cart lines and topics.
-- **CartItem**: Unique per `(user_id, course_slug)` with title, price, optional metadata JSON.
-- **CartLine**: Future checkout pipeline (course_id referencing `Course`).
-- **Enrollment**: Unique `(user_id, course_id)` entries with status, payment details.
-- **Topic / TopicProgress**: Content structure for lessons and user progress tracking.
-- **UserSession**: Stores hashed refresh tokens, JWT IDs, expiry.
-
-Prisma client is generated via `npx prisma generate`. Queries use the typed client in service files (`sessionService.ts`, `cartService.ts`, `userService.ts`).
-
----
-
-## Frontend Architecture
-
-### Tooling & Bootstrapping
-
-- Vite entry `frontend/src/main.tsx` mounts the SPA using React 18 concurrent root.
-- `frontend/vite.config.ts`:
-  - Adds `@` alias → `frontend/src`.
-  - Adds `@shared` alias → `shared/`.
-  - Registers Replit runtime-error overlay in development.
-  - Cartographer plugin (analytics/telemetry for Replit) loaded conditionally.
-
-### Routing & Navigation
-
-`frontend/src/App.tsx` defines the router with Wouter:
-
-| Route | Component | Purpose |
-| --- | --- | --- |
-| `/` (default) | `LandingPage` | Main public landing view with course cards/CTAs. |
-| `/course/:id/learn/:lesson` | `CoursePlayerPage` | Lesson viewer with progress. |
-| `/course/:id/enroll` | `EnrollmentPage` | Enrollment steps & payment stub. |
-| `/course/:id/assessment` | `AssessmentPage` | Quizzes/assessments. |
-| `/become-a-tutor` | `BecomeTutorPage` | Tutor application intake. |
-| `/auth/callback` | `AuthCallbackPage` | Handles Google OAuth redirect; stores session; navigates to redirect path. |
-| Any other | `NotFound` | 404 page. |
-
-`QueryClientProvider` (Tanstack Query) wraps the router, enabling server state caching and the toast system (`frontend/src/hooks/use-toast.ts` + `<Toaster />`).
-
-### State Management & Data Fetching
-
-- **Local storage**: `isAuthenticated`, `user`, and `session` persisted for login state.
-- **React Query**: ready for server data (currently minimal usage).
-- `frontend/src/lib/api.ts` normalizes the REST base URL (`VITE_API_BASE_URL`) so every network request hits the configured backend domain.
-- **Custom hooks**: `useToast` provides a global toast queue.
-- **Cart state**: 
-  - Cart endpoints remain available for future use; current UI hides cart flows.
-  - Add/remove operations call backend endpoints and update `cart` state.
-  - Cart count badge reads from this state.
-
-### Design System & Styling
-
-- Tailwind CSS base defined in `frontend/src/index.css` with CSS variables for light/dark palettes, gradient tokens, typography, elevations, and animations (e.g., `fadeInUp`, `pulse-glow`).
-- Theme toggling implemented by `ThemeToggle` component (uses `next-themes`).
-- UI components (buttons, dialogs, cards, tabs, toasts, dropdowns) follow shadcn patterns under `frontend/src/components/ui/`.
-- Color tokens include course-category gradients:
-  - AI & ML: `--gradient-ai-ml-from` / `to`
-  - Frontend: `--gradient-frontend-from` / `to`
-  - Python: `--gradient-python-from` / `to`
-  - JavaScript: `--gradient-javascript-from` / `to`
-  - DevOps: `--gradient-devops-from` / `to`
-- Animations, gradient hover effects, and card scaling classes defined in CSS for reusability.
-
-### Major Screens
-
-1. **Dashboard (`frontend/src/pages/DashboardPage.tsx`)**
-   - Displays welcome hero, skill meter, search input with animated placeholder (typing/deleting effect).
-   - Static course seed data with categories, ratings, durations, price; gradient backgrounds via Tailwind.
-   - Supports adding courses to cart (calls backend), continuing courses, showing modals for details.
-   - Includes theme toggle, cart badge, authenticated profile dropdown with avatar and menu (Profile, Settings, Logout).
-   - Handles OAuth login triggers, local storage of login state, and redirect to OAuth endpoint.
-
-2. **Cart (`frontend/src/pages/CartPage.tsx`)**
-   - Renders cart items with metadata, discounts (bundle 20%), order summary, total calculations.
-   - Buttons for checkout, enroll single, remove, clear.
-   - Uses toasts to communicate results.
-
-3. **Auth Callback (`frontend/src/pages/AuthCallbackPage.tsx`)**
-   - Reads query parameters (`accessToken`, `refreshToken`, user info).
-   - Validates presence, persists to storage, sets redirect path or shows error toast.
-   - Shows spinner while processing.
-
-4. **Course Player / Enrollment / Assessment**
-   - Provide skeleton flows for actual course content, supporting future expansions.
-
-5. **Not Found**
-   - Simple fallback with CTA to return to home.
-
-Shared utilities (e.g., `frontend/src/lib/format.ts`) can be added as needed for consistent formatting.
-
----
-
-## Cross-Cutting Concerns
-
-- **CORS**: Configured to allow credentials from every origin listed in `FRONTEND_APP_URLS`.
-- **Cookies**: Only Google OAuth state cookie currently used; un-samesite to allow external redirect.
-- **JWT Handling**: Access token expected in `Authorization: Bearer <token>` header. Refresh token only stored client-side and used via API endpoints.
-- **Error Handling**: Global Express error middleware logs and returns JSON. Frontend toasts surface meaningful messages.
-- **Security**: Refresh token hashes stored with SHA-256; session mismatch detection.
-- **AI Tutor Consistency**: The Neo4j dataset is keyed by course slug (e.g., `ai-in-web-development`). Both the ingestion script and the course player now use that slug so `/assistant/query` always finds the right vector contexts before calling OpenAI.
-- **Analytics**: Not yet integrated (space left for future Replit cartographer data).
-
----
-
-## Local Development Workflow
-
-```bash
-# 1. Install dependencies
-npm --prefix backend install
-npm --prefix frontend install
-
-# 2. Set environment variables
-cp backend/.env.example backend/.env   # fill in secrets
-cp frontend/.env.example frontend/.env # set VITE_API_BASE_URL=http://localhost:4000
-
-# 3. Generate Prisma client & apply schema
-cd backend
-npx prisma generate
-npx prisma migrate dev --name init
-
-# 4. (Optional) Ingest the course PDF into Neo4j for the AI tutor
-cd backend
-npm run rag:ingest "../Web Dev using AI Course Content.pdf" ai-in-web-development "AI in Web Development"
-
-# 5. Run backend (port 4000 by default)
-   (Optional) To share your local backend over HTTPS, open a new terminal and run  `ssh -R 80:localhost:4000 serveo.net`. Use the printed `https://�serveo.net` URL for `VITE_API_BASE_URL`, `FRONTEND_APP_URLS`, and `GOOGLE_REDIRECT_URI`. 
-npm run dev
-
-# 6. In a second terminal, run frontend (port 5173)
-cd ../frontend
-npm run dev
-
-# 7. Open http://localhost:5173, log in via Google, and enter the course player from the landing page.
+1. Project overview
+2. Feature map
+3. Repository structure
+4. Technology stack
+5. Environment and configuration
+6. Frontend architecture
+7. Backend architecture
+8. Data model highlights
+9. End-to-end experience flows
+10. Testing and troubleshooting
+11. Deployment checklist
+
+## 1. Project Overview
+The Course Platform delivers a LearnHub-branded experience for browsing, enrolling in, and completing AI-centric coursework. A single React SPA drives every learner touchpoint (landing page, enrollment funnel, course player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api`, handling OAuth, enrollment writes, module content, quiz scoring, tutor prompts, CMS pages, and tutor applications. The entire system is documented so another engineer—or an external LLM—can rebuild the experience without touching the rest of the repository.
+
+## 2. Feature Map
+- **Single-course marketing funnel** with live curriculum data, responsive hero sections, skills badges, and the MetaLearn enrollment protocol.
+- **Auto-enrollment** – when a learner accepts the protocol, the SPA calls `POST /courses/:slug/enroll` so every cohort is tracked in Postgres.
+- **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
+- **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
+- **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
+- **AI tutor dock** – typed questions plus curated prompt suggestions, RAG on top of Neo4j embeddings, prompt quotas per module, and success/failure logging.
+- **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
+- **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
+
+## 3. Repository Structure (high level)
 ```
+./
+  CP_Arc.md, Course_Platform.md, task_progress.md
+  frontend/        # React + Vite SPA
+  backend/         # Express + Prisma API
+  docs/            # Living documentation bundle
+  infrastructure/  # docker-compose for Postgres + pgAdmin
+  scripts/         # Dev helpers
+  shared/          # Cross-cutting schema/types (placeholder)
+```
+`docs/project-structure.md` provides a deeper tree with notable files for each workspace.
 
-### Directory-specific scripts
+## 4. Technology Stack
+| Concern | Implementation |
+| --- | --- |
+| Frontend runtime | React 18, TypeScript, Vite, Wouter, TanStack Query |
+| UI system | Tailwind CSS, shadcn/ui components, Lucide icons |
+| State/session | Local storage + heartbeat (utils/session.ts), React hook utilities |
+| Backend runtime | Node 20, Express 4, TypeScript, tsx for dev |
+| ORM & DB | Prisma 5, PostgreSQL (Supabase-compatible) |
+| Auth | Google OAuth 2.0, JWT access + refresh tokens, hashed refresh storage |
+| Vector store | Neo4j Aura with native vector index |
+| AI provider | OpenAI (embeddings + chat completions) |
+| Testing | Vitest + Supertest scaffolding (backend) |
 
-| Location | Command | Description |
+## 5. Environment and Configuration
+Key environment variables (see backend/.env.example and frontend/.env.example):
+- `PORT` – Express listen port (default 4000).
+- `FRONTEND_APP_URLS` – comma separated list of allowed origins (used by CORS and OAuth redirect validation).
+- `DATABASE_URL` – Postgres connection string.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` – OAuth credentials.
+- `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TOKEN_TTL_SECONDS`, `JWT_REFRESH_TOKEN_TTL_DAYS` – token signing + expiry.
+- `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEO4J_URL`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` – tutor pipeline.
+- Frontend `.env` only needs `VITE_API_BASE_URL` (default http://localhost:4000) plus any analytics keys.
+
+## 6. Frontend Architecture
+### Routing
+| Path | Component | Notes |
 | --- | --- | --- |
-| `backend` | `npm run dev` | Hot-reload server via `tsx`. |
-|  | `npm run build` | Compile to `dist/` using `tsc`. |
-|  | `npm run start` | Run compiled server. |
-|  | `npm run test` | Placeholder (Vitest). |
-| `frontend` | `npm run dev` | Vite dev server. |
-|  | `npm run build` | Production build to `dist/`. |
-|  | `npm run preview` | Preview production output. |
+| `/` | LandingPage | Marketing hero, stats, CTA buttons tied to enrollment or direct player entry |
+| `/course/:id` | CourseDetailsPage | Curriculum, MetaLearn modal, auto enrollment and questionnaire hand-off |
+| `/course/:id/learn/:lesson` | CoursePlayerPage | Core learning space with sidebar, lesson tabs, tutor, quiz tab |
+| `/course/:id/path` | Study style questionnaire page (mounted inside CoursePlayerPage) |
+| `/course/:id/certificate` | CourseCertificatePage | Certificate preview and payment CTA |
+| `/course/:id/enroll`, `/course/:id/assessment` | Enrollment and assessment placeholders (kept for future steps) |
+| `/auth/callback` | AuthCallbackPage | Stores OAuth tokens and redirects |
+| `/become-a-tutor` | BecomeTutorPage | Tutor application form |
+| `*` | NotFound | Generic 404 |
 
----
+### State management patterns
+- **Session heartbeat** – components subscribe via `subscribeToSession`; if the refresh request fails, the subscription callback clears state.
+- **API helpers** – `api.ts` builds URLs and attaches Authorization headers. `queryClient.ts` wraps fetch and ensures headers merge correctly.
+- **Toasts and modals** – `use-toast.ts` (shadcn pattern) ties into global `<Toaster />`.
+- **Sidebar state** – `CourseSidebar` memoises module expansion, search filtering, and completion toggles.
 
-## Deployment Notes
+### Course player highlights
+- Hydrates introduction + numbered modules from `/lessons/courses/:slug/topics`.
+- Stores persona selections via `/lessons/courses/:slug/personalization`; questionnaire uses three prompts defined in CoursePlayerPage.tsx.
+- Guides use persona-specific fields; fallback to `textContent` when persona copy is missing.
+- Video/PPT players are hardened (no share buttons, no context menu, referrer locked down).
+- Quiz tab interacts with `/quiz/sections`, `/quiz/progress`, `POST /quiz/attempts`, and submission endpoints.
+- Tutor dock sends typed prompts as `{ courseId: slug, moduleNo, question }` or calls curated prompt suggestions retrieved from `/lessons/courses/:slug/prompts`.
 
-1. **Backend**
-   - Deploy to any Node-compatible host (Render, Railway, Fly.io).
-   - Ensure `PORT` environment variable is consumed (Express already reads `env.port`).
-   - Provide `DATABASE_URL`, Google secrets, JWT secrets.
-   - Run `npx prisma migrate deploy` before start.
+### Course details page
+- Fetches `/courses/:slug` for metadata plus `/lessons/courses/:slug/topics` to render modules timeline.
+- Promo pricing (free cohort or INR fallback) determined locally based on slug.
+- After enrollment, checks personalization preference: if `hasPreference` is false the learner is routed through `/course/:slug/path` before landing inside `/learn`.
 
-2. **Frontend**
-   - Build with `npm run build`; deploy `frontend/dist` to static hosting (Vercel, Netlify).
-   - Set `VITE_API_BASE_URL` (and any additional config) via host-specific env.
-   - OAuth redirect URI must point to backend domain (`https://api.example.com/auth/google/callback`) and SPA callback (`https://app.example.com/auth/callback`).
+### Certificate page
+- Reads `courseCertificateName`/`courseCertificateTitle` from local storage or session info.
+- Placeholder Razorpay integration illustrates how the paid unlock would be wired.
 
-3. **Replit Option**
-   - Not recommended for both layers simultaneously unless customizing `.replit` run command and env mapping.
-   - If used, front backend via external domain and set environment secrets accordingly.
+## 7. Backend Architecture
+### Server bootstrap
+- `src/server.ts` loads validated env config and starts the Express app.
+- `src/app.ts` wires body parsing, cookie parsing, CORS, routers (mounted twice), and the error handler.
 
----
+### Router matrix
+| Router | Responsibilities |
+| --- | --- |
+| authRouter | Google OAuth redirect/callback, ID token verification, token refresh, logout |
+| coursesRouter | Course catalog fetch, slug/UUID/name resolution, idempotent enroll writes |
+| lessonsRouter | Course topics, module-scoped topics, topic progress CRUD, study persona CRUD, curated prompt suggestions |
+| quizRouter | Quiz question fetch, sections/progress summary, attempt creation, submission grading, module progress updates |
+| assistantRouter | Authenticated tutor endpoint (typed prompt quotas, follow-up suggestions, RAG pipeline) |
+| cartRouter | Authenticated cart CRUD backed by cart_items |
+| pagesRouter | CMS page retrieval |
+| tutorApplicationsRouter | Tutor lead intake |
+| usersRouter | `/users/me` profile lookup |
+| healthRouter | `/health` liveness (includes DB connectivity check) |
 
-## Verification Checklist
+### Key services
+- `sessionService.ts` – validates/creates JWTs, hashes refresh tokens in `user_sessions`, rotates them on refresh.
+- `googleOAuth.ts` – wraps google-auth-library for code exchange and profile fetch.
+- `enrollmentService.ts` – upserts enrollments on behalf of coursesRouter.
+- `promptUsageService.ts` – enforces per-module typed prompt quotas (default 5).
+- `rag/*` – driver + openAI helpers, text chunker, rate limiter, usage logger (used by assistant router and ingestion scripts).
 
-1. **Backend startup**  
-   - `npm run dev` logs `API ready on http://localhost:4000` and database host.
-2. **Prisma connectivity**  
-   - `npx prisma studio` lists tables (`users`, `cart_items`, etc.).
-3. **Frontend dev server**  
-   - `npm run dev` (frontend) outputs `Local: http://localhost:5173/`.
-4. **Login flow**  
-   - Visiting `/` and clicking Log In triggers Google login; after completing, toast indicates success and the app routes directly to the course player.
-5. **Course entry**  
-   - “Enroll” on the published course deep-links to the course player; other catalog cards show “Coming soon.”
-6. **Protected route**  
-   - `GET http://localhost:4000/users/me` with Bearer token returns JSON profile.
-7. **Logout**  
-   - Logout clears local storage and redirects to `/`.
-8. **AI tutor**  
-   - Ask a question from the course PDF in the player chat. The response should include course-specific guidance; unrelated questions should politely state that the material is unavailable.
+## 8. Data Model Highlights
+- **users** – OAuth-sourced learners; passwords are placeholder hashes (Google-only login right now).
+- **user_sessions** – hashed refresh tokens with expiry timestamps.
+- **courses** – slug, title, description, price, metadata for CourseDetails.
+- **topics** – moduleNo/topicNumber ordering, persona text fields, ppt/video URLs, optional simulation JSON.
+- **topic_progress** – per learner/topic completion + lastPosition (percentage proxy for now).
+- **topic_personalization** – learner/course persona preference.
+- **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
+- **module_prompt_usage** – per learner/course/module typed prompt counters.
+- **quiz_questions / quiz_options / quiz_attempts / module_progress** – module gating infrastructure.
+- **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
+- See docs/databaseSchema.md for detailed diagrams and relationships.
 
----
+## 9. End-to-End Experience Flows
+### 9.1 Login
+1. Frontend hits `/auth/google` (optionally with a `redirect` param) -> backend issues state cookie and redirects to Google.
+2. `/auth/google/callback` exchanges the code, persists/updates the user, issues JWTs, stores hashed refresh token, and redirects to `/auth/callback`.
+3. Auth callback persists the session, surfaces a toast, and navigates based on redirect param (defaults to featured course).
 
-## Future Enhancements
+### 9.2 Enrollment + persona capture
+1. CourseDetails fetches curriculum using the same API as the player to avoid drift.
+2. Accepting the protocol ensures the session is fresh, calls the enroll endpoint, and closes the modal.
+3. If `/lessons/courses/:slug/personalization` reports `hasPreference = false`, CourseDetails routes the learner to `/course/:slug/path` so the questionnaire runs before the player loads.
+4. Learners who once picked a persona can always toggle back to it even after logging out; the server stores the persona in `topic_personalization` while the client caches a `personaHistoryKey` for faster UI toggles.
 
-- Integrate actual checkout/payment API and enrollments (currently placeholders).
-- Add automated tests (Vitest + Supertest backend, React Testing Library frontend).
-- Implement real-time progress sync for course player.
-- Configure CI/CD for automatic deployment (GitHub Actions).
-- Optional: Replace static course data with backend-managed catalog.
+### 9.3 Lesson playback
+1. CoursePlayerPage fetches topics, groups them per module, picks the entry lesson (introduction > module order), and renders `CourseSidebar`.
+2. When the active lesson changes, the page calls `GET /lessons/:lessonId/progress` to hydrate the latest state.
+3. Completing a lesson triggers `PUT /lessons/:lessonId/progress` with `{ progress, status }` and updates counts shown in the sidebar header.
 
----
+### 9.4 Quiz progression
+1. Quiz tab loads `/quiz/sections/:slug` to determine which module/topic pair is currently unlocked, locked by cooldown, or pending another quiz.
+2. Starting a quiz uses `POST /quiz/attempts`; the backend stores a frozen question set and returns it without answer metadata.
+3. Submissions grade server-side, write back to `quiz_attempts`, and if the last topic pair of a module passes, `module_progress` is updated so the next module unlocks (unless cooldowns are still active).
 
-This documentation intentionally captures every pertinent detail—architecture, configuration, routes, styling tokens, and workflows—so another engineer or AI assistant can recreate an identical Course Platform instance from scratch.
+### 9.5 Tutor prompts
+1. Chat dock fetches curated prompt suggestions via `/lessons/courses/:slug/prompts` (optionally per topic ID).
+2. Typed prompts call `/assistant/query` with `{ courseId, moduleNo, question }`; the backend verifies the prompt quota for that module, embeds the question, retrieves contexts from Neo4j, calls OpenAI, and returns the answer.
+3. Suggestions with canned answers skip OpenAI entirely, returning the pre-authored content along with follow-up suggestions.
+4. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
 
+### 9.6 Certificate preview
+1. After all modules pass, the player exposes a certificate CTA that links to `/course/:slug/certificate`.
+2. The certificate page reads the stored learner name and course title, renders a blurred preview, and provides the Razorpay placeholder for the paid unlock.
 
+## 10. Testing and Troubleshooting
+- **Backend**: `npm run test` (Vitest) for unit/integration tests. Add Supertest suites for routers touching personalization and quiz grading.
+- **Frontend**: run `npm run lint` (if configured) and eventually add Vitest/RTL suites for CoursePlayerPage, CourseSidebar, and persona dialog.
+- **Common issues**:
+  - Quiz POST returning 400 -> ensure `Content-Type: application/json` is present (fixed in queryClient). If reproducing, confirm `api.ts` is not bypassed.
+  - Tutor returning 429 -> learner likely exhausted typed prompt quota for that module.
+  - Persona dialog not loading -> verify `/lessons/courses/:slug/personalization` returns 200 (requires auth) and that `topic_personalization` row exists.
+  - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with Neo4j + OpenAI credentials.
 
+## 11. Deployment Checklist
+1. **Secrets** – set all backend env vars + frontend `VITE_API_BASE_URL`.
+2. **Database** – apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
+3. **Neo4j** – ensure Aura instance is reachable from the API host; run the ingestion script at least once per course slug.
+4. **Google OAuth** – add the production backend callback plus SPA callback to the OAuth client.
+5. **Builds** – `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
+6. **Hosting** – deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.
+7. **Smoke tests** – login via Google, enroll, run the persona questionnaire, play a lesson with persona copy, pass a quiz, ask the tutor, and visit the certificate page.
 
----
-
-## Quiz Infrastructure & Recent Fix
-
-- **Source tables:** `quiz_questions` defines prompts scoped by course/module/topic pair and `quiz_options` supplies their answers. Attempt metadata lives in `quiz_attempts` and long-term unlock flags live in `module_progress`.
-- **Runtime flow:** `backend/src/routes/quiz.ts` fetches the aggregated quiz section list, serves randomised question sets per topic pair, and grades submissions. Frontend `CoursePlayerPage.tsx` hits `/api/quiz/sections/:courseKey`, `/api/quiz/progress/:courseKey`, `POST /api/quiz/attempts`, and the submission endpoint whenever a learner enters the Quiz tab.
-- **Bug resolved on 2025-11-25:** The shared `apiRequest` helper used by quiz mutations accidentally overwrote `Content-Type: application/json` whenever callers supplied `Authorization` headers. Express therefore saw an empty body, Zod emitted `courseId required / moduleNo NaN`, and every attempt row defaulted to the anonymous user id. The helper now merges headers before issuing `fetch`, so the backend receives both headers, can parse the payload, and stores attempts under the active learner while unlocking subsequent modules once both topic-pair quizzes are passed.
-
-### Quiz unlock flow
-
-1. Quiz tab loads `sections` + `progress` with the bearer token to know which cards to unlock.
-2. Starting an attempt POSTs `{ courseId, moduleNo, topicPairIndex }` to `/api/quiz/attempts`; Prisma freezes that question set inside `quiz_attempts`.
-3. Submitting answers updates the same attempt row, recomputes `module_progress`, and returns the refreshed module summary so the course sidebar immediately unlocks the next module when both topic pairs pass.
-4. Because requests now keep `Content-Type`, every attempt row records the true `user_id` instead of the previous `00000000-...` placeholder.
+This documentation, together with CP_Arc.md and docs/project-walkthrough.md, gives an external reader full insight into how the Course Platform behaves end to end without opening the rest of the repository.

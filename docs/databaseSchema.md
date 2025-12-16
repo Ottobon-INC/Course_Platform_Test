@@ -1,199 +1,173 @@
+﻿# Database Schema – Course Platform
 
-# Database Schema - Learning Platform
+> Source of truth: `backend/prisma/schema.prisma` (Prisma 5, PostgreSQL provider). All columns in the physical database remain snake_case; Prisma maps them to camelCase fields for TypeScript ergonomics.
 
-This document provides a comprehensive UML class diagram for the learning platform with enhanced lesson content management and progress tracking.
+## 1. Entity Overview
+| Group | Tables | Highlights |
+| --- | --- | --- |
+| Accounts & sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | Google OAuth identities, hashed refresh tokens, tutor staffing |
+| Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, persona text, simulations, CMS pages |
+| Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
+| Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
+| Commerce & enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment rows created automatically, cart storage retained for future upgrades |
 
-## UML Class Diagram
-
-```mermaid
+## 2. Mermaid Diagram
+```
 classDiagram
     class User {
-        +String id (PK)
-        +String username (UNIQUE)
-        +String email (UNIQUE)
-        +String password
+        +UUID userId
+        +String email
         +String fullName
-        +String phone
-        +Timestamp createdAt
-        +Timestamp updatedAt
+        +Role role (learner|tutor|admin)
     }
-
+    class UserSession {
+        +UUID jwtId
+        +UUID userId
+        +String refreshToken (hashed)
+        +DateTime expiresAt
+    }
     class Course {
-        +String id (PK)
-        +String slug (UNIQUE)
-        +String title
-        +String description
-        +String instructor
-        +String duration
-        +Integer price
-        +String heroImage
-        +Boolean isPublished
-        +Timestamp createdAt
-        +Timestamp updatedAt
+        +UUID courseId
+        +String slug
+        +String courseName
+        +Int priceCents
+        +String category/level
     }
-
-    class Section {
-        +String id (PK)
-        +String courseId (FK)
-        +String title
-        +Integer orderIndex
-        +Timestamp createdAt
-        +Timestamp updatedAt
+    class Topic {
+        +UUID topicId
+        +UUID courseId
+        +Int moduleNo
+        +Int topicNumber
+        +String topicName
+        +String textContent(+persona variants)
     }
-
-    class Lesson {
-        +String id (PK)
-        +String sectionId (FK)
-        +String slug (UNIQUE)
-        +String title
-        +String description
-        +String type (video/reading/quiz)
-        +String duration
-        +String videoUrl
-        +JSON transcript
-        +Text notes (Guide content)
-        +JSON resources
-        +Integer orderIndex
-        +Boolean isPreview
-        +Timestamp createdAt
-        +Timestamp updatedAt
+    class TopicProgress {
+        +UUID topicId
+        +UUID userId
+        +Bool isCompleted
+        +Int lastPosition (percentage proxy)
     }
-
-    class LessonQuiz {
-        +String id (PK)
-        +String lessonId (FK)
-        +Text question
-        +JSON options
-        +Text explanation
-        +Integer orderIndex
-        +Timestamp createdAt
-        +Timestamp updatedAt
+    class TopicPersonalization {
+        +UUID userId
+        +UUID courseId
+        +StudyPersona persona
     }
-
+    class TopicPromptSuggestion {
+        +UUID suggestionId
+        +UUID? courseId
+        +UUID? topicId
+        +UUID? parentSuggestionId
+        +String promptText
+        +String? answer
+    }
+    class ModulePromptUsage {
+        +UUID userId
+        +UUID courseId
+        +Int moduleNo
+        +Int typedCount
+    }
+    class QuizQuestion {
+        +UUID questionId
+        +UUID courseId
+        +Int moduleNo
+        +Int topicPairIndex
+    }
+    class QuizOption {
+        +UUID optionId
+        +UUID questionId
+        +String optionText
+        +Bool isCorrect
+    }
+    class QuizAttempt {
+        +UUID attemptId
+        +UUID userId
+        +UUID courseId
+        +Int moduleNo
+        +Int topicPairIndex
+        +Json questionSet
+        +Json answers
+    }
+    class ModuleProgress {
+        +UUID userId
+        +UUID courseId
+        +Int moduleNo
+        +Bool quizPassed
+        +Timestamp unlocked_at
+        +Timestamp? cooldown_until
+    }
     class Enrollment {
-        +String id (PK)
-        +String userId (FK)
-        +String courseId (FK)
-        +String status (active/completed/paused)
-        +Integer progress (percentage)
-        +Timestamp enrolledAt
-        +Timestamp completedAt
-        +Timestamp lastAccessedAt
-        +Timestamp createdAt
-        +Timestamp updatedAt
+        +UUID userId
+        +UUID courseId
+        +String status
+    }
+    class CartItem {
+        +UUID userId
+        +String courseSlug
+        +Json? courseData
     }
 
-    class LessonProgress {
-        +String id (PK)
-        +String userId (FK)
-        +String lessonId (FK)
-        +String status (not_started/in_progress/completed)
-        +Integer progress (percentage)
-        +Integer timeSpent (seconds)
-        +Integer lastPosition (video position in seconds)
-        +Timestamp completedAt
-        +Timestamp createdAt
-        +Timestamp updatedAt
-    }
-
-    class AssessmentQuestion {
-        +String id (PK)
-        +String courseId (FK)
-        +Text question
-        +JSON options
-        +Text explanation
-        +Integer orderIndex
-        +Timestamp createdAt
-        +Timestamp updatedAt
-    }
-
-    %% Relationships
-    Course ||--o{ Section : "has many"
-    Section ||--o{ Lesson : "has many"
-    Lesson ||--o{ LessonQuiz : "has many"
-
-    User ||--o{ Enrollment : "has many"
-    Course ||--o{ Enrollment : "enrolled by many"
-    Course ||--o{ AssessmentQuestion : "has many"
-
-    User ||--o{ LessonProgress : "tracks many"
-    Lesson ||--o{ LessonProgress : "tracked by many"
+    User "1" -- "*" UserSession
+    User "1" -- "*" TopicProgress
+    User "1" -- "*" TopicPersonalization
+    User "1" -- "*" ModulePromptUsage
+    User "1" -- "*" QuizAttempt
+    User "1" -- "*" ModuleProgress
+    User "1" -- "*" Enrollment
+    User "1" -- "*" CartItem
+    Course "1" -- "*" Topic
+    Course "1" -- "*" TopicPromptSuggestion
+    Course "1" -- "*" ModulePromptUsage
+    Course "1" -- "*" QuizQuestion
+    Course "1" -- "*" ModuleProgress
+    Course "1" -- "*" Enrollment
+    Topic "1" -- "*" TopicProgress
+    Topic "1" -- "*" TopicPromptSuggestion
+    QuizQuestion "1" -- "*" QuizOption
 ```
 
-## Enhanced Features Overview
+## 3. Table Notes
+### users
+- Primary key `userId` (UUID generated via `gen_random_uuid()`).
+- `passwordHash` is required even for Google logins; OAuth signups receive a generated hash.
+- Relations: `cartItems`, `cartLines`, `enrollments`, `topicProgress`, `personalizations`, `promptUsage`, `sessions`, optional `tutorProfile`.
 
-### 1. User Management
-- Authentication and profile management
-- Progress tracking across multiple courses
-- Enrollment status management
+### user_sessions
+- Stores hashed refresh tokens (`refresh_token` column) plus the JWT ID.
+- Composite index on `user_id` for quick cleanup; tokens expire through the `expires_at` timestamp.
 
-### 2. Course Structure
-- **Hierarchical Content**: Course → Section → Lesson
-- **Flexible Lesson Types**: Video, reading, quiz support
-- **Preview System**: Free preview lessons for marketing
-- **Resource Management**: Attached files and links per lesson
-- **Canonical Slug**: `Course.slug` doubles as the identifier used by the Neo4j RAG pipeline, so ingestion and frontend queries must reference the same slug (e.g., `ai-in-web-development`).
+### courses & topics
+- Courses include marketing metadata used by CourseDetails (category, level, hero imagery, rating, students).
+- Topics carry persona-aware guide content (`text_content_sports`, `text_content_cooking`, `text_content_adventure`), ppt/video URLs, optional simulation JSON, and unique `(courseId, moduleNo, topicNumber)` constraints.
 
-### 3. Enhanced Lesson Content
-- **Synchronized Navigation**: Active lesson tracking in sidebar
-- **Guide Content**: Rich text notes that sync with video lessons
-- **Video Integration**: Embedded video player with progress tracking
-- **Transcript Support**: Searchable lesson transcripts
-- **Resource Attachments**: Downloadable materials per lesson
+### topic_personalization
+- Unique per `(userId, courseId)`.
+- `StudyPersona` enum: `normal`, `sports`, `cooking`, `adventure`.
+- Used by `/lessons/courses/:slug/personalization`.
 
-### 4. Progress Tracking System
-- **Granular Progress**: Individual lesson completion tracking
-- **Video Position**: Resume from last watched position
-- **Time Tracking**: Detailed time spent per lesson
-- **Status Management**: Not started, in progress, completed states
-- **Course Progress**: Overall completion percentage
+### topic_prompt_suggestions
+- Tree structure using `parentSuggestionId` for follow-up prompts.
+- Suggestions can be course-wide (no topicId) or topic-specific.
+- `isActive` flag allows soft-deleting prompts without re-ingesting content.
 
-### 5. Assessment System
-- **Lesson Quizzes**: Interactive quizzes within lessons
-- **Course Assessments**: Final evaluations per course
-- **Progress Validation**: Completion requirements
+### module_prompt_usage
+- Composite unique index `(userId, courseId, moduleNo)`.
+- `typedCount` increments whenever a typed prompt finishes successfully; used to enforce the per-module quota in `assistantRouter`.
 
-### 6. Navigation & UI Features
-- **Active Lesson Highlighting**: Current lesson marked in sidebar
-- **Sequential Navigation**: Previous/Next lesson buttons
-- **View Mode Toggle**: Switch between video and guide content
-- **Mobile Responsive**: Collapsible sidebar for mobile devices
-- **Search Functionality**: Find lessons across sections
+### quiz tables
+- `quiz_questions` contain module number + topic pair index so sections can be grouped dynamically.
+- `quiz_options` mark `is_correct` per option; serialization excludes the boolean to keep answers hidden from the client.
+- `quiz_attempts` store the frozen question set plus submitted answers, score, and status (`passed`/`failed`).
+- `module_progress` records `unlocked_at`, `cooldown_until`, `quiz_passed`, and timestamps for gating logic.
 
-## Key Database Relationships
+### enrollments & cart_items
+- `ensureEnrollment` upserts status `active` rows so re-enrolling never duplicates data.
+- Cart storage is retained for future commerce flows even though the current funnel offers a free cohort.
 
-### Content Hierarchy
-- **Course** contains multiple **Sections**
-- **Section** contains ordered **Lessons**
-- **Lesson** can have **LessonQuizzes** for interactive content
+### CMS and tutor applications
+- `page_content` holds serialized sections for marketing pages (hero blocks, FAQs, etc.).
+- `tutor_applications` capture inbound tutor leads for internal review (name, headline, proposed course, availability).
 
-### User Interactions
-- **User** enrolls in **Courses** through **Enrollment** table
-- **User** progress tracked per **Lesson** via **LessonProgress**
-- **Enrollment** tracks overall course completion status
-
-### Content Synchronization
-- **Lesson.notes** field stores guide content that displays alongside videos
-- **LessonProgress.lastPosition** enables video resume functionality
-- **Lesson.orderIndex** and **Section.orderIndex** maintain content sequence
-- **LessonProgress.status** updates sidebar highlighting in real-time
-
-## Current Implementation Features
-
-1. **Real-time Progress Updates**: Video progress automatically saved every 10% milestone
-2. **Sidebar Synchronization**: Active lesson highlighted as user navigates
-3. **Content Switching**: Seamless toggle between video and guide views
-4. **Mobile Optimization**: Responsive design with collapsible navigation
-5. **Resume Functionality**: Users can continue from their last position
-6. **Completion Tracking**: Lessons marked complete when 90% watched or manually completed
-
-This schema supports the current course player functionality where lesson navigation, video playback, and guide content are synchronized to provide a cohesive learning experience.
-
-## Quiz Tables Snapshot (Live Prisma Schema)
-
-- **`quiz_questions`** – Stores canonical prompts and metadata fields `course_id (uuid)`, `module_no (smallint)`, `topic_pair_index (smallint)`, and `order_index`. Each row represents a single quiz question tied to a topic pair.
-- **`quiz_options`** – Child table keyed by `option_id (uuid)` with `question_id` foreign key, `option_text`, and `is_correct` boolean. Every question has multiple options with exactly one correct flag.
-- **`quiz_attempts`** – Runtime storage for each learner attempt. Columns include `attempt_id`, `user_id`, `course_id`, `module_no`, `topic_pair_index`, frozen `question_set` JSONB, learner `answers` JSONB, numeric `score`, textual `status` (passed/failed), plus `completed_at`/`updated_at` timestamps.
-- **`module_progress`** – Aggregated per-user progress keyed by `(user_id, course_id, module_no)` with `quiz_passed`, `unlocked_at`, and optional `completed_at`. Updated whenever quizzes start or finish to control module unlocks in the course player.
-
-Because the frontend now sends properly typed JSON payloads (the `apiRequest` header fix), each `quiz_attempts.user_id` reflects the authenticated learner instead of the anonymous `00000000-0000-...` placeholder, ensuring unlock logic (`module_progress`) tracks the correct person.
+## 4. Schema Tips
+- Run `npx prisma format` after editing `schema.prisma` to keep naming consistent.
+- The repo prefers Prisma migrations over manual SQL. Use `npx prisma migrate dev --name <change>` locally, then commit the generated files under `backend/prisma/migrations/`.
+- When ingesting new course PDFs, re-run `npm run rag:ingest` so Neo4j stays in sync with the slugs stored in `courses.slug`.

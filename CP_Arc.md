@@ -1,217 +1,173 @@
-# Course Platform Architecture Overview
+﻿# Course Platform Architecture Overview
 
-This document summarizes how the Course Platform Test application is put together across the UI, backend services, and data stores so backend developers can reason about every layer end to end.
+This document is the architectural deep dive for the Course Platform application. It explains how the React SPA, Express API, relational storage, and AI tutor systems interact so another engineer or an external LLM can reason about every layer end to end.
 
-## 1. High-Level Runtime Topology
+## 1. Runtime Topology
 
-| Layer | Technology | Endpoints/Ports | Purpose |
+| Layer | Technology | Endpoint(s) | Responsibilities |
 | --- | --- | --- | --- |
-| Presentation (Client) | React 18 + Vite + Wouter + TanStack Query | http://localhost:5173 | Public landing page, course player, enrollment, chatbot UI |
-| Application/API | Node 20 + Express + TypeScript | http://localhost:4000 (`/` + `/api` mirror) | Auth, course data, lessons/progress, cart, static pages, RAG assistant |
-| Data | PostgreSQL (managed through Supabase or local Docker) + Prisma ORM | `DATABASE_URL` | Courses, topics, enrollments, carts, tutor apps, CMS pages |
-| Knowledge Store | Neo4j Aura (vector index) | `neo4j+s://...` | Stores embedded course chunks for retrieval-augmented answers |
-| ML Provider | OpenAI APIs | HTTPS | Embeddings + LLM completions for the mentor |
+| Presentation | React 18 + Vite + Wouter + TanStack Query + shadcn/ui | http://localhost:5173 | Landing site, enrollment funnel, study persona workflow, course player, quizzes, tutor chat, certificate preview |
+| Application/API | Node 20, Express, TypeScript | http://localhost:4000 (mounted at / and /api) | OAuth, enrollment writes, lesson data, progress tracking, tutor prompts, quiz orchestration, CMS content, tutor applications |
+| Data | PostgreSQL via Prisma | DATABASE_URL | Users, sessions, courses, topics, personalisation, quizzes, module progress, CMS pages |
+| Knowledge Store | Neo4j Aura vector index | NEO4J_URL | Stores embedded course chunks plus prompt suggestions for the AI tutor |
+| ML Provider | OpenAI APIs | HTTPS | Embedding generation and chat completions for the mentor and tutor copilot |
 
 ```
-Browser ──(HTTPS fetch via Vite dev proxy)──► Frontend (5173)
-  │                             │
-  │ REST/JSON over fetch        │ CORS-allowed origins
-  ▼                             ▼
-Express API (4000) ── Prisma ──► PostgreSQL (Supabase)
-         │            │
-         │            └─ topic/course/cart data
-         │
-         ├─> Neo4j (vector index) ──> stored embeddings
-         └─> OpenAI (embeddings + chat)
+Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API (4000)
+   ^                                                                  |
+   |                                                                  +--> Prisma -> PostgreSQL
+   |                                                                  +--> Neo4j driver -> vector index
+   |                                                                  +--> OpenAI client
 ```
 
-## 2. Client Layer (UI)
+## 2. Client Layer (React SPA)
 
-- **Framework stack:** Vite + React 18, Wouter for routing, TanStack Query for data fetching/caching, shadcn/ui for components, Lucide icons, Tailwind utility classes.
-- **Entry point:** `frontend/src/App.tsx` wires `QueryClientProvider`, tooltip/toast providers, and routes.
-- **Key pages:**
-  - `/` (landing), `/course/:id/learn/:lesson`, `/course/:id/enroll`, `/course/:id/assessment`, `/become-a-tutor`, `/auth/callback`.
-- **State & session:**
-  - Auth tokens from Google OAuth callback are persisted in `localStorage` (helpers in `utils/session.ts`).
-  - Derived session state is consumed by components like `ChatBot` and `CoursePlayerPage` to decide whether to call protected APIs.
-- **Data fetching pattern:**
-  - `lib/queryClient.ts` builds a shared `QueryClient` with a fetch-based `queryFn`. All routes use the `/api/...` prefix so the same Express handlers can be mounted directly or through `/api`.
-  - Queries example: `/api/lessons/courses/:courseId/topics`, `/api/lessons/:lessonId/progress`, `/api/courses/:courseId`, `/api/cart`, `/assistant/query`.
-- **UI modules involved in learning experience:**
-  - `CoursePlayerPage.tsx` orchestrates topic fetching, grouping them by module, deriving lesson metadata, handling progress, and integrating `CourseSidebar`, `LessonTabs`, and `ChatBot`.
-  - `CourseSidebar.tsx` renders module/lesson hierarchy with progress display and search.
-  - `ChatBot.tsx` manages AI assistant interactions, enforcing auth and course context.
+### Stack and global wiring
+- App.tsx mounts QueryClientProvider, toast/tooltip providers, and the Wouter router.
+- Session helpers in frontend/utils/session.ts persist tokens, refresh them proactively, and notify listeners when a session expires.
+- frontend/lib/queryClient.ts centralises API calls with automatic header merging, fixing the historic quiz bug where caller headers overwrote Content-Type.
+
+### Critical screens
+- LandingPage – the single marketing surface with CTAs that jump straight into the featured course.
+- CourseDetailsPage – displays live module/topic metadata, enforces the 'MetaLearn Protocol' modal, auto-enrolls the learner via POST /courses/:slug/enroll, and then either routes directly to the player or (if personalization is missing) through /course/:slug/path for the questionnaire.
+- EnrollmentPage and AssessmentPage – host the purchase funnel and the quiz tab visuals.
+- CoursePlayerPage – hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, and embeds the tutor dock.
+- CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
+- ChatBot – enforces auth, exposes curated prompt suggestions, and surfaces the tutor responses.
+- CourseCertificatePage – gated post-completion view reminding learners that payment unlocks a clean certificate.
+
+### Study persona UX
+- Personas: normal, sports, cooking, adventure.
+- Learners who first chose Standard narration can launch the questionnaire mid-course; the questionnaire matches the enrollment UI and stores the preference via topic_personalization plus a local personaHistoryKey.
+- Returning learners who once picked a persona always see both Standard plus their saved persona. Switching back to Standard never discards the stored persona, so a logout/login cycle still exposes both options.
+- Lesson guides read persona-specific fields such as textContentSports, so toggling narration swaps copy instantly.
 
 ## 3. Application Layer (Express API)
 
-- **Server bootstrap:** `backend/src/app.ts` sets up Express, JSON parsing, cookie parsing, strict CORS based on `FRONTEND_APP_URLS`, and mounts routers twice (base path and `/api`).
-- **Authentication:**
-  - Google OAuth entry (`GET /auth/google`) and callback (`/auth/google/callback`) exchange codes via `services/googleOAuth`, then create sessions with signed JWT access/refresh tokens.
-  - `sessionService.ts` stores hashed refresh tokens + metadata in `user_sessions` (Prisma) and exposes `createSession`, `renewSessionTokens`, `deleteSessionByRefreshToken`, and `verifyAccessToken` (enforced by `middleware/requireAuth`).
-  - `/auth/google/exchange`, `/auth/google/id-token`, `/auth/refresh`, `/auth/logout` provide REST alternatives.
-- **Core routers:**
+### Bootstrap and middleware
+- backend/src/app.ts configures JSON + URL encoded parsing, cookie parsing, CORS restricted by FRONTEND_APP_URLS, and mounts each router under both / and /api.
+- middleware/requireAuth.ts validates JWTs and injects the user context for protected routes.
+- utils/asyncHandler.ts keeps each router lean while surfacing structured error responses.
 
-| Router | Key endpoints | Notes |
+### Router catalog
+| Router | Key endpoints | Highlights |
 | --- | --- | --- |
-| `healthRouter` | `GET /health` | Liveness check. |
-| `usersRouter` | (not detailed above) | Handles profile/session utilities when extended. |
-| `coursesRouter` | `GET /courses`, `GET /courses/:courseKey` | Resolves by UUID, slug, or human-friendly name; maps responses for frontend. |
-| `lessonsRouter` | `GET /lessons/courses/:courseKey/topics`, `GET/PUT /lessons/:lessonId/progress`, legacy `GET /lessons/modules/:moduleNo/topics` | Course topics served in module order; progress currently stored in-memory per user (placeholder until DB persistence). |
-| `cartRouter` | Auth-required `GET/POST/DELETE` endpoints | Backed by `cart_items` table via `services/cartService.ts`. Ensures course metadata persisted with each entry. |
-| `tutorApplicationsRouter` | Collects tutor apply forms | Persists to `tutor_applications`. |
-| `pagesRouter` | `GET /pages/:slug` | Headless CMS blocks for About, etc. |
-| `assistantRouter` | `POST /assistant/query` (auth required + rate-limited) | Taps RAG service using sanitized questions. |
+| authRouter | /auth/google, /auth/google/callback, /auth/google/exchange, /auth/google/id-token, /auth/refresh, /auth/logout | Full Google OAuth + JWT lifecycle with hashed refresh tokens |
+| coursesRouter | GET /courses, GET /courses/:courseKey, POST /courses/:courseKey/enroll | Slug/UUID/name resolution and idempotent enrollment writes used by CourseDetails |
+| lessonsRouter | GET /modules/:moduleNo/topics, GET /courses/:courseKey/topics, GET/PUT /:lessonId/progress, personalization endpoints, prompt suggestions | Delivers curriculum, tracks progress, stores narrator personas, and exposes curated prompt trees |
+| quizRouter | GET /quiz/questions, GET /quiz/sections/:courseKey, GET /quiz/progress/:courseKey, POST /quiz/attempts, POST /quiz/attempts/:attemptId/submit | Drives the module cadence (cooldowns, dependencies) and writes quiz_attempts/module_progress |
+| assistantRouter | POST /assistant/query | Authenticated tutor endpoint with typed-prompt quotas stored in module_prompt_usage |
+| cartRouter, pagesRouter, tutorApplicationsRouter, usersRouter, healthRouter | Supporting CRUD plus liveness checks |
 
-- **Utility patterns:** `asyncHandler` wraps async routes, zod schemas validate payloads, environment configuration is validated via zod at startup.
-
-### Quiz Experience & Recent Fix
-
-- **Data ownership:** The quiz system is fully relational: `quiz_questions` holds authored prompts per `(course_id, module_no, topic_pair_index)`, `quiz_options` stores the answers, `quiz_attempts` freezes each served question set together with learner answers, and `module_progress` tracks module unlock status.
-- **API contract:** `quizRouter` (`backend/src/routes/quiz.ts`) exposes `/api/quiz/sections/:courseKey`, `/api/quiz/progress/:courseKey`, `POST /api/quiz/attempts`, and `POST /api/quiz/attempts/:attemptId/submit`. Sections are now computed directly from the live question data, so all 12 topic-pair quizzes appear without any shadow tables.
-- **Frontend integration:** `CoursePlayerPage.tsx` fetches sections/progress when the Quiz tab becomes active, then starts attempts by posting `{ courseId, moduleNo, topicPairIndex, limit }`. Submissions send the stored `attemptId` plus `{ questionId, optionId }` answers.
-- **Bug + resolution (2025‑11‑25):** The shared `apiRequest` helper appended caller headers *after* its defaults, so the Quiz POSTs replaced `Content-Type: application/json` with `Authorization`. Express could not parse the body, leading to `400` responses and anonymous attempt rows in Postgres. The helper now merges headers up front, ensuring both headers are present; quiz payloads arrive intact, real user IDs are stored, and module 2 unlocks once both topic-pair quizzes in module 1 pass.
+### Supporting services
+- sessionService.ts, googleOAuth.ts, enrollmentService.ts, promptUsageService.ts, cartService.ts keep router handlers declarative.
+- rag/* modules encapsulate the OpenAI + Neo4j plumbing, PII scrubbing, chunking, rate limiting, and usage logging.
 
 ## 4. Data & Integration Layer
 
-### 4.1 PostgreSQL (Supabase-managed)
-- Accessed via Prisma (`services/prisma.ts`) with schema defined in `backend/prisma/schema.prisma`.
-- Important tables & relationships:
-  - `users`, `user_sessions` (auth), `courses`, `topics`, `topic_progress`, `cart_items`, `cart_lines`, `enrollments`, `tutor_applications`, `page_content`.
-  - Foreign keys enforce cascade deletes for user-owned records; `topics` relate back to `courses` for module queries.
-- Deployment options: local Docker compose under `infrastructure/docker-compose.yml` or Supabase-hosted Postgres via `DATABASE_URL`.
+### PostgreSQL via Prisma
+Major model groups (see backend/prisma/schema.prisma):
+- Accounts – users, user_sessions, tutor_applications, tutors, course_tutors.
+- Catalog – courses, topics, simulation_exercises, page_content.
+- Progress & enrollment – enrollments, topic_progress, module_progress.
+- Commerce – cart_items, cart_lines.
+- Personalisation & curated prompts – topic_personalization, topic_prompt_suggestions, module_prompt_usage.
+- Assessments – quiz_questions, quiz_options, quiz_attempts.
+All Prisma models map snake_case columns to camelCase fields so TypeScript consumers remain ergonomic without sacrificing SQL clarity.
 
-### 4.2 Neo4j Vector Index
-- Configured in `rag/neo4jClient.ts` with `COURSE_CHUNK_LABEL = "CourseChunk"` and vector index `course_chunk_embedding_idx` using cosine similarity on 1,536-dim embeddings.
-- `ensureVectorIndex()` runs automatically before chunk imports.
-- Stored nodes: `(Course)-[:HAS_CHUNK]->(CourseChunk)` with properties `chunkId`, `content`, `courseId`, `position`, `embedding`, timestamps.
+### Neo4j and OpenAI
+- scripts/ingestCourseContent.ts reads the canonical PDF, chunks it (900 chars with 150 overlap), generates embeddings (1,536 dims), ensures the course_chunk_embedding_idx, and writes (Course)-[:HAS_CHUNK]->(CourseChunk) nodes.
+- Tutor queries embed the learner question, fetch the top K contexts from Neo4j, craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
+- Typed prompts increment the module_prompt_usage counter only after OpenAI succeeds so quota tracking stays fair.
 
-### 4.3 OpenAI Integrations
-- `rag/openAiClient.ts` wraps embeddings + chat completions using keys/models from env.
-- `createEmbedding` returns float vectors; `generateAnswerFromContext` prompts the chat model to respond with strictly course-based answers.
+## 5. Experience Flows
 
-### 4.4 Other Stores
-- Lesson progress currently cached in-memory map `progressStore` (scoped to API instance). Persistence to `topic_progress` can be added later.
-- Local filesystem for PDF ingestion (`npm run rag:ingest`).
+### 5.1 Sign-in and heartbeat
+1. Landing CTA -> /auth/google (backend sets state cookie and redirects to Google).
+2. Callback exchange -> backend issues access + refresh JWTs, stores hashed refresh token, forwards to /auth/callback with redirect info.
+3. AuthCallbackPage persists the session and rehydrates whichever route initiated auth.
+4. Components subscribe to the session heartbeat; if refresh fails they immediately drop to a signed-out state.
 
-## 5. End-to-End Data Flows
+### 5.2 Enrollment and personalisation
+1. CourseDetails page reads the same /lessons/courses/:slug/topics feed used by the player, so marketing and delivery stay in sync.
+2. Accepting the MetaLearn modal ensures the session, calls POST /courses/:slug/enroll, and persists an enrollments row.
+3. If the learner has never set a persona, CourseDetails forwards to /course/:slug/path?lesson=... to run the questionnaire before unlocking /course/:slug/learn/:lesson.
+4. CoursePlayerPage fetches /lessons/courses/:slug/personalization; saved personas lock the dialog to Standard vs saved persona, while first-time learners see the full question flow.
 
-### 5.1 User sign-in & session propagation
-1. User clicks "Sign in" → frontend sends browser to `/auth/google` on the backend (port 4000) with a redirect hint.
-2. Backend sets a short-lived state cookie and redirects to Google OAuth consent.
-3. Google redirects to `/auth/google/callback`; backend exchanges the code, creates/fetches a user record, issues JWT access + refresh tokens, stores hashed refresh token in Postgres.
-4. Backend redirects to `http://localhost:5173/auth/callback` (from `FRONTEND_APP_URLS`) with tokens in query params; frontend stores them (via `utils/session.ts`).
-5. Subsequent API calls attach `Authorization: Bearer <accessToken>` or rely on `credentials: "include"` cookies if configured.
+### 5.3 Lesson playback
+1. Modules (including Module 0 Introduction) are grouped client-side from the topics response and rendered inside CourseSidebar.
+2. Each lesson carries PPT/video URLs and persona-specific guide fields. normalizeVideoUrl hardens every YouTube link to an embed-friendly URL with share/keyboard controls disabled.
+3. PUT /lessons/:lessonId/progress persists percentage and completion timestamps; the UI updates optimistically and reconciles once the API responds.
 
-### 5.2 Course playback & progress
-1. Learner visits `/course/:courseId/learn/:lesson` in the frontend.
-2. `CoursePlayerPage.tsx` resolves `courseId`, ensures the user is authenticated, and fetches `/api/lessons/courses/:courseId/topics` along with `/api/courses/:courseId` and `/api/lessons/:lessonId/progress`.
-3. Topics are grouped per module and transformed into lesson entries powering `CourseSidebar` and `LessonTabs`.
-4. When a learner watches/reads, progress updates trigger `PUT /api/lessons/:lessonId/progress`; the optimistic state updates the sidebar.
-5. If the user navigates without specifying a lesson, the client redirects to the first available lesson (intro → fetched modules → static fallback).
+### 5.4 Quiz gating
+1. Quiz tab loads /quiz/sections/:slug plus /quiz/progress/:slug to determine which topic pairs are unlocked, passed, or pending cooldown.
+2. POST /quiz/attempts freezes the randomised question set; POST /quiz/attempts/:id/submit grades it, stores answers, and, when appropriate, marks module_progress.quiz_passed.
+3. MODULE_WINDOW_DURATION (currently 7d) drives cooldown windows; responses surface moduleLockedDueToCooldown and moduleCooldownUnlockAt so the UI can warn learners when to return.
 
-### 5.3 Cart & checkout prep
-1. On course tiles, “Add to cart” invokes `POST /api/cart` with the course payload; `requireAuth` ensures only signed-in users can add items.
-2. `cartService` upserts metadata into `cart_items`, guaranteeing uniqueness per (user, courseSlug).
-3. Frontend renders `/cart` by calling `GET /api/cart`. Removing or clearing items calls the corresponding DELETE endpoints.
+### 5.5 Tutor prompts
+1. The chat dock surfaces both typed prompts and CMS-authored suggestion trees.
+2. Typed prompts require { courseId: slug, moduleNo, question }; hitting the quota returns HTTP 429 with a friendly message.
+3. Suggestions (topic_prompt_suggestions) can include predefined answers as well as follow-up prompts, enabling deterministic Q&A when desired.
+4. Successful answers log usage (rag/usageLogger.ts) for future analytics.
 
-### 5.4 Tutor application intake
-- `/become-a-tutor` form submits to `/api/tutor-applications` (validation via zod), persisting the structured application for internal review.
+### 5.6 Certificate preview
+1. Once quizzes report passed modules, the CTA routes to /course/:slug/certificate.
+2. The certificate page reads stored name/title defaults, renders a blurred preview, and hosts a Razorpay placeholder to illustrate the paid upgrade path.
 
-### 5.5 Retrieval-Augmented Q&A
-1. Content ingestion (`npm run rag:ingest`) reads a PDF, runs `textChunker` (default chunk 900 chars, overlap 150), builds embeddings via OpenAI, and writes `(Course)-[:HAS_CHUNK]->(CourseChunk)` nodes to Neo4j after wiping old chunks per course. The `courseId` argument must be the public slug (e.g., `ai-in-web-development`) because the course player reuses that slug when calling the tutor API.
-2. Learner opens the chatbot panel; `ChatBot.tsx` checks `readStoredSession()` for tokens.
-3. When a question is sent, the component POSTs `/assistant/query` with `{ courseId, courseTitle?, question }` and `Authorization` header.
-4. `assistantRouter` enforces auth + `assertWithinRagRateLimit`, scrubs PII (`rag/pii.ts`), then:
-   - Calls `createEmbedding(question)`.
-   - Runs `CALL db.index.vector.queryNodes()` via `fetchRelevantContexts` to retrieve the top 5 chunk matches filtered by course.
-   - Builds a prompt + context list and obtains a completion from OpenAI.
-   - Logs success/failure via `logRagUsage` and returns `{ answer }` to the frontend.
-5. Frontend appends the bot response to the chat; errors surface as friendly messages (401 → session expired, 429 → slow down, others → generic failure).
-6. If Neo4j returns zero matching contexts, the backend emits the “I don’t have enough details…” fallback so learners know the topic is outside the current curriculum.
+## 6. Environment, Build, Deployment
 
-## 6. Environments & Configuration
+- frontend/.env.example - set VITE_API_BASE_URL against the backend URL plus any analytics keys.
+- backend/.env.example - configure DB URL, OAuth credentials, JWT secrets, comma-delimited FRONTEND_APP_URLS, OpenAI, and Neo4j credentials.
+- Typical dev loop:
+  1. npm install inside both frontend/ and backend/.
+  2. npx prisma migrate dev to sync the schema.
+  3. (Optional) docker compose up from infrastructure/ for local Postgres + pgAdmin.
+  4. npm run dev for the API and npm run dev for the SPA.
+  5. npm run rag:ingest <pdf> <slug> "<Course Title>" whenever the source material changes.
+- Production: host Express wherever Node 20 is supported (Render, Fly, Railway), point DATABASE_URL to the managed Postgres instance, provision Neo4j Aura, deploy the Vite dist/ bundle to a static host, and ensure OAuth redirect URIs plus FRONTEND_APP_URLS match the deployed domains.
 
-- `.env.example` documents all required secrets/config:
-  - Port bindings, `DATABASE_URL`, comma-delimited `FRONTEND_APP_URLS`.
-  - Google OAuth credentials + redirect URI.
-  - JWT secrets & TTLs.
-  - OpenAI + Neo4j credentials.
-- Local dev typically runs:
-  - `npm install && npm run dev` in `frontend/` (Vite dev server on 5173).
-  - `npm install && npm run dev` in `backend/` (ts-node/tsx on 4000).
-  - Optional Docker compose for Postgres + pgAdmin under `infrastructure/` or Supabase-managed Postgres referenced via `DATABASE_URL`.
-- Production deployment would front the API with HTTPS + managed secrets, but the code already enforces strict origins, bearer tokens, and rate limits for the assistant.
+## 7. Observability and Next Steps
 
-## 7. Layered Responsibility Matrix
-
-| Layer | Responsibilities | Key Artifacts |
-| --- | --- | --- |
-| Presentation/UI | Routing, component rendering, optimistic UX, accessible interactions | `frontend/src/pages`, `components/` (CourseSidebar, LessonTabs, ChatBot), `hooks/`, shadcn UI atoms |
-| Application/API | Auth, validation, orchestration, cart/topic logic, tutor submissions, assistant interface | `backend/src/routes`, `middleware/requireAuth.ts`, `services/*`, `rag/*` |
-| Domain/Data | Persistence schema, migrations, transactional logic | `backend/prisma/schema.prisma`, `services/prisma.ts`, `services/cartService.ts`, `rag/neo4jClient.ts` |
-| Intelligence | Vectorization, retrieval, LLM responses | `rag/openAiClient.ts`, `rag/ragService.ts`, Neo4j index |
-
-## 8. Considerations & Next Steps
-
-- **Lesson progress persistence:** replace the temporary `Map` with `topic_progress` inserts so progress survives restarts and syncs between devices.
-- **API coverage documentation:** expand this doc with OpenAPI/Swagger specs for all routers to improve contract visibility.
-- **Observability:** instrument structured logs/metrics around key flows (cart, lessons, RAG) for production readiness.
-- **Deployment hardening:** add HTTPS termination, secret management, CI/CD, and automated migrations before going live.
-
----
-This `CP_Arc.md` file now serves as the canonical architecture overview you can feed into downstream documentation workflows or external LLM summarizers.
+- Extend structured logging beyond the tutor usage logger to cover enrollment, personalization saves, and quiz submissions.
+- Automate Postgres/Neo4j backups before the next release.
+- Add Vitest + Supertest coverage for the personalization and quiz routers plus component tests for the persona modal.
+- Promote cooldown duration and prompt quotas to env overrides if we need course-specific tuning.
 
 ## Appendix: Repository Tree
 
-The following tree captures the project structure (common bulky folders such as `node_modules` or build outputs are omitted for clarity):
-
 ```
 ./
-    .editorconfig
-    .gitignore
-    .replit
     CP_Arc.md
     Course_Platform.md
     README.md
-    Web Dev using AI Course Content.pdf
-    cred.txt
-    normalize.py
-    patch.diff
     task_progress.md
-    temp_patch.py
-    temp_patch.txt
-    topics_all_modules.csv
 backend/
-    .env
-    .env.example
-    README.md
-    package-lock.json
-    package.json
-    tsconfig.build.json
-    tsconfig.json
-    vitest.config.ts
     prisma/
         schema.prisma
-        seed.ts
-        migrations/
-            20241119_reconcile_tutor_applications/
-                migration.sql
-            20241119_update_tutor_applications/
-                migration.sql
-            20251015000136_add_cart_items/
-                migration.sql
-            20251113114500_course_pages_support/
-                migration.sql
+        migrations/...
     scripts/
-        .gitkeep
         ingestCourseContent.ts
     src/
         app.ts
         server.ts
-        config/
-            env.ts
-        middleware/
-            requireAuth.ts
+        routes/
+            assistant.ts
+            auth.ts
+            cart.ts
+            courses.ts
+            health.ts
+            lessons.ts
+            pages.ts
+            quiz.ts
+            tutorApplications.ts
+            users.ts
+        services/
+            cartService.ts
+            enrollmentService.ts
+            googleOAuth.ts
+            promptUsageService.ts
+            sessionService.ts
+            userService.ts
         rag/
             neo4jClient.ts
             openAiClient.ts
@@ -220,176 +176,39 @@ backend/
             rateLimiter.ts
             textChunker.ts
             usageLogger.ts
-        routes/
-            assistant.ts
-            auth.ts
-            cart.ts
-            courses.ts
-            health.ts
-            lessons.ts
-            lessons.ts.bak
-            pages.ts
-            tutorApplications.ts
-            users.ts
-        services/
-            cartService.ts
-            googleOAuth.ts
-            prisma.ts
-            sessionService.ts
-            userService.ts
+frontend/
+    src/
+        App.tsx
+        components/
+            CourseSidebar.tsx
+            ChatBot.tsx
+            LessonTabs.tsx
+            layout/
+            ui/
+        pages/
+            CourseDetailsPage.tsx
+            CoursePlayerPage.tsx
+            CourseCertificatePage.tsx
+            EnrollmentPage.tsx
+            AuthCallbackPage.tsx
+            BecomeTutorPage.tsx
+            LandingPage.tsx
+            AssessmentPage.tsx
+            not-found.tsx
+        hooks/
+            use-toast.ts
+        lib/
+            api.ts
+            queryClient.ts
         utils/
-            asyncHandler.ts
-            oauthState.ts
-    tests/
-        health.test.ts
+            session.ts
 docs/
     App Changes.md
     backend-dev-log.md
     databaseSchema.md
     design_guidelines.md
     project-structure.md
-    project-walkthrough oauth documentaion.md
-    legacy/
-        drizzle.config.ts
-        server/
-            db.ts
-            index.ts
-            routes.ts
-            seed.ts
-            storage.ts
-            vite.ts
-frontend/
-    .env
-    .env.example
-    README.md
-    components.json
-    index.html
-    package-lock.json
-    package.json
-    postcss.config.js
-    tailwind.config.ts
-    tsconfig.json
-    vite.config.ts
-    .vite/
-        deps_temp_abf87e0d/
-    src/
-        App.tsx
-        index.css
-        main.tsx
-        assets/
-            external/
-                
-        components/
-            AssessmentResults.tsx
-            ChatBot.tsx
-            CourseSidebar.tsx
-            EnrollmentGateway.tsx
-            LessonTabs.tsx
-            QuizCard.tsx
-            ThemeToggle.tsx
-            VideoPlayer.tsx
-            examples/
-                AssessmentResults.tsx
-                CourseSidebar.tsx
-                EnrollmentGateway.tsx
-                LessonTabs.tsx
-                QuizCard.tsx
-                ThemeToggle.tsx
-                VideoPlayer.tsx
-            layout/
-                SiteHeader.tsx
-                SiteLayout.tsx
-            ui/
-                accordion.tsx
-                alert-dialog.tsx
-                alert.tsx
-                aspect-ratio.tsx
-                avatar.tsx
-                badge.tsx
-                breadcrumb.tsx
-                button.tsx
-                calendar.tsx
-                card.tsx
-                carousel.tsx
-                chart.tsx
-                checkbox.tsx
-                collapsible.tsx
-                command.tsx
-                context-menu.tsx
-                dialog.tsx
-                drawer.tsx
-                dropdown-menu.tsx
-                form.tsx
-                hover-card.tsx
-                input-otp.tsx
-                input.tsx
-                label.tsx
-                menubar.tsx
-                navigation-menu.tsx
-                pagination.tsx
-                popover.tsx
-                progress.tsx
-                radio-group.tsx
-                resizable.tsx
-                scroll-area.tsx
-                select.tsx
-                separator.tsx
-                sheet.tsx
-                sidebar.tsx
-                skeleton.tsx
-                slider.tsx
-                switch.tsx
-                table.tsx
-                tabs.tsx
-                textarea.tsx
-                toast.tsx
-                toaster.tsx
-                toggle-group.tsx
-                toggle.tsx
-                tooltip.tsx
-        constants/
-            navigation.ts
-            theme.ts
-        hooks/
-            use-mobile.tsx
-            use-toast.ts
-        lib/
-            api.ts
-            queryClient.ts
-            utils.ts
-        pages/
-            AboutPage.tsx
-            AssessmentPage.tsx
-            AuthCallbackPage.tsx
-            AuthPage.tsx
-            BecomeTutorPage.tsx
-            CartPage.tsx
-            CoursePlayerPage.tsx
-            CoursesPage.tsx
-            DashboardPage.tsx
-            EnrollmentPage.tsx
-            not-found.tsx
-            examples/
-                AssessmentPage.tsx
-                CoursePlayerPage.tsx
-                EnrollmentPage.tsx
-        types/
-            cart.ts
-            content.ts
-            session.ts
-        utils/
-            session.ts
-infrastructure/
-    README.md
-    docker-compose.yml
-    db/
-        .gitkeep
-rag/
-    Rag Chat Bot.ipynb
-    metadata.json
-scripts/
-    dev.ps1
-    dev.sh
-shared/
-    schema.ts
+    project-walkthrough.md
 ```
+
+Use this artefact together with Course_Platform.md, docs/databaseSchema.md, and docs/project-walkthrough.md whenever you need to brief teammates or an external LLM on the full platform.
