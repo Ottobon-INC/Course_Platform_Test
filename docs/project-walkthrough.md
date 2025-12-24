@@ -36,7 +36,7 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 2. Typed prompts post to `/assistant/query` with `{ courseId: slug, moduleNo, question }` plus Authorization. The backend:
    - Validates prompt quota using `module_prompt_usage`.
    - Enforces per-user rate limits via `assertWithinRagRateLimit`.
-   - Scrubs PII (`rag/pii.ts`), embeds the question (OpenAI), fetches top contexts from Neo4j, and calls `generateAnswerFromContext()`.
+   - Scrubs PII (`rag/pii.ts`), embeds the question (OpenAI), fetches top contexts from Postgres pgvector, and calls `generateAnswerFromContext()`.
    - Logs usage with `rag/usageLogger.ts` and returns `{ answer, nextSuggestions }`.
 3. Suggestions with stored answers bypass OpenAI: the backend simply returns the curated answer plus child suggestions.
 4. If a learner exhausts the typed quota for a module, the API responds with HTTP 429 and a friendly message instructing them to continue to the next module.
@@ -49,6 +49,7 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 - **OAuth** – confirm Google Cloud console has both backend and SPA redirect URIs. Missing values yield `redirect_uri_mismatch` errors before the app boots.
 - **Personalization** – unauthorized responses from `/lessons/courses/:slug/personalization` indicate the learner is not signed in; ensure the session heartbeat refreshed tokens before hitting the endpoint.
 - **Tutor quotas** – HTTP 429 from `/assistant/query` means the learner hit the typed quota for the module. Quotas reset automatically when the next module unlocks.
-- **Ingestion** – run `npm run rag:ingest <pdf> <slug> "<Course Title>"` whenever the course PDF changes to keep Neo4j contexts aligned with `course.slug`.
+- **Ingestion** – run `npm run rag:ingest <pdf> <slug> "<Course Title>"` whenever the course PDF changes to keep `course_chunks` aligned with `course.slug`.
+- **Import** – run `npm run rag:import <json>` when reusing embeddings exported from another store.
 
 Following these steps reproduces the entire learner journey—from first visit to certificate unlock—using the current codebase.

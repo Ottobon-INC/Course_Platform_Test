@@ -9,14 +9,14 @@ This document is the architectural deep dive for the Course Platform application
 | Presentation | React 18 + Vite + Wouter + TanStack Query + shadcn/ui | http://localhost:5173 | Landing site, enrollment funnel, study persona workflow, course player, quizzes, tutor chat, certificate preview |
 | Application/API | Node 20, Express, TypeScript | http://localhost:4000 (mounted at / and /api) | OAuth, enrollment writes, lesson data, progress tracking, tutor prompts, quiz orchestration, CMS content, tutor applications |
 | Data | PostgreSQL via Prisma | DATABASE_URL | Users, sessions, courses, topics, personalisation, quizzes, module progress, CMS pages |
-| Knowledge Store | Neo4j Aura vector index | NEO4J_URL | Stores embedded course chunks plus prompt suggestions for the AI tutor |
+| Knowledge Store | PostgreSQL + pgvector | DATABASE_URL | Stores embedded course chunks for the AI tutor |
 | ML Provider | OpenAI APIs | HTTPS | Embedding generation and chat completions for the mentor and tutor copilot |
 
 ```
 Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API (4000)
    ^                                                                  |
    |                                                                  +--> Prisma -> PostgreSQL
-   |                                                                  +--> Neo4j driver -> vector index
+   |                                                                  +--> Postgres pgvector -> course_chunks
    |                                                                  +--> OpenAI client
 ```
 
@@ -61,7 +61,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 
 ### Supporting services
 - sessionService.ts, googleOAuth.ts, enrollmentService.ts, promptUsageService.ts, cartService.ts keep router handlers declarative.
-- rag/* modules encapsulate the OpenAI + Neo4j plumbing, PII scrubbing, chunking, rate limiting, and usage logging.
+- rag/* modules encapsulate the OpenAI + pgvector plumbing, PII scrubbing, chunking, rate limiting, and usage logging.
 
 ## 4. Data & Integration Layer
 
@@ -69,15 +69,17 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 Major model groups (see backend/prisma/schema.prisma):
 - Accounts – users, user_sessions, tutor_applications, tutors, course_tutors.
 - Catalog – courses, topics, simulation_exercises, page_content.
+- Knowledge store – course_chunks (pgvector embeddings for RAG).
 - Progress & enrollment – enrollments, topic_progress, module_progress.
 - Commerce – cart_items, cart_lines.
 - Personalisation & curated prompts – topic_personalization, topic_prompt_suggestions, module_prompt_usage.
 - Assessments – quiz_questions, quiz_options, quiz_attempts.
 All Prisma models map snake_case columns to camelCase fields so TypeScript consumers remain ergonomic without sacrificing SQL clarity.
 
-### Neo4j and OpenAI
-- scripts/ingestCourseContent.ts reads the canonical PDF, chunks it (900 chars with 150 overlap), generates embeddings (1,536 dims), ensures the course_chunk_embedding_idx, and writes (Course)-[:HAS_CHUNK]->(CourseChunk) nodes.
-- Tutor queries embed the learner question, fetch the top K contexts from Neo4j, craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
+### pgvector and OpenAI
+- scripts/ingestCourseContent.ts reads the canonical PDF, chunks it (900 chars with 150 overlap), generates embeddings (1,536 dims), and writes rows into course_chunks in Postgres.
+- scripts/importCourseChunks.ts can import precomputed embeddings from JSON exports (e.g., Neo4j dumps) without re-embedding.
+- Tutor queries embed the learner question, fetch the top K contexts from Postgres using pgvector similarity search, craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
 - Typed prompts increment the module_prompt_usage counter only after OpenAI succeeds so quota tracking stays fair.
 
 ## 5. Experience Flows
@@ -117,19 +119,20 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 ## 6. Environment, Build, Deployment
 
 - frontend/.env.example - set VITE_API_BASE_URL against the backend URL plus any analytics keys.
-- backend/.env.example - configure DB URL, OAuth credentials, JWT secrets, comma-delimited FRONTEND_APP_URLS, OpenAI, and Neo4j credentials.
+- backend/.env.example - configure DB URL, OAuth credentials, JWT secrets, comma-delimited FRONTEND_APP_URLS, and OpenAI credentials.
 - Typical dev loop:
   1. npm install inside both frontend/ and backend/.
   2. npx prisma migrate dev to sync the schema.
-  3. (Optional) docker compose up from infrastructure/ for local Postgres + pgAdmin.
+  3. (Optional) start a local Postgres + pgAdmin stack if you maintain one.
   4. npm run dev for the API and npm run dev for the SPA.
   5. npm run rag:ingest <pdf> <slug> "<Course Title>" whenever the source material changes.
-- Production: host Express wherever Node 20 is supported (Render, Fly, Railway), point DATABASE_URL to the managed Postgres instance, provision Neo4j Aura, deploy the Vite dist/ bundle to a static host, and ensure OAuth redirect URIs plus FRONTEND_APP_URLS match the deployed domains.
+  6. npm run rag:import <json> when reusing precomputed embeddings.
+- Production: host Express wherever Node 20 is supported (Render, Fly, Railway), point DATABASE_URL to the managed Postgres instance with pgvector enabled, deploy the Vite dist/ bundle to a static host, and ensure OAuth redirect URIs plus FRONTEND_APP_URLS match the deployed domains.
 
 ## 7. Observability and Next Steps
 
 - Extend structured logging beyond the tutor usage logger to cover enrollment, personalization saves, and quiz submissions.
-- Automate Postgres/Neo4j backups before the next release.
+- Automate Postgres backups before the next release.
 - Add Vitest + Supertest coverage for the personalization and quiz routers plus component tests for the persona modal.
 - Promote cooldown duration and prompt quotas to env overrides if we need course-specific tuning.
 
@@ -141,12 +144,15 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
     Course_Platform.md
     README.md
     task_progress.md
+    Web Dev using AI Course Content.pdf
+    neo4j_query_table_data_2025-12-24.json
 backend/
     prisma/
         schema.prisma
         migrations/...
     scripts/
         ingestCourseContent.ts
+        importCourseChunks.ts
     src/
         app.ts
         server.ts
@@ -169,7 +175,6 @@ backend/
             sessionService.ts
             userService.ts
         rag/
-            neo4jClient.ts
             openAiClient.ts
             pii.ts
             ragService.ts

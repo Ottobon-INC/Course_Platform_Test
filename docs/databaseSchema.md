@@ -1,12 +1,13 @@
 ﻿# Database Schema – Course Platform
 
-> Source of truth: `backend/prisma/schema.prisma` (Prisma 5, PostgreSQL provider). All columns in the physical database remain snake_case; Prisma maps them to camelCase fields for TypeScript ergonomics.
+> Source of truth: `backend/prisma/schema.prisma` (Prisma 6, PostgreSQL provider). All columns in the physical database remain snake_case; Prisma maps them to camelCase fields for TypeScript ergonomics.
 
 ## 1. Entity Overview
 | Group | Tables | Highlights |
 | --- | --- | --- |
 | Accounts & sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | Google OAuth identities, hashed refresh tokens, tutor staffing |
 | Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, persona text, simulations, CMS pages |
+| Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
 | Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
 | Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
 | Commerce & enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment rows created automatically, cart storage retained for future upgrades |
@@ -66,6 +67,12 @@ classDiagram
         +Int moduleNo
         +Int typedCount
     }
+    class CourseChunk {
+        +String chunkId
+        +String courseId
+        +Int position
+        +Vector embedding
+    }
     class QuizQuestion {
         +UUID questionId
         +UUID courseId
@@ -115,6 +122,7 @@ classDiagram
     User "1" -- "*" Enrollment
     User "1" -- "*" CartItem
     Course "1" -- "*" Topic
+    Course "1" -- "*" CourseChunk
     Course "1" -- "*" TopicPromptSuggestion
     Course "1" -- "*" ModulePromptUsage
     Course "1" -- "*" QuizQuestion
@@ -153,6 +161,10 @@ classDiagram
 - Composite unique index `(userId, courseId, moduleNo)`.
 - `typedCount` increments whenever a typed prompt finishes successfully; used to enforce the per-module quota in `assistantRouter`.
 
+### course_chunks (pgvector)
+- Stores chunked course material plus embeddings (`vector(1536)`).
+- Backed by the pgvector extension and a vector similarity index for RAG retrieval.
+
 ### quiz tables
 - `quiz_questions` contain module number + topic pair index so sections can be grouped dynamically.
 - `quiz_options` mark `is_correct` per option; serialization excludes the boolean to keep answers hidden from the client.
@@ -170,4 +182,6 @@ classDiagram
 ## 4. Schema Tips
 - Run `npx prisma format` after editing `schema.prisma` to keep naming consistent.
 - The repo prefers Prisma migrations over manual SQL. Use `npx prisma migrate dev --name <change>` locally, then commit the generated files under `backend/prisma/migrations/`.
-- When ingesting new course PDFs, re-run `npm run rag:ingest` so Neo4j stays in sync with the slugs stored in `courses.slug`.
+- Enable pgvector in Postgres with `CREATE EXTENSION vector;`.
+- When ingesting new course PDFs, re-run `npm run rag:ingest` so `course_chunks` stays in sync with the slugs stored in `courses.slug`.
+- If reusing exported embeddings, run `npm run rag:import <json>` instead of re-embedding.

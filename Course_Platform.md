@@ -24,20 +24,19 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 - **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
-- **AI tutor dock** – typed questions plus curated prompt suggestions, RAG on top of Neo4j embeddings, prompt quotas per module, and success/failure logging.
+- **AI tutor dock** – typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, and success/failure logging.
 - **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
 - **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
 
 ## 3. Repository Structure (high level)
 ```
 ./
-  CP_Arc.md, Course_Platform.md, task_progress.md
+  CP_Arc.md, Course_Platform.md, README.md, task_progress.md
+  Web Dev using AI Course Content.pdf
+  neo4j_query_table_data_2025-12-24.json  # optional RAG import artifact
   frontend/        # React + Vite SPA
   backend/         # Express + Prisma API
   docs/            # Living documentation bundle
-  infrastructure/  # docker-compose for Postgres + pgAdmin
-  scripts/         # Dev helpers
-  shared/          # Cross-cutting schema/types (placeholder)
 ```
 `docs/project-structure.md` provides a deeper tree with notable files for each workspace.
 
@@ -48,9 +47,9 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 | UI system | Tailwind CSS, shadcn/ui components, Lucide icons |
 | State/session | Local storage + heartbeat (utils/session.ts), React hook utilities |
 | Backend runtime | Node 20, Express 4, TypeScript, tsx for dev |
-| ORM & DB | Prisma 5, PostgreSQL (Supabase-compatible) |
+| ORM & DB | Prisma 6, PostgreSQL (Supabase-compatible) |
 | Auth | Google OAuth 2.0, JWT access + refresh tokens, hashed refresh storage |
-| Vector store | Neo4j Aura with native vector index |
+| Vector store | PostgreSQL + pgvector (Supabase-hosted) |
 | AI provider | OpenAI (embeddings + chat completions) |
 | Testing | Vitest + Supertest scaffolding (backend) |
 
@@ -61,7 +60,8 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - `DATABASE_URL` – Postgres connection string.
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` – OAuth credentials.
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TOKEN_TTL_SECONDS`, `JWT_REFRESH_TOKEN_TTL_DAYS` – token signing + expiry.
-- `OPENAI_API_KEY`, `OPENAI_MODEL`, `NEO4J_URL`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` – tutor pipeline.
+- `OPENAI_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL` – tutor pipeline.
+- `DATABASE_URL` must point to a Postgres instance with the `vector` extension enabled.
 - Frontend `.env` only needs `VITE_API_BASE_URL` (default http://localhost:4000) plus any analytics keys.
 
 ## 6. Frontend Architecture
@@ -136,6 +136,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **topic_personalization** – learner/course persona preference.
 - **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
+- **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
 - **quiz_questions / quiz_options / quiz_attempts / module_progress** – module gating infrastructure.
 - **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
@@ -164,7 +165,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 
 ### 9.5 Tutor prompts
 1. Chat dock fetches curated prompt suggestions via `/lessons/courses/:slug/prompts` (optionally per topic ID).
-2. Typed prompts call `/assistant/query` with `{ courseId, moduleNo, question }`; the backend verifies the prompt quota for that module, embeds the question, retrieves contexts from Neo4j, calls OpenAI, and returns the answer.
+2. Typed prompts call `/assistant/query` with `{ courseId, moduleNo, question }`; the backend verifies the prompt quota for that module, embeds the question, retrieves contexts from Postgres pgvector, calls OpenAI, and returns the answer.
 3. Suggestions with canned answers skip OpenAI entirely, returning the pre-authored content along with follow-up suggestions.
 4. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
 
@@ -179,12 +180,13 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
   - Quiz POST returning 400 -> ensure `Content-Type: application/json` is present (fixed in queryClient). If reproducing, confirm `api.ts` is not bypassed.
   - Tutor returning 429 -> learner likely exhausted typed prompt quota for that module.
   - Persona dialog not loading -> verify `/lessons/courses/:slug/personalization` returns 200 (requires auth) and that `topic_personalization` row exists.
-  - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with Neo4j + OpenAI credentials.
+  - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with OpenAI credentials.
+  - RAG import -> run `npm run rag:import <json>` when reusing embeddings exported from Neo4j.
 
 ## 11. Deployment Checklist
 1. **Secrets** – set all backend env vars + frontend `VITE_API_BASE_URL`.
 2. **Database** – apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
-3. **Neo4j** – ensure Aura instance is reachable from the API host; run the ingestion script at least once per course slug.
+3. **pgvector** – ensure the Postgres instance has `CREATE EXTENSION vector;` applied and run ingestion/import at least once per course slug.
 4. **Google OAuth** – add the production backend callback plus SPA callback to the OAuth client.
 5. **Builds** – `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
 6. **Hosting** – deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.

@@ -1,5 +1,9 @@
 ﻿# Backend Development Log
 
+## 2025-12-24
+- **RAG store migrated to Postgres pgvector** – added `course_chunks` table + pgvector index, switched `ragService` retrieval to SQL similarity search, and removed Neo4j dependencies from env validation and runtime.
+- **Import pipeline added** – new `scripts/importCourseChunks.ts` ingests JSON exports with precomputed embeddings to avoid re-embedding costs.
+
 ## 2025-12-15
 - **Resilient study personas** – Added the `topic_personalization` CRUD endpoints in `backend/src/routes/lessons.ts` plus client caching so learners can always switch back to their saved persona even after logging out. Upserts ensure we never duplicate rows for the same `(user_id, course_id)` pair.
 - **Prompt suggestions API** – `/lessons/courses/:courseKey/prompts` now validates optional `topicId` and `parentSuggestionId` query parameters, returning curated prompts in display order. This powers the follow-up suggestion tree rendered inside the tutor dock.
@@ -9,7 +13,7 @@
 - **Tutor quota enforcement** – Introduced `module_prompt_usage`, `services/promptUsageService.ts`, and quota checks inside `assistantRouter`. Each typed prompt increments the counter after OpenAI succeeds, while follow-up suggestions bypass the quota because they use curated answers.
 
 ## 2025-12-02
-- **AI tutor identifier fix** – Frontend and backend now consistently use the public course slug (`ai-in-web-development`) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so Neo4j could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
+- **AI tutor identifier fix** – Frontend and backend now consistently use the public course slug (`ai-in-web-development`) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so the vector store could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
 - **Documentation sweep** – README, `Course_Platform.md`, `CP_Arc.md`, and `rag/rag.md` explicitly describe the ingestion command and the slug requirement so future contributors do not regress the behavior.
 
 ## 2025-11-25

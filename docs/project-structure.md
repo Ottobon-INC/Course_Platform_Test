@@ -3,9 +3,11 @@
 Use this guide to understand where each major feature lives. Pair it with `Course_Platform.md` for behavioural context.
 
 ## Root
-- `CP_Arc.md`, `Course_Platform.md`, `docs/` – documentation packet to share with external reviewers or LLMs.
+- `CP_Arc.md`, `Course_Platform.md`, `README.md`, `docs/` – documentation packet to share with external reviewers or LLMs.
 - `task_progress.md`, `docs/App Changes.md` – running task log + changelog.
-- `backend/`, `frontend/`, `shared/`, `infrastructure/`, `scripts/` – main workspaces.
+- `Web Dev using AI Course Content.pdf` – source material for RAG ingestion.
+- `neo4j_query_table_data_2025-12-24.json` – optional JSON export for `rag:import`.
+- `backend/`, `frontend/` – main workspaces.
 
 ## Frontend (`frontend/`)
 - `package.json`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig.json` – tooling.
@@ -41,22 +43,12 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
   - `promptUsageService.ts` – typed prompt quota helpers.
   - `cartService.ts`, `prisma.ts` – commerce + DB helpers.
 - `src/rag/`
-  - `neo4jClient.ts` / `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
+  - `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
 - `prisma/schema.prisma`, `prisma/migrations/*` – data model + migrations.
-- `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Neo4j.
-
-## Shared (`shared/`)
-- `schema.ts` – placeholder for future shared types between the SPA and API.
-
-## Infrastructure (`infrastructure/`)
-- `docker-compose.yml` – Postgres + pgAdmin stack for local development.
-- `README.md` – instructions for running the infrastructure layer.
+- `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Postgres pgvector.
+- `scripts/importCourseChunks.ts` – import precomputed embeddings from JSON exports into `course_chunks`.
 
 ## Docs (`docs/`)
 - `App Changes.md`, `backend-dev-log.md`, `databaseSchema.md`, `design_guidelines.md`, `project-walkthrough.md`, `project-structure.md` (this file).
-- `legacy/` – archived drizzle/Express files kept for reference during the migration.
-
-## Scripts (`scripts/`)
-- `dev.sh`, `dev.ps1` – convenience wrappers to start frontend + backend concurrently.
 
 With this map you can quickly locate the React components, Express routers, and documentation needed to trace any feature end to end.

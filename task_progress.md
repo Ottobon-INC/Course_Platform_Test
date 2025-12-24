@@ -2,6 +2,10 @@
 
 > Running log of notable tasks and changes completed on the backend + frontend stack of the Course Platform project.
 
+## 2025-12-24 – RAG migration to Supabase
+- Migrated tutor retrieval from Neo4j to Postgres pgvector (`course_chunks`) and added the JSON import workflow for precomputed embeddings.
+- Removed Neo4j configuration/dependencies from the backend runtime and documentation.
+
 ## 2025-12-15 – Study personas + prompts
 - Persisted saved personas even after learners switch back to Standard. Introduced `personaHistoryKey` on the client, strengthened `/lessons/courses/:slug/personalization`, and ensured the questionnaire reappears for Standard-only learners when they opt into Personalised narration mid-course.
 - Updated the study-style dialog styling so text and buttons remain readable (plain black copy, muted subtitles, consistent CTA colors).

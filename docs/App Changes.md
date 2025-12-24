@@ -2,6 +2,10 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why we changed it, and the primary files involved so stakeholders (or external LLMs) can trace the history of the learner experience.
 
+## 2025-12-24 – RAG moved to Postgres pgvector
+- **Supabase vector store** – `backend/src/rag/ragService.ts` now reads/writes `course_chunks` in Postgres via pgvector similarity search, fully removing Neo4j from the runtime path.
+- **Import script** – `backend/scripts/importCourseChunks.ts` can ingest JSON exports with precomputed embeddings to avoid re-embedding costs.
+
 ## 2025-12-15 – Personalized learning always recoverable
 - **Saved personas survive Standard detours** – `frontend/src/pages/CoursePlayerPage.tsx` now derives a `personaHistoryKey` per user/course, reads any stored preference from `/lessons/courses/:slug/personalization`, and always offers the previously unlocked persona in addition to Standard. Switching to Standard no longer deletes the personalized narrator.
 - **Standard-first learners re-enter the questionnaire** – when a learner who stayed on Standard clicks the Personalised tab mid-course, the same three-question survey shown during enrollment opens, posts to `/lessons/courses/:slug/personalization`, and stores the resulting persona for future sessions.
