@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "test": "vitest",
     "rag:ingest": "tsx scripts/ingestCourseContent.ts",
+    "rag:import": "tsx scripts/importCourseChunks.ts",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
@@ -16,12 +17,12 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parse": "^5.6.0",
+    "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^10.4.0",
     "jsonwebtoken": "^9.0.2",
-    "neo4j-driver": "^6.0.1",
     "openai": "^6.9.0",
     "pdf-parse": "^2.4.5",
     "zod": "^3.24.2"

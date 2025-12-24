@@ -53,7 +53,7 @@ const generateCourseDescription = async (
 // Sub-component for the Scroll-Scrubbing Number Animation
 const ScrollFillNumber = ({ number, sizeClass }: { number: string; sizeClass?: string }) => {
   const ref = useRef<HTMLDivElement>(null);
-  
+
   // Track scroll progress of this specific element
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -72,16 +72,16 @@ const ScrollFillNumber = ({ number, sizeClass }: { number: string; sizeClass?: s
           // Base styles for the outline text
           WebkitTextStroke: '3px rgba(30, 58, 71, 0.15)',
           color: 'transparent',
-          
+
           // Gradient fill setup
           backgroundImage: 'linear-gradient(to top, #E5583E, #E5583E)',
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'bottom',
-          
+
           // Clipping
           WebkitBackgroundClip: 'text',
           backgroundClip: 'text',
-          
+
           // Animate the height of the background size based on scroll
           backgroundSize: useTransform(fillHeight, (h) => `100% ${h}`)
         }}
@@ -118,7 +118,7 @@ const BecomeTutor: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
+
   // Typewriter state
   const fullText = "Your knowledge can change a career.";
   const [typedText, setTypedText] = useState("");
@@ -135,7 +135,7 @@ const BecomeTutor: React.FC = () => {
     setLoginError(null);
     setIsLoggingIn(false);
   };
-  
+
   useEffect(() => {
     let index = 0;
     const timer = setInterval(() => {
@@ -173,7 +173,7 @@ const BecomeTutor: React.FC = () => {
 
   // Circle Scaling
   const circleScale = useTransform(howItWorksScroll, [0, 0.25], [0, 35]);
-  
+
   // Step Opacities
   const step1Opacity = useTransform(howItWorksScroll, [0.25, 0.35, 0.45, 0.5], [0, 1, 1, 0]);
   const step2Opacity = useTransform(howItWorksScroll, [0.5, 0.6, 0.7, 0.8], [0, 1, 1, 0]);
@@ -306,7 +306,7 @@ const BecomeTutor: React.FC = () => {
     };
 
     try {
-      const res = await fetch(buildApiUrl("/tutor-applications"), {
+      const res = await fetch(buildApiUrl("/api/tutor-applications"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -358,18 +358,18 @@ const BecomeTutor: React.FC = () => {
         ::-webkit-scrollbar-thumb { background: #E5583E; border-radius: 5px; border: 2px solid #FFFBF5; }
         ::-webkit-scrollbar-thumb:hover { background: #C03520; }
       `}</style>
-      
+
       {/* --- Header Section --- */}
       <section className="pt-32 pb-16 px-6 md:px-12 max-w-[1400px] mx-auto flex flex-col items-center text-center">
         <div className="max-w-4xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E5583E]/10 text-[#E5583E] text-[10px] md:text-xs font-black uppercase tracking-widest mb-6 reveal">
             New Cohort 2025
           </div>
-          
+
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-[#1E3A47] tracking-tight mb-6 leading-tight min-h-[1.4em]">
             <span className="typewriter-cursor">{typedText}</span>
           </h1>
-          
+
           <p className="text-lg md:text-2xl text-[#1E3A47]/70 font-medium max-w-2xl mx-auto reveal stagger-1 leading-relaxed">
             Become a tutor and lead the AI revolution.
           </p>
@@ -395,7 +395,7 @@ const BecomeTutor: React.FC = () => {
           <h3 className="text-4xl md:text-5xl font-black text-[#1E3A47] tracking-tight mb-4">Why teach with us?</h3>
           <p className="text-[#1E3A47]/60 text-lg max-w-lg mx-auto font-medium">We provide the platform, the audience, and the tools so you can focus on teaching.</p>
         </div>
-        
+
         <div className="grid md:grid-cols-3 gap-8">
           {/* Card 1 */}
           <div className="reveal stagger-1 group p-8 rounded-[2rem] bg-white border border-[#1E3A47]/5 hover:border-[#E5583E]/20 hover:shadow-xl hover:shadow-[#E5583E]/10 transition-all duration-500">
@@ -410,7 +410,7 @@ const BecomeTutor: React.FC = () => {
 
           {/* Card 2 */}
           <div className="reveal stagger-2 group p-8 rounded-[2rem] bg-white border border-[#1E3A47]/5 hover:border-[#E5583E]/20 hover:shadow-xl hover:shadow-[#E5583E]/10 transition-all duration-500">
-             <div className="w-14 h-14 rounded-xl bg-[#FFFBF5] flex items-center justify-center text-[#E5583E] mb-6 group-hover:scale-110 transition-transform duration-500">
+            <div className="w-14 h-14 rounded-xl bg-[#FFFBF5] flex items-center justify-center text-[#E5583E] mb-6 group-hover:scale-110 transition-transform duration-500">
               <Video size={28} strokeWidth={2.5} />
             </div>
             <h4 className="text-2xl font-bold text-[#1E3A47] mb-3">Studio Quality</h4>
@@ -421,7 +421,7 @@ const BecomeTutor: React.FC = () => {
 
           {/* Card 3 */}
           <div className="reveal stagger-3 group p-8 rounded-[2rem] bg-white border border-[#1E3A47]/5 hover:border-[#E5583E]/20 hover:shadow-xl hover:shadow-[#E5583E]/10 transition-all duration-500">
-             <div className="w-14 h-14 rounded-xl bg-[#FFFBF5] flex items-center justify-center text-[#E5583E] mb-6 group-hover:scale-110 transition-transform duration-500">
+            <div className="w-14 h-14 rounded-xl bg-[#FFFBF5] flex items-center justify-center text-[#E5583E] mb-6 group-hover:scale-110 transition-transform duration-500">
               <Globe size={28} strokeWidth={2.5} />
             </div>
             <h4 className="text-2xl font-bold text-[#1E3A47] mb-3">Global Reach</h4>
@@ -472,15 +472,15 @@ const BecomeTutor: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="w-full max-w-5xl mx-auto">
-              
+
               {/* Personal Details Row */}
               <div className="mb-12">
                 <h3 className="text-[#E5583E] text-xs font-black uppercase tracking-widest mb-8 border-b border-[#1E3A47]/10 pb-3">Personal Details</h3>
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Full Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleChange}
@@ -490,8 +490,8 @@ const BecomeTutor: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Email Address</label>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
@@ -501,8 +501,8 @@ const BecomeTutor: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Phone Number</label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
@@ -512,8 +512,8 @@ const BecomeTutor: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Professional Headline</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="headline"
                       value={formData.headline}
                       onChange={handleChange}
@@ -530,8 +530,8 @@ const BecomeTutor: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-6 w-full">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Area of Expertise</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="expertiseArea"
                       value={formData.expertiseArea}
                       onChange={handleChange}
@@ -541,8 +541,8 @@ const BecomeTutor: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Years of Experience</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="yearsExperience"
                       value={formData.yearsExperience}
                       onChange={handleChange}
@@ -559,8 +559,8 @@ const BecomeTutor: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Proposed Course Title</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="courseTitle"
                       value={formData.courseTitle}
                       onChange={handleChange}
@@ -571,7 +571,7 @@ const BecomeTutor: React.FC = () => {
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Availability</label>
                     <div className="relative">
-                      <select 
+                      <select
                         name="availability"
                         value={formData.availability}
                         onChange={handleChange}
@@ -584,7 +584,7 @@ const BecomeTutor: React.FC = () => {
                       </select>
                       <div className="absolute right-5 top-1/2 transform -translate-y-1/2 pointer-events-none text-[#1E3A47]">
                         <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </div>
                     </div>
@@ -601,11 +601,11 @@ const BecomeTutor: React.FC = () => {
                         disabled={isGenerating}
                         className="flex items-center gap-2 text-[10px] font-black text-[#E5583E] hover:text-[#C03520] disabled:opacity-50 transition-colors uppercase tracking-widest bg-[#E5583E]/10 px-3 py-1 rounded-full hover:bg-[#E5583E]/20"
                       >
-                        {isGenerating ? <Loader2 size={10} className="animate-spin"/> : <Sparkles size={10} />}
+                        {isGenerating ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
                         {isGenerating ? 'Thinking...' : 'AI Assist'}
                       </button>
                     </div>
-                    <textarea 
+                    <textarea
                       name="courseDescription"
                       rows={5}
                       value={formData.courseDescription}
@@ -616,7 +616,7 @@ const BecomeTutor: React.FC = () => {
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-[#1E3A47] uppercase tracking-wide">Target Audience</label>
-                    <textarea 
+                    <textarea
                       name="targetAudience"
                       rows={5}
                       value={formData.targetAudience}
@@ -633,12 +633,12 @@ const BecomeTutor: React.FC = () => {
                 <div className="flex items-start gap-3 text-[#1E3A47]/60">
                   <CheckCircle2 size={20} className="text-[#E5583E] shrink-0 mt-0.5" />
                   <p className="text-sm font-medium leading-relaxed">
-                    By submitting, you agree to our Terms. <br/>
+                    By submitting, you agree to our Terms. <br />
                     We respect your privacy.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 w-full md:w-auto">
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full md:w-auto px-12 py-5 bg-[#C03520] hover:bg-[#A02C1B] disabled:bg-[#C03520]/60 text-[#FFFBF5] font-black text-lg rounded-xl shadow-lg shadow-[#C03520]/20 transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95 disabled:cursor-not-allowed"

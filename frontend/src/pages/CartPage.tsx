@@ -151,7 +151,7 @@ export default function CartPage() {
       }
 
       try {
-        const response = await fetch(buildApiUrl(`/cart/items/${encodeURIComponent(courseId)}`), {
+        const response = await fetch(buildApiUrl(`/api/cart/items/${encodeURIComponent(courseId)}`), {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
@@ -282,55 +282,55 @@ export default function CartPage() {
       }}
       contentClassName="space-y-8"
     >
-            <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50/70 p-4 transition-all duration-500 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Cart overview</p>
-                <h1 className="text-3xl font-bold text-slate-900">Shopping Cart</h1>
-                <p className="text-sm text-slate-500">Review your curated courses and continue checkout whenever you’re ready.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setLocation(COURSE_PLAYER_PATH)}
-                  className="hidden sm:inline-flex border-slate-200 text-slate-700 hover:bg-slate-100"
-                >
-                  <Home className="mr-2 h-4 w-4" />
-                  Back to Home
-                </Button>
-                <ThemeToggle />
-              </div>
-            </div>
+      <div className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-gradient-to-br from-white to-slate-50/70 p-4 transition-all duration-500 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Cart overview</p>
+          <h1 className="text-3xl font-bold text-slate-900">Shopping Cart</h1>
+          <p className="text-sm text-slate-500">Review your curated courses and continue checkout whenever you’re ready.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setLocation(COURSE_PLAYER_PATH)}
+            className="hidden sm:inline-flex border-slate-200 text-slate-700 hover:bg-slate-100"
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
+          <ThemeToggle />
+        </div>
+      </div>
 
-            <section className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-sm transition-all duration-500 sm:p-6">
-              {isLoadingCart ? (
-                <div className="flex min-h-[40vh] items-center justify-center">
-                  <div className="space-y-4 text-center">
-                    <div className="flex justify-center">
-                      <div className="h-12 w-12 animate-spin rounded-full border-2 border-emerald-200 border-t-transparent" />
-                    </div>
-                    <p className="text-sm text-slate-500">Loading your cart...</p>
-                  </div>
-                </div>
-              ) : cart.length === 0 ? (
-                <div className="flex min-h-[40vh] items-center justify-center text-center">
-                  <div className="space-y-4">
-                    <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-slate-100">
-                      <ShoppingCart className="h-10 w-10 text-slate-400" />
-                    </div>
-                    <h2 className="text-2xl font-semibold text-slate-900">Your cart is empty</h2>
-                    <p className="text-sm text-slate-500">
-                      Explore new tracks and add them to your cart to build a personalised learning plan.
-                    </p>
-                    <Button
-                      onClick={() => setLocation(COURSE_PLAYER_PATH)}
-                      className="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
-                    >
-                      Continue learning
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <section className="rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-sm transition-all duration-500 sm:p-6">
+        {isLoadingCart ? (
+          <div className="flex min-h-[40vh] items-center justify-center">
+            <div className="space-y-4 text-center">
+              <div className="flex justify-center">
+                <div className="h-12 w-12 animate-spin rounded-full border-2 border-emerald-200 border-t-transparent" />
+              </div>
+              <p className="text-sm text-slate-500">Loading your cart...</p>
+            </div>
+          </div>
+        ) : cart.length === 0 ? (
+          <div className="flex min-h-[40vh] items-center justify-center text-center">
+            <div className="space-y-4">
+              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-slate-100">
+                <ShoppingCart className="h-10 w-10 text-slate-400" />
+              </div>
+              <h2 className="text-2xl font-semibold text-slate-900">Your cart is empty</h2>
+              <p className="text-sm text-slate-500">
+                Explore new tracks and add them to your cart to build a personalised learning plan.
+              </p>
+              <Button
+                onClick={() => setLocation(COURSE_PLAYER_PATH)}
+                className="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
+              >
+                Continue learning
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Cart Items - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between mb-4">
@@ -338,9 +338,9 @@ export default function CartPage() {
                   {cart.length} {cart.length === 1 ? 'Course' : 'Courses'} in Cart
                 </h2>
                 {cart.length > 1 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => void clearCart()}
                     className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
                   >
@@ -419,14 +419,14 @@ export default function CartPage() {
 
                           {/* Actions */}
                           <div className="flex flex-col xs:flex-row gap-2 pt-2 border-t border-border">
-                            <Button 
+                            <Button
                               size="sm"
                               onClick={() => handleEnrollSingle(item.courseId)}
                               className="bg-green-500 hover:bg-green-600 text-white text-xs sm:text-sm"
                             >
                               Enroll Now
                             </Button>
-                            <Button 
+                            <Button
                               size="sm"
                               variant="outline"
                               onClick={() => void removeFromCart(item.courseId)}
@@ -483,7 +483,7 @@ export default function CartPage() {
                   )}
 
                   <div className="space-y-3 pt-2">
-                    <Button 
+                    <Button
                       className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-sm sm:text-base py-5 sm:py-6"
                       onClick={handleCheckout}
                       disabled={isProcessingCheckout}
@@ -523,9 +523,9 @@ export default function CartPage() {
                 </CardContent>
               </Card>
             </div>
-                </div>
-              )}
-            </section>
+          </div>
+        )}
+      </section>
     </SiteLayout>
   );
 }

@@ -20,9 +20,6 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, { message: "OPENAI_API_KEY is required" }),
   LLM_MODEL: z.string().min(1, { message: "LLM_MODEL is required" }).default("gpt-3.5-turbo"),
   EMBEDDING_MODEL: z.string().min(1, { message: "EMBEDDING_MODEL is required" }).default("text-embedding-3-small"),
-  NEO4J_URI: z.string().url(),
-  NEO4J_USER: z.string().min(1, { message: "NEO4J_USER is required" }),
-  NEO4J_PASSWORD: z.string().min(1, { message: "NEO4J_PASSWORD is required" }),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -53,7 +50,4 @@ export const env = {
   openAiApiKey: parsed.data.OPENAI_API_KEY,
   llmModel: parsed.data.LLM_MODEL,
   embeddingModel: parsed.data.EMBEDDING_MODEL,
-  neo4jUri: parsed.data.NEO4J_URI,
-  neo4jUser: parsed.data.NEO4J_USER,
-  neo4jPassword: parsed.data.NEO4J_PASSWORD,
 };

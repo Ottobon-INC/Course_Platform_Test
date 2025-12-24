@@ -10,7 +10,7 @@ import AssessmentResults from '@/components/AssessmentResults';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useToast } from '@/hooks/use-toast';
 import { BookOpen, Clock, Users, Award } from 'lucide-react';
-import { AssessmentQuestion, Course } from '@shared/schema';
+import { AssessmentQuestion, Course } from '@/types/content';
 
 interface Question {
   id: string;
@@ -84,12 +84,12 @@ export default function AssessmentPage() {
   const transformedQuestions = questions.map(q => ({
     id: q.id,
     question: q.question,
-    options: Array.isArray(q.options) 
+    options: Array.isArray(q.options)
       ? q.options.map((opt: any) => ({
-          id: opt.id,
-          text: opt.text,
-          isCorrect: opt.isCorrect
-        }))
+        id: opt.id,
+        text: opt.text,
+        isCorrect: opt.isCorrect
+      }))
       : []
   }));
 
@@ -280,7 +280,7 @@ export default function AssessmentPage() {
                     <div>
                       <h3 className="font-semibold mb-2">Pre-Course Knowledge Assessment</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        This quick assessment helps us understand your current knowledge level and provide 
+                        This quick assessment helps us understand your current knowledge level and provide
                         personalized recommendations for your learning journey.
                       </p>
                       <ul className="text-sm text-muted-foreground space-y-1">

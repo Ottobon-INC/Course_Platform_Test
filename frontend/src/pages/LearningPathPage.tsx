@@ -169,7 +169,7 @@ const LearningPathPage: React.FC = () => {
 
       try {
         setIsSubmitting(true);
-        const res = await fetch(buildApiUrl(`/lessons/courses/${courseId}/personalization`), {
+        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/personalization`), {
           method: "POST",
           credentials: "include",
           headers: {
@@ -254,7 +254,7 @@ const LearningPathPage: React.FC = () => {
       setSessionToken(refreshed.accessToken);
 
       try {
-        const res = await fetch(buildApiUrl(`/lessons/courses/${courseId}/personalization`), {
+        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/personalization`), {
           credentials: "include",
           headers: {
             Authorization: `Bearer ${refreshed.accessToken}`,

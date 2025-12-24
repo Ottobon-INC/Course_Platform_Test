@@ -287,3 +287,14 @@ model ModulePromptUsage {
   @@unique([userId, courseId, moduleNo], map: "uq_prompt_usage_user_course_module")
   @@map("module_prompt_usage")
 }
+
+model CourseChunk {
+  chunkId  String                 @id @map("chunk_id")
+  courseId String                 @map("course_id")
+  position Int                    @map("position")
+  content  String
+  embedding Unsupported("vector") @map("embedding")
+
+  @@index([courseId], map: "idx_course_chunks_course_id")
+  @@map("course_chunks")
+}

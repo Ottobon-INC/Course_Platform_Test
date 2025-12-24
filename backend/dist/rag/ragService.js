@@ -1,53 +1,40 @@
-import neo4j from "neo4j-driver";
-import { ensureVectorIndex, getSession, resetNeo4jDriver, VECTOR_INDEX_NAME } from "./neo4jClient";
+import { Prisma } from "@prisma/client";
 import { createEmbedding, generateAnswerFromContext } from "./openAiClient";
 import { scrubPossiblePii } from "./pii";
 import { logRagUsage } from "./usageLogger";
+import { prisma } from "../services/prisma";
 const VECTOR_QUERY_LIMIT = 5;
+const EMBEDDING_DIMENSIONS = 1536;
+const INSERT_BATCH_SIZE = 50;
 export async function replaceCourseChunks(courseTitle, chunks) {
     if (chunks.length === 0) {
         throw new Error("No chunks generated from course material.");
     }
-    await ensureVectorIndex();
-    const session = await getSession();
     const courseId = chunks[0]?.courseId;
     if (!courseId) {
         throw new Error("Chunks are missing course identifiers.");
     }
-    try {
-        await session.executeRead((tx) => tx.run(`
-        MATCH (c:Course {courseId: $courseId})-[:HAS_CHUNK]->(oldChunk)
-        DETACH DELETE oldChunk
-      `, { courseId }));
-    }
-    catch {
-        // Ignore if the course does not yet exist.
-    }
-    try {
-        await session.run(`
-      MERGE (course:Course {courseId: $courseId})
-      ON CREATE SET course.title = $courseTitle
-      SET course.title = coalesce($courseTitle, course.title), course.updatedAt = datetime()
-    `, { courseId, courseTitle });
-        const batchSize = 20;
-        for (let i = 0; i < chunks.length; i += batchSize) {
-            const batch = chunks.slice(i, i + batchSize);
-            await session.run(`
-        UNWIND $batch AS chunk
-        MERGE (node:CourseChunk {chunkId: chunk.chunkId})
-        SET node.content = chunk.content,
-            node.courseId = chunk.courseId,
-            node.position = chunk.position,
-            node.embedding = chunk.embedding,
-            node.updatedAt = datetime()
-        WITH node
-        MATCH (course:Course {courseId: $courseId})
-        MERGE (course)-[:HAS_CHUNK]->(node)
-      `, { batch, courseId });
-        }
-    }
-    finally {
-        await session.close();
+    await prisma.$executeRaw(Prisma.sql `
+      DELETE FROM course_chunks
+      WHERE course_id = ${courseId}
+    `);
+    for (let i = 0; i < chunks.length; i += INSERT_BATCH_SIZE) {
+        const batch = chunks.slice(i, i + INSERT_BATCH_SIZE);
+        const values = batch.map((chunk) => {
+            const embedding = normalizeEmbedding(chunk.embedding);
+            const vectorLiteral = toVectorLiteral(embedding);
+            return Prisma.sql `(${chunk.chunkId}, ${chunk.courseId}, ${normalizePosition(chunk.position)}, ${chunk.content}, ${Prisma.raw(vectorLiteral)})`;
+        });
+        await prisma.$executeRaw(Prisma.sql `
+        INSERT INTO course_chunks (chunk_id, course_id, position, content, embedding)
+        VALUES ${Prisma.join(values)}
+        ON CONFLICT (chunk_id)
+        DO UPDATE SET
+          course_id = EXCLUDED.course_id,
+          position = EXCLUDED.position,
+          content = EXCLUDED.content,
+          embedding = EXCLUDED.embedding
+      `);
     }
 }
 export async function askCourseAssistant(options) {
@@ -78,40 +65,23 @@ export async function askCourseAssistant(options) {
         throw error;
     }
 }
-async function fetchRelevantContexts(courseId, embedding, attempt = 0) {
-    let session = null;
-    const topK = neo4j.int(VECTOR_QUERY_LIMIT);
-    try {
-        session = await getSession();
-        const result = await session.run(`
-    CALL db.index.vector.queryNodes($indexName, $topK, $embedding)
-    YIELD node, score
-    WHERE node.courseId = $courseId
-    RETURN node.chunkId AS chunkId, node.content AS content, score
-    LIMIT $topK
-  `, {
-            indexName: VECTOR_INDEX_NAME,
-            topK,
-            embedding,
-            courseId,
-        });
-        const contexts = result.records.map((record) => ({
-            chunkId: record.get("chunkId"),
-            content: record.get("content"),
-            score: record.get("score"),
-        }));
-        return contexts;
-    }
-    catch (error) {
-        if (shouldResetDriver(error) && attempt < 1) {
-            await resetNeo4jDriver();
-            return fetchRelevantContexts(courseId, embedding, attempt + 1);
-        }
-        throw error;
-    }
-    finally {
-        await session?.close();
-    }
+async function fetchRelevantContexts(courseId, embedding) {
+    const normalizedEmbedding = normalizeEmbedding(embedding);
+    const vectorLiteral = toVectorLiteral(normalizedEmbedding);
+    const rows = await prisma.$queryRaw(Prisma.sql `
+      SELECT chunk_id,
+             content,
+             1 - (embedding <=> ${Prisma.raw(vectorLiteral)}) AS score
+      FROM course_chunks
+      WHERE course_id = ${courseId}
+      ORDER BY embedding <=> ${Prisma.raw(vectorLiteral)}
+      LIMIT ${VECTOR_QUERY_LIMIT}
+    `);
+    return rows.map((row) => ({
+        chunkId: row.chunk_id,
+        content: row.content,
+        score: typeof row.score === "number" ? row.score : Number(row.score),
+    }));
 }
 function buildPrompt(params) {
     const contextBlock = params.contexts
@@ -130,12 +100,27 @@ function buildPrompt(params) {
         "Answer:",
     ].join("\n");
 }
-function shouldResetDriver(error) {
-    if (!(error instanceof neo4j.Neo4jError)) {
-        return false;
+function normalizeEmbedding(embedding) {
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+        throw new Error("Embedding vector is empty.");
     }
-    if (error.code === "ServiceUnavailable" || error.code === "SessionExpired") {
-        return true;
+    if (embedding.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error(`Embedding vector must be ${EMBEDDING_DIMENSIONS} dimensions.`);
     }
-    return /No routing servers available/i.test(error.message ?? "");
+    return embedding.map((value, index) => {
+        if (!Number.isFinite(value)) {
+            throw new Error(`Embedding value at index ${index} is not a finite number.`);
+        }
+        return Number(value);
+    });
+}
+function toVectorLiteral(embedding) {
+    const payload = embedding.map((value) => value.toString()).join(",");
+    return `'[${payload}]'::vector`;
+}
+function normalizePosition(value) {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+    return Math.trunc(value);
 }

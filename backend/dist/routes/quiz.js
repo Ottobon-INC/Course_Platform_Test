@@ -13,14 +13,14 @@ const LEGACY_COURSE_SLUGS = {
 };
 const DEFAULT_QUIZ_LIMIT = 5;
 const PASSING_PERCENT_THRESHOLD = 70;
-const MODULE_WINDOW_DURATION = "7d"; // Change this string (e.g., "3h", "2d") to adjust the study window per module.
-const MODULE_WINDOW_MS = parseDurationToMs(MODULE_WINDOW_DURATION);
 const DURATION_UNIT_MS = {
     d: 24 * 60 * 60 * 1000,
     h: 60 * 60 * 1000,
     m: 60 * 1000,
     s: 1000,
 };
+const MODULE_WINDOW_DURATION = "7d"; // Change this string (e.g., "3h", "2d") to adjust the study window per module.
+const MODULE_WINDOW_MS = parseDurationToMs(MODULE_WINDOW_DURATION);
 export const quizRouter = express.Router();
 const startAttemptSchema = z.object({
     courseId: z.string().min(1),

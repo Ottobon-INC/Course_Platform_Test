@@ -157,11 +157,10 @@ export default function ChatBot({ courseName, courseId }: ChatBotProps) {
                   {messages.map((message) => (
                     <div key={message.id} className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}>
                       <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-md ${
-                          message.isBot
-                            ? "bg-muted text-foreground"
-                            : "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-                        }`}
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-md ${message.isBot
+                          ? "bg-muted text-foreground"
+                          : "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                          }`}
                       >
                         <div className="flex items-center gap-2 mb-1 text-xs opacity-80">
                           {message.isBot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
@@ -231,7 +230,7 @@ async function requestAssistantAnswer(params: {
     throw new Error("Please sign in to chat with the learning assistant.");
   }
 
-  const response = await fetch(buildApiUrl("/assistant/query"), {
+  const response = await fetch(buildApiUrl("/api/assistant/query"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -501,10 +501,10 @@ const CoursePlayerPage: React.FC = () => {
     return idx >= 0 ? idx + 1 : currentModuleId;
   }, [realModules, currentModuleId]);
   const greetingMessage = useMemo(() => buildTopicGreeting(activeLesson), [activeLesson]);
-const availableStarterSuggestions = useMemo(() => {
-  if (starterSuggestions.length === 0) return [];
-  return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
-}, [starterSuggestions, usedSuggestionIds]);
+  const availableStarterSuggestions = useMemo(() => {
+    if (starterSuggestions.length === 0) return [];
+    return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
+  }, [starterSuggestions, usedSuggestionIds]);
   const activePersonalizedPersona = useMemo(() => {
     if (lockedPersona !== "normal") {
       return lockedPersona;
@@ -572,16 +572,16 @@ const availableStarterSuggestions = useMemo(() => {
     setShouldRefreshStarterBatch(false);
   }, [availableStarterSuggestions, shouldRefreshStarterBatch, starterSuggestions]);
 
-useEffect(() => {
-  const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
-  setChatMessages([{ id: welcomeId, text: greetingMessage, isBot: true }]);
-  setUsedSuggestionIds(new Set());
-  setPendingSuggestion(null);
-  setInlineFollowUps({});
-  setVisibleStarterSuggestions([]);
-  setShouldRefreshStarterBatch(true);
-  setStarterAnchorMessageId(welcomeId);
-}, [activeLesson?.slug, greetingMessage]);
+  useEffect(() => {
+    const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
+    setChatMessages([{ id: welcomeId, text: greetingMessage, isBot: true }]);
+    setUsedSuggestionIds(new Set());
+    setPendingSuggestion(null);
+    setInlineFollowUps({});
+    setVisibleStarterSuggestions([]);
+    setShouldRefreshStarterBatch(true);
+    setStarterAnchorMessageId(welcomeId);
+  }, [activeLesson?.slug, greetingMessage]);
 
   const getLessonTextForPersona = useCallback((lesson: Lesson | null | undefined, persona: StudyPersona) => {
     if (!lesson) {
@@ -606,7 +606,7 @@ useEffect(() => {
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
     try {
-      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/topics`), { credentials: "include" });
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/topics`), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load topics");
       const data = await res.json();
       const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
@@ -655,7 +655,7 @@ useEffect(() => {
       return;
     }
     try {
-      const res = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/personalization`), {
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/personalization`), {
         credentials: "include",
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
@@ -711,7 +711,7 @@ useEffect(() => {
     setSuggestionsLoading(true);
     try {
       const res = await fetch(
-        buildApiUrl(`/lessons/courses/${courseKey}/prompts${queryString ? `?${queryString}` : ""}`),
+        buildApiUrl(`/api/lessons/courses/${courseKey}/prompts${queryString ? `?${queryString}` : ""}`),
         {
           credentials: "include",
           headers: {
@@ -822,7 +822,7 @@ useEffect(() => {
     }
     setPersonaSaving(true);
     try {
-      const response = await fetch(buildApiUrl(`/lessons/courses/${courseKey}/personalization`), {
+      const response = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/personalization`), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -966,26 +966,26 @@ useEffect(() => {
     }
   }, [lessons, sections]);
 
-useEffect(() => {
-  void fetchTopics();
-}, [fetchTopics]);
+  useEffect(() => {
+    void fetchTopics();
+  }, [fetchTopics]);
 
-useEffect(() => {
-  void fetchSections();
-}, [fetchSections]);
+  useEffect(() => {
+    void fetchSections();
+  }, [fetchSections]);
 
-useEffect(() => {
-  void fetchPersonaPreference();
-}, [fetchPersonaPreference]);
+  useEffect(() => {
+    void fetchPersonaPreference();
+  }, [fetchPersonaPreference]);
 
-useEffect(() => {
-  setInlineFollowUps({});
-  void fetchPromptSuggestions();
-}, [fetchPromptSuggestions]);
+  useEffect(() => {
+    setInlineFollowUps({});
+    void fetchPromptSuggestions();
+  }, [fetchPromptSuggestions]);
 
-useEffect(() => {
-  const hydrateSession = async () => {
-    const stored = readStoredSession();
+  useEffect(() => {
+    const hydrateSession = async () => {
+      const stored = readStoredSession();
       const fresh = await ensureSessionFresh(stored);
       setSession(fresh);
     };
@@ -1387,12 +1387,10 @@ useEffect(() => {
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
   const sidebarBaseClasses = "bg-[#000000] transition-all duration-300 ease-in-out flex flex-col overflow-hidden";
   const sidebarClassName = isCompactLayout
-    ? `${sidebarBaseClasses} fixed top-0 left-0 h-full w-72 max-w-[85vw] transform ${
-        sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
-      } border-r border-[#4a4845]/70 shadow-2xl z-40`
-    : `${sidebarBaseClasses} shrink-0 relative z-30 ${isFullScreen ? "absolute h-full z-40" : ""} ${
-        !isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"
-      } ${sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"}`;
+    ? `${sidebarBaseClasses} fixed top-0 left-0 h-full w-72 max-w-[85vw] transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+    } border-r border-[#4a4845]/70 shadow-2xl z-40`
+    : `${sidebarBaseClasses} shrink-0 relative z-30 ${isFullScreen ? "absolute h-full z-40" : ""} ${!isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"
+    } ${sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"}`;
 
   return (
     <div
@@ -1469,9 +1467,8 @@ useEffect(() => {
                 </div>
 
                 <div
-                  className={`space-y-1 transition-all duration-300 ${
-                    isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
-                  }`}
+                  className={`space-y-1 transition-all duration-300 ${isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
+                    }`}
                 >
                   {module.submodules?.map((sub) => {
                     const active = sub.slug ? sub.slug === activeLesson?.slug : false;
@@ -1481,11 +1478,10 @@ useEffect(() => {
                         type="button"
                         onClick={() => handleSubmoduleSelect(sub)}
                         aria-disabled={!sub.unlocked}
-                        className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${
-                          active
-                            ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"
-                            : "hover:bg-white/5 border-transparent text-[#f8f1e6]/70"
-                        } ${!sub.unlocked ? "opacity-40 cursor-not-allowed hover:bg-transparent" : ""}`}
+                        className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${active
+                          ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"
+                          : "hover:bg-white/5 border-transparent text-[#f8f1e6]/70"
+                          } ${!sub.unlocked ? "opacity-40 cursor-not-allowed hover:bg-transparent" : ""}`}
                       >
                         {sub.type === "quiz" ? <FileText size={14} className="flex-shrink-0" /> : <Play size={14} className="flex-shrink-0" />}
                         <span className="truncate flex-1">{sub.title}</span>
@@ -1561,14 +1557,12 @@ useEffect(() => {
           {/* Video */}
           {!isQuizMode && (
             <div
-              className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${
-                isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
-              }`}
+              className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
+                }`}
             >
               <div
-                className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${
-                  isFullScreen ? "w-auto h-auto" : "w-full h-full"
-                }`}
+                className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
+                  }`}
               >
                 {activeVideoUrl ? (
                   <iframe
@@ -1618,11 +1612,10 @@ useEffect(() => {
                   <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
                     <button
                       onClick={() => setIsReadingMode(!isReadingMode)}
-                      className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${
-                        isReadingMode
-                          ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
-                          : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
-                      }`}
+                      className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${isReadingMode
+                        ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
+                        : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
+                        }`}
                     >
                       {isReadingMode ? (
                         <>
@@ -1673,7 +1666,7 @@ useEffect(() => {
                         />
                       </div>
                     </div>
-                    
+
                   </div>
                 )}
 
@@ -1689,116 +1682,114 @@ useEffect(() => {
           {/* Quiz overlay */}
           {isQuizMode && (
             <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
-            <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
-              {quizPhase === "intro" && (
-                <div className="text-center space-y-6 animate-fade-in">
-                  <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
-                    <Lock size={48} />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+                {quizPhase === "intro" && (
+                  <div className="text-center space-y-6 animate-fade-in">
+                    <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
+                      <Lock size={48} />
+                    </div>
+                    <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">The Gauntlet</h2>
+                    <p className="text-lg text-[#4a4845] font-medium">
+                      You are about to enter a mandatory evaluation.
+                      <br />
+                      <span className="text-[#bf2f1f] font-bold">Rules are strict:</span>
+                    </p>
+                    <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
+                      </li>
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
+                      </li>
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 70% to pass
+                      </li>
+                      <li className="flex gap-2 text-[#bf2f1f]">
+                        <X size={16} /> Failure = Reset to Module 1
+                      </li>
+                    </ul>
+                    <button
+                      onClick={() => setQuizPhase("active")}
+                      className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
+                    >
+                      I Accept the Challenge
+                    </button>
                   </div>
-                  <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">The Gauntlet</h2>
-                  <p className="text-lg text-[#4a4845] font-medium">
-                    You are about to enter a mandatory evaluation.
-                    <br />
-                    <span className="text-[#bf2f1f] font-bold">Rules are strict:</span>
-                  </p>
-                  <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
-                    <li className="flex gap-2">
-                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
-                    </li>
-                    <li className="flex gap-2">
-                      <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
-                    </li>
-                    <li className="flex gap-2">
-                      <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 70% to pass
-                    </li>
-                    <li className="flex gap-2 text-[#bf2f1f]">
-                      <X size={16} /> Failure = Reset to Module 1
-                    </li>
-                  </ul>
-                  <button
-                    onClick={() => setQuizPhase("active")}
-                    className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
-                  >
-                    I Accept the Challenge
-                  </button>
-                </div>
-              )}
+                )}
 
-              {quizPhase === "active" && (
-                <div className="animate-fade-in">
-                  <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
-                    <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
-                    <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
-                      00:{quizTimer.toString().padStart(2, "0")}
-                    </span>
-                  </div>
+                {quizPhase === "active" && (
+                  <div className="animate-fade-in">
+                    <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
+                      <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
+                      <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
+                        00:{quizTimer.toString().padStart(2, "0")}
+                      </span>
+                    </div>
 
-                  <div className="space-y-8">
-                    {quizQuestions.map((q, idx) => (
-                      <div key={q.questionId} className="space-y-4">
-                        <h3 className="text-xl font-bold">{idx + 1}. {q.prompt}</h3>
-                        <div className="grid gap-3">
-                          {q.options.map((opt) => (
-                            <button
-                              key={opt.optionId}
-                              onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
-                              className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${
-                                answers[q.questionId] === opt.optionId
+                    <div className="space-y-8">
+                      {quizQuestions.map((q, idx) => (
+                        <div key={q.questionId} className="space-y-4">
+                          <h3 className="text-xl font-bold">{idx + 1}. {q.prompt}</h3>
+                          <div className="grid gap-3">
+                            {q.options.map((opt) => (
+                              <button
+                                key={opt.optionId}
+                                onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
+                                className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${answers[q.questionId] === opt.optionId
                                   ? "bg-[#000000] text-white border-[#000000]"
                                   : "bg-white border-[#4a4845]/20 hover:border-[#000000]"
-                              }`}
-                            >
-                              {opt.text}
-                            </button>
-                          ))}
+                                  }`}
+                              >
+                                {opt.text}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+
+                    <button
+                      disabled={quizQuestions.some((q) => !answers[q.questionId])}
+                      onClick={handleSubmitQuiz}
+                      className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                    >
+                      Submit Assessment
+                    </button>
                   </div>
+                )}
 
-                  <button
-                    disabled={quizQuestions.some((q) => !answers[q.questionId])}
-                    onClick={handleSubmitQuiz}
-                    className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
-                  >
-                    Submit Assessment
-                  </button>
-                </div>
-              )}
-
-              {quizPhase === "result" && quizResult && (
-                <div className="text-center animate-fade-in space-y-6">
-                  <div
-                    className={`inline-flex p-6 rounded-full border-4 mb-4 ${
-                      quizResult.passed
+                {quizPhase === "result" && quizResult && (
+                  <div className="text-center animate-fade-in space-y-6">
+                    <div
+                      className={`inline-flex p-6 rounded-full border-4 mb-4 ${quizResult.passed
                         ? "bg-green-100 border-green-500 text-green-600"
                         : "bg-red-100 border-red-500 text-red-600"
-                    }`}
-                  >
-                    {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
+                        }`}
+                    >
+                      {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
+                    </div>
+                    <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Gauntlet Passed" : "Protocol Failed"}</h2>
+                    <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
+                    <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
+                    <button
+                      onClick={() => {
+                        setIsQuizMode(false);
+                        setQuizPhase("intro");
+                        setQuizQuestions([]);
+                        setAnswers({});
+                        setSelectedSection(null);
+                        setQuizAttemptId(null);
+                        setQuizResult(null);
+                      }}
+                      className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                    >
+                      Back to course
+                    </button>
                   </div>
-                  <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Gauntlet Passed" : "Protocol Failed"}</h2>
-                  <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
-                  <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
-                  <button
-                    onClick={() => {
-                      setIsQuizMode(false);
-                      setQuizPhase("intro");
-                      setQuizQuestions([]);
-                      setAnswers({});
-                      setSelectedSection(null);
-                      setQuizAttemptId(null);
-                      setQuizResult(null);
-                    }}
-                    className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
-                  >
-                    Back to course
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -1813,10 +1804,10 @@ useEffect(() => {
             className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
           >
-            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16}/> AI Tutor</div>
+            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
             <div className="flex items-center gap-1">
-              <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} className="text-white"/></button>
-              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white"/></button>
+              <button onClick={() => centerWidget("chat")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} className="text-white" /></button>
+              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
             </div>
           </div>
           <div
@@ -1831,9 +1822,8 @@ useEffect(() => {
               return (
                 <div key={msg.id} className="space-y-2">
                   <div
-                    className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${
-                      msg.error ? "border-red-500/60 text-red-200" : ""
-                    }`}
+                    className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
+                      }`}
                   >
                     <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
                     <div className="whitespace-pre-line">{msg.text}</div>
@@ -1857,11 +1847,10 @@ useEffect(() => {
                               type="button"
                               disabled={chatLoading}
                               onClick={() => handleSuggestionSelect(suggestion)}
-                              className={`px-4 py-1.5 rounded-full text-xs border transition ${
-                                chatLoading
-                                  ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                                  : "border-white/25 text-white/80 hover:border-white hover:text-white"
-                              }`}
+                              className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
+                                ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                                : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                                }`}
                             >
                               {suggestion.promptText}
                             </button>
@@ -1891,11 +1880,10 @@ useEffect(() => {
                             type="button"
                             disabled={chatLoading}
                             onClick={() => handleSuggestionSelect(suggestion)}
-                            className={`px-3 py-1 rounded-full text-xs border transition ${
-                              chatLoading
-                                ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                                : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
-                            }`}
+                            className={`px-3 py-1 rounded-full text-xs border transition ${chatLoading
+                              ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                              : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
+                              }`}
                           >
                             {suggestion.promptText}
                           </button>
@@ -1944,10 +1932,10 @@ useEffect(() => {
             className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
           >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16}/> My Notes</div>
+            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
             <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14}/></button>
-              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14}/></button>
+              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
             </div>
           </div>
           <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
@@ -1968,21 +1956,21 @@ useEffect(() => {
             onMouseDown={(e) => handleMouseDown(e, "move", "study")}
           >
             <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-              <Book size={16}/> Study Material
+              <Book size={16} /> Study Material
             </div>
             <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14}/></button>
-              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14}/></button>
+              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
             {activeStudyText
               ? activeStudyText.split("\n").map((line, i) => {
-                  if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
-                  if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
-                  if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
-                  if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
-                  if (line.trim() === "") return <div key={i} className="h-2"></div>;
+                if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
+                if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
+                if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
+                if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
+                if (line.trim() === "") return <div key={i} className="h-2"></div>;
                 return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
               })
               : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
@@ -2019,9 +2007,8 @@ useEffect(() => {
 
       <button
         onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${
-          isFullScreen || isQuizMode ? "hidden" : ""
-        }`}
+        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode ? "hidden" : ""
+          }`}
         title="Chat with AI Tutor"
       >
         {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
@@ -2059,9 +2046,8 @@ useEffect(() => {
                         return (
                           <label
                             key={option.value}
-                            className={`cursor-pointer rounded-lg border p-3 text-sm font-medium transition text-[#1f1c1a] ${
-                              checked ? "border-[#bf2f1f] bg-[#bf2f1f]/10" : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
-                            }`}
+                            className={`cursor-pointer rounded-lg border p-3 text-sm font-medium transition text-[#1f1c1a] ${checked ? "border-[#bf2f1f] bg-[#bf2f1f]/10" : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
+                              }`}
                           >
                             <input
                               type="radio"
@@ -2109,17 +2095,16 @@ useEffect(() => {
                       key={option}
                       type="button"
                       onClick={() => setPersonaPending(option)}
-                      className={`text-left border rounded-xl p-4 transition focus:outline-none ${
-                        personaPending === option
-                          ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
-                          : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
-                      }`}
+                      className={`text-left border rounded-xl p-4 transition focus:outline-none ${personaPending === option
+                        ? "border-[#bf2f1f] bg-[#bf2f1f]/5 shadow-inner"
+                        : "border-[#4a4845]/20 hover:border-[#bf2f1f]"
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="font-semibold text-[#000000]">{personaOptions[option].label}</div>
                         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-[#bf2f1f]">
                           {recommendedPersona === option && !activePersonalizedPersona && <span>Recommended</span>}
-                          {activePersonalizedPersona === option && option !== "normal" && <span>Saved</span>}
+                          {activePersonalizedPersona === option && <span>Saved</span>}
                         </div>
                       </div>
                       <p className="text-sm text-[#4a4845]">{personaOptions[option].description}</p>

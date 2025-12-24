@@ -199,7 +199,7 @@ const CourseDetailsPage: React.FC = () => {
     let mounted = true;
     const loadCourse = async () => {
       try {
-        const courseRes = await fetch(buildApiUrl(`/courses/${courseId}`));
+        const courseRes = await fetch(buildApiUrl(`/api/courses/${courseId}`));
         if (courseRes.ok) {
           const payload = await courseRes.json();
           if (mounted) {
@@ -232,7 +232,7 @@ const CourseDetailsPage: React.FC = () => {
           }
         }
 
-        const res = await fetch(buildApiUrl(`/lessons/courses/${courseId}/topics`));
+        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics`));
         if (!res.ok) {
           throw new Error("Failed to load course topics");
         }
@@ -323,7 +323,7 @@ const CourseDetailsPage: React.FC = () => {
         return { success: false };
       }
 
-      const response = await fetch(buildApiUrl(`/courses/${courseId}/enroll`), {
+      const response = await fetch(buildApiUrl(`/api/courses/${courseId}/enroll`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -372,7 +372,7 @@ const CourseDetailsPage: React.FC = () => {
     }
 
     try {
-      const res = await fetch(buildApiUrl(`/lessons/courses/${courseId}/personalization`), {
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/personalization`), {
         credentials: "include",
         headers: {
           Authorization: `Bearer ${token}`,

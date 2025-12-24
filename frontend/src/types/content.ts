@@ -67,3 +67,40 @@ export interface TutorApplicationResponse {
     submittedAt: string;
   };
 }
+
+// Course interface for API responses
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  slug?: string;
+  price?: number;
+  priceCents?: number;
+  category?: string;
+  level?: string;
+  difficulty?: string;
+  instructor?: string;
+  duration?: string;
+  durationLabel?: string;
+  durationMinutes?: number;
+  rating?: number;
+  studentsCount: number;
+  thumbnail?: string | null;
+  heroVideoUrl?: string | null;
+  isFeatured?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Assessment question interface
+export interface AssessmentQuestion {
+  id: string;
+  question: string;
+  options: Array<{
+    id: string;
+    text: string;
+    isCorrect?: boolean;
+  }>;
+  courseId?: string;
+  order?: number;
+}

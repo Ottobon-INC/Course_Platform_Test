@@ -4,7 +4,6 @@ import { PDFParse } from "pdf-parse";
 import { chunkText } from "../src/rag/textChunker";
 import { createEmbedding } from "../src/rag/openAiClient";
 import { replaceCourseChunks } from "../src/rag/ragService";
-import { closeNeo4jConnection } from "../src/rag/neo4jClient";
 
 const DEFAULT_PDF_PATH = path.resolve(process.cwd(), "../Web Dev using AI Course Content.pdf");
 const DEFAULT_COURSE_ID = "ai-in-web-development";
@@ -49,7 +48,4 @@ main()
   .catch((error) => {
     console.error("[rag] ingest failed", error);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await closeNeo4jConnection();
   });

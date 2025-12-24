@@ -99,7 +99,6 @@ const FireworkBurst = () => {
               animation: `burst ${particle.duration}s cubic-bezier(0.22, 0.68, 0.12, 1) forwards`,
               // @ts-expect-error custom property for animation
               "--angle": `${particle.angle}rad`,
-              // @ts-expect-error custom property for animation
               "--velocity": `${particle.velocity}px`,
             }}
           />
@@ -141,7 +140,7 @@ const CongratsPage = () => {
     let mounted = true;
     const loadCourse = async () => {
       try {
-        const res = await fetch(buildApiUrl(`/courses/${courseKey}`));
+        const res = await fetch(buildApiUrl(`/api/courses/${courseKey}`));
         if (!res.ok) throw new Error("Unable to load course details");
         const payload = (await res.json()) as { course?: CourseSummary };
         if (mounted) {
