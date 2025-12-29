@@ -4,6 +4,7 @@ import { prisma } from "../services/prisma";
 import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { ensureEnrollment } from "../services/enrollmentService";
+import { checkCohortAccessForUser } from "../services/cohortAccess";
 
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
   "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
@@ -149,6 +150,20 @@ coursesRouter.post(
     const auth = (req as AuthenticatedRequest).auth;
     if (!auth) {
       res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const cohortAccess = await checkCohortAccessForUser(auth.userId, resolved.courseId);
+    if (!cohortAccess.allowed) {
+      res.status(cohortAccess.status).json({ message: cohortAccess.message });
+      return;
+    }
+
+    const checkOnly =
+      (typeof req.query?.checkOnly === "string" && req.query.checkOnly === "true") ||
+      req.body?.checkOnly === true;
+    if (checkOnly) {
+      res.status(204).end();
       return;
     }
 

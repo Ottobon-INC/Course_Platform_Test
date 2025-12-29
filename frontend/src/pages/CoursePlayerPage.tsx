@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
-import { ensureSessionFresh, readStoredSession } from "@/utils/session";
+import { subscribeToSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 import ReactMarkdown from "react-markdown";
@@ -984,12 +984,10 @@ const CoursePlayerPage: React.FC = () => {
   }, [fetchPromptSuggestions]);
 
   useEffect(() => {
-    const hydrateSession = async () => {
-      const stored = readStoredSession();
-      const fresh = await ensureSessionFresh(stored);
-      setSession(fresh);
-    };
-    void hydrateSession();
+    const unsubscribe = subscribeToSession((nextSession) => {
+      setSession(nextSession);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Quiz timer

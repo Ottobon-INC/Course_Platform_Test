@@ -21,6 +21,7 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 ## 2. Feature Map
 - **Single-course marketing funnel** with live curriculum data, responsive hero sections, skills badges, and the MetaLearn enrollment protocol.
 - **Auto-enrollment** – when a learner accepts the protocol, the SPA calls `POST /courses/:slug/enroll` so every cohort is tracked in Postgres.
+- **Cohort allowlist gate** – enrollment is restricted to approved emails stored in `cohorts` + `cohort_members` (with `batch_no`), while browsing/course playback remain public.
 - **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
@@ -95,6 +96,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 ### Course details page
 - Fetches `/courses/:slug` for metadata plus `/lessons/courses/:slug/topics` to render modules timeline.
 - Promo pricing (free cohort or INR fallback) determined locally based on slug.
+- Clicking Enroll performs a cohort eligibility check (`POST /courses/:slug/enroll?checkOnly=true`). If allowed, the MetaLearn modal opens; if not, a cohort access toast is shown and the modal stays closed.
 - After enrollment, checks personalization preference: if `hasPreference` is false the learner is routed through `/course/:slug/path` before landing inside `/learn`.
 
 ### Certificate page
@@ -110,7 +112,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | Router | Responsibilities |
 | --- | --- |
 | authRouter | Google OAuth redirect/callback, ID token verification, token refresh, logout |
-| coursesRouter | Course catalog fetch, slug/UUID/name resolution, idempotent enroll writes |
+| coursesRouter | Course catalog fetch, slug/UUID/name resolution, cohort allowlist checks, idempotent enroll writes |
 | lessonsRouter | Course topics, module-scoped topics, topic progress CRUD, study persona CRUD, curated prompt suggestions |
 | quizRouter | Quiz question fetch, sections/progress summary, attempt creation, submission grading, module progress updates |
 | assistantRouter | Authenticated tutor endpoint (typed prompt quotas, follow-up suggestions, RAG pipeline) |
@@ -124,6 +126,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - `sessionService.ts` – validates/creates JWTs, hashes refresh tokens in `user_sessions`, rotates them on refresh.
 - `googleOAuth.ts` – wraps google-auth-library for code exchange and profile fetch.
 - `enrollmentService.ts` – upserts enrollments on behalf of coursesRouter.
+- `cohortAccess.ts` – checks cohort allowlist membership before enrollment and `checkOnly` validation.
 - `promptUsageService.ts` – enforces per-module typed prompt quotas (default 5).
 - `rag/*` – driver + openAI helpers, text chunker, rate limiter, usage logger (used by assistant router and ingestion scripts).
 
@@ -137,6 +140,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
 - **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
+- **cohorts / cohort_members** – cohort allowlist keyed by course, with `batch_no` to track cohort batches.
 - **quiz_questions / quiz_options / quiz_attempts / module_progress** – module gating infrastructure.
 - **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
@@ -149,8 +153,9 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 
 ### 9.2 Enrollment + persona capture
 1. CourseDetails fetches curriculum using the same API as the player to avoid drift.
-2. Accepting the protocol ensures the session is fresh, calls the enroll endpoint, and closes the modal.
-3. If `/lessons/courses/:slug/personalization` reports `hasPreference = false`, CourseDetails routes the learner to `/course/:slug/path` so the questionnaire runs before the player loads.
+2. Clicking Enroll runs a cohort eligibility check (`POST /courses/:slug/enroll?checkOnly=true`). If the email is not on the allowlist, a cohort access toast appears and the modal does not open.
+3. Accepting the protocol ensures the session is fresh, calls the enroll endpoint, and closes the modal.
+4. If `/lessons/courses/:slug/personalization` reports `hasPreference = false`, CourseDetails routes the learner to `/course/:slug/path` so the questionnaire runs before the player loads.
 4. Learners who once picked a persona can always toggle back to it even after logging out; the server stores the persona in `topic_personalization` while the client caches a `personaHistoryKey` for faster UI toggles.
 
 ### 9.3 Lesson playback

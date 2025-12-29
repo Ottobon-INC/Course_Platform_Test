@@ -7,6 +7,7 @@
 | --- | --- | --- |
 | Accounts & sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | Google OAuth identities, hashed refresh tokens, tutor staffing |
 | Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, persona text, simulations, CMS pages |
+| Cohort access | `cohorts`, `cohort_members` | Enrollment allowlist per course with batch grouping |
 | Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
 | Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
 | Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
@@ -33,6 +34,20 @@ classDiagram
         +String courseName
         +Int priceCents
         +String category/level
+    }
+    class Cohort {
+        +UUID cohortId
+        +UUID courseId
+        +String name
+        +Bool isActive
+    }
+    class CohortMember {
+        +UUID memberId
+        +UUID cohortId
+        +UUID? userId
+        +String email
+        +Int batchNo
+        +String status
     }
     class Topic {
         +UUID topicId
@@ -121,7 +136,9 @@ classDiagram
     User "1" -- "*" ModuleProgress
     User "1" -- "*" Enrollment
     User "1" -- "*" CartItem
+    User "1" -- "*" CohortMember
     Course "1" -- "*" Topic
+    Course "1" -- "*" Cohort
     Course "1" -- "*" CourseChunk
     Course "1" -- "*" TopicPromptSuggestion
     Course "1" -- "*" ModulePromptUsage
@@ -131,6 +148,7 @@ classDiagram
     Topic "1" -- "*" TopicProgress
     Topic "1" -- "*" TopicPromptSuggestion
     QuizQuestion "1" -- "*" QuizOption
+    Cohort "1" -- "*" CohortMember
 ```
 
 ## 3. Table Notes
@@ -146,6 +164,11 @@ classDiagram
 ### courses & topics
 - Courses include marketing metadata used by CourseDetails (category, level, hero imagery, rating, students).
 - Topics carry persona-aware guide content (`text_content_sports`, `text_content_cooking`, `text_content_adventure`), ppt/video URLs, optional simulation JSON, and unique `(courseId, moduleNo, topicNumber)` constraints.
+
+### cohorts & cohort_members
+- `cohorts` groups enrollment allowlists per course (e.g., "Cohort 1").
+- `cohort_members` stores approved emails with `status` and `batch_no` to track batch grouping.
+- Enrollment checks use email/userId to validate access before opening the protocol modal.
 
 ### topic_personalization
 - Unique per `(userId, courseId)`.

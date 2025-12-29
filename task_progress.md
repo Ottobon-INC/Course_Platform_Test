@@ -6,6 +6,10 @@
 - Migrated tutor retrieval from Neo4j to Postgres pgvector (`course_chunks`) and added the JSON import workflow for precomputed embeddings.
 - Removed Neo4j configuration/dependencies from the backend runtime and documentation.
 
+## 2025-12-29 – Cohort allowlist enrollment gate
+- Added cohort allowlist tables (`cohorts`, `cohort_members` with `batch_no`) and wired enrollment-only gating.
+- CourseDetails now verifies cohort eligibility before opening the MetaLearn protocol modal, showing a softer access toast for non-cohort learners.
+
 ## 2025-12-15 – Study personas + prompts
 - Persisted saved personas even after learners switch back to Standard. Introduced `personaHistoryKey` on the client, strengthened `/lessons/courses/:slug/personalization`, and ensured the questionnaire reappears for Standard-only learners when they opt into Personalised narration mid-course.
 - Updated the study-style dialog styling so text and buttons remain readable (plain black copy, muted subtitles, consistent CTA colors).

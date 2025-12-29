@@ -2,6 +2,11 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why we changed it, and the primary files involved so stakeholders (or external LLMs) can trace the history of the learner experience.
 
+## 2025-12-29 – Cohort allowlist enrollment gate
+- **Cohort tables** – introduced `cohorts` + `cohort_members` (with `batch_no`) to track approved learners per course.
+- **Pre-check enrollment** – CourseDetails now calls `POST /courses/:courseKey/enroll?checkOnly=true` to validate cohort access before opening the MetaLearn Protocol modal.
+- **Soft access toast** – non-cohort learners see a branded toast instead of a harsh destructive alert; the modal stays closed.
+
 ## 2025-12-24 – RAG moved to Postgres pgvector
 - **Supabase vector store** – `backend/src/rag/ragService.ts` now reads/writes `course_chunks` in Postgres via pgvector similarity search, fully removing Neo4j from the runtime path.
 - **Import script** – `backend/scripts/importCourseChunks.ts` can ingest JSON exports with precomputed embeddings to avoid re-embedding costs.

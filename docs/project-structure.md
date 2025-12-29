@@ -32,13 +32,14 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
 - `src/server.ts`, `src/app.ts` – Express bootstrap.
 - `src/routes/`
   - `auth.ts` – Google OAuth + JWT lifecycle.
-  - `courses.ts` – catalog fetch + POST enroll.
+  - `courses.ts` – catalog fetch + POST enroll (cohort eligibility enforced here).
   - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
   - `quiz.ts` – sections/progress/attempts/submit endpoints.
   - `assistant.ts` – RAG tutor with rate limiting and prompt quotas.
   - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
 - `src/services/`
   - `sessionService.ts`, `googleOAuth.ts`, `userService.ts` – auth helpers.
+  - `cohortAccess.ts` – cohort allowlist checks keyed by course + email/userId.
   - `enrollmentService.ts` – ensures unique enrollments.
   - `promptUsageService.ts` – typed prompt quota helpers.
   - `cartService.ts`, `prisma.ts` – commerce + DB helpers.

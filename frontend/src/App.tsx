@@ -1,8 +1,10 @@
 import { Switch, Route } from "wouter";
+import { useEffect, useRef } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { logoutAndRedirect, resetSessionHeartbeat, subscribeToSession } from "@/utils/session";
 import NotFound from "@/pages/not-found";
 import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
@@ -44,6 +46,52 @@ function Router() {
 }
 
 function App() {
+  const hadSessionRef = useRef(false);
+  const logoutTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const isAuthCallback = () => window.location.pathname === "/auth/callback";
+
+    const unsubscribe = subscribeToSession((session) => {
+      if (session?.accessToken) {
+        hadSessionRef.current = true;
+        logoutTriggeredRef.current = false;
+        return;
+      }
+
+      const storedAuth = window.localStorage.getItem("isAuthenticated") === "true";
+      if ((hadSessionRef.current || storedAuth) && !isAuthCallback() && !logoutTriggeredRef.current) {
+        logoutTriggeredRef.current = true;
+        logoutAndRedirect("/");
+      }
+    });
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !isAuthCallback()) {
+        resetSessionHeartbeat();
+      }
+    };
+
+    const handleFocus = () => {
+      if (!isAuthCallback()) {
+        resetSessionHeartbeat();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

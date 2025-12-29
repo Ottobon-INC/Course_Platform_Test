@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageCircle, Send, X, Bot, User, Loader2 } from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
-import { readStoredSession } from "@/utils/session";
+import { ensureSessionFresh, logoutAndRedirect, subscribeToSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
 
 interface Message {
@@ -37,14 +37,11 @@ export default function ChatBot({ courseName, courseId }: ChatBotProps) {
 
   const isAuthenticated = Boolean(session?.accessToken);
 
-  // Sync session from localStorage
   useEffect(() => {
-    const syncSession = () => {
-      setSession(readStoredSession());
-    };
-    syncSession();
-    window.addEventListener("storage", syncSession);
-    return () => window.removeEventListener("storage", syncSession);
+    const unsubscribe = subscribeToSession((nextSession) => {
+      setSession(nextSession);
+    });
+    return () => unsubscribe();
   }, []);
 
   // Auto scroll to bottom when new messages arrive
@@ -83,11 +80,20 @@ export default function ChatBot({ courseName, courseId }: ChatBotProps) {
     setIsTyping(true);
 
     try {
+      const freshSession = await ensureSessionFresh(session);
+      if (!freshSession?.accessToken) {
+        logoutAndRedirect("/");
+        throw new Error("Please sign in to chat with the learning assistant.");
+      }
+      if (freshSession !== session) {
+        setSession(freshSession);
+      }
+
       const answer = await requestAssistantAnswer({
         courseId,
         courseName,
         question,
-        onSessionUpdate: setSession,
+        accessToken: freshSession.accessToken,
       });
 
       const botResponse: Message = {
@@ -217,24 +223,17 @@ async function requestAssistantAnswer(params: {
   courseId?: string;
   courseName?: string;
   question: string;
-  onSessionUpdate: (session: StoredSession | null) => void;
+  accessToken: string;
 }): Promise<string> {
   if (!params.courseId) {
     throw new Error("I need to know which course you're viewing before I can help.");
-  }
-
-  const activeSession = readStoredSession();
-  params.onSessionUpdate(activeSession);
-
-  if (!activeSession?.accessToken) {
-    throw new Error("Please sign in to chat with the learning assistant.");
   }
 
   const response = await fetch(buildApiUrl("/api/assistant/query"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${activeSession.accessToken}`,
+      Authorization: `Bearer ${params.accessToken}`,
     },
     body: JSON.stringify({
       question: params.question,
@@ -244,7 +243,13 @@ async function requestAssistantAnswer(params: {
   });
 
   if (response.status === 401) {
-    throw new Error("Your session expired. Refresh the page or sign in again.");
+    logoutAndRedirect("/");
+    throw new Error("Your session expired. Please sign in again.");
+  }
+
+  if (response.status === 403) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.message ?? "You are not in the cohort batch, please register first.");
   }
 
   if (response.status === 429) {

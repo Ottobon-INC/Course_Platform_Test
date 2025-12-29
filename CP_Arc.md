@@ -29,7 +29,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 
 ### Critical screens
 - LandingPage – the single marketing surface with CTAs that jump straight into the featured course.
-- CourseDetailsPage – displays live module/topic metadata, enforces the 'MetaLearn Protocol' modal, auto-enrolls the learner via POST /courses/:slug/enroll, and then either routes directly to the player or (if personalization is missing) through /course/:slug/path for the questionnaire.
+- CourseDetailsPage – displays live module/topic metadata, checks cohort eligibility before opening the MetaLearn Protocol modal, enrolls via POST /courses/:slug/enroll, and routes through /course/:slug/path when personalization is missing.
 - EnrollmentPage and AssessmentPage – host the purchase funnel and the quiz tab visuals.
 - CoursePlayerPage – hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, and embeds the tutor dock.
 - CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
@@ -53,7 +53,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 | Router | Key endpoints | Highlights |
 | --- | --- | --- |
 | authRouter | /auth/google, /auth/google/callback, /auth/google/exchange, /auth/google/id-token, /auth/refresh, /auth/logout | Full Google OAuth + JWT lifecycle with hashed refresh tokens |
-| coursesRouter | GET /courses, GET /courses/:courseKey, POST /courses/:courseKey/enroll | Slug/UUID/name resolution and idempotent enrollment writes used by CourseDetails |
+| coursesRouter | GET /courses, GET /courses/:courseKey, POST /courses/:courseKey/enroll | Slug/UUID/name resolution, cohort allowlist checks, and idempotent enrollment writes (supports `?checkOnly=true`) |
 | lessonsRouter | GET /modules/:moduleNo/topics, GET /courses/:courseKey/topics, GET/PUT /:lessonId/progress, personalization endpoints, prompt suggestions | Delivers curriculum, tracks progress, stores narrator personas, and exposes curated prompt trees |
 | quizRouter | GET /quiz/questions, GET /quiz/sections/:courseKey, GET /quiz/progress/:courseKey, POST /quiz/attempts, POST /quiz/attempts/:attemptId/submit | Drives the module cadence (cooldowns, dependencies) and writes quiz_attempts/module_progress |
 | assistantRouter | POST /assistant/query | Authenticated tutor endpoint with typed-prompt quotas stored in module_prompt_usage |
@@ -61,6 +61,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 
 ### Supporting services
 - sessionService.ts, googleOAuth.ts, enrollmentService.ts, promptUsageService.ts, cartService.ts keep router handlers declarative.
+- cohortAccess.ts centralizes cohort allowlist enforcement keyed by course and email/userId.
 - rag/* modules encapsulate the OpenAI + pgvector plumbing, PII scrubbing, chunking, rate limiting, and usage logging.
 
 ## 4. Data & Integration Layer
@@ -69,6 +70,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 Major model groups (see backend/prisma/schema.prisma):
 - Accounts – users, user_sessions, tutor_applications, tutors, course_tutors.
 - Catalog – courses, topics, simulation_exercises, page_content.
+- Cohort access – cohorts, cohort_members (batch_no for grouping).
 - Knowledge store – course_chunks (pgvector embeddings for RAG).
 - Progress & enrollment – enrollments, topic_progress, module_progress.
 - Commerce – cart_items, cart_lines.
@@ -92,9 +94,10 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 
 ### 5.2 Enrollment and personalisation
 1. CourseDetails page reads the same /lessons/courses/:slug/topics feed used by the player, so marketing and delivery stay in sync.
-2. Accepting the MetaLearn modal ensures the session, calls POST /courses/:slug/enroll, and persists an enrollments row.
-3. If the learner has never set a persona, CourseDetails forwards to /course/:slug/path?lesson=... to run the questionnaire before unlocking /course/:slug/learn/:lesson.
-4. CoursePlayerPage fetches /lessons/courses/:slug/personalization; saved personas lock the dialog to Standard vs saved persona, while first-time learners see the full question flow.
+2. Clicking Enroll runs POST /courses/:slug/enroll?checkOnly=true; cohort-eligible learners see the modal, while non-eligible learners receive a cohort access toast.
+3. Accepting the MetaLearn modal ensures the session, calls POST /courses/:slug/enroll, and persists an enrollments row.
+4. If the learner has never set a persona, CourseDetails forwards to /course/:slug/path?lesson=... to run the questionnaire before unlocking /course/:slug/learn/:lesson.
+5. CoursePlayerPage fetches /lessons/courses/:slug/personalization; saved personas lock the dialog to Standard vs saved persona, while first-time learners see the full question flow.
 
 ### 5.3 Lesson playback
 1. Modules (including Module 0 Introduction) are grouped client-side from the topics response and rendered inside CourseSidebar.
@@ -169,6 +172,7 @@ backend/
             users.ts
         services/
             cartService.ts
+            cohortAccess.ts
             enrollmentService.ts
             googleOAuth.ts
             promptUsageService.ts

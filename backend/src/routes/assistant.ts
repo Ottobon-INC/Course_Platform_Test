@@ -96,10 +96,16 @@ assistantRouter.post(
           : undefined;
     const moduleNo = Number.isFinite(parsedModuleNo) ? (parsedModuleNo as number) : null;
     const isTypedPrompt = !suggestionId;
-    let usageCourseId: string | null = null;
+    let resolvedCourseId: string | null = null;
 
     if (!courseId) {
       res.status(400).json({ message: "courseId is required" });
+      return;
+    }
+
+    resolvedCourseId = await resolveCourseRecordId(courseId);
+    if (!resolvedCourseId) {
+      res.status(404).json({ message: "Course not found" });
       return;
     }
 
@@ -146,13 +152,7 @@ assistantRouter.post(
         return;
       }
 
-      usageCourseId = await resolveCourseRecordId(courseId);
-      if (!usageCourseId) {
-        res.status(404).json({ message: "Course not found" });
-        return;
-      }
-
-      const currentCount = await getModulePromptUsageCount(auth.userId, usageCourseId, moduleNo);
+      const currentCount = await getModulePromptUsageCount(auth.userId, resolvedCourseId, moduleNo);
       if (currentCount >= PROMPT_LIMIT_PER_MODULE) {
         res
           .status(429)
@@ -186,8 +186,8 @@ assistantRouter.post(
         userId: auth.userId,
       });
 
-      if (isTypedPrompt && moduleNo !== null && usageCourseId) {
-        await incrementModulePromptUsage(auth.userId, usageCourseId, moduleNo);
+      if (isTypedPrompt && moduleNo !== null) {
+        await incrementModulePromptUsage(auth.userId, resolvedCourseId, moduleNo);
       }
 
       res.status(200).json({

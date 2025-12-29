@@ -2,6 +2,8 @@ import { buildApiUrl } from '@/lib/api';
 import type { StoredSession } from '@/types/session';
 
 const STORAGE_KEY = 'session';
+const USER_KEY = 'user';
+const AUTH_FLAG_KEY = 'isAuthenticated';
 const REFRESH_BUFFER_MS = 60_000;
 const MIN_REFRESH_DELAY_MS = 15_000;
 
@@ -34,6 +36,8 @@ export const writeStoredSession = (session: StoredSession): void => {
 
 export const clearStoredSession = (): void => {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.setItem(AUTH_FLAG_KEY, 'false');
 };
 
 export const shouldRefreshAccessToken = (session: StoredSession, bufferMs = REFRESH_BUFFER_MS): boolean => {
@@ -96,7 +100,10 @@ export const requestSessionRefresh = async (session: StoredSession): Promise<Sto
   }
 };
 
-export const ensureSessionFresh = async (session: StoredSession | null): Promise<StoredSession | null> => {
+export const ensureSessionFresh = async (
+  session: StoredSession | null,
+  options?: { notifyOnFailure?: boolean },
+): Promise<StoredSession | null> => {
   if (!session) {
     return null;
   }
@@ -105,7 +112,24 @@ export const ensureSessionFresh = async (session: StoredSession | null): Promise
     return session;
   }
 
-  return requestSessionRefresh(session);
+  const refreshed = await requestSessionRefresh(session);
+  if (!refreshed) {
+    clearStoredSession();
+    if (options?.notifyOnFailure !== false) {
+      notifyListeners(null);
+      stopHeartbeat();
+    }
+  }
+  return refreshed;
+};
+
+export const logoutAndRedirect = (target = '/'): void => {
+  clearStoredSession();
+  notifyListeners(null);
+  stopHeartbeat();
+  if (typeof window !== 'undefined' && window.location.pathname !== target) {
+    window.location.assign(target);
+  }
 };
 
 export const computeRefreshDelay = (session: StoredSession, bufferMs = REFRESH_BUFFER_MS): number | null => {
@@ -167,7 +191,7 @@ const heartbeatTick = async () => {
     return;
   }
 
-  const refreshed = await ensureSessionFresh(stored);
+  const refreshed = await ensureSessionFresh(stored, { notifyOnFailure: false });
   if (!refreshed) {
     clearStoredSession();
     notifyListeners(null);
@@ -205,7 +229,7 @@ const bootstrapHeartbeat = async () => {
     return;
   }
 
-  const activeSession = await ensureSessionFresh(stored);
+  const activeSession = await ensureSessionFresh(stored, { notifyOnFailure: false });
   if (!activeSession) {
     clearStoredSession();
     notifyListeners(null);

@@ -310,6 +310,57 @@ const CourseDetailsPage: React.FC = () => {
     [courseTitle, modules],
   );
 
+  const showCohortBlockedToast = (message?: string) => {
+    toast({
+      title: "Cohort access required",
+      description: message ?? "You are not in this cohort batch. Please register first.",
+      className: "border-[#f3d3c2] bg-[#fff4ea] text-[#5c2b18]",
+    });
+  };
+
+  const checkCohortEligibility = async (): Promise<{ allowed: boolean }> => {
+    const stored = readStoredSession();
+    const session = await ensureSessionFresh(stored);
+    if (!session?.accessToken) {
+      toast({
+        variant: "destructive",
+        title: "Sign in required",
+        description: "Please sign in before enrolling.",
+      });
+      return { allowed: false };
+    }
+
+    try {
+      const response = await fetch(buildApiUrl(`/api/courses/${courseId}/enroll?checkOnly=true`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      if (response.status === 403) {
+        const payload = await response.json().catch(() => null);
+        showCohortBlockedToast(payload?.message);
+        return { allowed: false };
+      }
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message ?? "Unable to verify cohort access.");
+      }
+
+      return { allowed: true };
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Enrollment check failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+      return { allowed: false };
+    }
+  };
+
   const enrollLearner = async (): Promise<{ success: boolean; token?: string }> => {
     try {
       const stored = readStoredSession();
@@ -330,6 +381,12 @@ const CourseDetailsPage: React.FC = () => {
           Authorization: `Bearer ${session.accessToken}`,
         },
       });
+
+      if (response.status === 403) {
+        const payload = await response.json().catch(() => null);
+        showCohortBlockedToast(payload?.message);
+        return { success: false };
+      }
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
@@ -406,8 +463,24 @@ const CourseDetailsPage: React.FC = () => {
       if (result.success) {
         setIsModalOpen(false);
         await routeAfterEnrollment(result.token);
+      } else {
+        setIsModalOpen(false);
       }
       setEnrolling(false);
+    })();
+  };
+
+  const handleEnrollStart = () => {
+    if (enrolling) {
+      return;
+    }
+    setEnrolling(true);
+    void (async () => {
+      const result = await checkCohortEligibility();
+      setEnrolling(false);
+      if (result.allowed) {
+        setIsModalOpen(true);
+      }
     })();
   };
 
@@ -504,7 +577,7 @@ const CourseDetailsPage: React.FC = () => {
           <div className="mt-6 flex flex-wrap items-center gap-6">
             <button
               className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleEnrollStart}
               disabled={enrolling}
             >
               {enrolling ? "Processing..." : "Enroll Now"}

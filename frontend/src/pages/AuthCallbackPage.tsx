@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { resetSessionHeartbeat, writeStoredSession } from "@/utils/session";
 
 const COURSE_PLAYER_DEFAULT_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
 
@@ -71,6 +72,9 @@ export default function AuthCallbackPage() {
       refreshToken,
       refreshTokenExpiresAt,
       sessionId,
+      userId: userId ?? undefined,
+      email: userEmail ?? undefined,
+      fullName: userFullName ?? undefined,
     };
 
     const user = {
@@ -81,7 +85,8 @@ export default function AuthCallbackPage() {
       emailVerified: userEmailVerified === "true",
     };
 
-    localStorage.setItem("session", JSON.stringify(session));
+    writeStoredSession(session);
+    resetSessionHeartbeat();
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("isAuthenticated", "true");
 

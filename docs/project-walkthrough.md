@@ -6,12 +6,13 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 1. Learner clicks "Continue with Google" on the landing page (`frontend/src/pages/LandingPage.tsx`).
 2. Browser is redirected to `/auth/google` (`backend/src/routes/auth.ts`) where a signed state cookie is set and the user is sent to Google OAuth.
 3. Google returns to `/auth/google/callback`; the backend exchanges the code, upserts the user (`services/userService.ts`), creates JWT access/refresh tokens (`services/sessionService.ts`), stores the hashed refresh token in `user_sessions`, and redirects to `/auth/callback` with the tokens and redirect path.
-4. `AuthCallbackPage.tsx` stores the session via `storeSession`, displays success/error toasts, and forwards the learner to their intended route (defaults to the featured course).
+4. `AuthCallbackPage.tsx` stores the session via `writeStoredSession`, displays success/error toasts, and forwards the learner to their intended route (defaults to the featured course).
 
 ## 2. Enrollment + MetaLearn protocol
 1. Visiting `/course/ai-in-web-development` loads `CourseDetailsPage.tsx`, which fetches `/courses/:slug` and `/lessons/courses/:slug/topics` to render live curriculum data.
-2. Clicking "Enroll Now" opens the MetaLearn modal. Accepting it triggers `enrollLearner()` -> `POST /courses/:slug/enroll` (with Authorization header). The backend resolves slug/UUID/name, upserts an `enrollments` row via `ensureEnrollment`, and returns `{ status: "enrolled" }`.
-3. After enrollment, the page fetches `/lessons/courses/:slug/personalization`; if `hasPreference` is false the learner is redirected to `/course/:slug/path` so the study-style questionnaire runs before unlocking the player.
+2. Clicking "Enroll Now" first calls `POST /courses/:slug/enroll?checkOnly=true` to validate cohort eligibility. Non-cohort emails get a friendly toast and the modal stays closed.
+3. Eligible learners see the MetaLearn modal. Accepting it triggers `enrollLearner()` -> `POST /courses/:slug/enroll` (with Authorization header). The backend resolves slug/UUID/name, upserts an `enrollments` row via `ensureEnrollment`, and returns `{ status: "enrolled" }`.
+4. After enrollment, the page fetches `/lessons/courses/:slug/personalization`; if `hasPreference` is false the learner is redirected to `/course/:slug/path` so the study-style questionnaire runs before unlocking the player.
 
 ## 3. Study persona questionnaire
 1. `CoursePlayerPage.tsx` maintains persona state (`studyPersona`, `lockedPersona`, `personaPending`, etc.) and loads any saved preference from `/lessons/courses/:slug/personalization` (auth required).

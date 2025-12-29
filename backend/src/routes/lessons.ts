@@ -440,7 +440,7 @@ lessonsRouter.get(
 
     const topic = await prisma.topic.findUnique({
       where: { topicId: lessonId },
-      select: { topicId: true },
+      select: { topicId: true, courseId: true },
     });
 
     if (!topic) {
@@ -488,7 +488,7 @@ lessonsRouter.put(
 
     const topic = await prisma.topic.findUnique({
       where: { topicId: lessonId },
-      select: { topicId: true },
+      select: { topicId: true, courseId: true },
     });
 
     if (!topic) {

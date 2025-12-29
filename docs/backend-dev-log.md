@@ -1,5 +1,9 @@
 ﻿# Backend Development Log
 
+## 2025-12-29
+- **Cohort allowlist tables** – added `cohorts` + `cohort_members` (with `batch_no`) to store approved learners per course.
+- **Enroll-only gating** – `POST /courses/:courseKey/enroll` now validates cohort membership and supports `?checkOnly=true` so the frontend can verify eligibility before opening the protocol modal.
+
 ## 2025-12-24
 - **RAG store migrated to Postgres pgvector** – added `course_chunks` table + pgvector index, switched `ragService` retrieval to SQL similarity search, and removed Neo4j dependencies from env validation and runtime.
 - **Import pipeline added** – new `scripts/importCourseChunks.ts` ingests JSON exports with precomputed embeddings to avoid re-embedding costs.
