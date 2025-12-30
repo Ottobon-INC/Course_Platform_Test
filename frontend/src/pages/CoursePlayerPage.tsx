@@ -25,6 +25,7 @@ import { buildApiUrl } from "@/lib/api";
 import { subscribeToSession } from "@/utils/session";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
+import ColdCalling from "@/components/ColdCalling";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -1645,6 +1646,10 @@ const CoursePlayerPage: React.FC = () => {
                     <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
                   )}
                 </div>
+
+                {formattedStudyText && activeLesson?.topicId && (
+                  <ColdCalling topicId={activeLesson.topicId} session={session} />
+                )}
 
                 {activePptEmbedUrl && activeLesson?.pptUrl && (
                   <div className="space-y-3">

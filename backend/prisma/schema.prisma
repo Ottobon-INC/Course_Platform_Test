@@ -24,6 +24,8 @@ model User {
   personalizations TopicPersonalization[]
   promptUsage ModulePromptUsage[]
   cohortMemberships CohortMember[]
+  coldCallMessages ColdCallMessage[]
+  coldCallStars ColdCallStar[]
 
   @@map("users")
 }
@@ -66,6 +68,7 @@ model Course {
   promptSuggestions TopicPromptSuggestion[]
   promptUsage ModulePromptUsage[]
   cohorts     Cohort[]
+  coldCallPrompts ColdCallPrompt[]
 
   @@map("courses")
 }
@@ -95,6 +98,7 @@ model Cohort {
   updatedAt DateTime @updatedAt @map("updated_at")
   course    Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
   members   CohortMember[]
+  coldCallMessages ColdCallMessage[]
 
   @@index([courseId], map: "idx_cohort_course")
   @@map("cohorts")
@@ -114,6 +118,67 @@ model CohortMember {
   @@unique([cohortId, email], map: "uq_cohort_email")
   @@index([userId], map: "idx_cohort_member_user")
   @@map("cohort_members")
+}
+
+model ColdCallPrompt {
+  promptId     String   @id @default(dbgenerated("gen_random_uuid()")) @map("prompt_id") @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  topicId      String   @map("topic_id") @db.Uuid
+  promptText   String   @map("prompt_text")
+  helperText   String?  @map("helper_text")
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  course       Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  topic        Topic    @relation(fields: [topicId], references: [topicId], onDelete: Cascade)
+  messages     ColdCallMessage[]
+
+  @@unique([topicId, displayOrder], map: "uq_cold_call_prompt_topic_order")
+  @@index([courseId], map: "idx_cold_call_prompt_course")
+  @@index([topicId], map: "idx_cold_call_prompt_topic")
+  @@map("cold_call_prompts")
+}
+
+model ColdCallMessage {
+  messageId String   @id @default(dbgenerated("gen_random_uuid()")) @map("message_id") @db.Uuid
+  promptId  String   @map("prompt_id") @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  parentId  String?  @map("parent_id") @db.Uuid
+  rootId    String?  @map("root_id") @db.Uuid
+  body      String   @map("body")
+  status    String   @default("active") @map("status")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  prompt    ColdCallPrompt @relation(fields: [promptId], references: [promptId], onDelete: Cascade)
+  cohort    Cohort   @relation(fields: [cohortId], references: [cohortId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  parent    ColdCallMessage? @relation("ColdCallMessageParent", fields: [parentId], references: [messageId], onDelete: Cascade)
+  children  ColdCallMessage[] @relation("ColdCallMessageParent")
+  root      ColdCallMessage? @relation("ColdCallMessageRoot", fields: [rootId], references: [messageId], onDelete: Cascade)
+  rootReplies ColdCallMessage[] @relation("ColdCallMessageRoot")
+  stars     ColdCallStar[]
+
+  @@index([promptId, cohortId], map: "idx_cold_call_message_prompt")
+  @@index([rootId], map: "idx_cold_call_message_root")
+  @@index([parentId], map: "idx_cold_call_message_parent")
+  @@map("cold_call_messages")
+}
+
+model ColdCallStar {
+  starId    String   @id @default(dbgenerated("gen_random_uuid()")) @map("star_id") @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  message   ColdCallMessage @relation(fields: [messageId], references: [messageId], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([messageId, userId], map: "uq_cold_call_star_user")
+  @@index([messageId], map: "idx_cold_call_star_message")
+  @@index([userId], map: "idx_cold_call_star_user")
+  @@map("cold_call_stars")
 }
 
 model CartLine {
@@ -165,6 +230,7 @@ model Topic {
   course      Course          @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
   progress    TopicProgress[]
   promptSuggestions TopicPromptSuggestion[]
+  coldCallPrompts ColdCallPrompt[]
   simulation  SimulationExercise?
 
   @@unique([courseId, moduleNo, topicNumber], map: "uq_topic_per_module")
