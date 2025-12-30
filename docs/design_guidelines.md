@@ -30,6 +30,7 @@ Dark mode relies on Tailwind's class toggles and mirrors the same hues at higher
 - **Course player** – two-column layout: resizable sidebar (search, progress, module accordion) and main content area with LessonTabs, video embeds, study material cards, and tutor/chat panel.
 - **MetaLearn Protocol modal** – glassmorphism card with bold typography, red highlights, and a two-button footer (Accept vs Not ready).
 - **Study persona dialog** – stacked questionnaire cards with pill buttons and a footer containing “See my study style”, “Maybe later”, and “Use this style”. Buttons gain gradient fills on hover.
+- **Cold calling card** – warm peach card with a red pill label, rounded textarea, and soft borders to keep the prompt approachable before the cohort feed appears.
 - **Tutor dock** – floating card with blurred background, message bubbles (muted background + gradient border), suggestion chips, and warning banners for quota/cooldown messages.
 
 ## 5. Components

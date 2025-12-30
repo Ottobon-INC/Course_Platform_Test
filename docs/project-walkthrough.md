@@ -26,13 +26,19 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 3. When a lesson becomes active, the page calls `GET /lessons/:lessonId/progress` to hydrate status; marking a lesson complete triggers `PUT /lessons/:lessonId/progress` with `{ progress, status }`.
 4. Lesson content is shown via `LessonTabs.tsx` which renders persona-specific Markdown plus practice blocks and resources.
 
-## 5. Quiz cadence
+## 5. Cold calling checkpoint
+1. After the study text renders, the client calls `GET /cold-call/prompts/:topicId`.
+2. If the learner has not submitted yet, the UI shows only the prompt and input box (blind-response gate).
+3. Submitting a response unlocks the cohort feed, including nested replies and star reactions.
+4. Self-replies and self-stars are blocked, and responses are scoped to the learner’s cohort.
+
+## 6. Quiz cadence
 1. Opening the Quiz tab fetches `/quiz/sections/:slug` and `/quiz/progress/:slug`. The response lists each module/topic pair, whether it is unlocked, last attempt status, and module-level cooldown or dependency reasons.
 2. Starting a quiz posts to `/quiz/attempts` with `{ courseId, moduleNo, topicPairIndex }`. Backend resolves the slug, ensures the learner exists, selects a random question set, stores it in `quiz_attempts`, and returns the frozen questions (options without `isCorrect`).
 3. Submitting answers hits `/quiz/attempts/:attemptId/submit`. The backend compares each `{ questionId, optionId }`, calculates `scorePercent`, updates the attempt row, and if the last topic pair of a module passed, updates `module_progress` to mark the module as completed.
 4. The frontend refreshes `sections`/`progress` so the sidebar and quiz cards immediately reflect unlocked modules.
 
-## 6. Tutor chat and prompt governance
+## 7. Tutor chat and prompt governance
 1. The chat dock fetches curated prompts via `/lessons/courses/:slug/prompts`. Suggestions are grouped via `parentSuggestionId`, enabling multi-step follow-ups (Q -> more specific subquestions).
 2. Typed prompts post to `/assistant/query` with `{ courseId: slug, moduleNo, question }` plus Authorization. The backend:
    - Validates prompt quota using `module_prompt_usage`.
@@ -42,11 +48,11 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 3. Suggestions with stored answers bypass OpenAI: the backend simply returns the curated answer plus child suggestions.
 4. If a learner exhausts the typed quota for a module, the API responds with HTTP 429 and a friendly message instructing them to continue to the next module.
 
-## 7. Certificate preview
+## 8. Certificate preview
 1. When quizzes report all modules passed, the player links to `/course/:slug/certificate` (`CourseCertificatePage.tsx`).
 2. The page shows the blurred certificate, planned pricing (Razorpay placeholder), and a back-to-course button. Real payment logic can hook into the stubbed `handlePayment` implementation.
 
-## 8. Troubleshooting & Verification
+## 9. Troubleshooting & Verification
 - **OAuth** – confirm Google Cloud console has both backend and SPA redirect URIs. Missing values yield `redirect_uri_mismatch` errors before the app boots.
 - **Personalization** – unauthorized responses from `/lessons/courses/:slug/personalization` indicate the learner is not signed in; ensure the session heartbeat refreshed tokens before hitting the endpoint.
 - **Tutor quotas** – HTTP 429 from `/assistant/query` means the learner hit the typed quota for the module. Quotas reset automatically when the next module unlocks.

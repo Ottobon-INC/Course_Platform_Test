@@ -1,5 +1,8 @@
 ﻿# Backend Development Log
 
+## 2025-12-30
+- **Cold calling backend** – added cold call tables and `/cold-call` endpoints for blind-response prompts, threaded replies, and star reactions scoped to cohort membership.
+
 ## 2025-12-29
 - **Cohort allowlist tables** – added `cohorts` + `cohort_members` (with `batch_no`) to store approved learners per course.
 - **Enroll-only gating** – `POST /courses/:courseKey/enroll` now validates cohort membership and supports `?checkOnly=true` so the frontend can verify eligibility before opening the protocol modal.

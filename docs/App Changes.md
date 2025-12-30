@@ -2,6 +2,11 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why we changed it, and the primary files involved so stakeholders (or external LLMs) can trace the history of the learner experience.
 
+## 2025-12-30 – Cold calling cohort checkpoint
+- **Blind-response prompts** – added `cold_call_prompts` plus gated UI so learners submit before seeing cohort replies.
+- **Threaded cohort feed** – responses and replies now render as a conversation tree with “replied to” context tags.
+- **Star reactions** – cohort members can star helpful responses; self-star/self-reply are blocked.
+
 ## 2025-12-29 – Cohort allowlist enrollment gate
 - **Cohort tables** – introduced `cohorts` + `cohort_members` (with `batch_no`) to track approved learners per course.
 - **Pre-check enrollment** – CourseDetails now calls `POST /courses/:courseKey/enroll?checkOnly=true` to validate cohort access before opening the MetaLearn Protocol modal.

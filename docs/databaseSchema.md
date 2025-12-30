@@ -8,6 +8,7 @@
 | Accounts & sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | Google OAuth identities, hashed refresh tokens, tutor staffing |
 | Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, persona text, simulations, CMS pages |
 | Cohort access | `cohorts`, `cohort_members` | Enrollment allowlist per course with batch grouping |
+| Cohort interaction | `cold_call_prompts`, `cold_call_messages`, `cold_call_stars` | Blind-response prompts, threaded replies, star validation |
 | Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
 | Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
 | Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
@@ -48,6 +49,27 @@ classDiagram
         +String email
         +Int batchNo
         +String status
+    }
+    class ColdCallPrompt {
+        +UUID promptId
+        +UUID courseId
+        +UUID topicId
+        +String promptText
+        +String? helperText
+    }
+    class ColdCallMessage {
+        +UUID messageId
+        +UUID promptId
+        +UUID cohortId
+        +UUID userId
+        +UUID? parentId
+        +UUID? rootId
+        +String body
+    }
+    class ColdCallStar {
+        +UUID starId
+        +UUID messageId
+        +UUID userId
     }
     class Topic {
         +UUID topicId
@@ -142,13 +164,20 @@ classDiagram
     Course "1" -- "*" CourseChunk
     Course "1" -- "*" TopicPromptSuggestion
     Course "1" -- "*" ModulePromptUsage
+    Course "1" -- "*" ColdCallPrompt
     Course "1" -- "*" QuizQuestion
     Course "1" -- "*" ModuleProgress
     Course "1" -- "*" Enrollment
     Topic "1" -- "*" TopicProgress
     Topic "1" -- "*" TopicPromptSuggestion
+    Topic "1" -- "*" ColdCallPrompt
     QuizQuestion "1" -- "*" QuizOption
     Cohort "1" -- "*" CohortMember
+    Cohort "1" -- "*" ColdCallMessage
+    ColdCallPrompt "1" -- "*" ColdCallMessage
+    ColdCallMessage "1" -- "*" ColdCallStar
+    User "1" -- "*" ColdCallMessage
+    User "1" -- "*" ColdCallStar
 ```
 
 ## 3. Table Notes
@@ -169,6 +198,11 @@ classDiagram
 - `cohorts` groups enrollment allowlists per course (e.g., "Cohort 1").
 - `cohort_members` stores approved emails with `status` and `batch_no` to track batch grouping.
 - Enrollment checks use email/userId to validate access before opening the protocol modal.
+
+### cold_call_prompts, cold_call_messages, cold_call_stars
+- `cold_call_prompts` attaches a blind-response cohort question to a topic.
+- `cold_call_messages` stores both top-level responses and nested replies (using `parent_id` + `root_id`).
+- `cold_call_stars` enforces one star per user per message to surface the most helpful responses.
 
 ### topic_personalization
 - Unique per `(userId, courseId)`.

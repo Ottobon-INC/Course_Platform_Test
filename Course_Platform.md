@@ -23,6 +23,7 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 - **Auto-enrollment** – when a learner accepts the protocol, the SPA calls `POST /courses/:slug/enroll` so every cohort is tracked in Postgres.
 - **Cohort allowlist gate** – enrollment is restricted to approved emails stored in `cohorts` + `cohort_members` (with `batch_no`), while browsing/course playback remain public.
 - **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
+- **Cold calling checkpoint** – a blind-response cohort prompt appears after each topic’s study text; responses unlock a threaded feed with stars and nested replies.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
 - **AI tutor dock** – typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, and success/failure logging.
@@ -89,6 +90,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - Hydrates introduction + numbered modules from `/lessons/courses/:slug/topics`.
 - Stores persona selections via `/lessons/courses/:slug/personalization`; questionnaire uses three prompts defined in CoursePlayerPage.tsx.
 - Guides use persona-specific fields; fallback to `textContent` when persona copy is missing.
+- Cold calling prompts load per topic and remain hidden until the learner submits their own response (blind-response gate).
 - Video/PPT players are hardened (no share buttons, no context menu, referrer locked down).
 - Quiz tab interacts with `/quiz/sections`, `/quiz/progress`, `POST /quiz/attempts`, and submission endpoints.
 - Tutor dock sends typed prompts as `{ courseId: slug, moduleNo, question }` or calls curated prompt suggestions retrieved from `/lessons/courses/:slug/prompts`.
@@ -116,6 +118,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | lessonsRouter | Course topics, module-scoped topics, topic progress CRUD, study persona CRUD, curated prompt suggestions |
 | quizRouter | Quiz question fetch, sections/progress summary, attempt creation, submission grading, module progress updates |
 | assistantRouter | Authenticated tutor endpoint (typed prompt quotas, follow-up suggestions, RAG pipeline) |
+| coldCallRouter | Cold calling prompts, blind-response gating, replies, and star validation |
 | cartRouter | Authenticated cart CRUD backed by cart_items |
 | pagesRouter | CMS page retrieval |
 | tutorApplicationsRouter | Tutor lead intake |
@@ -141,6 +144,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
 - **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
 - **cohorts / cohort_members** – cohort allowlist keyed by course, with `batch_no` to track cohort batches.
+- **cold_call_prompts / cold_call_messages / cold_call_stars** – cohort-only prompts, threaded responses, and per-user star validation.
 - **quiz_questions / quiz_options / quiz_attempts / module_progress** – module gating infrastructure.
 - **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
@@ -168,13 +172,19 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 2. Starting a quiz uses `POST /quiz/attempts`; the backend stores a frozen question set and returns it without answer metadata.
 3. Submissions grade server-side, write back to `quiz_attempts`, and if the last topic pair of a module passes, `module_progress` is updated so the next module unlocks (unless cooldowns are still active).
 
-### 9.5 Tutor prompts
+### 9.5 Cold calling checkpoint
+1. After the study text renders, CoursePlayerPage requests the cold call prompt for the active topic.
+2. If the learner has not submitted a response yet, only the prompt + input box appear.
+3. Submitting a response unlocks the cohort feed and enables threaded replies and star reactions.
+4. Replies can target any response except the learner’s own messages; self-star is blocked.
+
+### 9.6 Tutor prompts
 1. Chat dock fetches curated prompt suggestions via `/lessons/courses/:slug/prompts` (optionally per topic ID).
 2. Typed prompts call `/assistant/query` with `{ courseId, moduleNo, question }`; the backend verifies the prompt quota for that module, embeds the question, retrieves contexts from Postgres pgvector, calls OpenAI, and returns the answer.
 3. Suggestions with canned answers skip OpenAI entirely, returning the pre-authored content along with follow-up suggestions.
 4. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
 
-### 9.6 Certificate preview
+### 9.7 Certificate preview
 1. After all modules pass, the player exposes a certificate CTA that links to `/course/:slug/certificate`.
 2. The certificate page reads the stored learner name and course title, renders a blurred preview, and provides the Razorpay placeholder for the paid unlock.
 
@@ -185,6 +195,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
   - Quiz POST returning 400 -> ensure `Content-Type: application/json` is present (fixed in queryClient). If reproducing, confirm `api.ts` is not bypassed.
   - Tutor returning 429 -> learner likely exhausted typed prompt quota for that module.
   - Persona dialog not loading -> verify `/lessons/courses/:slug/personalization` returns 200 (requires auth) and that `topic_personalization` row exists.
+  - Cold calling not appearing -> ensure a `cold_call_prompts` row exists for the topic and the user belongs to an active cohort.
   - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with OpenAI credentials.
   - RAG import -> run `npm run rag:import <json>` when reusing embeddings exported from Neo4j.
 
@@ -192,9 +203,10 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 1. **Secrets** – set all backend env vars + frontend `VITE_API_BASE_URL`.
 2. **Database** – apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
 3. **pgvector** – ensure the Postgres instance has `CREATE EXTENSION vector;` applied and run ingestion/import at least once per course slug.
-4. **Google OAuth** – add the production backend callback plus SPA callback to the OAuth client.
-5. **Builds** – `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
-6. **Hosting** – deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.
-7. **Smoke tests** – login via Google, enroll, run the persona questionnaire, play a lesson with persona copy, pass a quiz, ask the tutor, and visit the certificate page.
+4. **Cold call prompts** – seed `cold_call_prompts` for each topic you want to expose to cohorts.
+5. **Google OAuth** – add the production backend callback plus SPA callback to the OAuth client.
+6. **Builds** – `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
+7. **Hosting** – deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.
+8. **Smoke tests** – login via Google, enroll, run the persona questionnaire, play a lesson with persona copy, pass a quiz, ask the tutor, and visit the certificate page.
 
 This documentation, together with CP_Arc.md and docs/project-walkthrough.md, gives an external reader full insight into how the Course Platform behaves end to end without opening the rest of the repository.

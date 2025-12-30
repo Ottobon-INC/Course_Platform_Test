@@ -23,6 +23,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
 - `src/components/`
   - `CourseSidebar.tsx` – module accordion + progress stats.
   - `LessonTabs.tsx` – study material/practice tabs with Markdown rendering.
+  - `ColdCalling.tsx` – blind-response cohort prompt with threaded replies and star reactions.
   - `ChatBot.tsx` – AI tutor dock (suggestions, typed prompts, quota messaging).
   - `layout/` (SiteHeader, SiteLayout) and `ui/` (shadcn primitives) reused across pages.
 - `src/lib/queryClient.ts`, `src/lib/api.ts` – fetch wrappers.
@@ -36,6 +37,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
   - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
   - `quiz.ts` – sections/progress/attempts/submit endpoints.
   - `assistant.ts` – RAG tutor with rate limiting and prompt quotas.
+  - `coldCall.ts` – cold calling prompts, blind-response gating, replies, and stars.
   - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
 - `src/services/`
   - `sessionService.ts`, `googleOAuth.ts`, `userService.ts` – auth helpers.
@@ -46,6 +48,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
 - `src/rag/`
   - `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
 - `prisma/schema.prisma`, `prisma/migrations/*` – data model + migrations.
+  - `prisma/migrations/20251230_add_cold_calling` – cold calling prompt + message tables.
 - `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Postgres pgvector.
 - `scripts/importCourseChunks.ts` – import precomputed embeddings from JSON exports into `course_chunks`.
 

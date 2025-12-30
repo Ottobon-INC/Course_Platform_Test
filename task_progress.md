@@ -2,6 +2,10 @@
 
 > Running log of notable tasks and changes completed on the backend + frontend stack of the Course Platform project.
 
+## 2025-12-30 – Cold calling checkpoint
+- Added cold call prompt/message/star tables and wired API endpoints for blind-response cohort prompts.
+- Rendered the Cold Calling block after study text in the course player with threaded replies and star reactions.
+
 ## 2025-12-24 – RAG migration to Supabase
 - Migrated tutor retrieval from Neo4j to Postgres pgvector (`course_chunks`) and added the JSON import workflow for precomputed embeddings.
 - Removed Neo4j configuration/dependencies from the backend runtime and documentation.
