@@ -10,6 +10,8 @@ import { readStoredSession, clearStoredSession, resetSessionHeartbeat } from '@/
 import { SiteLayout } from '@/components/layout/SiteLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type TutorCourse = {
   courseId: string;
@@ -45,11 +47,30 @@ type TutorAssistantMessage = {
   timestamp: string;
 };
 
+type ActivityLearner = {
+  userId: string;
+  courseId: string;
+  moduleNo: number | null;
+  topicId: string | null;
+  eventType: string;
+  derivedStatus: string | null;
+  statusReason: string | null;
+  createdAt: string;
+};
+
+type ActivitySummary = {
+  engaged: number;
+  attention_drift: number;
+  content_friction: number;
+  unknown: number;
+};
+
 export default function TutorDashboardPage() {
   const session = readStoredSession();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedLearnerId, setSelectedLearnerId] = useState<string | null>(null);
   const [assistantMessages, setAssistantMessages] = useState<TutorAssistantMessage[]>([]);
   const [assistantInput, setAssistantInput] = useState('');
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -90,6 +111,7 @@ export default function TutorDashboardPage() {
 
   useEffect(() => {
     setAssistantMessages([]);
+    setSelectedLearnerId(null);
   }, [selectedCourseId]);
 
   const {
@@ -122,6 +144,107 @@ export default function TutorDashboardPage() {
       return response.json();
     }
   });
+
+  const {
+    data: activityResponse,
+    isLoading: activityLoading,
+    isFetching: activityFetching,
+    error: activityError
+  } = useQuery<{ learners: ActivityLearner[]; summary: ActivitySummary }>({
+    queryKey: ['activity-summary', selectedCourseId],
+    enabled: Boolean(selectedCourseId) && Boolean(headers),
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const response = await apiRequest(
+        'GET',
+        `/api/activity/courses/${selectedCourseId}/learners`,
+        undefined,
+        headers ? { headers } : undefined
+      );
+      return response.json();
+    }
+  });
+
+  const {
+    data: historyResponse,
+    isLoading: historyLoading,
+    isFetching: historyFetching
+  } = useQuery<{ events: ActivityLearner[] }>({
+    queryKey: ['activity-history', selectedLearnerId, selectedCourseId],
+    enabled: Boolean(selectedLearnerId) && Boolean(selectedCourseId) && Boolean(headers),
+    queryFn: async () => {
+      const response = await apiRequest(
+        'GET',
+        `/api/activity/learners/${selectedLearnerId}/history?courseId=${selectedCourseId}&limit=40`,
+        undefined,
+        headers ? { headers } : undefined
+      );
+      return response.json();
+    }
+  });
+
+  useEffect(() => {
+    const learners = activityResponse?.learners ?? [];
+    if (learners.length === 0) {
+      setSelectedLearnerId(null);
+      return;
+    }
+    if (!selectedLearnerId || !learners.some((learner) => learner.userId === selectedLearnerId)) {
+      setSelectedLearnerId(learners[0].userId);
+    }
+  }, [activityResponse?.learners, selectedLearnerId]);
+
+  const learnerDirectory = useMemo(() => {
+    const map = new Map<string, { fullName?: string; email?: string }>();
+    (enrollmentsResponse?.enrollments ?? []).forEach((row) => {
+      map.set(row.userId, { fullName: row.fullName, email: row.email });
+    });
+    (progressResponse?.learners ?? []).forEach((row) => {
+      if (!map.has(row.userId)) {
+        map.set(row.userId, { fullName: row.fullName, email: row.email });
+      }
+    });
+    return map;
+  }, [enrollmentsResponse?.enrollments, progressResponse?.learners]);
+
+  const activitySummary = activityResponse?.summary ?? { engaged: 0, attention_drift: 0, content_friction: 0, unknown: 0 };
+  const statusMeta: Record<
+    NonNullable<ActivityLearner['derivedStatus']> | 'unknown',
+    { label: string; badgeClass: string; description: string; dotClass: string }
+  > = {
+    engaged: {
+      label: 'Engaged',
+      badgeClass: 'bg-emerald-100 text-emerald-700',
+      dotClass: 'bg-emerald-500',
+      description: 'Actively interacting with course content.'
+    },
+    attention_drift: {
+      label: 'Attention drift',
+      badgeClass: 'bg-amber-100 text-amber-700',
+      dotClass: 'bg-amber-500',
+      description: 'Idle or pause cues observed.'
+    },
+    content_friction: {
+      label: 'Content friction',
+      badgeClass: 'bg-rose-100 text-rose-700',
+      dotClass: 'bg-rose-500',
+      description: 'Learner signaling friction.'
+    },
+    unknown: {
+      label: 'Unknown',
+      badgeClass: 'bg-slate-200 text-slate-700',
+      dotClass: 'bg-slate-400',
+      description: 'Awaiting telemetry events.'
+    }
+  };
+
+  const selectedLearner = activityResponse?.learners.find((learner) => learner.userId === selectedLearnerId) ?? null;
+  const selectedIdentity = selectedLearnerId ? learnerDirectory.get(selectedLearnerId) : null;
+  const historyEvents = historyResponse?.events ?? [];
+  const statusOrder: Array<keyof typeof statusMeta> = ['engaged', 'attention_drift', 'content_friction', 'unknown'];
+
+  const formatTimestamp = (timestamp: string) =>
+    new Date(timestamp).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'short', day: 'numeric' });
 
   const handleLogout = () => {
     clearStoredSession();
@@ -327,6 +450,141 @@ export default function TutorDashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle>Learner monitor</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Engagement states synthesized from session context, video telemetry, quizzes, personas, cold calls, and idle heuristics.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {statusOrder.map((key) => (
+                <div key={key} className="flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs shadow-sm">
+                  <span className={`h-2 w-2 rounded-full ${statusMeta[key].dotClass}`} />
+                  <div>
+                    <p className="font-semibold leading-none">{statusMeta[key].label}</p>
+                    <p className="text-[10px] text-muted-foreground">{activitySummary[key]} learners</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-5 lg:flex-row">
+              <div className="flex-1 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  {activityFetching ? 'Refreshing telemetry...' : 'Snapshots refresh automatically every 30 seconds.'}
+                </p>
+                {activityError && (
+                  <p className="text-sm text-destructive">Unable to load learner telemetry right now. Please retry shortly.</p>
+                )}
+                {activityLoading ? (
+                  <div className="space-y-3">
+                    {[0, 1, 2].map((index) => (
+                      <Skeleton key={index} className="h-24 w-full" />
+                    ))}
+                  </div>
+                ) : (activityResponse?.learners ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No telemetry yet. As learners watch, read, attempt quizzes, or interact with widgets, they will appear here.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {(activityResponse?.learners ?? []).map((learner) => {
+                      const identity = learnerDirectory.get(learner.userId);
+                      const key = (learner.derivedStatus ?? 'unknown') as keyof typeof statusMeta;
+                      const meta = statusMeta[key];
+                      const isActive = selectedLearnerId === learner.userId;
+                      return (
+                        <button
+                          type="button"
+                          key={learner.userId}
+                          onClick={() => setSelectedLearnerId(learner.userId)}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 ${
+                            isActive ? 'border-foreground/60 bg-muted' : 'border-transparent bg-muted/40'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold">
+                                {identity?.fullName ?? 'Learner'}{' '}
+                                {!identity?.fullName && <span className="text-xs text-muted-foreground">({learner.userId.slice(0, 6)})</span>}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{identity?.email ?? 'Email unavailable'}</p>
+                            </div>
+                            <Badge variant="secondary" className={`${meta.badgeClass} border-0`}>
+                              {meta.label}
+                            </Badge>
+                          </div>
+                          {learner.statusReason && (
+                            <p className="mt-2 text-sm text-muted-foreground">{learner.statusReason}</p>
+                          )}
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Updated {formatTimestamp(learner.createdAt)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:w-[360px]">
+                <div className="rounded-2xl border bg-muted/40 p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Learner detail</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedIdentity?.fullName
+                          ? `${selectedIdentity.fullName} - ${selectedIdentity.email ?? 'Email unavailable'}`
+                          : 'Select a learner to drill into their last actions.'}
+                      </p>
+                    </div>
+                    {selectedLearner && (
+                      <Badge variant="secondary" className={`${statusMeta[(selectedLearner.derivedStatus ?? 'unknown') as keyof typeof statusMeta].badgeClass} border-0`}>
+                        {statusMeta[(selectedLearner.derivedStatus ?? 'unknown') as keyof typeof statusMeta].label}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                    {!selectedLearnerId ? (
+                      <p className="text-sm text-muted-foreground">Select any learner from the list to review their telemetry timeline.</p>
+                    ) : historyLoading || historyFetching ? (
+                      <div className="space-y-2">
+                        {[0, 1, 2].map((index) => (
+                          <Skeleton key={index} className="h-20 w-full" />
+                        ))}
+                      </div>
+                    ) : historyEvents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No events recorded for this learner yet.</p>
+                    ) : (
+                      historyEvents.map((event) => {
+                        const meta = statusMeta[(event.derivedStatus ?? 'unknown') as keyof typeof statusMeta];
+                        return (
+                          <div key={`${event.eventType}-${event.createdAt}-${event.moduleNo ?? 'm'}`} className="rounded-2xl border bg-background px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <Badge variant="secondary" className={`${meta.badgeClass} border-0`}>
+                                {meta.label}
+                              </Badge>
+                              <span className="text-[11px] text-muted-foreground">{formatTimestamp(event.createdAt)}</span>
+                            </div>
+                            <p className="mt-1 text-sm font-semibold">{event.eventType}</p>
+                            {event.statusReason && <p className="text-xs text-muted-foreground">{event.statusReason}</p>}
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Module {event.moduleNo ?? 'n/a'} | Topic {event.topicId ? event.topicId.slice(0, 8) : 'n/a'}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

@@ -40,6 +40,7 @@ type ColdCallPayload = {
 type ColdCallingProps = {
   topicId?: string | null;
   session: StoredSession | null;
+  onTelemetryEvent?: (eventType: string, payload?: Record<string, unknown>) => void;
 };
 
 const formatRelativeTime = (timestamp: string): string => {
@@ -74,7 +75,7 @@ const getInitials = (fullName: string): string => {
   return `${first}${last}`.toUpperCase();
 };
 
-export default function ColdCalling({ topicId, session }: ColdCallingProps) {
+export default function ColdCalling({ topicId, session, onTelemetryEvent }: ColdCallingProps) {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState<ColdCallPrompt | null>(null);
   const [messages, setMessages] = useState<ColdCallMessage[]>([]);
@@ -90,6 +91,14 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
 
   const accessToken = session?.accessToken ?? null;
   const currentUserId = session?.userId ?? null;
+
+  const emitTelemetry = useCallback(
+    (eventType: string, payload?: Record<string, unknown>) => {
+      if (!topicId) return;
+      onTelemetryEvent?.(eventType, { topicId, ...payload });
+    },
+    [onTelemetryEvent, topicId],
+  );
 
   const loadPrompt = useCallback(async () => {
     if (!topicId || !accessToken) {
@@ -132,6 +141,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
       setPrompt(payload.prompt);
       setHasSubmitted(payload.hasSubmitted);
       setMessages(payload.messages ?? []);
+      emitTelemetry("cold_call.loaded", { promptId: payload.prompt.promptId, hasSubmitted: payload.hasSubmitted });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -141,7 +151,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, toast, topicId]);
+  }, [accessToken, toast, topicId, emitTelemetry]);
 
   useEffect(() => {
     setResponseText("");
@@ -186,7 +196,8 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
   }, [childrenMap, currentUserId]);
 
   const submitResponse = async () => {
-    if (!prompt || !accessToken || !responseText.trim()) {
+    const trimmedResponse = responseText.trim();
+    if (!prompt || !accessToken || !trimmedResponse) {
       return;
     }
     if (submitting) {
@@ -210,6 +221,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
 
       setResponseText("");
       await loadPrompt();
+      emitTelemetry("cold_call.submit", { promptId: prompt.promptId, length: trimmedResponse.length });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -222,7 +234,8 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
   };
 
   const submitReply = async () => {
-    if (!replyTargetId || !replyText.trim() || !accessToken) {
+    const trimmedReply = replyText.trim();
+    if (!replyTargetId || !trimmedReply || !accessToken) {
       return;
     }
     if (replySubmitting) {
@@ -247,6 +260,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
       setReplyTargetId(null);
       setReplyText("");
       await loadPrompt();
+      emitTelemetry("cold_call.reply", { messageId: replyTargetId, length: trimmedReply.length });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -280,6 +294,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
               : item,
           ),
         );
+        emitTelemetry("cold_call.star", { messageId: message.messageId, action: "remove" });
       } else {
         const response = await fetch(buildApiUrl("/api/cold-call/stars"), {
           method: "POST",
@@ -300,6 +315,7 @@ export default function ColdCalling({ topicId, session }: ColdCallingProps) {
               : item,
           ),
         );
+        emitTelemetry("cold_call.star", { messageId: message.messageId, action: "add" });
       }
     } catch (error) {
       toast({

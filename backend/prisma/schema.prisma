@@ -26,6 +26,7 @@ model User {
   cohortMemberships CohortMember[]
   coldCallMessages ColdCallMessage[]
   coldCallStars ColdCallStar[]
+  activityEvents LearnerActivityEvent[]
 
   @@map("users")
 }
@@ -69,6 +70,7 @@ model Course {
   promptUsage ModulePromptUsage[]
   cohorts     Cohort[]
   coldCallPrompts ColdCallPrompt[]
+  activityEvents LearnerActivityEvent[]
 
   @@map("courses")
 }
@@ -232,6 +234,7 @@ model Topic {
   promptSuggestions TopicPromptSuggestion[]
   coldCallPrompts ColdCallPrompt[]
   simulation  SimulationExercise?
+  activityEvents LearnerActivityEvent[]
 
   @@unique([courseId, moduleNo, topicNumber], map: "uq_topic_per_module")
   @@map("topics")
@@ -397,4 +400,25 @@ model CourseChunk {
 
   @@index([courseId], map: "idx_course_chunks_course_id")
   @@map("course_chunks")
+}
+
+model LearnerActivityEvent {
+  eventId       String    @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  courseId      String    @map("course_id") @db.Uuid
+  moduleNo      Int?      @map("module_no")
+  topicId       String?   @map("topic_id") @db.Uuid
+  eventType     String    @map("event_type")
+  payload       Json?     @map("payload")
+  derivedStatus String?   @map("derived_status")
+  statusReason  String?   @map("status_reason")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  user          User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course        Course    @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  topic         Topic?    @relation(fields: [topicId], references: [topicId], onDelete: SetNull)
+
+  @@index([courseId, userId, createdAt], map: "idx_learner_activity_course_user_created")
+  @@index([userId, createdAt], map: "idx_learner_activity_user_created")
+  @@index([topicId], map: "idx_learner_activity_topic")
+  @@map("learner_activity_events")
 }
