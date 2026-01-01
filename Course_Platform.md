@@ -26,7 +26,8 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 - **Cold calling checkpoint** – a blind-response cohort prompt appears after each topic’s study text; responses unlock a threaded feed with stars and nested replies.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
-- **AI tutor dock** – typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, and success/failure logging.
+- **AI tutor dock** - typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, and success/failure logging.
+- **Tutor telemetry monitor** - frontend buffers learner actions (video state, idle heuristics, persona switches, quizzes, cold-call activity) and sends them through `/api/activity/events`; tutors query summaries/history to see `engaged`, `attention_drift`, or `content_friction` statuses per learner.
 - **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
 - **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
 
@@ -94,6 +95,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - Video/PPT players are hardened (no share buttons, no context menu, referrer locked down).
 - Quiz tab interacts with `/quiz/sections`, `/quiz/progress`, `POST /quiz/attempts`, and submission endpoints.
 - Tutor dock sends typed prompts as `{ courseId: slug, moduleNo, question }` or calls curated prompt suggestions retrieved from `/lessons/courses/:slug/prompts`.
+- **Telemetry buffer** - `frontend/src/utils/telemetry.ts` collects learner actions (video events, quiz results, persona switches, idle signals, cold-call interactions) and flushes them with auth tokens to `/api/activity/events`, so the tutor dashboard can poll for real-time status.
 
 ### Course details page
 - Fetches `/courses/:slug` for metadata plus `/lessons/courses/:slug/topics` to render modules timeline.
@@ -119,6 +121,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | quizRouter | Quiz question fetch, sections/progress summary, attempt creation, submission grading, module progress updates |
 | assistantRouter | Authenticated tutor endpoint (typed prompt quotas, follow-up suggestions, RAG pipeline) |
 | coldCallRouter | Cold calling prompts, blind-response gating, replies, and star validation |
+| activityRouter | Learner telemetry ingestion (`/api/activity/events`) plus tutor summaries/history endpoints |
 | cartRouter | Authenticated cart CRUD backed by cart_items |
 | pagesRouter | CMS page retrieval |
 | tutorApplicationsRouter | Tutor lead intake |
@@ -144,8 +147,9 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
 - **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
 - **cohorts / cohort_members** – cohort allowlist keyed by course, with `batch_no` to track cohort batches.
-- **cold_call_prompts / cold_call_messages / cold_call_stars** – cohort-only prompts, threaded responses, and per-user star validation.
-- **quiz_questions / quiz_options / quiz_attempts / module_progress** – module gating infrastructure.
+- **cold_call_prompts / cold_call_messages / cold_call_stars** - cohort-only prompts, threaded responses, and per-user star validation.
+- **learner_activity_events** - buffered telemetry stream recording course interactions, derived tutor status, and payload JSON for tutor dashboards.
+- **quiz_questions / quiz_options / quiz_attempts / module_progress** - module gating infrastructure.
 - **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
 

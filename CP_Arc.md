@@ -31,7 +31,8 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 - LandingPage – the single marketing surface with CTAs that jump straight into the featured course.
 - CourseDetailsPage – displays live module/topic metadata, checks cohort eligibility before opening the MetaLearn Protocol modal, enrolls via POST /courses/:slug/enroll, and routes through /course/:slug/path when personalization is missing.
 - EnrollmentPage and AssessmentPage – host the purchase funnel and the quiz tab visuals.
-- CoursePlayerPage – hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, embeds the tutor dock, and hosts the cold-calling checkpoint after study text.
+- CoursePlayerPage - hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, embeds the tutor dock, and hosts the cold-calling checkpoint after study text.
+- Telemetry buffer (`frontend/src/utils/telemetry.ts`) captures video interactions, idle heuristics, persona switches, quiz results, and cold-call signals before flushing them (with auth headers) to `/api/activity/events` so tutors can reconstruct real-time engagement.
 - CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
 - ChatBot – enforces auth, exposes curated prompt suggestions, and surfaces the tutor responses.
 - CourseCertificatePage – gated post-completion view reminding learners that payment unlocks a clean certificate.
@@ -58,6 +59,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 | quizRouter | GET /quiz/questions, GET /quiz/sections/:courseKey, GET /quiz/progress/:courseKey, POST /quiz/attempts, POST /quiz/attempts/:attemptId/submit | Drives the module cadence (cooldowns, dependencies) and writes quiz_attempts/module_progress |
 | assistantRouter | POST /assistant/query | Authenticated tutor endpoint with typed-prompt quotas stored in module_prompt_usage |
 | coldCallRouter | GET /cold-call/prompts/:topicId, POST /cold-call/messages, POST /cold-call/replies, POST/DELETE /cold-call/stars | Blind-response prompts, threaded replies, and cohort-only reactions |
+| activityRouter | POST /activity/events, GET /activity/courses/:courseId/learners, GET /activity/learners/:id/history | Learner telemetry ingestion plus tutor-facing summaries and history timelines |
 | cartRouter, pagesRouter, tutorApplicationsRouter, usersRouter, healthRouter | Supporting CRUD plus liveness checks |
 
 ### Supporting services
@@ -73,8 +75,9 @@ Major model groups (see backend/prisma/schema.prisma):
 - Catalog – courses, topics, simulation_exercises, page_content.
 - Cohort access – cohorts, cohort_members (batch_no for grouping).
 - Cold calling – cold_call_prompts, cold_call_messages, cold_call_stars.
-- Knowledge store – course_chunks (pgvector embeddings for RAG).
-- Progress & enrollment – enrollments, topic_progress, module_progress.
+- Knowledge store - course_chunks (pgvector embeddings for RAG).
+- Progress & enrollment - enrollments, topic_progress, module_progress.
+- Telemetry - learner_activity_events (raw events + derived status for tutor dashboards).
 - Commerce – cart_items, cart_lines.
 - Personalisation & curated prompts – topic_personalization, topic_prompt_suggestions, module_prompt_usage.
 - Assessments – quiz_questions, quiz_options, quiz_attempts.

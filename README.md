@@ -1,13 +1,10 @@
 # Course_Platform_Test
 
-Full-stack learning platform prototype featuring a React + Vite frontend, Express + Prisma backend, Google OAuth, and a Postgres + pgvector course dataset.
+Full-stack LearnHub prototype pairing a React + Vite frontend with an Express + Prisma backend. Highlights:
 
-## Current Status (2025-12-29)
+- Single-course marketing funnel that deep-links into the AI-in-Web-Development curriculum.
+- Course player with study personas, cold-calling checkpoint, quizzes that unlock downstream modules, and an AI tutor dock backed by pgvector + OpenAI.
+- Google OAuth, JWT sessions, cohort-allowlist enrollment gate, cart, tutor intake, and CMS-backed pages.
+- **New (Dec 2025): Learner telemetry & tutor monitor** � the course player now emits buffered activity events (video interactions, idle signals, quiz status, persona switches, cold-call prompts, etc.). The backend stores them in learner_activity_events, exposes /api/activity/events, /api/activity/courses/:courseId/learners, and /api/activity/learners/:id/history, and classifies events into engaged, ttention_drift, and content_friction so tutors can poll for real-time status.
 
-- ✅ RAG tutor now queries course chunks from Postgres via pgvector, removing Neo4j dependency while keeping slug-based lookup (`ai-in-web-development`).
-- ✅ Dynamic quiz grid still covers all 12 topic-pair assessments from the `quiz_questions` + `quiz_options` tables, and successful attempts continue to unlock downstream modules through `module_progress`.
-- ✅ Landing page remains the only public route; every CTA (Google login, enroll, continue learning) deep-links to the course player while unpublished courses show “Coming soon.”
-- 🔧 Regression guard: the shared fetch helper merges custom headers with defaults so quiz and tutor requests always include both `Authorization` and `Content-Type: application/json`.
-- ✅ Cohort allowlist is enforced on enroll only (`cohorts` + `cohort_members` with `batch_no`), while course details/player remain publicly browseable.
-
-See `Course_Platform.md`, `CP_Arc.md`, and `docs/App Changes.md` for the detailed architecture notes and changelog.
+See Course_Platform.md, CP_Arc.md, and 	ask_progress.md for detailed architecture notes and the changelog.
