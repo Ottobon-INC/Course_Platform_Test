@@ -52,6 +52,7 @@ type ActivityLearner = {
   courseId: string;
   moduleNo: number | null;
   topicId: string | null;
+  topicTitle?: string | null;
   eventType: string;
   derivedStatus: string | null;
   statusReason: string | null;
@@ -63,6 +64,13 @@ type ActivitySummary = {
   attention_drift: number;
   content_friction: number;
   unknown: number;
+};
+
+type CourseTopic = {
+  topicId: string;
+  topicName: string;
+  moduleNo: number;
+  moduleName?: string;
 };
 
 export default function TutorDashboardPage() {
@@ -146,6 +154,23 @@ export default function TutorDashboardPage() {
   });
 
   const {
+    data: topicsResponse,
+    isLoading: topicsLoading
+  } = useQuery<{ topics: CourseTopic[] }>({
+    queryKey: ['tutor-topics', selectedCourseId],
+    enabled: Boolean(selectedCourseId),
+    queryFn: async () => {
+      const response = await apiRequest(
+        'GET',
+        `/api/lessons/courses/${selectedCourseId}/topics`,
+        undefined,
+        headers ? { headers } : undefined
+      );
+      return response.json();
+    }
+  });
+
+  const {
     data: activityResponse,
     isLoading: activityLoading,
     isFetching: activityFetching,
@@ -207,6 +232,14 @@ export default function TutorDashboardPage() {
     return map;
   }, [enrollmentsResponse?.enrollments, progressResponse?.learners]);
 
+  const topicTitleLookup = useMemo(() => {
+    const map = new Map<string, { title: string; moduleNo: number; moduleName?: string }>();
+    (topicsResponse?.topics ?? []).forEach((topic) => {
+      map.set(topic.topicId, { title: topic.topicName, moduleNo: topic.moduleNo, moduleName: topic.moduleName });
+    });
+    return map;
+  }, [topicsResponse?.topics]);
+
   const activitySummary = activityResponse?.summary ?? { engaged: 0, attention_drift: 0, content_friction: 0, unknown: 0 };
   const statusMeta: Record<
     NonNullable<ActivityLearner['derivedStatus']> | 'unknown',
@@ -243,8 +276,65 @@ export default function TutorDashboardPage() {
   const historyEvents = historyResponse?.events ?? [];
   const statusOrder: Array<keyof typeof statusMeta> = ['engaged', 'attention_drift', 'content_friction', 'unknown'];
 
-  const formatTimestamp = (timestamp: string) =>
-    new Date(timestamp).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'short', day: 'numeric' });
+const formatTimestamp = (timestamp: string) =>
+  new Date(timestamp).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'short', day: 'numeric' });
+
+const EVENT_LABELS: Record<string, string> = {
+  'idle.start': 'Idle detected',
+  'idle.end': 'Attention resumed',
+  'video.play': 'Video started',
+  'video.pause': 'Video paused',
+  'video.buffer.start': 'Video buffering',
+  'video.buffer.end': 'Video resumed',
+  'lesson.view': 'Lesson viewed',
+  'lesson.locked_click': 'Locked lesson clicked',
+  'quiz.fail': 'Quiz attempt failed',
+  'quiz.pass': 'Quiz passed',
+  'quiz.retry': 'Quiz retried',
+  'quiz.progress': 'Quiz progress updated',
+  'progress.snapshot': 'Progress snapshot',
+  'persona.change': 'Persona updated',
+  'notes.saved': 'Notes saved',
+  'cold_call.loaded': 'Cold-call prompt opened',
+  'cold_call.submit': 'Cold-call response submitted',
+  'cold_call.star': 'Cold-call star awarded',
+  'cold_call.response_received': 'Tutor responded to cold-call',
+  'tutor.prompt': 'Tutor prompt sent',
+  'tutor.response_received': 'Tutor response received',
+};
+
+const STATUS_REASON_LABELS: Record<string, string> = {
+  no_interaction: 'No interaction detected',
+  tab_hidden: 'Browser tab hidden',
+  tab_visible: 'Browser tab visible',
+  video_play: 'Video playing',
+  video_pause: 'Video paused',
+};
+
+function friendlyLabel(source: string, dictionary: Record<string, string>): string {
+  const normalized = source.toLowerCase();
+  if (dictionary[normalized]) {
+    return dictionary[normalized];
+  }
+  if (/\s/.test(source) || /[()]/.test(source)) {
+    return source;
+  }
+  return source
+    .replace(/[._]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function formatEventLabel(eventType: string): string {
+  return friendlyLabel(eventType, EVENT_LABELS);
+}
+
+function formatStatusReason(reason?: string | null): string | null {
+  if (!reason) return null;
+  return friendlyLabel(reason, STATUS_REASON_LABELS);
+}
 
   const handleLogout = () => {
     clearStoredSession();
@@ -497,6 +587,7 @@ export default function TutorDashboardPage() {
                       const key = (learner.derivedStatus ?? 'unknown') as keyof typeof statusMeta;
                       const meta = statusMeta[key];
                       const isActive = selectedLearnerId === learner.userId;
+                      const reasonLabel = formatStatusReason(learner.statusReason);
                       return (
                         <button
                           type="button"
@@ -518,8 +609,8 @@ export default function TutorDashboardPage() {
                               {meta.label}
                             </Badge>
                           </div>
-                          {learner.statusReason && (
-                            <p className="mt-2 text-sm text-muted-foreground">{learner.statusReason}</p>
+                          {reasonLabel && (
+                            <p className="mt-2 text-sm text-muted-foreground">{reasonLabel}</p>
                           )}
                           <p className="mt-1 text-[11px] text-muted-foreground">
                             Updated {formatTimestamp(learner.createdAt)}
@@ -562,6 +653,8 @@ export default function TutorDashboardPage() {
                     ) : (
                       historyEvents.map((event) => {
                         const meta = statusMeta[(event.derivedStatus ?? 'unknown') as keyof typeof statusMeta];
+                        const eventLabel = formatEventLabel(event.eventType);
+                        const reasonLabel = formatStatusReason(event.statusReason);
                         return (
                           <div key={`${event.eventType}-${event.createdAt}-${event.moduleNo ?? 'm'}`} className="rounded-2xl border bg-background px-3 py-2">
                             <div className="flex items-center justify-between gap-3">
@@ -570,10 +663,17 @@ export default function TutorDashboardPage() {
                               </Badge>
                               <span className="text-[11px] text-muted-foreground">{formatTimestamp(event.createdAt)}</span>
                             </div>
-                            <p className="mt-1 text-sm font-semibold">{event.eventType}</p>
-                            {event.statusReason && <p className="text-xs text-muted-foreground">{event.statusReason}</p>}
+                            <p className="mt-1 text-sm font-semibold">{eventLabel}</p>
+                            {reasonLabel && <p className="text-xs text-muted-foreground">{reasonLabel}</p>}
                             <p className="mt-1 text-[11px] text-muted-foreground">
-                              Module {event.moduleNo ?? 'n/a'} | Topic {event.topicId ? event.topicId.slice(0, 8) : 'n/a'}
+                              {(() => {
+                                const topicMeta = event.topicId ? topicTitleLookup.get(event.topicId) : null;
+                                const moduleLabel = topicMeta
+                                  ? topicMeta.moduleName ?? `Module ${topicMeta.moduleNo}`
+                                  : `Module ${event.moduleNo ?? 'n/a'}`;
+                                const topicLabel = topicMeta?.title ?? (event.topicId ? `Topic ${event.topicId.slice(0, 8)}` : 'Topic n/a');
+                                return `${moduleLabel} | ${topicLabel}`;
+                              })()}
                             </p>
                           </div>
                         );
