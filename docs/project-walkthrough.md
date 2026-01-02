@@ -39,14 +39,15 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 4. The frontend refreshes `sections`/`progress` so the sidebar and quiz cards immediately reflect unlocked modules.
 
 ## 7. Tutor chat and prompt governance
-1. The chat dock fetches curated prompts via `/lessons/courses/:slug/prompts`. Suggestions are grouped via `parentSuggestionId`, enabling multi-step follow-ups (Q -> more specific subquestions).
-2. Typed prompts post to `/assistant/query` with `{ courseId: slug, moduleNo, question }` plus Authorization. The backend:
+1. The chat dock surfaces typed prompts plus curated prompt suggestions from `/lessons/courses/:slug/prompts`.
+2. When the dock opens, the client requests `GET /assistant/session?courseId=...&topicId=...` to hydrate prior chat history for the active lesson.
+3. Typed prompts post to `/assistant/query` with `{ courseId: slug, topicId, moduleNo, question }` plus Authorization. The backend:
    - Validates prompt quota using `module_prompt_usage`.
    - Enforces per-user rate limits via `assertWithinRagRateLimit`.
-   - Scrubs PII (`rag/pii.ts`), embeds the question (OpenAI), fetches top contexts from Postgres pgvector, and calls `generateAnswerFromContext()`.
+   - Loads recent turns + summary, rewrites ambiguous follow-ups if needed, embeds the clarified question, retrieves pgvector contexts, and calls `generateAnswerFromContext()`.
    - Logs usage with `rag/usageLogger.ts` and returns `{ answer, nextSuggestions }`.
-3. Suggestions with stored answers bypass OpenAI: the backend simply returns the curated answer plus child suggestions.
-4. If a learner exhausts the typed quota for a module, the API responds with HTTP 429 and a friendly message instructing them to continue to the next module.
+4. Suggestions with stored answers bypass OpenAI: the backend simply returns the curated answer plus child suggestions.
+5. If a learner exhausts the typed quota for a module, the API responds with HTTP 429 and a friendly message instructing them to continue to the next module.
 
 ## 8. Certificate preview
 1. When quizzes report all modules passed, the player links to `/course/:slug/certificate` (`CourseCertificatePage.tsx`).

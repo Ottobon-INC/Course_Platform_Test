@@ -2,22 +2,25 @@
 
 > Running log of notable tasks and changes completed on the backend + frontend stack of the Course Platform project.
 
-## 2025-12-30 - Cold calling checkpoint
-- Added cold call prompt/message/star tables and wired API endpoints for blind-response cohort prompts.
-- Rendered the Cold Calling block after study text in the course player with threaded replies and star reactions.
-
 ## 2025-12-31 - Learner telemetry & tutor monitor APIs
+
 - Added the `learner_activity_events` table plus Prisma model and ingestion service. Frontend buffers video/idle/quiz/persona/cold-call events in `src/utils/telemetry.ts` and flushes them to `/api/activity/events`.
 - New activity router exposes `/api/activity/courses/:courseId/learners` (derived status summaries) and `/api/activity/learners/:id/history` (timeline) so tutor dashboards can poll for `engaged`, `attention_drift`, or `content_friction` states.
 - Documented the pipeline across README, Course_Platform.md, and CP_Arc.md.
 
-## 2025-12-24 – RAG migration to Supabase
-- Migrated tutor retrieval from Neo4j to Postgres pgvector (`course_chunks`) and added the JSON import workflow for precomputed embeddings.
-- Removed Neo4j configuration/dependencies from the backend runtime and documentation.
+- Added persistent tutor chat memory (`cp_rag_chat_sessions`, `cp_rag_chat_messages`), follow-up rewrite, and chat history hydration in the course player.
+
+## 2025-12-30 - Cold calling checkpoint
+- Added cold call prompt/message/star tables and wired API endpoints for blind-response cohort prompts.
+- Rendered the Cold Calling block after study text in the course player with threaded replies and star reactions.
 
 ## 2025-12-29 – Cohort allowlist enrollment gate
 - Added cohort allowlist tables (`cohorts`, `cohort_members` with `batch_no`) and wired enrollment-only gating.
 - CourseDetails now verifies cohort eligibility before opening the MetaLearn protocol modal, showing a softer access toast for non-cohort learners.
+
+## 2025-12-24 – RAG migration to Supabase
+- Migrated tutor retrieval from Neo4j to Postgres pgvector (`course_chunks`) and added the JSON import workflow for precomputed embeddings.
+- Removed Neo4j configuration/dependencies from the backend runtime and documentation.
 
 ## 2025-12-15 – Study personas + prompts
 - Persisted saved personas even after learners switch back to Standard. Introduced `personaHistoryKey` on the client, strengthened `/lessons/courses/:slug/personalization`, and ensured the questionnaire reappears for Standard-only learners when they opt into Personalised narration mid-course.

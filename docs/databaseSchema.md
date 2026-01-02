@@ -10,6 +10,7 @@
 | Cohort access | `cohorts`, `cohort_members` | Enrollment allowlist per course with batch grouping |
 | Cohort interaction | `cold_call_prompts`, `cold_call_messages`, `cold_call_stars` | Blind-response prompts, threaded replies, star validation |
 | Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
+| Tutor memory | `cp_rag_chat_sessions`, `cp_rag_chat_messages` | Persistent per-topic chat history and rolling summaries |
 | Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
 | Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
 | Commerce & enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment rows created automatically, cart storage retained for future upgrades |
@@ -110,6 +111,21 @@ classDiagram
         +Int position
         +Vector embedding
     }
+    class RagChatSession {
+        +UUID sessionId
+        +UUID userId
+        +UUID courseId
+        +UUID topicId
+        +String? summary
+        +Timestamp? lastMessageAt
+    }
+    class RagChatMessage {
+        +UUID messageId
+        +UUID sessionId
+        +UUID userId
+        +RagChatRole role
+        +String content
+    }
     class QuizQuestion {
         +UUID questionId
         +UUID courseId
@@ -162,6 +178,7 @@ classDiagram
     Course "1" -- "*" Topic
     Course "1" -- "*" Cohort
     Course "1" -- "*" CourseChunk
+    Course "1" -- "*" RagChatSession
     Course "1" -- "*" TopicPromptSuggestion
     Course "1" -- "*" ModulePromptUsage
     Course "1" -- "*" ColdCallPrompt
@@ -171,6 +188,10 @@ classDiagram
     Topic "1" -- "*" TopicProgress
     Topic "1" -- "*" TopicPromptSuggestion
     Topic "1" -- "*" ColdCallPrompt
+    Topic "1" -- "*" RagChatSession
+    RagChatSession "1" -- "*" RagChatMessage
+    User "1" -- "*" RagChatSession
+    User "1" -- "*" RagChatMessage
     QuizQuestion "1" -- "*" QuizOption
     Cohort "1" -- "*" CohortMember
     Cohort "1" -- "*" ColdCallMessage
@@ -221,6 +242,10 @@ classDiagram
 ### course_chunks (pgvector)
 - Stores chunked course material plus embeddings (`vector(1536)`).
 - Backed by the pgvector extension and a vector similarity index for RAG retrieval.
+
+### cp_rag_chat_sessions & cp_rag_chat_messages
+- Persist chat sessions per `(user_id, course_id, topic_id)` with rolling summaries for follow-up context.
+- Messages are stored with roles (user/assistant) to rebuild recent history for the tutor dock.
 
 ### quiz tables
 - `quiz_questions` contain module number + topic pair index so sections can be grouped dynamically.

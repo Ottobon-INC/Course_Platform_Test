@@ -26,7 +26,7 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 - **Cold calling checkpoint** – a blind-response cohort prompt appears after each topic’s study text; responses unlock a threaded feed with stars and nested replies.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
-- **AI tutor dock** - typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, and success/failure logging.
+- **AI tutor dock** - typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, persistent per-topic chat memory, follow-up rewrite for ambiguous questions, and success/failure logging.
 - **Tutor telemetry monitor** - frontend buffers learner actions (video state, idle heuristics, persona switches, quizzes, cold-call activity) and sends them through `/api/activity/events`; tutors query summaries/history to see `engaged`, `attention_drift`, or `content_friction` statuses per learner.
 - **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
 - **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
@@ -94,7 +94,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - Cold calling prompts load per topic and remain hidden until the learner submits their own response (blind-response gate).
 - Video/PPT players are hardened (no share buttons, no context menu, referrer locked down).
 - Quiz tab interacts with `/quiz/sections`, `/quiz/progress`, `POST /quiz/attempts`, and submission endpoints.
-- Tutor dock sends typed prompts as `{ courseId: slug, moduleNo, question }` or calls curated prompt suggestions retrieved from `/lessons/courses/:slug/prompts`.
+- Tutor dock sends typed prompts as `{ courseId: slug, topicId, moduleNo, question }`, hydrates chat history via `/assistant/session`, and calls curated prompt suggestions retrieved from `/lessons/courses/:slug/prompts`.
 - **Telemetry buffer** - `frontend/src/utils/telemetry.ts` collects learner actions (video events, quiz results, persona switches, idle signals, cold-call interactions) and flushes them with auth tokens to `/api/activity/events`, so the tutor dashboard can poll for real-time status.
 
 ### Course details page
@@ -119,7 +119,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | coursesRouter | Course catalog fetch, slug/UUID/name resolution, cohort allowlist checks, idempotent enroll writes |
 | lessonsRouter | Course topics, module-scoped topics, topic progress CRUD, study persona CRUD, curated prompt suggestions |
 | quizRouter | Quiz question fetch, sections/progress summary, attempt creation, submission grading, module progress updates |
-| assistantRouter | Authenticated tutor endpoint (typed prompt quotas, follow-up suggestions, RAG pipeline) |
+| assistantRouter | Tutor chat endpoints (typed prompt quotas, RAG pipeline, persistent chat memory, /assistant/session history) |
 | coldCallRouter | Cold calling prompts, blind-response gating, replies, and star validation |
 | activityRouter | Learner telemetry ingestion (`/api/activity/events`) plus tutor summaries/history endpoints |
 | cartRouter | Authenticated cart CRUD backed by cart_items |
@@ -146,6 +146,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
 - **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
+- **cp_rag_chat_sessions / cp_rag_chat_messages** – persistent per-topic tutor chat history with rolling summaries for follow-up context.
 - **cohorts / cohort_members** – cohort allowlist keyed by course, with `batch_no` to track cohort batches.
 - **cold_call_prompts / cold_call_messages / cold_call_stars** - cohort-only prompts, threaded responses, and per-user star validation.
 - **learner_activity_events** - buffered telemetry stream recording course interactions, derived tutor status, and payload JSON for tutor dashboards.
@@ -184,9 +185,10 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 
 ### 9.6 Tutor prompts
 1. Chat dock fetches curated prompt suggestions via `/lessons/courses/:slug/prompts` (optionally per topic ID).
-2. Typed prompts call `/assistant/query` with `{ courseId, moduleNo, question }`; the backend verifies the prompt quota for that module, embeds the question, retrieves contexts from Postgres pgvector, calls OpenAI, and returns the answer.
-3. Suggestions with canned answers skip OpenAI entirely, returning the pre-authored content along with follow-up suggestions.
-4. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
+2. When the dock opens, it hydrates prior chat history via `GET /assistant/session?courseId=...&topicId=...` so learners can resume the same topic thread.
+3. Typed prompts call `/assistant/query` with `{ courseId: slug, topicId, moduleNo, question }`; the backend loads recent turns + summary, optionally rewrites ambiguous follow-ups, embeds the clarified question, retrieves pgvector contexts, and calls OpenAI.
+4. Suggestions with canned answers skip OpenAI entirely, returning the pre-authored content along with follow-up suggestions.
+5. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
 
 ### 9.7 Certificate preview
 1. After all modules pass, the player exposes a certificate CTA that links to `/course/:slug/certificate`.
@@ -198,6 +200,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **Common issues**:
   - Quiz POST returning 400 -> ensure `Content-Type: application/json` is present (fixed in queryClient). If reproducing, confirm `api.ts` is not bypassed.
   - Tutor returning 429 -> learner likely exhausted typed prompt quota for that module.
+  - Tutor chat forgets context after refresh -> confirm `cp_rag_chat_sessions`/`cp_rag_chat_messages` exist and the client sends `topicId` with `/assistant/query` and `/assistant/session`.
   - Persona dialog not loading -> verify `/lessons/courses/:slug/personalization` returns 200 (requires auth) and that `topic_personalization` row exists.
   - Cold calling not appearing -> ensure a `cold_call_prompts` row exists for the topic and the user belongs to an active cohort.
   - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with OpenAI credentials.

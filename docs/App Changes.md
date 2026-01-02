@@ -2,6 +2,11 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why we changed it, and the primary files involved so stakeholders (or external LLMs) can trace the history of the learner experience.
 
+## 2025-12-31 – Tutor chat memory + follow-up rewrite
+- **Persistent sessions** – added `cp_rag_chat_sessions` + `cp_rag_chat_messages` to store per-topic tutor history and summaries.
+- **Contextual follow-ups** – `/assistant/query` now loads recent turns, can rewrite ambiguous follow-ups, and `/assistant/session` hydrates chat history on the client.
+
+
 ## 2025-12-30 – Cold calling cohort checkpoint
 - **Blind-response prompts** – added `cold_call_prompts` plus gated UI so learners submit before seeing cohort replies.
 - **Threaded cohort feed** – responses and replies now render as a conversation tree with “replied to” context tags.

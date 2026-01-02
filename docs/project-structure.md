@@ -24,7 +24,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
   - `CourseSidebar.tsx` – module accordion + progress stats.
   - `LessonTabs.tsx` – study material/practice tabs with Markdown rendering.
   - `ColdCalling.tsx` – blind-response cohort prompt with threaded replies and star reactions.
-  - `ChatBot.tsx` – AI tutor dock (suggestions, typed prompts, quota messaging).
+  - `ChatBot.tsx` – AI tutor dock (suggestions, typed prompts, quota messaging, chat history hydration).
   - `layout/` (SiteHeader, SiteLayout) and `ui/` (shadcn primitives) reused across pages.
 - `src/lib/queryClient.ts`, `src/lib/api.ts` – fetch wrappers.
 - `src/utils/session.ts` – session storage, refresh heartbeat, subscribe/unsubscribe API.
@@ -36,7 +36,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
   - `courses.ts` – catalog fetch + POST enroll (cohort eligibility enforced here).
   - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
   - `quiz.ts` – sections/progress/attempts/submit endpoints.
-  - `assistant.ts` – RAG tutor with rate limiting and prompt quotas.
+  - `assistant.ts` – RAG tutor with rate limiting, prompt quotas, and persistent chat memory (`/assistant/session`).
   - `coldCall.ts` – cold calling prompts, blind-response gating, replies, and stars.
   - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
 - `src/services/`
@@ -49,6 +49,7 @@ Use this guide to understand where each major feature lives. Pair it with `Cours
   - `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
 - `prisma/schema.prisma`, `prisma/migrations/*` – data model + migrations.
   - `prisma/migrations/20251230_add_cold_calling` – cold calling prompt + message tables.
+  - `prisma/migrations/20251231_add_rag_chat_memory` – persistent tutor chat sessions + messages (cp_ prefixed).
 - `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Postgres pgvector.
 - `scripts/importCourseChunks.ts` – import precomputed embeddings from JSON exports into `course_chunks`.
 

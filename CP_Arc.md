@@ -34,7 +34,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 - CoursePlayerPage - hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, embeds the tutor dock, and hosts the cold-calling checkpoint after study text.
 - Telemetry buffer (`frontend/src/utils/telemetry.ts`) captures video interactions, idle heuristics, persona switches, quiz results, and cold-call signals before flushing them (with auth headers) to `/api/activity/events` so tutors can reconstruct real-time engagement.
 - CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
-- ChatBot – enforces auth, exposes curated prompt suggestions, and surfaces the tutor responses.
+- ChatBot – enforces auth, exposes curated prompt suggestions, hydrates prior tutor history, and surfaces responses.
 - CourseCertificatePage – gated post-completion view reminding learners that payment unlocks a clean certificate.
 
 ### Study persona UX
@@ -57,7 +57,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 | coursesRouter | GET /courses, GET /courses/:courseKey, POST /courses/:courseKey/enroll | Slug/UUID/name resolution, cohort allowlist checks, and idempotent enrollment writes (supports `?checkOnly=true`) |
 | lessonsRouter | GET /modules/:moduleNo/topics, GET /courses/:courseKey/topics, GET/PUT /:lessonId/progress, personalization endpoints, prompt suggestions | Delivers curriculum, tracks progress, stores narrator personas, and exposes curated prompt trees |
 | quizRouter | GET /quiz/questions, GET /quiz/sections/:courseKey, GET /quiz/progress/:courseKey, POST /quiz/attempts, POST /quiz/attempts/:attemptId/submit | Drives the module cadence (cooldowns, dependencies) and writes quiz_attempts/module_progress |
-| assistantRouter | POST /assistant/query | Authenticated tutor endpoint with typed-prompt quotas stored in module_prompt_usage |
+| assistantRouter | POST /assistant/query, GET /assistant/session | Tutor chat endpoints with typed-prompt quotas, persistent chat memory, and RAG pipeline |
 | coldCallRouter | GET /cold-call/prompts/:topicId, POST /cold-call/messages, POST /cold-call/replies, POST/DELETE /cold-call/stars | Blind-response prompts, threaded replies, and cohort-only reactions |
 | activityRouter | POST /activity/events, GET /activity/courses/:courseId/learners, GET /activity/learners/:id/history | Learner telemetry ingestion plus tutor-facing summaries and history timelines |
 | cartRouter, pagesRouter, tutorApplicationsRouter, usersRouter, healthRouter | Supporting CRUD plus liveness checks |
@@ -76,6 +76,7 @@ Major model groups (see backend/prisma/schema.prisma):
 - Cohort access – cohorts, cohort_members (batch_no for grouping).
 - Cold calling – cold_call_prompts, cold_call_messages, cold_call_stars.
 - Knowledge store - course_chunks (pgvector embeddings for RAG).
+- Tutor memory - cp_rag_chat_sessions, cp_rag_chat_messages (per-topic chat history + summaries).
 - Progress & enrollment - enrollments, topic_progress, module_progress.
 - Telemetry - learner_activity_events (raw events + derived status for tutor dashboards).
 - Commerce – cart_items, cart_lines.
@@ -87,6 +88,7 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 - scripts/ingestCourseContent.ts reads the canonical PDF, chunks it (900 chars with 150 overlap), generates embeddings (1,536 dims), and writes rows into course_chunks in Postgres.
 - scripts/importCourseChunks.ts can import precomputed embeddings from JSON exports (e.g., Neo4j dumps) without re-embedding.
 - Tutor queries embed the learner question, fetch the top K contexts from Postgres using pgvector similarity search, craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
+- Tutor chat memory persists per topic in cp_rag_chat_sessions/cp_rag_chat_messages, and follow-up questions can be rewritten using the last assistant turn before retrieval.
 - Typed prompts increment the module_prompt_usage counter only after OpenAI succeeds so quota tracking stays fair.
 
 ## 5. Experience Flows
@@ -121,10 +123,9 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 4. Self-replies and self-stars are blocked server-side.
 
 ### 5.6 Tutor prompts
-1. The chat dock surfaces both typed prompts and CMS-authored suggestion trees.
-2. Typed prompts require { courseId: slug, moduleNo, question }; hitting the quota returns HTTP 429 with a friendly message.
-3. Suggestions (topic_prompt_suggestions) can include predefined answers as well as follow-up prompts, enabling deterministic Q&A when desired.
-4. Successful answers log usage (rag/usageLogger.ts) for future analytics.
+1. The chat dock surfaces typed prompts and CMS-authored suggestion trees, then reloads prior history via `GET /assistant/session?courseId=...&topicId=...`.
+2. Typed prompts require `{ courseId: slug, topicId, moduleNo, question }`; the backend loads recent turns + summary, can rewrite ambiguous follow-ups, and then runs the RAG pipeline.
+3. Suggestions (topic_prompt_suggestions) can include predefined answers and follow-up prompts, enabling deterministic Q&A when desired.
 
 ### 5.7 Certificate preview
 1. Once quizzes report passed modules, the CTA routes to /course/:slug/certificate.
