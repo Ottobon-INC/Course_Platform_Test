@@ -450,6 +450,8 @@ const CoursePlayerPage: React.FC = () => {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [starterSuggestions, setStarterSuggestions] = useState<PromptSuggestion[]>([]);
   const [inlineFollowUps, setInlineFollowUps] = useState<Record<string, PromptSuggestion[]>>({});
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -604,7 +606,70 @@ const CoursePlayerPage: React.FC = () => {
     setVisibleStarterSuggestions([]);
     setShouldRefreshStarterBatch(true);
     setStarterAnchorMessageId(welcomeId);
+    setChatSessionId(null);
+    setChatHistoryLoading(false);
   }, [activeLesson?.slug, greetingMessage]);
+
+  const loadChatHistory = useCallback(async () => {
+    if (!chatOpen) {
+      return;
+    }
+    if (!session?.accessToken) {
+      return;
+    }
+    const courseIdForChat = (courseKey ?? activeLesson?.courseId ?? "").trim();
+    const topicIdForChat = activeLesson?.topicId ?? null;
+    if (!courseIdForChat || !topicIdForChat) {
+      return;
+    }
+
+    setChatHistoryLoading(true);
+    try {
+      const res = await fetch(
+        buildApiUrl(
+          `/assistant/session?courseId=${encodeURIComponent(courseIdForChat)}&topicId=${topicIdForChat}`,
+        ),
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          credentials: "include",
+        },
+      );
+      const payload = await res.json().catch(() => null);
+      if (!res.ok) {
+        return;
+      }
+      const history = Array.isArray(payload?.messages) ? payload.messages : [];
+      if (history.length > 0) {
+        const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
+        const mapped: ChatMessage[] = history.map((message: any) => ({
+          id: typeof message?.messageId === "string" ? message.messageId : makeId(),
+          text: typeof message?.content === "string" ? message.content : "",
+          isBot: message?.role !== "user",
+        }));
+        setChatMessages([{ id: welcomeId, text: greetingMessage, isBot: true }, ...mapped]);
+        const lastBot = [...mapped].reverse().find((msg) => msg.isBot);
+        setStarterAnchorMessageId(lastBot?.id ?? welcomeId);
+      }
+      setChatSessionId(typeof payload?.sessionId === "string" ? payload.sessionId : null);
+    } finally {
+      setChatHistoryLoading(false);
+    }
+  }, [
+    activeLesson?.courseId,
+    activeLesson?.slug,
+    activeLesson?.topicId,
+    chatOpen,
+    courseKey,
+    greetingMessage,
+    session?.accessToken,
+  ]);
+
+  useEffect(() => {
+    void loadChatHistory();
+  }, [loadChatHistory]);
 
   const getLessonTextForPersona = useCallback((lesson: Lesson | null | undefined, persona: StudyPersona) => {
     if (!lesson) {
@@ -1396,6 +1461,11 @@ const CoursePlayerPage: React.FC = () => {
         toast({ variant: "destructive", title: "No course context", description: "Select a lesson before chatting." });
         return;
       }
+      const topicIdForChat = activeLesson?.topicId ?? null;
+      if (!topicIdForChat) {
+        toast({ variant: "destructive", title: "No topic context", description: "Open a lesson before chatting." });
+        return;
+      }
       const moduleNoForChat = activeLesson?.moduleNo ?? null;
       if (!suggestion && (moduleNoForChat === null || moduleNoForChat === undefined)) {
         toast({
@@ -1441,6 +1511,7 @@ const CoursePlayerPage: React.FC = () => {
           question,
           courseId: courseIdForChat,
           courseTitle: activeLesson?.moduleName ?? undefined,
+          topicId: topicIdForChat,
         };
         if (suggestion) {
           body.suggestionId = suggestion.id;
@@ -1466,6 +1537,9 @@ const CoursePlayerPage: React.FC = () => {
         botMessageId = botId;
         setStarterAnchorMessageId(botId);
         setChatMessages((prev) => [...prev, { id: botId, text: answer, isBot: true, suggestionContext: suggestion }]);
+        if (typeof payload?.sessionId === "string") {
+          setChatSessionId(payload.sessionId);
+        }
         const next = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
         if (suggestion) {
           setInlineFollowUps((prev) => ({

@@ -18,6 +18,11 @@ type QueryContext = {
   score: number;
 };
 
+type ConversationTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 const VECTOR_QUERY_LIMIT = 5;
 const EMBEDDING_DIMENSIONS = 1536;
 const INSERT_BATCH_SIZE = 50;
@@ -67,6 +72,8 @@ export async function askCourseAssistant(options: {
   courseTitle?: string;
   question: string;
   userId: string;
+  conversation?: ConversationTurn[];
+  summary?: string | null;
 }): Promise<{ answer: string }> {
   const sanitizedQuestion = scrubPossiblePii(options.question ?? "").trim();
   if (!sanitizedQuestion) {
@@ -89,6 +96,8 @@ export async function askCourseAssistant(options: {
       courseTitle: options.courseTitle ?? "MetaLearn Course",
       question: sanitizedQuestion,
       contexts,
+      summary: options.summary ?? null,
+      conversation: options.conversation ?? [],
     });
 
     const answer = await generateAnswerFromContext(prompt);
@@ -122,17 +131,38 @@ async function fetchRelevantContexts(courseId: string, embedding: number[]): Pro
   }));
 }
 
-function buildPrompt(params: { courseTitle: string; question: string; contexts: QueryContext[] }): string {
+function buildPrompt(params: {
+  courseTitle: string;
+  question: string;
+  contexts: QueryContext[];
+  summary?: string | null;
+  conversation?: ConversationTurn[];
+}): string {
   const contextBlock = params.contexts
     .map((ctx, index) => `Context ${index + 1}:\n${ctx.content}`)
     .join("\n\n");
+  const summaryBlock = params.summary?.trim()
+    ? `Conversation summary:\n${params.summary.trim()}`
+    : "";
+  const historyBlock =
+    params.conversation && params.conversation.length > 0
+      ? [
+          "Recent conversation:",
+          params.conversation
+            .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+            .join("\n"),
+        ].join("\n")
+      : "";
 
   return [
     `You are a warm, encouraging mentor assisting a learner in the course "${params.courseTitle}".`,
-    "Use only the provided contexts from the official course material.",
+    "Use conversation history only to understand the learner's intent.",
+    "Answer using only the provided contexts from the official course material.",
     "If the answer is not contained in the contexts, politely say you don't have that information.",
     "Respond in 3-6 sentences total and keep the tone human and supportive.",
     "",
+    summaryBlock,
+    historyBlock,
     "Course contexts:",
     contextBlock,
     "",
