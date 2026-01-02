@@ -11,6 +11,7 @@ export type TelemetryEventInput = {
 };
 
 export type LearnerStatusRow = {
+  eventId: string;
   userId: string;
   courseId: string;
   moduleNo: number | null;
@@ -90,6 +91,7 @@ export async function recordActivityEvents(userId: string, events: TelemetryEven
 export async function getLatestStatusesForCourse(courseId: string): Promise<LearnerStatusRow[]> {
   const windowedEvents = await prisma.$queryRaw<LearnerStatusRow[]>(Prisma.sql`
     SELECT
+      ranked.event_id AS "eventId",
       ranked.user_id AS "userId",
       ranked.course_id AS "courseId",
       ranked.module_no AS "moduleNo",
@@ -100,6 +102,7 @@ export async function getLatestStatusesForCourse(courseId: string): Promise<Lear
       ranked.created_at AS "createdAt"
     FROM (
       SELECT
+        event_id,
         user_id,
         course_id,
         module_no,
@@ -144,6 +147,7 @@ export async function getLearnerHistory(params: {
 
   const rows = await prisma.$queryRaw<LearnerStatusRow[]>(Prisma.sql`
     SELECT
+      event_id AS "eventId",
       user_id AS "userId",
       course_id AS "courseId",
       module_no AS "moduleNo",
