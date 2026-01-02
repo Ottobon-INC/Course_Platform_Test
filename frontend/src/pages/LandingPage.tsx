@@ -2085,21 +2085,21 @@ const CohortPromoSection: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.4 }}
-            className="flex flex-row items-center gap-6"
+            className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6"
           >
             <a
   href="https://Ottobon-Cohort-regestration---07.replit.app"
   target="_blank"
   rel="noopener noreferrer"
 >
-  <button className="bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide">
+  <button className="w-full sm:w-auto bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide text-center">
     grab your spot
   </button>
 </a>
 
             <button
               onClick={() => setIsSyllabusOpen(true)}
-              className="group inline-flex items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
+              className="group inline-flex w-full justify-center sm:w-auto sm:justify-between items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
             >
               View Full Syllabus
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
