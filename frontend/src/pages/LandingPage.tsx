@@ -4,7 +4,7 @@ import {
   Play, ChevronRight, Search, Terminal, Users, LifeBuoy,
   PlayCircle, Lock, Brain, GitBranch, Award, FileCode, ShieldCheck, Clock,
   Star, Bot, Unlock, ArrowDown, Sparkles, Check, Quote, Linkedin, Twitter,
-  Plus, Minus, ArrowRight, BookOpen, LogOut, Menu, X
+  Plus, Minus, ArrowRight, BookOpen, LogOut, Menu, X, MessageSquare, CheckCircle
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
@@ -13,6 +13,12 @@ import { readStoredSession } from '@/utils/session';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import certificateHero from '@/Certificate.png';
+import humanLoopImg from '@/assets/human-loop.png';
+import aiAssistantImg from '@/assets/ai-assistant.png';
+import assessmentImg from '@/assets/assessment.png';
+import personaLearningImg from '@/assets/persona-learning.png';
+import peerInsightImg from '@/assets/peer-insight.png';
+import cohortEngagementImg from '@/assets/cohort-engagement.png';
 
 // --- Types ---
 
@@ -83,6 +89,87 @@ interface Feature {
   description: string;
   icon: React.ReactNode;
 }
+
+const syllabusSections = [
+  {
+    title: 'Module 1 · Foundations',
+    summary: 'Learn how modern web development works in the AI era by mastering the core stack, essential tools, and your development environment.',
+    topics: [
+      '1.1 Introduction to Web Development in the AI Era',
+      '1.2 Essential Web Technologies Overview',
+      '1.3 AI Tools for Web Development',
+      '1.4 Setting Up Your AI-Enhanced Development Environment'
+    ]
+  },
+  {
+    title: 'Module 2 · Ideation & Planning',
+    summary: 'Use AI to validate ideas, research user needs, and translate them into structured project plans and requirements.',
+    topics: [
+      '2.1 Brainstorming Web Application Ideas with AI',
+      '2.2 AI-Assisted Market Research and Persona Mapping',
+      '2.3 Project Planning and Scope Definition',
+      '2.4 Technical Requirements Gathering'
+    ]
+  },
+  {
+    title: 'Module 3 · Design & Architecture',
+    summary: 'Craft UX flows, UI systems, and technical architecture with AI copilots before moving into high-fidelity prototypes.',
+    topics: [
+      '3.1 User Experience (UX) Design with AI',
+      '3.2 User Interface (UI) Design Using AI',
+      '3.3 Technical Architecture Planning',
+      '3.4 Prototyping with AI'
+    ]
+  },
+  {
+    title: 'Module 4 · Implementation',
+    summary: 'Build the full stack with AI assistance—from interactive frontends to production-ready backends.',
+    topics: [
+      '4.1 Frontend Development with AI',
+      '4.2 Backend Development Using AI Tools'
+    ]
+  },
+  {
+    title: 'Module 5 · Testing & Hardening',
+    summary: 'Adopt AI-driven strategies for testing, debugging, optimization, and security reviews.',
+    topics: [
+      '5.1 Testing Strategies with AI Assistance',
+      '5.2 Debugging and Problem Solving with AI',
+      '5.3 Code Quality and Optimization',
+      '5.4 Security and Best Practices'
+    ]
+  },
+  {
+    title: 'Module 6 · Deployment & Operations',
+    summary: 'Prepare, launch, and monitor your application using AI-powered deployment and observability workflows.',
+    topics: [
+      '6.1 Deployment Preparation',
+      '6.2 AI-Powered Deployment Platforms',
+      '6.3 Monitoring and Maintenance',
+      '6.4 Post-Launch Optimization'
+    ]
+  },
+  {
+    title: 'Module 7 · AI Feature Integration',
+    summary: 'Bring intelligence into your app with LLM APIs, conversational interfaces, retrieval systems, and personalization.',
+    topics: [
+      '7.1 Introduction to LLM APIs (OpenAI, Gemini, Anthropic)',
+      '7.2 Building Conversational Interfaces',
+      '7.3 Implementing Retrieval-Augmented Generation',
+      '7.4 Dynamic Content Generation & Personalization Engines'
+    ]
+  },
+  {
+    title: 'Module 8 · AI Orchestration & Scaling',
+    summary: 'Design production-grade AI pipelines with LangChain/LlamaIndex, advanced memory, streaming, and observability.',
+    topics: [
+      '8.1 Deep Dive into LangChain & LlamaIndex',
+      '8.2 Advanced Memory Management',
+      '8.3 Streaming & Event-Driven AI',
+      '8.4 Observability & Tracing'
+    ]
+  }
+];
 
 // --- Components ---
 
@@ -421,7 +508,8 @@ const Hero: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }>
             >
               The First Course    <br />
               <span className="text-retro-salmon inline-block relative">
-                you will ever need <br/>to take off.
+
+                you will ever need <br />to take off.
                 <motion.svg
                   initial={{ pathLength: 0 }}
                   animate={{ pathLength: 1 }}
@@ -454,6 +542,17 @@ const Hero: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }>
               className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all"
             >
               Enroll <ChevronRight size={20} />
+            </motion.button>
+            <motion.button
+              onClick={() => {
+                const el = document.getElementById('cohort-promo');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(36, 72, 85, 0.15)" }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-white border-2 border-retro-teal text-retro-teal px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all hover:bg-retro-teal/5"
+            >
+              TRENDING <ChevronRight size={20} />
             </motion.button>
           </motion.div>
         </motion.div>
@@ -684,35 +783,41 @@ interface Step {
 
 const steps: Step[] = [
   {
-    icon: <PlayCircle size={28} className="text-white" />,
-    title: "Structured Learning",
-    description: "No random tutorials. Follow a rigid, industry-vetted curriculum.",
-    color: "bg-retro-teal" // #244855
+    icon: <Users size={28} className="text-white" />,
+    title: "Cohort-Based Engagement",
+    description: "Progress inside a verified cohort with shared milestones, moderated forums, and activities synced to the cohort lifecycle.",
+    color: "bg-retro-teal"
+  },
+  {
+    icon: <MessageSquare size={28} className="text-white" />,
+    title: "Peer Insight Exchange",
+    description:
+      "Submit your response first, then unlock your cohort’s answers for review, critique, and collective learning moments.",
+    color: "bg-retro-salmon"
   },
   {
     icon: <Sparkles size={28} className="text-white" />,
-    title: "Personalized Learning Path",
-    description:
-      "Learners can choose a personalized study persona—or stay with the standard track—while AI keeps the journey aligned with their goals.",
-    color: "bg-retro-salmon" // keep brand palette for visibility
+    title: "Persona-Driven Personalization",
+    description: "Switch between narration styles without losing progress so explanations always match how you process information.",
+    color: "bg-retro-brown"
   },
   {
-    icon: <Brain size={28} className="text-white" />,
-    title: "Contextual AI Mentor",
-    description: "Stuck on a bug? Our AI reads your exact video timestamp and explains the code instantly.",
-    color: "bg-retro-brown" // #874F41
+    icon: <CheckCircle size={28} className="text-white" />,
+    title: "Assessment-Driven Progression",
+    description: "Modules unlock only after you prove mastery through verified assessments, ensuring real comprehension before moving on.",
+    color: "bg-retro-sage"
   },
   {
-    icon: <GitBranch size={28} className="text-white" />,
-    title: "Project-Based Grading",
-    description: "Don't just pass quizzes. Submit real Git repositories. Our system verifies your code structure before you move on.",
-    color: "bg-retro-sage" // #90AEAD
+    icon: <Bot size={28} className="text-white" />,
+    title: "AI Learning Assistant",
+    description: "A course-trained AI companion delivers context-aware guidance inside every module without breaking the lesson flow.",
+    color: "bg-retro-teal"
   },
   {
-    icon: <Award size={28} className="text-white" />,
-    title: "Verified Mastery",
-    description: "Earn a credential that actually proves you did the work, not just watched the videos.",
-    color: "bg-retro-teal" // Loop back to teal
+    icon: <LifeBuoy size={28} className="text-white" />,
+    title: "Human-in-the-Loop Mentorship",
+    description: "Senior mentors monitor telemetry, intervene when needed, and give the human feedback AI alone can’t provide.",
+    color: "bg-retro-salmon"
   }
 ];
 
@@ -1006,13 +1111,13 @@ const CourseCard: React.FC<{ course: Course; onEnroll: (courseId: string, course
     <div
       className={`w-[320px] md:w-[380px] h-[450px] bg-white rounded-3xl shadow-lg border border-retro-sage/20 overflow-hidden flex flex-col shrink-0`}
     >
-        <div className="relative h-56 overflow-hidden group shrink-0">
-          <img
-            src={course.image}
-            alt={course.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          />
-        </div>
+      <div className="relative h-56 overflow-hidden group shrink-0">
+        <img
+          src={course.image}
+          alt={course.title}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+      </div>
 
       <div className="p-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-2">
@@ -1065,10 +1170,10 @@ const TrendingCourses: React.FC<{
   const catalog = courseCatalog ?? courses;
   const filtered = normalizedSearch
     ? catalog.filter(
-        (course) =>
-          course.title.toLowerCase().includes(normalizedSearch) ||
-          course.description.toLowerCase().includes(normalizedSearch),
-      )
+      (course) =>
+        course.title.toLowerCase().includes(normalizedSearch) ||
+        course.description.toLowerCase().includes(normalizedSearch),
+    )
     : catalog;
   const visibleCourses = filtered.length > 0 ? filtered : catalog;
 
@@ -1876,6 +1981,205 @@ const ProgressBar: React.FC = () => {
   );
 };
 
+const CohortPromoSection: React.FC = () => {
+  const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
+
+  return (
+    <section id="cohort-promo" className="w-full py-24 bg-[#FBE9D0]/30 flex justify-center border-b border-retro-sage/10">
+      <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
+        <div className="space-y-8 md:pl-16">
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-retro-salmon text-white rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-retro-salmon/20"
+          >
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+            Trending Cohort
+          </motion.div>
+
+          {/* Heading */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+          >
+            <motion.h2
+              animate={{
+                y: [0, -8, 0],
+                textShadow: [
+                  "0px 0px 0px rgba(230,72,51,0)",
+                  "0px 0px 15px rgba(230,72,51,0.3)",
+                  "0px 0px 0px rgba(230,72,51,0)"
+                ]
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-retro-teal"
+            >
+              AI Native <br />
+              <span className="text-retro-salmon">FullStack</span> Developer
+            </motion.h2>
+          </motion.div>
+
+          {/* Description */}
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+            className="text-lg md:text-xl text-retro-teal/70 max-w-lg leading-relaxed font-medium"
+          >
+            The definitive roadmap for developers building the next generation of intelligent software. Master LLM Orchestration, RAG Pipelines, and Agentic Systems.
+          </motion.p>
+
+          {/* Availability Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="bg-white p-6 rounded-3xl shadow-xl shadow-retro-teal/5 border border-retro-sage/20 max-w-md w-full"
+          >
+            <div className="flex justify-between items-center mb-5">
+              <span className="text-xs font-bold text-retro-teal/60 tracking-widest uppercase">Cohort Availability</span>
+              <span className="px-3 py-1 bg-retro-salmon/10 text-retro-salmon text-[10px] font-bold rounded-full uppercase tracking-wide">18 Spots Left</span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-5">
+              <motion.div
+                initial={{ width: 0 }}
+                whileInView={{ width: "75%" }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-retro-salmon to-[#FF8A75] rounded-full relative overflow-hidden"
+              >
+                {/* Shine Effect */}
+                <motion.div
+                  className="absolute top-0 left-0 bottom-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -skew-x-12"
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "200%" }}
+                  transition={{
+                    repeat: Infinity,
+                    duration: 2,
+                    ease: "linear",
+                  }}
+                />
+              </motion.div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] font-bold text-retro-teal/40 uppercase tracking-widest">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              hurry up seats are filling fast
+            </div>
+          </motion.div>
+
+          {/* Form/Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-row items-center gap-6"
+          >
+            <a
+  href="https://Ottobon-Cohort-regestration---07.replit.app"
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  <button className="bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide">
+    grab your spot
+  </button>
+</a>
+
+            <button
+              onClick={() => setIsSyllabusOpen(true)}
+              className="group inline-flex items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
+            >
+              View Full Syllabus
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+            </button>
+          </motion.div>
+        </div>
+
+        {/* Right side - 3D Cube Feature */}
+        <div className="hidden md:flex justify-center items-center h-full min-h-[400px]">
+          <div className="cube-container">
+            <div className="box-card">
+              <div className="face front" style={{ '--img': `url(${cohortEngagementImg})` } as React.CSSProperties}></div>
+              <div className="face back" style={{ '--img': `url(${peerInsightImg})` } as React.CSSProperties}></div>
+              <div className="face right" style={{ '--img': `url(${personaLearningImg})` } as React.CSSProperties}></div>
+              <div className="face left" style={{ '--img': `url(${assessmentImg})` } as React.CSSProperties}></div>
+              <div className="face top" style={{ '--img': `url(${aiAssistantImg})` } as React.CSSProperties}></div>
+              <div className="face bottom" style={{ '--img': `url(${humanLoopImg})` } as React.CSSProperties}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isSyllabusOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setIsSyllabusOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] relative shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setIsSyllabusOpen(false)}
+                className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors z-10"
+              >
+                <X size={24} />
+              </button>
+              <div className="overflow-y-auto max-h-[85vh] p-6 space-y-6">
+                <div className="rounded-2xl border border-retro-sage/40 bg-retro-bg/40 p-6 shadow-inner text-retro-teal">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-retro-salmon">Cohort syllabus</p>
+                  <h3 className="text-2xl md:text-3xl font-semibold text-retro-teal mt-2">AI Native FullStack Developer</h3>
+                  <p className="text-sm md:text-base text-retro-teal/80 mt-3">
+                    A 5-module, mentor-led journey that combines product thinking, AI-native delivery, and telemetry-driven coaching. Each module ends with a cold-call style checkpoint and tutor review.
+                  </p>
+                </div>
+                <div className="grid gap-4">
+                  {syllabusSections.map((section) => (
+                    <div key={section.title} className="rounded-2xl border border-retro-sage/30 bg-white/90 p-5 shadow-sm">
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-lg font-semibold text-retro-teal">{section.title}</h4>
+                        <p className="text-sm text-retro-teal/70">{section.summary}</p>
+                      </div>
+                      <ul className="mt-3 space-y-2 text-sm text-retro-teal">
+                        {section.topics.map((topic) => (
+                          <li key={topic} className="flex items-start gap-2">
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-retro-salmon" />
+                            <span>{topic}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+};
+
+
 function App() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -2042,6 +2346,7 @@ function App() {
         onLogout={handleLogout}
       />
       <Hero onEnroll={() => handleEnroll()} onSearch={handleSearchCourses} />
+      <CohortPromoSection />
       <TrustedBy />
       <ValueProp />
       <Methodology />
