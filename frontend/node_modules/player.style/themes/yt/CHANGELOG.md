@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1](https://github.com/muxinc/player.style/compare/@player.style/yt@0.2.0...@player.style/yt@0.2.1) (2025-12-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * build-theme bumped from ^0.1.0 to ^0.1.1
+
 ## [0.2.0](https://github.com/muxinc/player.style/compare/@player.style/yt@0.1.1...@player.style/yt@0.2.0) (2025-08-22)
 
 

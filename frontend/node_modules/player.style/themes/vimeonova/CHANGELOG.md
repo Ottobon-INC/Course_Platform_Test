@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2](https://github.com/muxinc/player.style/compare/@player.style/vimeonova@0.1.1...@player.style/vimeonova@0.1.2) (2025-12-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * build-theme bumped from ^0.1.0 to ^0.1.1
+
 ## [0.1.1](https://github.com/muxinc/player.style/compare/@player.style/vimeonova@0.1.0...@player.style/vimeonova@0.1.1) (2024-12-19)
 
 

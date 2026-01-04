@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.8](https://github.com/muxinc/player.style/compare/@player.style/sutro-audio@0.0.7...@player.style/sutro-audio@0.0.8) (2025-12-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * build-theme bumped from ^0.1.0 to ^0.1.1
+
 ## [0.0.7](https://github.com/muxinc/player.style/compare/@player.style/sutro-audio@0.0.6...@player.style/sutro-audio@0.0.7) (2024-12-19)
 
 

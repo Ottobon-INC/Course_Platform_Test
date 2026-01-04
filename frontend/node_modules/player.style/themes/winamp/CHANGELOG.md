@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.13](https://github.com/muxinc/player.style/compare/@player.style/winamp@0.0.12...@player.style/winamp@0.0.13) (2025-12-04)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * build-theme bumped from ^0.1.0 to ^0.1.1
+
 ## [0.0.12](https://github.com/muxinc/player.style/compare/@player.style/winamp@0.0.11...@player.style/winamp@0.0.12) (2024-12-19)
 
 
