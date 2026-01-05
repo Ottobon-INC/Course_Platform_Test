@@ -399,7 +399,7 @@ const TypewriterInput: React.FC<{ suggestions: string[]; onSearch: (term: string
   const placeholders =
     suggestions.length > 0
       ? suggestions
-      : ["Search for 'AI in Web Development'...", "Search for 'Machine Learning Basics'...", "Search for 'Full Stack Development'..."];
+      : ["Search for 'AI Native FullStack Developer'...", "Search for 'Machine Learning Basics'...", "Search for 'Full Stack Development'..."];
   const [currentText, setCurrentText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -544,7 +544,7 @@ const Hero: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }>
           </motion.p>
 
           <motion.div variants={itemVariants} className="w-full flex justify-center md:justify-start">
-            <TypewriterInput suggestions={["AI in Web Development", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
+            <TypewriterInput suggestions={["AI Native FullStack Developer", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
           </motion.div>
 
           <motion.div variants={itemVariants} className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
@@ -2257,6 +2257,10 @@ function App() {
   }, [toast]);
 
   const primaryCourseId = 'ai-in-web-development';
+  const primaryCourseTitle = 'AI Native FullStack Developer';
+  const legacyCourseTitle = 'AI in Web Development';
+  const primaryCourseSlug = 'ai-native-fullstack-developer';
+  const legacyCourseSlug = 'ai-in-web-development';
   const primaryLessonSlug = 'welcome-to-ai-journey';
   const coursePlayerPath = `/course/${primaryCourseId}/learn/${primaryLessonSlug}`;
 
@@ -2301,14 +2305,18 @@ function App() {
     const normalizedTitle = courseTitle ? slugifyCourse(courseTitle) : '';
     const isPrimary =
       normalized === primaryCourseId ||
-      normalized.includes('ai-in-web-development') ||
-      normalizedTitle.includes('ai-in-web-development') ||
-      (courseTitle ?? '').toLowerCase() === 'ai in web development';
+      normalized === primaryCourseSlug ||
+      normalized.includes(primaryCourseSlug) ||
+      normalized.includes(legacyCourseSlug) ||
+      normalizedTitle.includes(primaryCourseSlug) ||
+      normalizedTitle.includes(legacyCourseSlug) ||
+      (courseTitle ?? '').toLowerCase() === primaryCourseTitle.toLowerCase() ||
+      (courseTitle ?? '').toLowerCase() === legacyCourseTitle.toLowerCase();
 
     if (!isPrimary) {
       toast({
         title: "Coming soon",
-        description: "This course is being prepared. Meanwhile, jump into AI in Web Development.",
+        description: `This course is being prepared. Meanwhile, jump into ${primaryCourseTitle}.`,
       });
       return;
     }
