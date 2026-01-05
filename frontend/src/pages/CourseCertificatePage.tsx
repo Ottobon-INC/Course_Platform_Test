@@ -61,7 +61,7 @@ const CourseCertificatePage = () => {
       key: "RAZORPAY_KEY",
       amount: "49900",
       currency: "INR",
-      name: "MetaLearn Courses",
+      name: "Ottolearn Courses",
       description: "Certificate Upgrade",
       handler: (response: unknown) => {
         alert(`Payment successful: ${JSON.stringify(response)}`);

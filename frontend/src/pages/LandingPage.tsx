@@ -219,7 +219,7 @@ const Navbar: React.FC<{
             <span className="-rotate-45 text-white font-bold text-xs">ML</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-2xl text-retro-teal tracking-tighter leading-none">MetaLearn</span>
+            <span className="font-bold text-2xl text-retro-teal tracking-tighter leading-none">Ottolearn</span>
             <span className="text-[10px] text-retro-salmon font-bold uppercase tracking-wider mt-0.5">Harvard Method of Teaching</span>
           </div>
         </div>
@@ -281,10 +281,17 @@ const Navbar: React.FC<{
             </DropdownMenu>
           ) : (
             <button
+              type="button"
               onClick={onLogin}
-              className="hidden md:inline-flex bg-retro-salmon text-white px-6 py-2 rounded-full font-medium hover:bg-retro-teal transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
+              className="hidden md:flex w-full max-w-[320px] items-center justify-center gap-3 rounded-full border border-gray-300 bg-white/90 px-5 py-2 text-sm font-bold uppercase text-gray-700 transition-all duration-300 hover:scale-[1.03] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-retro-teal sm:w-auto"
             >
-              Log In
+              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
+                <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
+                <path fill="#34A853" d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"></path>
+                <path fill="#FBBC05" d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782"></path>
+                <path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"></path>
+              </svg>
+              Continue with Google
             </button>
           )}
           <button
@@ -366,9 +373,15 @@ const Navbar: React.FC<{
                     onLogin();
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full bg-retro-salmon text-white px-4 py-2 rounded-full font-semibold hover:bg-retro-teal transition"
+                  className="flex w-full items-center justify-center gap-3 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-bold uppercase text-gray-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-sm"
                 >
-                  Log In
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
+                    <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
+                    <path fill="#34A853" d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"></path>
+                    <path fill="#FBBC05" d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782"></path>
+                    <path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"></path>
+                  </svg>
+                  Continue with Google
                 </button>
               )}
             </div>
@@ -661,7 +674,7 @@ const ValueProp: React.FC = () => {
     <section id="why" className="py-32 bg-retro-bg relative">
       <div className="container mx-auto px-6 max-w-7xl">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-retro-teal">Why MetaLearn?</h2>
+          <h2 className="text-4xl font-bold text-retro-teal">Why Ottolearn?</h2>
           <p className="text-retro-teal/70 mt-4 text-lg">More than just videos. A complete ecosystem.</p>
         </div>
 
@@ -893,7 +906,7 @@ const Methodology: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4">The MetaLearn Method</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4">The Ottolearn Method</h2>
           <p className="text-xl text-retro-teal/70 max-w-2xl mx-auto mb-6">We don't just sell courses. We guarantee mastery.</p>
           <div className="inline-block px-4 py-1.5 rounded-full bg-white border border-retro-sage/30">
             <p className="text-xs font-bold text-retro-teal uppercase tracking-wider">
@@ -1349,7 +1362,7 @@ const ChatInterface: React.FC = () => {
       <div className="flex items-center gap-3 mb-4 border-b border-retro-bg pb-4">
         <div className="w-10 h-10 bg-retro-cyan rounded-full flex items-center justify-center text-white shadow-lg"><Bot size={20} /></div>
         <div>
-          <p className="font-bold text-retro-teal">MetaLearn Assistant</p>
+          <p className="font-bold text-retro-teal">Ottolearn Assistant</p>
           <p className="text-xs text-retro-sage flex items-center gap-1"><span className="w-2 h-2 bg-retro-sage rounded-full animate-pulse"></span> Online</p>
         </div>
       </div>
@@ -1544,22 +1557,22 @@ const Certification: React.FC = () => {
 
 const testimonials = [
   {
-    text: "The lock system forced me to actually learn. I landed a React job in 3 months.",
-    author: "Alex J.",
-    role: "Junior Developer",
-    color: "bg-retro-bg"
+    text: "The module locks kept me disciplined. Cleared my React interviews in Bengaluru within 90 days.",
+    author: "Ananya M.",
+    role: "Frontend Engineer · Flipkart",
+    color: "bg-[#fff8ef]"
   },
   {
-    text: "The AI chatbot felt like having a senior dev beside me 24/7. It's unreal.",
-    author: "Sarah L.",
-    role: "Frontend Engineer",
-    color: "bg-retro-bg"
+    text: "Copilot prompts plus tutor reviews felt like pairing with a senior dev from day one.",
+    author: "Raghav S.",
+    role: "Full Stack Developer · Pune",
+    color: "bg-[#fef6f2]"
   },
   {
-    text: "Finally, a platform that cares about competence, not just completion.",
-    author: "David K.",
-    role: "Tech Lead",
-    color: "bg-retro-bg"
+    text: "Telemetry alerts showed exactly where I was slipping. Finally, a course that respects craft.",
+    author: "Meera I.",
+    role: "Tech Lead · Hyderabad",
+    color: "bg-[#f5faf5]"
   }
 ];
 
@@ -1594,17 +1607,17 @@ const Testimonials: React.FC = () => {
                 visible: { opacity: 1, y: 0 }
               }}
               whileHover={{ y: -10 }}
-              className={`p-8 rounded-3xl ${t.color} relative group border border-retro-sage/20`}
+              className={`p-8 rounded-3xl ${t.color} relative group border border-retro-sage/30 shadow-[0_20px_60px_rgba(20,19,69,0.08)]`}
             >
-              <Quote className="text-retro-sage/30 absolute top-8 right-8" size={40} />
-              <p className="text-lg text-retro-teal mb-6 relative z-10 font-medium leading-relaxed">"{t.text}"</p>
+              <Quote className="text-retro-sage/50 absolute top-8 right-8" size={48} />
+              <p className="text-lg text-[#1f3b32] mb-6 relative z-10 font-semibold leading-relaxed">"{t.text}"</p>
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-retro-salmon/20 flex items-center justify-center font-bold text-retro-salmon">
+                <div className="w-12 h-12 rounded-full bg-retro-salmon/15 border border-retro-salmon/30 flex items-center justify-center font-bold text-retro-salmon text-lg">
                   {t.author[0]}
                 </div>
                 <div>
-                  <p className="font-bold text-retro-teal">{t.author}</p>
-                  <p className="text-xs text-retro-sage uppercase tracking-wide">{t.role}</p>
+                  <p className="font-bold text-retro-teal text-base">{t.author}</p>
+                  <p className="text-xs text-[#6a746b] uppercase tracking-wide">{t.role}</p>
                 </div>
               </div>
             </motion.div>
@@ -1715,7 +1728,7 @@ const MentorCTA: React.FC<{ onApplyTutor: () => void }> = ({ onApplyTutor }) => 
             Become a Mentor
           </motion.h2>
           <p className="text-retro-cyan text-lg leading-relaxed max-w-xl">
-            Are you an expert? Join the MetaLearn faculty and shape the next generation of developers. Share your knowledge and earn while you teach.
+            Are you an expert? Join the Ottolearn faculty and shape the next generation of developers. Share your knowledge and earn while you teach.
           </p>
         </div>
 
@@ -1951,9 +1964,9 @@ const Footer: React.FC = () => {
       <div className="container mx-auto px-6 max-w-7xl flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="text-2xl font-bold flex items-center gap-2">
           <div className="w-6 h-6 bg-retro-salmon rounded transform rotate-45"></div>
-          MetaLearn
+          Ottolearn
         </div>
-        <p className="text-white/60 text-sm">© 2024 MetaLearn. All rights reserved.</p>
+        <p className="text-white/60 text-sm">© 2024 Ottolearn. All rights reserved.</p>
         <div className="flex gap-6 text-white/80">
           <a href="#" className="hover:text-retro-salmon transition-colors">Privacy</a>
           <a href="#" className="hover:text-retro-salmon transition-colors">Terms</a>
@@ -2219,7 +2232,7 @@ function App() {
             title,
             rating: course.rating ?? 4.8,
             students: course.students ?? 0,
-            description: course.description ?? 'Learn with MetaLearn.',
+            description: course.description ?? 'Learn with Ottolearn.',
             image: thumbnail ?? getCourseImage(title),
             status: 'Available',
           };

@@ -157,7 +157,7 @@ export default function EnrollmentPage() {
   const transformedCourseInfo = {
     title: courseInfo.course.title,
     description: courseInfo.course.description,
-    instructor: courseInfo.course.instructor ?? 'MetaLearn Instructor',
+    instructor: courseInfo.course.instructor ?? 'Ottolearn Instructor',
     rating: courseInfo.course.rating ?? 0,
     students: courseInfo.course.students ?? 0,
     duration: courseInfo.course.durationLabel ?? 'Self-paced',

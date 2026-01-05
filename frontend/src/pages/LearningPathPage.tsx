@@ -308,7 +308,7 @@ const LearningPathPage: React.FC = () => {
         {phase === "choose" && (
           <div className="space-y-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-[#bf2f1f]">MetaLearn onboarding</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-[#bf2f1f]">Ottolearn onboarding</p>
               <h1 className="text-3xl font-bold mt-2">Choose your learning path</h1>
               <p className="text-white/70 text-sm mt-2">
                 Tell us how you want the lessons narrated. You can always review standard copy inside the
@@ -341,7 +341,7 @@ const LearningPathPage: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-semibold">Standard learning</h2>
                   <p className="text-sm text-white/70">
-                    Skip the quiz and jump right into the classic academic narration used across MetaLearn.
+                    Skip the quiz and jump right into the classic academic narration used across Ottolearn.
                   </p>
                 </div>
                 <p className="text-xs text-white/60 font-semibold">

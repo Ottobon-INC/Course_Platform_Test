@@ -1,4 +1,4 @@
-ï»¿# Course Platform Architecture Overview
+# Course Platform Architecture Overview
 
 This document is the architectural deep dive for the Course Platform application. It explains how the React SPA, Express API, relational storage, and AI tutor systems interact so another engineer or an external LLM can reason about every layer end to end.
 
@@ -28,14 +28,14 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 - frontend/lib/queryClient.ts centralises API calls with automatic header merging, fixing the historic quiz bug where caller headers overwrote Content-Type.
 
 ### Critical screens
-- LandingPage â€“ the single marketing surface with CTAs that jump straight into the featured course.
-- CourseDetailsPage â€“ displays live module/topic metadata, checks cohort eligibility before opening the MetaLearn Protocol modal, enrolls via POST /courses/:slug/enroll, and routes through /course/:slug/path when personalization is missing.
-- EnrollmentPage and AssessmentPage â€“ host the purchase funnel and the quiz tab visuals.
+- LandingPage – the single marketing surface with CTAs that jump straight into the featured course.
+- CourseDetailsPage – displays live module/topic metadata, checks cohort eligibility before opening the Ottolearn Protocol modal, enrolls via POST /courses/:slug/enroll, and routes through /course/:slug/path when personalization is missing.
+- EnrollmentPage and AssessmentPage – host the purchase funnel and the quiz tab visuals.
 - CoursePlayerPage - hydrates the entire curriculum, renders the sidebar, handles lesson progress, exposes the study-persona dialog, plays videos/slides, embeds the tutor dock, and hosts the cold-calling checkpoint after study text.
 - Telemetry buffer (`frontend/src/utils/telemetry.ts`) captures video interactions, idle heuristics, persona switches, quiz results, and cold-call signals before flushing them (with auth headers) to `/api/activity/events` so tutors can reconstruct real-time engagement.
-- CourseSidebar â€“ searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
-- ChatBot â€“ enforces auth, exposes curated prompt suggestions, hydrates prior tutor history, and surfaces responses.
-- CourseCertificatePage â€“ gated post-completion view reminding learners that payment unlocks a clean certificate.
+- CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
+- ChatBot – enforces auth, exposes curated prompt suggestions, hydrates prior tutor history, and surfaces responses.
+- CourseCertificatePage – gated post-completion view reminding learners that payment unlocks a clean certificate.
 
 ### Study persona UX
 - Personas: normal, sports, cooking, adventure.
@@ -71,17 +71,17 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 
 ### PostgreSQL via Prisma
 Major model groups (see backend/prisma/schema.prisma):
-- Accounts â€“ users, user_sessions, tutor_applications, tutors, course_tutors.
-- Catalog â€“ courses, topics, simulation_exercises, page_content.
-- Cohort access â€“ cohorts, cohort_members (batch_no for grouping).
-- Cold calling â€“ cold_call_prompts, cold_call_messages, cold_call_stars.
+- Accounts – users, user_sessions, tutor_applications, tutors, course_tutors.
+- Catalog – courses, topics, simulation_exercises, page_content.
+- Cohort access – cohorts, cohort_members (batch_no for grouping).
+- Cold calling – cold_call_prompts, cold_call_messages, cold_call_stars.
 - Knowledge store - course_chunks (pgvector embeddings for RAG).
 - Tutor memory - cp_rag_chat_sessions, cp_rag_chat_messages (per-topic chat history + summaries).
 - Progress & enrollment - enrollments, topic_progress, module_progress.
 - Telemetry - learner_activity_events (raw events + derived status for tutor dashboards).
-- Commerce â€“ cart_items, cart_lines.
-- Personalisation & curated prompts â€“ topic_personalization, topic_prompt_suggestions, module_prompt_usage.
-- Assessments â€“ quiz_questions, quiz_options, quiz_attempts.
+- Commerce – cart_items, cart_lines.
+- Personalisation & curated prompts – topic_personalization, topic_prompt_suggestions, module_prompt_usage.
+- Assessments – quiz_questions, quiz_options, quiz_attempts.
 All Prisma models map snake_case columns to camelCase fields so TypeScript consumers remain ergonomic without sacrificing SQL clarity.
 
 ### pgvector and OpenAI
@@ -102,7 +102,7 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 ### 5.2 Enrollment and personalisation
 1. CourseDetails page reads the same /lessons/courses/:slug/topics feed used by the player, so marketing and delivery stay in sync.
 2. Clicking Enroll runs POST /courses/:slug/enroll?checkOnly=true; cohort-eligible learners see the modal, while non-eligible learners receive a cohort access toast.
-3. Accepting the MetaLearn modal ensures the session, calls POST /courses/:slug/enroll, and persists an enrollments row.
+3. Accepting the Ottolearn modal ensures the session, calls POST /courses/:slug/enroll, and persists an enrollments row.
 4. If the learner has never set a persona, CourseDetails forwards to /course/:slug/path?lesson=... to run the questionnaire before unlocking /course/:slug/learn/:lesson.
 5. CoursePlayerPage fetches /lessons/courses/:slug/personalization; saved personas lock the dialog to Standard vs saved persona, while first-time learners see the full question flow.
 

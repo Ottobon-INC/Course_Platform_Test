@@ -75,9 +75,9 @@ export default function AboutPage() {
               {content?.updatedAt ? `Updated ${new Date(content.updatedAt).toLocaleDateString()}` : "Built with mentors"}
             </Badge>
             <div className="space-y-4">
-              <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{content?.title ?? "About MetaLearn"}</h1>
+              <h1 className="text-4xl font-bold text-slate-900 sm:text-5xl">{content?.title ?? "About Ottolearn"}</h1>
               <p className="text-lg text-slate-600">
-                {content?.subtitle ?? "MetaLearn is a learner-obsessed platform blending AI copilots with human mentorship."}
+                {content?.subtitle ?? "Ottolearn is a learner-obsessed platform blending AI copilots with human mentorship."}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -116,7 +116,7 @@ export default function AboutPage() {
         <section className="space-y-6">
           <div className="flex items-center gap-3 text-slate-600">
             <Sparkles className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-xl font-semibold text-slate-900">Why learners choose MetaLearn</h2>
+            <h2 className="text-xl font-semibold text-slate-900">Why learners choose Ottolearn</h2>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {isLoading && highlights.length === 0

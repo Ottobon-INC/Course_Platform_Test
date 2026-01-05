@@ -1,4 +1,4 @@
-ï»¿# Course Platform Walkthrough â€“ From Landing to Certificate
+# Course Platform Walkthrough – From Landing to Certificate
 
 This walkthrough pairs code references with UX steps so another engineer (or an LLM agent) can reproduce the entire learner journey without opening the rest of the repo.
 
@@ -8,10 +8,10 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 3. Google returns to `/auth/google/callback`; the backend exchanges the code, upserts the user (`services/userService.ts`), creates JWT access/refresh tokens (`services/sessionService.ts`), stores the hashed refresh token in `user_sessions`, and redirects to `/auth/callback` with the tokens and redirect path.
 4. `AuthCallbackPage.tsx` stores the session via `writeStoredSession`, displays success/error toasts, and forwards the learner to their intended route (defaults to the featured course).
 
-## 2. Enrollment + MetaLearn protocol
+## 2. Enrollment + Ottolearn protocol
 1. Visiting `/course/ai-in-web-development` loads `CourseDetailsPage.tsx`, which fetches `/courses/:slug` and `/lessons/courses/:slug/topics` to render live curriculum data.
 2. Clicking "Enroll Now" first calls `POST /courses/:slug/enroll?checkOnly=true` to validate cohort eligibility. Non-cohort emails get a friendly toast and the modal stays closed.
-3. Eligible learners see the MetaLearn modal. Accepting it triggers `enrollLearner()` -> `POST /courses/:slug/enroll` (with Authorization header). The backend resolves slug/UUID/name, upserts an `enrollments` row via `ensureEnrollment`, and returns `{ status: "enrolled" }`.
+3. Eligible learners see the Ottolearn modal. Accepting it triggers `enrollLearner()` -> `POST /courses/:slug/enroll` (with Authorization header). The backend resolves slug/UUID/name, upserts an `enrollments` row via `ensureEnrollment`, and returns `{ status: "enrolled" }`.
 4. After enrollment, the page fetches `/lessons/courses/:slug/personalization`; if `hasPreference` is false the learner is redirected to `/course/:slug/path` so the study-style questionnaire runs before unlocking the player.
 
 ## 3. Study persona questionnaire
@@ -30,7 +30,7 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 1. After the study text renders, the client calls `GET /cold-call/prompts/:topicId`.
 2. If the learner has not submitted yet, the UI shows only the prompt and input box (blind-response gate).
 3. Submitting a response unlocks the cohort feed, including nested replies and star reactions.
-4. Self-replies and self-stars are blocked, and responses are scoped to the learnerâ€™s cohort.
+4. Self-replies and self-stars are blocked, and responses are scoped to the learner’s cohort.
 
 ## 6. Quiz cadence
 1. Opening the Quiz tab fetches `/quiz/sections/:slug` and `/quiz/progress/:slug`. The response lists each module/topic pair, whether it is unlocked, last attempt status, and module-level cooldown or dependency reasons.
@@ -54,10 +54,10 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 2. The page shows the blurred certificate, planned pricing (Razorpay placeholder), and a back-to-course button. Real payment logic can hook into the stubbed `handlePayment` implementation.
 
 ## 9. Troubleshooting & Verification
-- **OAuth** â€“ confirm Google Cloud console has both backend and SPA redirect URIs. Missing values yield `redirect_uri_mismatch` errors before the app boots.
-- **Personalization** â€“ unauthorized responses from `/lessons/courses/:slug/personalization` indicate the learner is not signed in; ensure the session heartbeat refreshed tokens before hitting the endpoint.
-- **Tutor quotas** â€“ HTTP 429 from `/assistant/query` means the learner hit the typed quota for the module. Quotas reset automatically when the next module unlocks.
-- **Ingestion** â€“ run `npm run rag:ingest <pdf> <slug> "<Course Title>"` whenever the course PDF changes to keep `course_chunks` aligned with `course.slug`.
-- **Import** â€“ run `npm run rag:import <json>` when reusing embeddings exported from another store.
+- **OAuth** – confirm Google Cloud console has both backend and SPA redirect URIs. Missing values yield `redirect_uri_mismatch` errors before the app boots.
+- **Personalization** – unauthorized responses from `/lessons/courses/:slug/personalization` indicate the learner is not signed in; ensure the session heartbeat refreshed tokens before hitting the endpoint.
+- **Tutor quotas** – HTTP 429 from `/assistant/query` means the learner hit the typed quota for the module. Quotas reset automatically when the next module unlocks.
+- **Ingestion** – run `npm run rag:ingest <pdf> <slug> "<Course Title>"` whenever the course PDF changes to keep `course_chunks` aligned with `course.slug`.
+- **Import** – run `npm run rag:import <json>` when reusing embeddings exported from another store.
 
-Following these steps reproduces the entire learner journeyâ€”from first visit to certificate unlockâ€”using the current codebase.
+Following these steps reproduces the entire learner journey—from first visit to certificate unlock—using the current codebase.

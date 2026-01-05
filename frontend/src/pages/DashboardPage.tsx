@@ -76,7 +76,7 @@ const mapCourseSummaryToCourse = (course: CourseSummary): Course => {
         id: course.id,
         title: course.title,
         description: course.description,
-        instructor: course.instructor ?? 'MetaLearn Instructor',
+        instructor: course.instructor ?? 'Ottolearn Instructor',
         duration: course.durationLabel ?? formatDurationFromMinutes(course.durationMinutes),
         price: normalizedPrice,
         level: (course.level as Course['level']) ?? 'Beginner',
@@ -797,7 +797,7 @@ export default function DashboardPage() {
             <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
                 <DialogContent className="sm:max-w-md bg-white rounded-xl shadow-2xl p-6">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl text-center font-extrabold text-gray-900">Welcome to MetaLearn</DialogTitle>
+                        <DialogTitle className="text-2xl text-center font-extrabold text-gray-900">Welcome to Ottolearn</DialogTitle>
                         <p className="text-center text-gray-500">Continue with your Google account</p>
                     </DialogHeader>
                     <div className="flex flex-col items-center gap-4 py-4">

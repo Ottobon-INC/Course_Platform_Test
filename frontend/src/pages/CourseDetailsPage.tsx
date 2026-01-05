@@ -121,7 +121,7 @@ const ProtocolModal: React.FC<ProtocolModalProps> = ({ isOpen, onClose, onAccept
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#bf2f1f]/20 mb-3 border border-[#bf2f1f]">
             <Lock className="w-6 h-6 text-[#bf2f1f]" />
           </div>
-          <h2 className="text-2xl font-bold text-white">The MetaLearn Protocol</h2>
+          <h2 className="text-2xl font-bold text-white">The Ottolearn Protocol</h2>
           <p className="text-[#f8f1e6]/70 text-sm mt-1">Strict Enrollment Validation</p>
         </div>
 
