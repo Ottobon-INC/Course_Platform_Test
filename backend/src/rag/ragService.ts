@@ -74,6 +74,7 @@ export async function askCourseAssistant(options: {
   userId: string;
   conversation?: ConversationTurn[];
   summary?: string | null;
+  personaPrompt?: string | null;
 }): Promise<{ answer: string }> {
   const sanitizedQuestion = scrubPossiblePii(options.question ?? "").trim();
   if (!sanitizedQuestion) {
@@ -98,6 +99,7 @@ export async function askCourseAssistant(options: {
       contexts,
       summary: options.summary ?? null,
       conversation: options.conversation ?? [],
+      personaPrompt: options.personaPrompt ?? null,
     });
 
     const answer = await generateAnswerFromContext(prompt);
@@ -137,6 +139,7 @@ function buildPrompt(params: {
   contexts: QueryContext[];
   summary?: string | null;
   conversation?: ConversationTurn[];
+  personaPrompt?: string | null;
 }): string {
   const contextBlock = params.contexts
     .map((ctx, index) => `Context ${index + 1}:\n${ctx.content}`)
@@ -153,6 +156,9 @@ function buildPrompt(params: {
             .join("\n"),
         ].join("\n")
       : "";
+  const personaBlock = params.personaPrompt?.trim()
+    ? `Learner personalization:\n${params.personaPrompt.trim()}`
+    : "";
 
   return [
     `You are a warm, encouraging mentor assisting a learner in the course "${params.courseTitle}".`,
@@ -161,6 +167,7 @@ function buildPrompt(params: {
     "If the answer is not contained in the contexts, politely say you don't have that information.",
     "Respond in 3-6 sentences total and keep the tone human and supportive.",
     "",
+    personaBlock,
     summaryBlock,
     historyBlock,
     "Course contexts:",

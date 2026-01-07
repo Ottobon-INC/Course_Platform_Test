@@ -27,6 +27,7 @@ import { recordTelemetryEvent, updateTelemetryAccessToken } from "@/utils/teleme
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 import ColdCalling from "@/components/ColdCalling";
+import PersonaProfileModal from "@/components/PersonaProfileModal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -192,6 +193,27 @@ const personaSurveyQuestions = [
       { value: "sports" as StudyPersona, label: "Improving the scorecard after every sprint" },
       { value: "cooking" as StudyPersona, label: "Serving a refined dish that delights others" },
     ],
+  },
+];
+
+const personaProfileQuestions = [
+  {
+    id: "background",
+    prompt: "Tell us about your background and how you ended up learning web/AI development.",
+    helper: "Mention your previous field or comfort level with tech.",
+    placeholder: "Example: I studied mechanical engineering and now want to switch into software...",
+  },
+  {
+    id: "blockers",
+    prompt: "When you feel stuck while learning, what usually makes it hard to move forward?",
+    helper: "Examples: fear of mistakes, language barriers, time pressure, or too much theory.",
+    placeholder: "Example: I understand ideas but freeze when I need to write code...",
+  },
+  {
+    id: "support",
+    prompt: "What kind of explanation helps you the most when you are confused?",
+    helper: "Describe the style that makes you feel confident.",
+    placeholder: "Example: I learn best with step-by-step examples and simple words...",
   },
 ];
 
@@ -417,6 +439,16 @@ const CoursePlayerPage: React.FC = () => {
   const [personaPromptDismissed, setPersonaPromptDismissed] = useState(false);
   const [storedUserId, setStoredUserId] = useState<string | null>(null);
   const [storedUserEmail, setStoredUserEmail] = useState<string | null>(null);
+  const [showPersonaProfileModal, setShowPersonaProfileModal] = useState(false);
+  const [personaProfileSubmitting, setPersonaProfileSubmitting] = useState(false);
+  const [personaProfileError, setPersonaProfileError] = useState<string | null>(null);
+  const [personaProfileChecked, setPersonaProfileChecked] = useState(false);
+  const [personaProfileResponses, setPersonaProfileResponses] = useState<Record<string, string>>(() =>
+    personaProfileQuestions.reduce<Record<string, string>>((acc, question) => {
+      acc[question.id] = "";
+      return acc;
+    }, {}),
+  );
   const personaHistoryKey = useMemo(() => {
     const uniqueUserKey = session?.userId || storedUserId || session?.email || storedUserEmail || null;
     if (!uniqueUserKey || !courseKey) {
@@ -424,6 +456,13 @@ const CoursePlayerPage: React.FC = () => {
     }
     return `metacourse:persona-history:${uniqueUserKey}:${courseKey}`;
   }, [session?.userId, storedUserId, session?.email, storedUserEmail, courseKey]);
+  const personaProfileStorageKey = useMemo(() => {
+    const uniqueUserKey = session?.userId || storedUserId || null;
+    if (!uniqueUserKey || !courseKey) {
+      return null;
+    }
+    return `coursepersona:profile:${uniqueUserKey}:${courseKey}`;
+  }, [session?.userId, storedUserId, courseKey]);
   const [rememberedPersona, setRememberedPersona] = useState<StudyPersona | null>(null);
   const [surveyResponses, setSurveyResponses] = useState<Record<string, StudyPersona | "">>({});
   const [surveyComplete, setSurveyComplete] = useState(false);
@@ -444,6 +483,55 @@ const CoursePlayerPage: React.FC = () => {
       console.error("Failed to hydrate stored user profile", error);
     }
   }, []);
+
+  useEffect(() => {
+    setPersonaProfileChecked(false);
+    setShowPersonaProfileModal(false);
+    setPersonaProfileError(null);
+  }, [session?.userId, courseKey]);
+
+  useEffect(() => {
+    if (!session?.accessToken || !courseKey || !personaProfileStorageKey || personaProfileChecked) {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    const dismissed = window.localStorage.getItem(`${personaProfileStorageKey}:dismissed`) === "true";
+    if (dismissed) {
+      setPersonaProfileChecked(true);
+      return;
+    }
+
+    const loadStatus = async () => {
+      try {
+        const response = await fetch(buildApiUrl(`/api/persona-profiles/${courseKey}/status`), {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          setPersonaProfileChecked(true);
+          return;
+        }
+
+        const payload = (await response.json()) as { hasProfile?: boolean };
+        if (payload?.hasProfile) {
+          setPersonaProfileChecked(true);
+          return;
+        }
+
+        setShowPersonaProfileModal(true);
+      } catch (error) {
+        console.error("Failed to load persona profile status", error);
+      } finally {
+        setPersonaProfileChecked(true);
+      }
+    };
+
+    void loadStatus();
+  }, [session?.accessToken, courseKey, personaProfileStorageKey, personaProfileChecked]);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { id: "welcome", text: buildTopicGreeting(), isBot: true },
@@ -530,6 +618,12 @@ const CoursePlayerPage: React.FC = () => {
     if (starterSuggestions.length === 0) return [];
     return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
   }, [starterSuggestions, usedSuggestionIds]);
+  const canSubmitPersonaProfile = useMemo(() => {
+    return personaProfileQuestions.every((question) => {
+      const value = personaProfileResponses[question.id] ?? "";
+      return value.trim().length >= 20;
+    });
+  }, [personaProfileResponses]);
   const activePersonalizedPersona = useMemo(() => {
     if (lockedPersona !== "normal") {
       return lockedPersona;
@@ -549,6 +643,7 @@ const CoursePlayerPage: React.FC = () => {
     return ["normal"];
   }, [activePersonalizedPersona, recommendedPersona]);
   const shouldShowSurvey = (!activePersonalizedPersona && !surveyComplete) || forceSurvey;
+  const shouldShowPersonaProfileModal = showPersonaProfileModal && !showPersonaModal && !isQuizMode && !isFullScreen;
   const surveyHasMissingAnswers = useMemo(
     () => personaSurveyQuestions.some((question) => !surveyResponses[question.id]),
     [surveyResponses],
@@ -956,6 +1051,59 @@ const CoursePlayerPage: React.FC = () => {
     setPersonaPromptDismissed(true);
     setForceSurvey(false);
   }, []);
+
+  const handlePersonaProfileChange = useCallback((id: string, value: string) => {
+    setPersonaProfileResponses((prev) => ({ ...prev, [id]: value }));
+  }, []);
+
+  const handlePersonaProfileSkip = useCallback(() => {
+    if (typeof window !== "undefined" && personaProfileStorageKey) {
+      window.localStorage.setItem(`${personaProfileStorageKey}:dismissed`, "true");
+    }
+    setShowPersonaProfileModal(false);
+    setPersonaProfileError(null);
+  }, [personaProfileStorageKey]);
+
+  const handlePersonaProfileSubmit = useCallback(async () => {
+    if (!session?.accessToken || !courseKey) {
+      return;
+    }
+    setPersonaProfileError(null);
+    setPersonaProfileSubmitting(true);
+    try {
+      const payload = {
+        responses: personaProfileQuestions.map((question) => ({
+          questionId: question.id,
+          prompt: question.prompt,
+          answer: (personaProfileResponses[question.id] ?? "").trim(),
+        })),
+      };
+      const response = await fetch(buildApiUrl(`/api/persona-profiles/${courseKey}/analyze`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const payloadError = await response.json().catch(() => null);
+        throw new Error(payloadError?.message ?? "Unable to save your responses.");
+      }
+
+      if (typeof window !== "undefined" && personaProfileStorageKey) {
+        window.localStorage.setItem(`${personaProfileStorageKey}:completed`, "true");
+      }
+
+      setShowPersonaProfileModal(false);
+      toast({ title: "Tutor personalized", description: "Thanks. Your AI tutor will adapt to your learning style." });
+    } catch (error) {
+      setPersonaProfileError(error instanceof Error ? error.message : "Unable to save your responses.");
+    } finally {
+      setPersonaProfileSubmitting(false);
+    }
+  }, [courseKey, personaProfileResponses, personaProfileStorageKey, session?.accessToken, toast]);
 
   // Hydrate modules with quizzes when lessons/sections change
   useEffect(() => {
@@ -2247,6 +2395,18 @@ const CoursePlayerPage: React.FC = () => {
       >
         {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
+
+      <PersonaProfileModal
+        isOpen={shouldShowPersonaProfileModal}
+        questions={personaProfileQuestions}
+        responses={personaProfileResponses}
+        onResponseChange={handlePersonaProfileChange}
+        onSubmit={handlePersonaProfileSubmit}
+        onSkip={handlePersonaProfileSkip}
+        isSubmitting={personaProfileSubmitting}
+        canSubmit={canSubmitPersonaProfile}
+        error={personaProfileError}
+      />
 
       {showPersonaModal && (
         <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">

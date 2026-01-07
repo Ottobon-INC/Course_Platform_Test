@@ -17,6 +17,7 @@ import { tutorsRouter } from "./routes/tutors";
 import { adminRouter } from "./routes/admin";
 import { coldCallRouter } from "./routes/coldCall";
 import { activityRouter } from "./routes/activity";
+import { personaProfilesRouter } from "./routes/personaProfiles";
 
 export function createApp(): Express {
   const app = express();
@@ -61,6 +62,7 @@ export function createApp(): Express {
   app.use("/admin", adminRouter);
   app.use("/cold-call", coldCallRouter);
   app.use("/activity", activityRouter);
+  app.use("/persona-profiles", personaProfilesRouter);
 
   // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
   const apiRouter = express.Router();
@@ -78,6 +80,7 @@ export function createApp(): Express {
   apiRouter.use("/admin", adminRouter);
   apiRouter.use("/cold-call", coldCallRouter);
   apiRouter.use("/activity", activityRouter);
+  apiRouter.use("/persona-profiles", personaProfilesRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

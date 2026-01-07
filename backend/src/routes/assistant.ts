@@ -10,6 +10,7 @@ import {
   PROMPT_LIMIT_PER_MODULE,
 } from "../services/promptUsageService";
 import { rewriteFollowUpQuestion, summarizeConversation } from "../rag/openAiClient";
+import { getPersonaPromptTemplate } from "../services/personaPromptTemplates";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHAT_HISTORY_LIMIT = 10;
@@ -335,6 +336,16 @@ assistantRouter.post(
     });
 
     const { summary, conversation, lastAssistantMessage } = await loadChatContext(chatSession.sessionId);
+    const personaProfile = await prisma.learnerPersonaProfile.findUnique({
+      where: {
+        userId_courseId: {
+          userId: auth.userId,
+          courseId: resolvedCourseId,
+        },
+      },
+      select: { personaKey: true },
+    });
+    const personaPrompt = personaProfile ? getPersonaPromptTemplate(personaProfile.personaKey) : null;
     const userQuestionForHistory = effectiveQuestion;
 
     if (precomposedAnswer) {
@@ -387,6 +398,7 @@ assistantRouter.post(
         userId: auth.userId,
         conversation,
         summary,
+        personaPrompt,
       });
 
       if (isTypedPrompt && moduleNo !== null) {
