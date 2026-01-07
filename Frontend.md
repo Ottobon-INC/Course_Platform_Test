@@ -61,20 +61,20 @@ Font families (`--font-sans`, `--font-serif`, `--font-mono`) default to Inter, G
 
 ### 4.1 Learner Flow
 1. **Landing (`/`)** – hero, curriculum teaser, testimonials, CTA buttons. `onLogin` triggers Google OAuth.
-2. **Auth (`/auth`)** – Google button posts to backend `/auth/google`. After OAuth, backend redirects to `/auth/callback` handled by `AuthCallbackPage.tsx`, which stores tokens via `utils/auth.ts` and routes to the relevant course or dashboard.
+2. **Auth (`/auth/callback`)** – OAuth starts from the Landing CTA (no dedicated `/auth` route). After Google OAuth, the backend redirects to `/auth/callback` handled by `AuthCallbackPage.tsx`, which stores tokens via `utils/auth.ts` and routes to the intended course. `AuthPage.tsx` exists but is not wired in `App.tsx`.
 3. **Course Detail (`/course/:slug`)** – `CourseDetailsPage.tsx` fetches course info, modules, and gating rules via TanStack Query. Enrollment buttons open `EnrollmentGateway` or `CartPage` depending on payment stage.
 4. **Course Player (`/course/:slug/learn/:topic`)** – `CoursePlayerPage.tsx` orchestrates video, AI copilot, cold-calls, telemetry dispatch (via `utils/telemetry.ts`). Idle detection + quiz interactions send events to backend.
-5. **Assessment / Congrats** – `AssessmentPage.tsx`, `CongratsPage.tsx`, and `CourseCertificatePage.tsx` handle gating, certificate download prompts, and payment checkouts.
+5. **Assessment / Congrats** – `AssessmentPage.tsx`, `CongratsPage.tsx`, `CongratsFeedbackPage.tsx`, and `CourseCertificatePage.tsx` handle gating, feedback, certificate prompts, and payment checkouts (routes live under `/course/:id/congrats/*`).
 
 ### 4.2 Tutor Flow
-1. **Tutor Login (`/tutors/login`)** – same Google OAuth but limited to tutor role; loads `TutorLoginPage.tsx` which consumes `/api/tutors/auth`.
+1. **Tutor Login (within `/become-a-tutor`)** – the tutor login form posts to `/api/tutors/login` (email + password). `TutorLoginPage.tsx` exists but is not wired in the router.
 2. **Tutor Dashboard (`/tutors`)** – `TutorDashboardPage.tsx` shows:
    - Course overview cards (active learners, module progress, alert counts)
    - Enrollments table and progress table
    - Learner Monitor section pulling `learner_activity_events` + derived engagement states
-   - AI Tutor Copilot chat leveraging backend copilot endpoint for RAG-style summaries
-   - Cold-call and persona widgets for managing live cohorts.
-3. **Tutor Detail Actions** – selecting a learner fetches timeline data via `/api/activity` and shows event stream. Tutors can answer cold-calls or push interventions (UI hooks already in place).
+   - AI Tutor Copilot chat backed by `/api/tutors/assistant/query`
+   - Cold-call and persona widgets for managing live cohorts
+3. **Tutor Detail Actions** – selecting a learner fetches timeline data via `/api/activity/learners/:id/history` and shows the event stream. Tutors can answer cold-calls or push interventions (UI hooks already in place).
 
 ## 5. Page-by-Page Notes
 
@@ -94,20 +94,21 @@ Font families (`--font-sans`, `--font-serif`, `--font-mono`) default to Inter, G
 - **Purpose:** Unlockable player with gating logic (module lock system + telemetry).
 - **Key children:** `VideoPlayer` (custom wrapper around media-chrome), `LessonTabs` for outline, `ColdCalling`, `SimulationExercise`, `ChatBot` for AI assistant, `QuizCard` for inline quizzes.
 - **Telemetry:** `useEffect` hooks call `utils/telemetry.ts` to emit `lesson.view`, `idle.start`, persona changes, etc. Idle heuristics feed the tutor dashboard.
+- **Persona profiles:** the AI tutor personalization modal checks `/api/persona-profiles/:courseKey/status` and submits survey responses to `/api/persona-profiles/:courseKey/analyze`.
 - **Lock System:** `course_chunks` and `module_progress` data determine disabled cards; UI uses “Unlocked/Locked” states with `status` badges.
 
 ### TutorDashboardPage.tsx
 - **Purpose:** Control tower for tutors. Layout contains hero “Command Center”, stats cards, enrollments list, progress table, Learner Monitor, Copilot panel.
-- **Data:** Aggregates `/api/courses/:id/tutor` plus `/api/activity/snapshots`. Uses TanStack Query for live refresh (every 30s).
+- **Data:** Uses `/api/tutors/me/courses`, `/api/tutors/:courseId/enrollments`, `/api/tutors/:courseId/progress`, `/api/lessons/courses/:courseId/topics`, and `/api/activity/courses/:courseId/learners` (30s refresh).
 - **Learner Monitor:** `learner_activity_events` summarized into statuses (Engaged, Attention Drift, Content Friction, Unknown). Selecting a learner expands timeline cards.
-- **Copilot:** Chat UI that posts prompts to `/api/copilot/tutor` with contextual filters (course, learner state).
+- **Copilot:** Chat UI that posts prompts to `/api/tutors/assistant/query` with the selected course id.
 
 ### Enrollment & Cart Pages
 - **EnrollmentPage.tsx:** Handles cohort-gated entry; checks `cohort_members` status, displays verification modals.
 - **CartPage.tsx:** Upsell for optional add-ons; uses `cart_items` data and `QuizCard` previews.
 
 ### Auth Pages
-- **AuthPage.tsx:** Central login view (Google button) for learners. Redirect target stored in query params.
+- **AuthPage.tsx:** Central login view for learners, but it is not currently wired in `App.tsx` (landing CTA uses `/auth/google` directly).
 - **AuthCallbackPage.tsx:** Parses tokens from backend redirect, saves to storage via `utils/auth.ts`, hydrates TanStack Query cache, then navigates to `redirectPath` (default `/`).
 
 ### Misc Pages
@@ -140,9 +141,9 @@ Font families (`--font-sans`, `--font-serif`, `--font-mono`) default to Inter, G
 6. After final assessment, `CongratsPage` ⇨ `CourseCertificatePage` with download prompts.
 
 ### Tutor
-1. `TutorLoginPage` ⇨ Google OAuth (tutor scope). Backend ensures user has tutor role/cohort mapping.
+1. Tutor login form (inside `BecomeTutorPage`) posts to `/api/tutors/login`; backend validates tutor/admin credentials and issues a session.
 2. `TutorDashboardPage` loads course filter + hero stats.
-3. Tutors monitor statuses, drill into Learner Detail timeline, respond to cold-calls, or query AI Copilot for summaries.
+3. Tutors monitor statuses via `/api/activity/courses/:courseId/learners`, drill into `/api/activity/learners/:id/history`, respond to cold-calls, or query AI Copilot for summaries.
 4. Optional: Manage assignments via “Manage assignments” CTA (routes into dashboard subsections when enabled).
 
 ## 9. Styling Guidelines

@@ -19,6 +19,7 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 2. Learners who never answered the survey see the three-question dialog (`personaSurveyQuestions`). Selecting answers enables "See my study style" which runs the same logic as enrollment and surfaces the recommended persona.
 3. Clicking "Use this style" posts `{ persona }` back to `/lessons/courses/:slug/personalization`. The backend upserts `topic_personalization` via Prisma's `upsert` with the `(userId, courseId)` unique key.
 4. Learners who previously picked a persona keep it cached locally (`personaHistoryKey`) so toggling between Standard/personalized is instant even after logging out and back in.
+5. The AI tutor personalization modal separately checks `/persona-profiles/:courseKey/status` and posts survey answers to `/persona-profiles/:courseKey/analyze`, storing results in `learner_persona_profiles`.
 
 ## 4. Course player navigation
 1. `GET /lessons/courses/:slug/topics` streams every topic sorted by moduleNo/topicNumber. The response includes persona guide fields, PPT URLs, video URLs (already normalized), and simulation metadata.
@@ -50,7 +51,7 @@ This walkthrough pairs code references with UX steps so another engineer (or an 
 5. If a learner exhausts the typed quota for a module, the API responds with HTTP 429 and a friendly message instructing them to continue to the next module.
 
 ## 8. Certificate preview
-1. When quizzes report all modules passed, the player links to `/course/:slug/certificate` (`CourseCertificatePage.tsx`).
+1. When quizzes report all modules passed, the player links to `/course/:slug/congrats/certificate` (`CourseCertificatePage.tsx`).
 2. The page shows the blurred certificate, planned pricing (Razorpay placeholder), and a back-to-course button. Real payment logic can hook into the stubbed `handlePayment` implementation.
 
 ## 9. Troubleshooting & Verification

@@ -36,6 +36,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 - Telemetry buffer (`frontend/src/utils/telemetry.ts`) captures video interactions, idle heuristics, persona switches, quiz results, and cold-call signals before flushing them (with auth headers) to `/api/activity/events` so tutors can reconstruct real-time engagement.
 - CourseSidebar – searchable curriculum tree with module collapse/expand, inline completion toggles, and a progress meter that counts quiz-passed modules.
 - ChatBot – enforces auth, exposes curated prompt suggestions, hydrates prior tutor history, and surfaces responses.
+- TutorDashboardPage – tutor/admin command center for enrollments, progress, learner activity, and tutor copilot.
 - CourseCertificatePage – gated post-completion view reminding learners that payment unlocks a clean certificate.
 
 ### Study persona UX
@@ -43,6 +44,7 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 - Learners who first chose Standard narration can launch the questionnaire mid-course; the questionnaire matches the enrollment UI and stores the preference via topic_personalization plus a local personaHistoryKey.
 - Returning learners who once picked a persona always see both Standard plus their saved persona. Switching back to Standard never discards the stored persona, so a logout/login cycle still exposes both options.
 - Lesson guides read persona-specific fields such as textContentSports, so toggling narration swaps copy instantly.
+- Separate tutor persona profiles are captured via `/persona-profiles/*` and stored in `learner_persona_profiles` to personalize AI tutor tone.
 
 ## 3. Application Layer (Express API)
 
@@ -54,13 +56,16 @@ Browser ---- JSON fetch ----> React SPA (5173) ---- REST calls ----> Express API
 ### Router catalog
 | Router | Key endpoints | Highlights |
 | --- | --- | --- |
-| authRouter | /auth/google, /auth/google/callback, /auth/google/exchange, /auth/google/id-token, /auth/refresh, /auth/logout | Full Google OAuth + JWT lifecycle with hashed refresh tokens |
+| authRouter | /auth/login, /auth/google, /auth/google/callback, /auth/google/exchange, /auth/google/id-token, /auth/refresh, /auth/logout | OAuth + tutor/admin login + JWT lifecycle with hashed refresh tokens |
 | coursesRouter | GET /courses, GET /courses/:courseKey, POST /courses/:courseKey/enroll | Slug/UUID/name resolution, cohort allowlist checks, and idempotent enrollment writes (supports `?checkOnly=true`) |
-| lessonsRouter | GET /modules/:moduleNo/topics, GET /courses/:courseKey/topics, GET/PUT /:lessonId/progress, personalization endpoints, prompt suggestions | Delivers curriculum, tracks progress, stores narrator personas, and exposes curated prompt trees |
+| lessonsRouter | GET /modules/:moduleNo/topics, GET /courses/:courseKey/topics, GET /courses/:courseKey/progress, GET/PUT /:lessonId/progress, personalization endpoints, prompt suggestions | Delivers curriculum, tracks progress, stores narrator personas, and exposes curated prompt trees |
 | quizRouter | GET /quiz/questions, GET /quiz/sections/:courseKey, GET /quiz/progress/:courseKey, POST /quiz/attempts, POST /quiz/attempts/:attemptId/submit | Drives the module cadence (cooldowns, dependencies) and writes quiz_attempts/module_progress |
 | assistantRouter | POST /assistant/query, GET /assistant/session | Tutor chat endpoints with typed-prompt quotas, persistent chat memory, and RAG pipeline |
 | coldCallRouter | GET /cold-call/prompts/:topicId, POST /cold-call/messages, POST /cold-call/replies, POST/DELETE /cold-call/stars | Blind-response prompts, threaded replies, and cohort-only reactions |
 | activityRouter | POST /activity/events, GET /activity/courses/:courseId/learners, GET /activity/learners/:id/history | Learner telemetry ingestion plus tutor-facing summaries and history timelines |
+| tutorsRouter | /tutors/login, /tutors/me/courses, /tutors/:courseId/enrollments, /tutors/:courseId/progress, /tutors/assistant/query | Tutor dashboard data + copilot |
+| personaProfilesRouter | /persona-profiles/:courseKey/status, /persona-profiles/:courseKey/analyze | LLM-based persona profile analysis for tutor personalization |
+| adminRouter | /admin/tutor-applications, /admin/tutor-applications/:id/approve | Admin approvals + tutor provisioning |
 | cartRouter, pagesRouter, tutorApplicationsRouter, usersRouter, healthRouter | Supporting CRUD plus liveness checks |
 
 ### Supporting services
@@ -81,16 +86,23 @@ Major model groups (see backend/prisma/schema.prisma):
 - Progress & enrollment - enrollments, topic_progress, module_progress.
 - Telemetry - learner_activity_events (raw events + derived status for tutor dashboards).
 - Commerce – cart_items, cart_lines.
-- Personalisation & curated prompts – topic_personalization, topic_prompt_suggestions, module_prompt_usage.
+- Personalisation & curated prompts – topic_personalization, learner_persona_profiles, topic_prompt_suggestions, module_prompt_usage.
 - Assessments – quiz_questions, quiz_options, quiz_attempts.
 All Prisma models map snake_case columns to camelCase fields so TypeScript consumers remain ergonomic without sacrificing SQL clarity.
+
+### Course resolution rules (by router)
+- `coursesRouter` resolves by UUID, legacy alias, or `courseName` (decoded + hyphen/underscore normalized). It does not query `courses.slug`.
+- `lessonsRouter` resolves by UUID, legacy alias, or `courseName` only.
+- `assistantRouter` and `quizRouter` resolve by UUID, legacy alias, `slug`, or `courseName`.
+- RAG retrieval uses the raw `courseId` passed by the client; that value must match the `course_chunks.course_id` used during ingestion (typically the slug).
 
 ### pgvector and OpenAI
 - scripts/ingestCourseContent.ts reads the canonical PDF, chunks it (900 chars with 150 overlap), generates embeddings (1,536 dims), and writes rows into course_chunks in Postgres.
 - scripts/importCourseChunks.ts can import precomputed embeddings from JSON exports (e.g., Neo4j dumps) without re-embedding.
-- Tutor queries embed the learner question, fetch the top K contexts from Postgres using pgvector similarity search, craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
+- Tutor queries embed the learner question, fetch the top 5 contexts from Postgres using the pgvector cosine-distance operator (`<=>`), craft a grounded prompt, and call generateAnswerFromContext() to get the final completion.
 - Tutor chat memory persists per topic in cp_rag_chat_sessions/cp_rag_chat_messages, and follow-up questions can be rewritten using the last assistant turn before retrieval.
 - Typed prompts increment the module_prompt_usage counter only after OpenAI succeeds so quota tracking stays fair.
+ - Runtime limits: 8 tutor requests per 60s, 5 typed prompts per module, chat summary starts after 16 messages, history load limit 40.
 
 ## 5. Experience Flows
 
@@ -129,7 +141,7 @@ All Prisma models map snake_case columns to camelCase fields so TypeScript consu
 3. Suggestions (topic_prompt_suggestions) can include predefined answers and follow-up prompts, enabling deterministic Q&A when desired.
 
 ### 5.7 Certificate preview
-1. Once quizzes report passed modules, the CTA routes to /course/:slug/certificate.
+1. Once quizzes report passed modules, the CTA routes to /course/:slug/congrats/certificate.
 2. The certificate page reads stored name/title defaults, renders a blurred preview, and hosts a Razorpay placeholder to illustrate the paid upgrade path.
 
 ## 6. Environment, Build, Deployment

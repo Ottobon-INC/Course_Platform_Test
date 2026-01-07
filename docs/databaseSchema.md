@@ -11,7 +11,7 @@
 | Cohort interaction | `cold_call_prompts`, `cold_call_messages`, `cold_call_stars` | Blind-response prompts, threaded replies, star validation |
 | Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
 | Tutor memory | `cp_rag_chat_sessions`, `cp_rag_chat_messages` | Persistent per-topic chat history and rolling summaries |
-| Personalisation | `topic_personalization`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, curated tutor prompts, typed prompt counters |
+| Personalisation | `topic_personalization`, `learner_persona_profiles`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, LLM persona profiles, curated tutor prompts, typed prompt counters |
 | Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
 | Commerce & enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment rows created automatically, cart storage retained for future upgrades |
 
@@ -91,6 +91,14 @@ classDiagram
         +UUID courseId
         +StudyPersona persona
     }
+    class LearnerPersonaProfile {
+        +UUID profileId
+        +UUID userId
+        +UUID courseId
+        +String personaKey
+        +String? analysisSummary
+        +String? analysisVersion
+    }
     class TopicPromptSuggestion {
         +UUID suggestionId
         +UUID? courseId
@@ -169,6 +177,7 @@ classDiagram
     User "1" -- "*" UserSession
     User "1" -- "*" TopicProgress
     User "1" -- "*" TopicPersonalization
+    User "1" -- "*" LearnerPersonaProfile
     User "1" -- "*" ModulePromptUsage
     User "1" -- "*" QuizAttempt
     User "1" -- "*" ModuleProgress
@@ -180,6 +189,7 @@ classDiagram
     Course "1" -- "*" CourseChunk
     Course "1" -- "*" RagChatSession
     Course "1" -- "*" TopicPromptSuggestion
+    Course "1" -- "*" LearnerPersonaProfile
     Course "1" -- "*" ModulePromptUsage
     Course "1" -- "*" ColdCallPrompt
     Course "1" -- "*" QuizQuestion
@@ -231,6 +241,11 @@ classDiagram
 - `StudyPersona` enum: `normal`, `sports`, `cooking`, `adventure`.
 - Used by `/lessons/courses/:slug/personalization`.
 
+### learner_persona_profiles
+- Stores LLM-classified learner personas used to personalize tutor prompts (distinct from study narration personas).
+- Unique per `(userId, courseId)` with `personaKey` values defined in `backend/src/services/personaPromptTemplates.ts`.
+- Populated via `/persona-profiles/:courseKey/analyze` and checked via `/persona-profiles/:courseKey/status`.
+
 ### topic_prompt_suggestions
 - Tree structure using `parentSuggestionId` for follow-up prompts.
 - Suggestions can be course-wide (no topicId) or topic-specific.
@@ -247,6 +262,7 @@ classDiagram
 ### cp_rag_chat_sessions & cp_rag_chat_messages
 - Persist chat sessions per `(user_id, course_id, topic_id)` with rolling summaries for follow-up context.
 - Messages are stored with roles (user/assistant) to rebuild recent history for the tutor dock.
+- `summary_message_count` tracks how many messages have been summarized; `summary_updated_at` records the last summary refresh.
 
 ### quiz tables
 - `quiz_questions` contain module number + topic pair index so sections can be grouped dynamically.

@@ -12,8 +12,9 @@
 7. Backend architecture
 8. Data model highlights
 9. End-to-end experience flows
-10. Testing and troubleshooting
-11. Deployment checklist
+10. Runtime constants
+11. Testing and troubleshooting
+12. Deployment checklist
 
 ## 1. Project Overview
 The Course Platform delivers a LearnHub-branded experience for browsing, enrolling in, and completing AI-centric coursework. A single React SPA drives every learner touchpoint (landing page, enrollment funnel, course player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api`, handling OAuth, enrollment writes, module content, quiz scoring, tutor prompts, CMS pages, and tutor applications. The entire system is documented so another engineer—or an external LLM—can rebuild the experience without touching the rest of the repository.
@@ -26,9 +27,11 @@ Canonical course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-develo
 - **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
 - **Cold calling checkpoint** – a blind-response cohort prompt appears after each topic’s study text; responses unlock a threaded feed with stars and nested replies.
 - **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
+- **Persona profile analysis** – AI-classified learner personas (non_it_migrant, rote_memorizer, etc.) stored in `learner_persona_profiles` and used to customize tutor prompts via `/persona-profiles/*`.
 - **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
 - **AI tutor dock** - typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, persistent per-topic chat memory, follow-up rewrite for ambiguous questions, and success/failure logging.
 - **Tutor telemetry monitor** - frontend buffers learner actions (video state, idle heuristics, persona switches, quizzes, cold-call activity) and sends them through `/api/activity/events`; tutors query summaries/history to see `engaged`, `attention_drift`, or `content_friction` statuses per learner.
+- **Tutor dashboard** – `/tutors` route with enrollments, progress, learner activity monitor, and tutor copilot powered by `/api/tutors/*` endpoints.
 - **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
 - **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
 
@@ -76,8 +79,13 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | `/course/:id` | CourseDetailsPage | Curriculum, Ottolearn modal, auto enrollment and questionnaire hand-off |
 | `/course/:id/learn/:lesson` | CoursePlayerPage | Core learning space with sidebar, lesson tabs, tutor, quiz tab |
 | `/course/:id/path` | Study style questionnaire page (mounted inside CoursePlayerPage) |
-| `/course/:id/certificate` | CourseCertificatePage | Certificate preview and payment CTA |
-| `/course/:id/enroll`, `/course/:id/assessment` | Enrollment and assessment placeholders (kept for future steps) |
+| `/course/:id/assessment`, `/course/:id/enroll` | Assessment + enrollment pages |
+| `/course/:id/congrats` | CongratsPage | Post-module celebration view |
+| `/course/:id/congrats/feedback` | CongratsFeedbackPage | Feedback capture |
+| `/course/:id/congrats/certificate` | CourseCertificatePage | Certificate preview and payment CTA |
+| `/tutors` | TutorDashboardPage | Tutor/admin command center |
+| `/auth/callback` | AuthCallbackPage | OAuth token capture |
+| `/become-a-tutor` | BecomeTutorPage | Tutor intake + login form |
 | `/auth/callback` | AuthCallbackPage | Stores OAuth tokens and redirects |
 | `/become-a-tutor` | BecomeTutorPage | Tutor application form |
 | `*` | NotFound | Generic 404 |
@@ -91,6 +99,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 ### Course player highlights
 - Hydrates introduction + numbered modules from `/lessons/courses/:slug/topics`.
 - Stores persona selections via `/lessons/courses/:slug/personalization`; questionnaire uses three prompts defined in CoursePlayerPage.tsx.
+- Persona profile modal checks `/persona-profiles/:courseKey/status` and submits survey answers to `/persona-profiles/:courseKey/analyze` (used to customize tutor prompts).
 - Guides use persona-specific fields; fallback to `textContent` when persona copy is missing.
 - Cold calling prompts load per topic and remain hidden until the learner submits their own response (blind-response gate).
 - Video/PPT players are hardened (no share buttons, no context menu, referrer locked down).
@@ -123,6 +132,9 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | assistantRouter | Tutor chat endpoints (typed prompt quotas, RAG pipeline, persistent chat memory, /assistant/session history) |
 | coldCallRouter | Cold calling prompts, blind-response gating, replies, and star validation |
 | activityRouter | Learner telemetry ingestion (`/api/activity/events`) plus tutor summaries/history endpoints |
+| tutorsRouter | Tutor login, course roster, enrollments/progress, tutor copilot |
+| personaProfilesRouter | Persona profile analysis endpoints (`/persona-profiles/*`) |
+| adminRouter | Admin approvals for tutor applications + course creation |
 | cartRouter | Authenticated cart CRUD backed by cart_items |
 | pagesRouter | CMS page retrieval |
 | tutorApplicationsRouter | Tutor lead intake |
@@ -144,6 +156,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **topics** – moduleNo/topicNumber ordering, persona text fields, ppt/video URLs, optional simulation JSON.
 - **topic_progress** – per learner/topic completion + lastPosition (percentage proxy for now).
 - **topic_personalization** – learner/course persona preference.
+- **learner_persona_profiles** – LLM-derived persona profiles used to customize tutor responses.
 - **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
 - **module_prompt_usage** – per learner/course/module typed prompt counters.
 - **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
@@ -152,6 +165,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - **cold_call_prompts / cold_call_messages / cold_call_stars** - cohort-only prompts, threaded responses, and per-user star validation.
 - **learner_activity_events** - buffered telemetry stream recording course interactions, derived tutor status, and payload JSON for tutor dashboards.
 - **quiz_questions / quiz_options / quiz_attempts / module_progress** - module gating infrastructure.
+- **tutors / course_tutors** – tutor roster and course assignments for the dashboard.
 - **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
 
@@ -167,6 +181,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 3. Accepting the protocol ensures the session is fresh, calls the enroll endpoint, and closes the modal.
 4. If `/lessons/courses/:slug/personalization` reports `hasPreference = false`, CourseDetails routes the learner to `/course/:slug/path` so the questionnaire runs before the player loads.
 4. Learners who once picked a persona can always toggle back to it even after logging out; the server stores the persona in `topic_personalization` while the client caches a `personaHistoryKey` for faster UI toggles.
+5. The AI tutor personalization modal separately checks `/persona-profiles/:courseKey/status` and saves analysis via `/persona-profiles/:courseKey/analyze` into `learner_persona_profiles`.
 
 ### 9.3 Lesson playback
 1. CoursePlayerPage fetches topics, groups them per module, picks the entry lesson (introduction > module order), and renders `CourseSidebar`.
@@ -192,10 +207,26 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 5. All requests run through `assertWithinRagRateLimit` plus the module quota to throttle abuse.
 
 ### 9.7 Certificate preview
-1. After all modules pass, the player exposes a certificate CTA that links to `/course/:slug/certificate`.
+1. After all modules pass, the player exposes a certificate CTA that links to `/course/:slug/congrats/certificate`.
 2. The certificate page reads the stored learner name and course title, renders a blurred preview, and provides the Razorpay placeholder for the paid unlock.
 
-## 10. Testing and Troubleshooting
+### 9.8 Tutor dashboard flow
+1. Tutor login form (inside `BecomeTutorPage`) posts credentials to `/tutors/login` and stores the returned session.
+2. `/tutors` loads course assignments from `/tutors/me/courses`, then hydrates enrollments (`/tutors/:courseId/enrollments`) and progress (`/tutors/:courseId/progress`).
+3. Learner monitor polls `/activity/courses/:courseId/learners` and drills into `/activity/learners/:id/history` for timelines.
+4. Tutor copilot uses `/tutors/assistant/query` with the selected course id.
+
+## 10. Runtime Constants (code-level defaults)
+- **RAG retrieval**: top-K contexts = 5, cosine distance operator (`<=>`), embedding dims = 1536.
+- **Chunking**: chunk size 900, overlap 150, insert batch size 50.
+- **Rate limits**: 8 tutor requests per 60s window per user.
+- **Typed prompt quota**: 5 per module (`module_prompt_usage`).
+- **Chat memory**: history limit 10, load limit 40, summary starts after 16 messages.
+- **Quiz gating**: passing threshold 70%, default question limit 5 (max 20), module cooldown window 7d.
+- **Telemetry**: max 50 events per ingest request, history limit max 100.
+- **JWT defaults**: access token TTL 900s, refresh token TTL 30d; refresh buffer 60s, min delay 15s.
+
+## 11. Testing and Troubleshooting
 - **Backend**: `npm run test` (Vitest) for unit/integration tests. Add Supertest suites for routers touching personalization and quiz grading.
 - **Frontend**: run `npm run lint` (if configured) and eventually add Vitest/RTL suites for CoursePlayerPage, CourseSidebar, and persona dialog.
 - **Common issues**:
@@ -203,11 +234,13 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
   - Tutor returning 429 -> learner likely exhausted typed prompt quota for that module.
   - Tutor chat forgets context after refresh -> confirm `cp_rag_chat_sessions`/`cp_rag_chat_messages` exist and the client sends `topicId` with `/assistant/query` and `/assistant/session`.
   - Persona dialog not loading -> verify `/lessons/courses/:slug/personalization` returns 200 (requires auth) and that `topic_personalization` row exists.
+  - Persona profile modal not loading -> verify `/persona-profiles/:courseKey/status` returns 200 and that `learner_persona_profiles` rows exist for the user/course after analysis.
   - Cold calling not appearing -> ensure a `cold_call_prompts` row exists for the topic and the user belongs to an active cohort.
-  - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with OpenAI credentials.
-  - RAG import -> run `npm run rag:import <json>` when reusing embeddings exported from Neo4j.
+  - RAG ingestion -> run `npm run rag:ingest <pdf> <slug> "<Course Title>"` from backend/ after populating `.env` with OpenAI credentials. Defaults in the script still point to the legacy PDF/slug, so pass args explicitly.
+  - RAG retrieval -> `/assistant/query` uses the `courseId` passed by the client to query `course_chunks`. Ensure the `courseId` matches the slug used during ingestion.
+  - RAG import -> run `npm run rag:import <json>` when reusing precomputed embeddings.
 
-## 11. Deployment Checklist
+## 12. Deployment Checklist
 1. **Secrets** – set all backend env vars + frontend `VITE_API_BASE_URL`.
 2. **Database** – apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
 3. **pgvector** – ensure the Postgres instance has `CREATE EXTENSION vector;` applied and run ingestion/import at least once per course slug.

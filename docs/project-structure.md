@@ -38,13 +38,17 @@ Optional: JSON exports for `rag:import` are stored outside the repo and loaded v
   - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
   - `quiz.ts` – sections/progress/attempts/submit endpoints.
   - `assistant.ts` – RAG tutor with rate limiting, prompt quotas, and persistent chat memory (`/assistant/session`).
+  - `personaProfiles.ts` – persona profile analysis (`/persona-profiles/*`).
   - `coldCall.ts` – cold calling prompts, blind-response gating, replies, and stars.
   - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
+  - `tutors.ts` – tutor login, dashboards, enrollments, progress, copilot.
+  - `admin.ts` – admin approvals for tutor applications.
 - `src/services/`
   - `sessionService.ts`, `googleOAuth.ts`, `userService.ts` – auth helpers.
   - `cohortAccess.ts` – cohort allowlist checks keyed by course + email/userId.
   - `enrollmentService.ts` – ensures unique enrollments.
   - `promptUsageService.ts` – typed prompt quota helpers.
+  - `personaProfileService.ts`, `personaPromptTemplates.ts` – LLM persona profile analysis + prompt templates.
   - `cartService.ts`, `prisma.ts` – commerce + DB helpers.
 - `src/rag/`
   - `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
@@ -55,7 +59,7 @@ Optional: JSON exports for `rag:import` are stored outside the repo and loaded v
 - `scripts/importCourseChunks.ts` – import precomputed embeddings from JSON exports into `course_chunks`.
 
 ## Docs (`docs/`)
-- `gemini-handoff.md` – recommended reading order + system invariants for LLM onboarding.
+- `LLM-handoff.md` / `gemini-handoff.md` – recommended reading order + system invariants for LLM onboarding.
 - `App Changes.md`, `backend-dev-log.md`, `databaseSchema.md`, `design_guidelines.md`, `project-walkthrough.md`, `project-structure.md` (this file).
 
 With this map you can quickly locate the React components, Express routers, and documentation needed to trace any feature end to end.
