@@ -3,10 +3,10 @@
 These guidelines summarise the visual language used across the SPA so new components match the rest of the experience and external reviewers (or LLMs) understand the intent behind the Tailwind tokens.
 
 ## 1. Visual Principles
-1. **High-contrast hero sections** ñ dark backgrounds (#000000) with warm accent highlights (#bf2f1f, #f8f1e6) and subtle gradient lines borrowed from the CourseDetails hero.
-2. **Education-first tone** ñ layouts mimic Coursera/Udemy (clean typography, well-defined whitespace, minimal distractions) with celebratory touches (progress beams, shimmering gradients) reserved for moments of delight.
-3. **Responsive-first** ñ every major layout (landing hero, CourseDetails timeline, player sidebar, tutor dock) collapses gracefully on narrow viewports.
-4. **Accessible interactions** ñ buttons, toasts, and prompts use at least AA contrast; questionnaire answers now render in solid black text so copy is visible even before hover.
+1. **High-contrast hero sections** ‚Äì dark backgrounds (#000000) with warm accent highlights (#bf2f1f, #f8f1e6) and subtle gradient lines borrowed from the CourseDetails hero.
+2. **Education-first tone** ‚Äì layouts mimic Coursera/Udemy (clean typography, well-defined whitespace, minimal distractions) with celebratory touches (progress beams, shimmering gradients) reserved for moments of delight.
+3. **Responsive-first** ‚Äì every major layout (landing hero, CourseDetails timeline, player sidebar, tutor dock) collapses gracefully on narrow viewports.
+4. **Accessible interactions** ‚Äì buttons, toasts, and prompts use at least AA contrast; questionnaire answers now render in solid black text so copy is visible even before hover.
 
 ## 2. Color Tokens
 | Token | Light Mode | Usage |
@@ -26,18 +26,18 @@ Dark mode relies on Tailwind's class toggles and mirrors the same hues at higher
 - Headings emphasise tight tracking and uppercase micro labels (e.g., certificate CTA, Ottolearn modal).
 
 ## 4. Layout Patterns
-- **Landing & CourseDetails** ñ large left-aligned hero text with background line art, CTA buttons aligned to the grid, skills badges as pill buttons.
-- **Course player** ñ two-column layout: resizable sidebar (search, progress, module accordion) and main content area with LessonTabs, video embeds, study material cards, and tutor/chat panel.
-- **Ottolearn Protocol modal** ñ glassmorphism card with bold typography, red highlights, and a two-button footer (Accept vs Not ready).
-- **Study persona dialog** ñ stacked questionnaire cards with pill buttons and a footer containing ìSee my study styleî, ìMaybe laterî, and ìUse this styleî. Buttons gain gradient fills on hover.
-- **Cold calling card** ñ warm peach card with a red pill label, rounded textarea, and soft borders to keep the prompt approachable before the cohort feed appears.
-- **Tutor dock** ñ floating card with blurred background, message bubbles (muted background + gradient border), suggestion chips, and warning banners for quota/cooldown messages.
+- **Landing & CourseDetails** ‚Äì large left-aligned hero text with background line art, CTA buttons aligned to the grid, skills badges as pill buttons.
+- **Course player** ‚Äì two-column layout: resizable sidebar (search, progress, module accordion) and main content area with LessonTabs, video embeds, study material cards, and tutor/chat panel.
+- **Ottolearn Protocol modal** ‚Äì glassmorphism card with bold typography, red highlights, and a two-button footer (Accept vs Not ready).
+- **Study persona dialog** ‚Äì stacked questionnaire cards with pill buttons and a footer containing ‚ÄúSee my study style‚Äù, ‚ÄúMaybe later‚Äù, and ‚ÄúUse this style‚Äù. Buttons gain gradient fills on hover.
+- **Cold calling card** ‚Äì warm peach card with a red pill label, rounded textarea, and soft borders to keep the prompt approachable before the cohort feed appears.
+- **Tutor dock** ‚Äì floating card with blurred background, message bubbles (muted background + gradient border), suggestion chips, and warning banners for quota/cooldown messages.
 
 ## 5. Components
-- **Buttons** ñ follow shadcn variants (`primary`, `secondary`, `ghost`, `outline`). Icon buttons adopt circular shapes with drop shadows for hero CTAs.
-- **Inputs** ñ rounded corners, subtle border + inset shadow, leading icon for search (CourseSidebar).
-- **Badges** ñ uppercase labels with pill shapes indicating preview/free/locked states.
-- **Progress indicators** ñ linear progress bars for module completion; quiz cards show status badges (`Locked`, `Unlocked`, `Passed`).
+- **Buttons** ‚Äì follow shadcn variants (`primary`, `secondary`, `ghost`, `outline`). Icon buttons adopt circular shapes with drop shadows for hero CTAs.
+- **Inputs** ‚Äì rounded corners, subtle border + inset shadow, leading icon for search (CourseSidebar).
+- **Badges** ‚Äì uppercase labels with pill shapes indicating preview/free/locked states.
+- **Progress indicators** ‚Äì linear progress bars for module completion; quiz cards show status badges (`Locked`, `Unlocked`, `Passed`).
 
 ## 6. Motion & Micro-interactions
 - Use soft easing (`transition-all duration-200`) for hover/press states.
