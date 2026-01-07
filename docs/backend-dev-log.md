@@ -1,37 +1,37 @@
-﻿# Backend Development Log
+# Backend Development Log
 
 ## 2025-12-31
-- **Tutor chat memory** – added `cp_rag_chat_sessions` + `cp_rag_chat_messages` plus `/assistant/session` for per-topic history hydration.
-- **Follow-up rewrite** – assistant now rewrites ambiguous prompts using the last assistant turn and stores rolling summaries for context.
+- **Tutor chat memory** - added `cp_rag_chat_sessions` + `cp_rag_chat_messages` plus `/assistant/session` for per-topic history hydration.
+- **Follow-up rewrite** - assistant now rewrites ambiguous prompts using the last assistant turn and stores rolling summaries for context.
 
 
 ## 2025-12-30
-- **Cold calling backend** – added cold call tables and `/cold-call` endpoints for blind-response prompts, threaded replies, and star reactions scoped to cohort membership.
+- **Cold calling backend** - added cold call tables and `/cold-call` endpoints for blind-response prompts, threaded replies, and star reactions scoped to cohort membership.
 
 
 ## 2025-12-29
-- **Cohort allowlist tables** – added `cohorts` + `cohort_members` (with `batch_no`) to store approved learners per course.
-- **Enroll-only gating** – `POST /courses/:courseKey/enroll` now validates cohort membership and supports `?checkOnly=true` so the frontend can verify eligibility before opening the protocol modal.
+- **Cohort allowlist tables** - added `cohorts` + `cohort_members` (with `batch_no`) to store approved learners per course.
+- **Enroll-only gating** - `POST /courses/:courseKey/enroll` now validates cohort membership and supports `?checkOnly=true` so the frontend can verify eligibility before opening the protocol modal.
 
 
 ## 2025-12-24
-- **RAG store migrated to Postgres pgvector** – added `course_chunks` table + pgvector index, switched `ragService` retrieval to SQL similarity search, and removed Neo4j dependencies from env validation and runtime.
-- **Import pipeline added** – new `scripts/importCourseChunks.ts` ingests JSON exports with precomputed embeddings to avoid re-embedding costs.
+- **RAG store migrated to Postgres pgvector** - added `course_chunks` table + pgvector index, switched `ragService` retrieval to SQL similarity search, and removed Neo4j dependencies from env validation and runtime.
+- **Import pipeline added** - new `scripts/importCourseChunks.ts` ingests JSON exports with precomputed embeddings to avoid re-embedding costs.
 
 
 ## 2025-12-15
-- **Resilient study personas** – Added the `topic_personalization` CRUD endpoints in `backend/src/routes/lessons.ts` plus client caching so learners can always switch back to their saved persona even after logging out. Upserts ensure we never duplicate rows for the same `(user_id, course_id)` pair.
-- **Prompt suggestions API** – `/lessons/courses/:courseKey/prompts` now validates optional `topicId` and `parentSuggestionId` query parameters, returning curated prompts in display order. This powers the follow-up suggestion tree rendered inside the tutor dock.
+- **Resilient study personas** - Added the `topic_personalization` CRUD endpoints in `backend/src/routes/lessons.ts` plus client caching so learners can always switch back to their saved persona even after logging out. Upserts ensure we never duplicate rows for the same `(user_id, course_id)` pair.
+- **Prompt suggestions API** - `/lessons/courses/:courseKey/prompts` now validates optional `topicId` and `parentSuggestionId` query parameters, returning curated prompts in display order. This powers the follow-up suggestion tree rendered inside the tutor dock.
 
 
 ## 2025-12-05
-- **Enrollment endpoint** – Added `POST /courses/:courseKey/enroll` in `backend/src/routes/courses.ts` (with helper `ensureEnrollment`), reusing slug resolution so CourseDetails can create or reactivate enrollments idempotently.
-- **Tutor quota enforcement** – Introduced `module_prompt_usage`, `services/promptUsageService.ts`, and quota checks inside `assistantRouter`. Each typed prompt increments the counter after OpenAI succeeds, while follow-up suggestions bypass the quota because they use curated answers.
+- **Enrollment endpoint** - Added `POST /courses/:courseKey/enroll` in `backend/src/routes/courses.ts` (with helper `ensureEnrollment`), reusing slug resolution so CourseDetails can create or reactivate enrollments idempotently.
+- **Tutor quota enforcement** - Introduced `module_prompt_usage`, `services/promptUsageService.ts`, and quota checks inside `assistantRouter`. Each typed prompt increments the counter after OpenAI succeeds, while follow-up suggestions bypass the quota because they use curated answers.
 
 
 ## 2025-12-02
-- **AI tutor identifier fix** – Frontend and backend now consistently use the public course slug (`ai-in-web-development`) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so the vector store could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
-- **Documentation sweep** – README, `Course_Platform.md`, `CP_Arc.md`, and `rag/rag.md` explicitly describe the ingestion command and the slug requirement so future contributors do not regress the behavior.
+- **AI tutor identifier fix** - Frontend and backend now consistently use the public course slug (`ai-native-fullstack-developer`; legacy `ai-in-web-development` still resolves) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so the vector store could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
+- **Documentation sweep** - README, `Course_Platform.md`, `CP_Arc.md`, and `rag/rag.md` explicitly describe the ingestion command and the slug requirement so future contributors do not regress the behavior.
 
 
 ## 2025-11-25

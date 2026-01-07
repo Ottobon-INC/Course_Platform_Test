@@ -1,4 +1,4 @@
-﻿# Database Schema – Course Platform
+# Database Schema - Course Platform
 
 > Source of truth: `backend/prisma/schema.prisma` (Prisma 6, PostgreSQL provider). All columns in the physical database remain snake_case; Prisma maps them to camelCase fields for TypeScript ergonomics.
 
@@ -213,6 +213,7 @@ classDiagram
 
 ### courses & topics
 - Courses include marketing metadata used by CourseDetails (category, level, hero imagery, rating, students).
+- Primary course slug is `ai-native-fullstack-developer`; legacy `ai-in-web-development` links still resolve via backend slug resolution.
 - Topics carry persona-aware guide content (`text_content_sports`, `text_content_cooking`, `text_content_adventure`), ppt/video URLs, optional simulation JSON, and unique `(courseId, moduleNo, topicNumber)` constraints.
 
 ### cohorts & cohort_members

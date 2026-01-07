@@ -1,4 +1,4 @@
-# Course Platform – Full Project Documentation
+# Course Platform â€“ Full Project Documentation
 
 > Version: December 2025 monorepo snapshot (frontend + backend + shared assets)
 
@@ -16,31 +16,32 @@
 11. Deployment checklist
 
 ## 1. Project Overview
-The Course Platform delivers a LearnHub-branded experience for browsing, enrolling in, and completing AI-centric coursework. A single React SPA drives every learner touchpoint (landing page, enrollment funnel, course player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api`, handling OAuth, enrollment writes, module content, quiz scoring, tutor prompts, CMS pages, and tutor applications. The entire system is documented so another engineer—or an external LLM—can rebuild the experience without touching the rest of the repository.
+The Course Platform delivers a LearnHub-branded experience for browsing, enrolling in, and completing AI-centric coursework. A single React SPA drives every learner touchpoint (landing page, enrollment funnel, course player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api`, handling OAuth, enrollment writes, module content, quiz scoring, tutor prompts, CMS pages, and tutor applications. The entire system is documented so another engineerâ€”or an external LLMâ€”can rebuild the experience without touching the rest of the repository.
+Canonical course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-development` links are still accepted via backend slug resolution).
 
 ## 2. Feature Map
 - **Single-course marketing funnel** with live curriculum data, responsive hero sections, skills badges, and the Ottolearn enrollment protocol.
-- **Auto-enrollment** – when a learner accepts the protocol, the SPA calls `POST /courses/:slug/enroll` so every cohort is tracked in Postgres.
-- **Cohort allowlist gate** – enrollment is restricted to approved emails stored in `cohorts` + `cohort_members` (with `batch_no`), while browsing/course playback remain public.
-- **Dynamic course player** – sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
-- **Cold calling checkpoint** – a blind-response cohort prompt appears after each topic’s study text; responses unlock a threaded feed with stars and nested replies.
-- **Personalised narration** – questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
-- **Quiz-driven progression** – module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
+- **Auto-enrollment** â€“ when a learner accepts the protocol, the SPA calls `POST /courses/:slug/enroll` so every cohort is tracked in Postgres.
+- **Cohort allowlist gate** â€“ enrollment is restricted to approved emails stored in `cohorts` + `cohort_members` (with `batch_no`), while browsing/course playback remain public.
+- **Dynamic course player** â€“ sidebar hierarchy, optimistic progress updates, persona-aware study guides, slides, simulations, and integrated tutor chat.
+- **Cold calling checkpoint** â€“ a blind-response cohort prompt appears after each topicâ€™s study text; responses unlock a threaded feed with stars and nested replies.
+- **Personalised narration** â€“ questionnaire-based personas (sports, cooking, adventure) stored per learner/course. Switching back to Standard never discards the saved persona, so returning learners can flip between both options instantly.
+- **Quiz-driven progression** â€“ module unlocks tied to quiz attempts, cooldown windows, and module progress tracking in `module_progress`.
 - **AI tutor dock** - typed questions plus curated prompt suggestions, RAG on top of Postgres pgvector embeddings, prompt quotas per module, persistent per-topic chat memory, follow-up rewrite for ambiguous questions, and success/failure logging.
 - **Tutor telemetry monitor** - frontend buffers learner actions (video state, idle heuristics, persona switches, quizzes, cold-call activity) and sends them through `/api/activity/events`; tutors query summaries/history to see `engaged`, `attention_drift`, or `content_friction` statuses per learner.
-- **Certificate preview** – shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
-- **Tutor intake + CMS** – forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
+- **Certificate preview** â€“ shows a blurred certificate until payment is collected (Razorpay hook placeholder in place).
+- **Tutor intake + CMS** â€“ forms for aspiring tutors, plus CMS-driven `page_content` for static pages.
 
 ## 3. Repository Structure (high level)
 ```
 ./
   CP_Arc.md, Course_Platform.md, README.md, task_progress.md
-  Web Dev using AI Course Content.pdf
-  neo4j_query_table_data_2025-12-24.json  # optional RAG import artifact
+  AI Native Full Stack Developer.pdf
   frontend/        # React + Vite SPA
   backend/         # Express + Prisma API
   docs/            # Living documentation bundle
 ```
+Optional: JSON exports for `rag:import` are stored outside the repo and loaded via `backend/scripts/importCourseChunks.ts` when needed.
 `docs/project-structure.md` provides a deeper tree with notable files for each workspace.
 
 ## 4. Technology Stack
@@ -58,12 +59,12 @@ The Course Platform delivers a LearnHub-branded experience for browsing, enrolli
 
 ## 5. Environment and Configuration
 Key environment variables (see backend/.env.example and frontend/.env.example):
-- `PORT` – Express listen port (default 4000).
-- `FRONTEND_APP_URLS` – comma separated list of allowed origins (used by CORS and OAuth redirect validation).
-- `DATABASE_URL` – Postgres connection string.
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` – OAuth credentials.
-- `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TOKEN_TTL_SECONDS`, `JWT_REFRESH_TOKEN_TTL_DAYS` – token signing + expiry.
-- `OPENAI_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL` – tutor pipeline.
+- `PORT` â€“ Express listen port (default 4000).
+- `FRONTEND_APP_URLS` â€“ comma separated list of allowed origins (used by CORS and OAuth redirect validation).
+- `DATABASE_URL` â€“ Postgres connection string.
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` â€“ OAuth credentials.
+- `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TOKEN_TTL_SECONDS`, `JWT_REFRESH_TOKEN_TTL_DAYS` â€“ token signing + expiry.
+- `OPENAI_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL` â€“ tutor pipeline.
 - `DATABASE_URL` must point to a Postgres instance with the `vector` extension enabled.
 - Frontend `.env` only needs `VITE_API_BASE_URL` (default http://localhost:4000) plus any analytics keys.
 
@@ -82,10 +83,10 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | `*` | NotFound | Generic 404 |
 
 ### State management patterns
-- **Session heartbeat** – components subscribe via `subscribeToSession`; if the refresh request fails, the subscription callback clears state.
-- **API helpers** – `api.ts` builds URLs and attaches Authorization headers. `queryClient.ts` wraps fetch and ensures headers merge correctly.
-- **Toasts and modals** – `use-toast.ts` (shadcn pattern) ties into global `<Toaster />`.
-- **Sidebar state** – `CourseSidebar` memoises module expansion, search filtering, and completion toggles.
+- **Session heartbeat** â€“ components subscribe via `subscribeToSession`; if the refresh request fails, the subscription callback clears state.
+- **API helpers** â€“ `api.ts` builds URLs and attaches Authorization headers. `queryClient.ts` wraps fetch and ensures headers merge correctly.
+- **Toasts and modals** â€“ `use-toast.ts` (shadcn pattern) ties into global `<Toaster />`.
+- **Sidebar state** â€“ `CourseSidebar` memoises module expansion, search filtering, and completion toggles.
 
 ### Course player highlights
 - Hydrates introduction + numbered modules from `/lessons/courses/:slug/topics`.
@@ -129,29 +130,29 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | healthRouter | `/health` liveness (includes DB connectivity check) |
 
 ### Key services
-- `sessionService.ts` – validates/creates JWTs, hashes refresh tokens in `user_sessions`, rotates them on refresh.
-- `googleOAuth.ts` – wraps google-auth-library for code exchange and profile fetch.
-- `enrollmentService.ts` – upserts enrollments on behalf of coursesRouter.
-- `cohortAccess.ts` – checks cohort allowlist membership before enrollment and `checkOnly` validation.
-- `promptUsageService.ts` – enforces per-module typed prompt quotas (default 5).
-- `rag/*` – driver + openAI helpers, text chunker, rate limiter, usage logger (used by assistant router and ingestion scripts).
+- `sessionService.ts` â€“ validates/creates JWTs, hashes refresh tokens in `user_sessions`, rotates them on refresh.
+- `googleOAuth.ts` â€“ wraps google-auth-library for code exchange and profile fetch.
+- `enrollmentService.ts` â€“ upserts enrollments on behalf of coursesRouter.
+- `cohortAccess.ts` â€“ checks cohort allowlist membership before enrollment and `checkOnly` validation.
+- `promptUsageService.ts` â€“ enforces per-module typed prompt quotas (default 5).
+- `rag/*` â€“ driver + openAI helpers, text chunker, rate limiter, usage logger (used by assistant router and ingestion scripts).
 
 ## 8. Data Model Highlights
-- **users** – OAuth-sourced learners; passwords are placeholder hashes (Google-only login right now).
-- **user_sessions** – hashed refresh tokens with expiry timestamps.
-- **courses** – slug, title, description, price, metadata for CourseDetails.
-- **topics** – moduleNo/topicNumber ordering, persona text fields, ppt/video URLs, optional simulation JSON.
-- **topic_progress** – per learner/topic completion + lastPosition (percentage proxy for now).
-- **topic_personalization** – learner/course persona preference.
-- **topic_prompt_suggestions** – curated tutor prompts with optional follow-up suggestions and answers.
-- **module_prompt_usage** – per learner/course/module typed prompt counters.
-- **course_chunks** – pgvector-backed embeddings for course materials (used by the tutor).
-- **cp_rag_chat_sessions / cp_rag_chat_messages** – persistent per-topic tutor chat history with rolling summaries for follow-up context.
-- **cohorts / cohort_members** – cohort allowlist keyed by course, with `batch_no` to track cohort batches.
+- **users** â€“ OAuth-sourced learners; passwords are placeholder hashes (Google-only login right now).
+- **user_sessions** â€“ hashed refresh tokens with expiry timestamps.
+- **courses** â€“ slug, title, description, price, metadata for CourseDetails.
+- **topics** â€“ moduleNo/topicNumber ordering, persona text fields, ppt/video URLs, optional simulation JSON.
+- **topic_progress** â€“ per learner/topic completion + lastPosition (percentage proxy for now).
+- **topic_personalization** â€“ learner/course persona preference.
+- **topic_prompt_suggestions** â€“ curated tutor prompts with optional follow-up suggestions and answers.
+- **module_prompt_usage** â€“ per learner/course/module typed prompt counters.
+- **course_chunks** â€“ pgvector-backed embeddings for course materials (used by the tutor).
+- **cp_rag_chat_sessions / cp_rag_chat_messages** â€“ persistent per-topic tutor chat history with rolling summaries for follow-up context.
+- **cohorts / cohort_members** â€“ cohort allowlist keyed by course, with `batch_no` to track cohort batches.
 - **cold_call_prompts / cold_call_messages / cold_call_stars** - cohort-only prompts, threaded responses, and per-user star validation.
 - **learner_activity_events** - buffered telemetry stream recording course interactions, derived tutor status, and payload JSON for tutor dashboards.
 - **quiz_questions / quiz_options / quiz_attempts / module_progress** - module gating infrastructure.
-- **cart_items**, **enrollments**, **tutor_applications**, **page_content** – supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
+- **cart_items**, **enrollments**, **tutor_applications**, **page_content** â€“ supporting tables for cart, enrollment history, tutor lead gen, and CMS pages.
 - See docs/databaseSchema.md for detailed diagrams and relationships.
 
 ## 9. End-to-End Experience Flows
@@ -181,7 +182,7 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 1. After the study text renders, CoursePlayerPage requests the cold call prompt for the active topic.
 2. If the learner has not submitted a response yet, only the prompt + input box appear.
 3. Submitting a response unlocks the cohort feed and enables threaded replies and star reactions.
-4. Replies can target any response except the learner’s own messages; self-star is blocked.
+4. Replies can target any response except the learnerâ€™s own messages; self-star is blocked.
 
 ### 9.6 Tutor prompts
 1. Chat dock fetches curated prompt suggestions via `/lessons/courses/:slug/prompts` (optionally per topic ID).
@@ -207,13 +208,13 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
   - RAG import -> run `npm run rag:import <json>` when reusing embeddings exported from Neo4j.
 
 ## 11. Deployment Checklist
-1. **Secrets** – set all backend env vars + frontend `VITE_API_BASE_URL`.
-2. **Database** – apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
-3. **pgvector** – ensure the Postgres instance has `CREATE EXTENSION vector;` applied and run ingestion/import at least once per course slug.
-4. **Cold call prompts** – seed `cold_call_prompts` for each topic you want to expose to cohorts.
-5. **Google OAuth** – add the production backend callback plus SPA callback to the OAuth client.
-6. **Builds** – `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
-7. **Hosting** – deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.
-8. **Smoke tests** – login via Google, enroll, run the persona questionnaire, play a lesson with persona copy, pass a quiz, ask the tutor, and visit the certificate page.
+1. **Secrets** â€“ set all backend env vars + frontend `VITE_API_BASE_URL`.
+2. **Database** â€“ apply Prisma migrations (`npx prisma migrate deploy`) on the target Postgres instance.
+3. **pgvector** â€“ ensure the Postgres instance has `CREATE EXTENSION vector;` applied and run ingestion/import at least once per course slug.
+4. **Cold call prompts** â€“ seed `cold_call_prompts` for each topic you want to expose to cohorts.
+5. **Google OAuth** â€“ add the production backend callback plus SPA callback to the OAuth client.
+6. **Builds** â€“ `npm run build` in frontend (produces `dist/`) and `npm run build` in backend (tsc out to `dist/`).
+7. **Hosting** â€“ deploy the API (Render/Fly/Railway), deploy the SPA (Vercel/Netlify), configure HTTPS, and update `FRONTEND_APP_URLS` + OAuth redirect URIs.
+8. **Smoke tests** â€“ login via Google, enroll, run the persona questionnaire, play a lesson with persona copy, pass a quiz, ask the tutor, and visit the certificate page.
 
 This documentation, together with CP_Arc.md and docs/project-walkthrough.md, gives an external reader full insight into how the Course Platform behaves end to end without opening the rest of the repository.
