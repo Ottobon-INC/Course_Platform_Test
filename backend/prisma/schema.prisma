@@ -119,6 +119,7 @@ model Cohort {
   updatedAt DateTime @updatedAt @map("updated_at")
   course    Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
   members   CohortMember[]
+  batchProjects CohortBatchProject[]
   coldCallMessages ColdCallMessage[]
 
   @@index([courseId], map: "idx_cohort_course")
@@ -139,6 +140,20 @@ model CohortMember {
   @@unique([cohortId, email], map: "uq_cohort_email")
   @@index([userId], map: "idx_cohort_member_user")
   @@map("cohort_members")
+}
+
+model CohortBatchProject {
+  projectId String   @id @default(dbgenerated("gen_random_uuid()")) @map("project_id") @db.Uuid
+  cohortId  String   @map("cohort_id") @db.Uuid
+  batchNo   Int      @map("batch_no")
+  payload   Json     @map("payload")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  cohort    Cohort   @relation(fields: [cohortId], references: [cohortId], onDelete: Cascade)
+
+  @@unique([cohortId, batchNo], map: "uq_cohort_batch_projects_cohort_batch")
+  @@index([cohortId], map: "idx_cohort_batch_projects_cohort")
+  @@map("cohort_batch_projects")
 }
 
 model ColdCallPrompt {

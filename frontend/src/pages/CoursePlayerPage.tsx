@@ -19,6 +19,7 @@ import {
   ArrowDown,
   Move,
   ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
@@ -27,6 +28,7 @@ import { recordTelemetryEvent, updateTelemetryAccessToken } from "@/utils/teleme
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 import ColdCalling from "@/components/ColdCalling";
+import CohortProjectModal, { type CohortProjectPayload } from "@/components/CohortProjectModal";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -37,6 +39,21 @@ const buildOfficeViewerUrl = (rawUrl?: string | null) => {
   const trimmed = rawUrl.trim();
   if (!trimmed) return null;
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(trimmed)}`;
+};
+
+const parseCohortProjectPayload = (value: unknown): CohortProjectPayload | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const title = typeof record.title === "string" ? record.title.trim() : "";
+  const tagline = typeof record.tagline === "string" ? record.tagline.trim() : "";
+  const description = typeof record.description === "string" ? record.description.trim() : "";
+  if (!title || !tagline || !description) {
+    return null;
+  }
+  const notes = typeof record.notes === "string" ? record.notes.trim() : null;
+  return { title, tagline, description, notes };
 };
 
 type ContentType = "video" | "quiz";
@@ -429,6 +446,11 @@ const CoursePlayerPage: React.FC = () => {
   const [surveyComplete, setSurveyComplete] = useState(false);
   const [recommendedPersona, setRecommendedPersona] = useState<StudyPersona | null>(null);
   const [forceSurvey, setForceSurvey] = useState(false);
+  const [cohortProjectOpen, setCohortProjectOpen] = useState(false);
+  const [cohortProject, setCohortProject] = useState<CohortProjectPayload | null>(null);
+  const [cohortProjectBatch, setCohortProjectBatch] = useState<number | null>(null);
+  const [cohortProjectLoading, setCohortProjectLoading] = useState(false);
+  const [cohortProjectError, setCohortProjectError] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -855,6 +877,56 @@ const CoursePlayerPage: React.FC = () => {
       console.error("Failed to load quiz sections", error);
     }
   }, [courseKey, session?.accessToken]);
+
+  const fetchCohortProject = useCallback(async () => {
+    if (!courseKey || !session?.accessToken) {
+      setCohortProject(null);
+      setCohortProjectBatch(null);
+      setCohortProjectError("Sign in to view cohort project details.");
+      return;
+    }
+
+    setCohortProjectLoading(true);
+    setCohortProjectError(null);
+    try {
+      const res = await fetch(buildApiUrl(`/api/cohort-projects/${courseKey}`), {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        const message =
+          typeof payload?.message === "string" ? payload.message : "Unable to load cohort project.";
+        setCohortProject(null);
+        setCohortProjectBatch(null);
+        setCohortProjectError(message);
+        return;
+      }
+
+      const data = await res.json();
+      const parsed = parseCohortProjectPayload(data?.project);
+      setCohortProject(parsed);
+      setCohortProjectBatch(typeof data?.batchNo === "number" ? data.batchNo : null);
+      if (!parsed) {
+        setCohortProjectError("Project details are incomplete.");
+      }
+    } catch (error) {
+      setCohortProject(null);
+      setCohortProjectBatch(null);
+      setCohortProjectError(error instanceof Error ? error.message : "Unable to load cohort project.");
+    } finally {
+      setCohortProjectLoading(false);
+    }
+  }, [courseKey, session?.accessToken]);
+
+  const handleOpenCohortProject = useCallback(() => {
+    setCohortProjectOpen(true);
+    void fetchCohortProject();
+  }, [fetchCohortProject]);
+
+  const handleCloseCohortProject = useCallback(() => {
+    setCohortProjectOpen(false);
+  }, []);
 
   const fetchProgress = useCallback(async () => {
     // courseProgress derived from sections
@@ -1780,7 +1852,15 @@ const CoursePlayerPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
-            Progress {Math.round(courseProgress)}%
+            <button
+              type="button"
+              onClick={handleOpenCohortProject}
+              className="inline-flex items-center gap-2 rounded-full border border-[#4a4845]/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f8f1e6]/80 transition hover:border-[#f8f1e6]/60 hover:bg-white/5 hover:text-white"
+            >
+              <ClipboardList size={14} />
+              Cohort Project
+            </button>
+            <span>Progress {Math.round(courseProgress)}%</span>
           </div>
         </div>
         <div className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}>
@@ -2247,6 +2327,15 @@ const CoursePlayerPage: React.FC = () => {
       >
         {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
+
+      <CohortProjectModal
+        isOpen={cohortProjectOpen}
+        project={cohortProject}
+        batchNo={cohortProjectBatch}
+        isLoading={cohortProjectLoading}
+        error={cohortProjectError}
+        onClose={handleCloseCohortProject}
+      />
 
       {showPersonaModal && (
         <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
