@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { env } from "../config/env";
 import { PERSONA_KEYS } from "../services/personaPromptTemplates";
 
+
 const client = new OpenAI({
   apiKey: env.openAiApiKey,
 });
