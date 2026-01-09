@@ -1,8 +1,9 @@
-import express from "express";
+import express, { type Request } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
+import { verifyAccessToken } from "../services/sessionService";
 
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
   "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
@@ -62,9 +63,79 @@ function normalizeVideoUrl(url: string | null | undefined): string | null {
   }
 }
 
-const mapTopicForResponse = <T extends { videoUrl: string | null | undefined }>(topic: T) => ({
+type TopicWithContent = {
+  videoUrl: string | null | undefined;
+  textContent?: string | null;
+};
+
+function getOptionalAuthUserId(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) {
+    return null;
+  }
+  try {
+    const payload = verifyAccessToken(token);
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
+
+function filterTutorPersonaBlocks(rawTextContent: string | null | undefined, personaKey: string | null): string | null {
+  if (!rawTextContent) {
+    return rawTextContent ?? null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawTextContent);
+  } catch {
+    return rawTextContent;
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return rawTextContent;
+  }
+
+  const payload = parsed as { blocks?: unknown };
+  if (!Array.isArray(payload.blocks)) {
+    return rawTextContent;
+  }
+
+  const filteredBlocks = payload.blocks
+    .filter((block) => {
+      if (!block || typeof block !== "object") {
+        return false;
+      }
+      const tutorPersonaValue = (block as { tutorPersona?: unknown }).tutorPersona;
+      const tutorPersona = typeof tutorPersonaValue === "string" ? tutorPersonaValue.trim() : "";
+      if (!tutorPersona) {
+        return true;
+      }
+      if (!personaKey) {
+        return false;
+      }
+      return tutorPersona === personaKey;
+    })
+    .map((block) => {
+      if (!block || typeof block !== "object") {
+        return block;
+      }
+      const { tutorPersona, ...rest } = block as Record<string, unknown>;
+      return rest;
+    });
+
+  return JSON.stringify({ ...payload, blocks: filteredBlocks });
+}
+
+const mapTopicForResponse = <T extends TopicWithContent>(topic: T, personaKey?: string | null) => ({
   ...topic,
   videoUrl: normalizeVideoUrl(topic.videoUrl),
+  textContent: filterTutorPersonaBlocks(topic.textContent ?? null, personaKey ?? null),
 });
 
 const mapPromptSuggestion = (suggestion: { suggestionId: string; promptText: string; answer: string | null }) => ({
@@ -162,7 +233,7 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
+    res.status(200).json({ topics: topics.map((topic) => mapTopicForResponse(topic, null)) });
   }),
 );
 
@@ -180,6 +251,20 @@ lessonsRouter.get(
       res.status(404).json({ message: "Course not found" });
       return;
     }
+
+    const userId = getOptionalAuthUserId(req);
+    const personaProfile = userId
+      ? await prisma.learnerPersonaProfile.findUnique({
+          where: {
+            userId_courseId: {
+              userId,
+              courseId: resolvedCourseId,
+            },
+          },
+          select: { personaKey: true },
+        })
+      : null;
+    const personaKey = personaProfile?.personaKey ?? null;
 
     const topics = await prisma.topic.findMany({
       where: { courseId: resolvedCourseId },
@@ -208,7 +293,7 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
+    res.status(200).json({ topics: topics.map((topic) => mapTopicForResponse(topic, personaKey)) });
   }),
 );
 

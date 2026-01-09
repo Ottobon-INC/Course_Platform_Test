@@ -669,6 +669,7 @@ const CoursePlayerPage: React.FC = () => {
   }, [personaHistoryKey]);
 
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const container = chatListRef.current;
     if (!container) {
@@ -800,7 +801,14 @@ const CoursePlayerPage: React.FC = () => {
   const fetchTopics = useCallback(async () => {
     if (!courseKey) return;
     try {
-      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/topics`), { credentials: "include" });
+      const headers: HeadersInit = {};
+      if (session?.accessToken) {
+        headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/topics`), {
+        credentials: "include",
+        headers,
+      });
       if (!res.ok) throw new Error("Failed to load topics");
       const data = await res.json();
       const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
@@ -1767,114 +1775,257 @@ const CoursePlayerPage: React.FC = () => {
     }
     return normalizeStudyMarkdown(DEFAULT_STUDY_FALLBACK);
   }, [activeStudyText]);
-  const renderContentBlocks = useCallback(
-    (blocks: ContentBlock[], variant: "main" | "widget") => {
-      return blocks
-        .map((block, index) => {
-          const key = block.id ?? `${block.type}-${index}`;
-          const data = block.data;
-
-          if (block.type === "text") {
-            const content = resolveTextVariant(data, studyPersona);
-            if (!content) return null;
-            const containerClass =
-              variant === "main"
-                ? "rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
-                : "rounded-2xl border border-[#000000]/10 bg-white shadow-sm";
-            const paddingClass = variant === "main" ? "p-6 sm:p-8" : "p-4";
-            return (
-              <div key={key} className={containerClass}>
-                <div className={`${paddingClass} prose prose-base max-w-none text-[#1e293b]`}>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeSanitize]}
-                    components={studyMarkdownComponents}
-                  >
-                    {content}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            );
-          }
-
-          if (block.type === "image") {
-            const url = typeof data?.url === "string" ? data.url.trim() : "";
-            if (!url) return null;
-            const alt = typeof data?.alt === "string" && data.alt.trim() ? data.alt.trim() : "Lesson visual";
-            const caption = typeof data?.caption === "string" && data.caption.trim() ? data.caption.trim() : "";
-            return (
-              <figure key={key} className="rounded-3xl border border-[#e8e1d8] bg-white overflow-hidden shadow-sm">
-                <img src={url} alt={alt} className="w-full object-cover" loading="lazy" />
-                {caption && (
-                  <figcaption className="px-5 py-3 text-xs text-[#4a4845] bg-[#f8f1e6]/60 border-t border-[#f2ebe0]">
-                    {caption}
-                  </figcaption>
-                )}
-              </figure>
-            );
-          }
-
-          if (block.type === "video") {
-            if (isReadingMode) return null;
-            const rawUrl = typeof data?.url === "string" ? data.url : "";
-            const videoUrl = normalizeVideoUrl(rawUrl);
-            if (!videoUrl) return null;
-            const title =
-              typeof data?.title === "string" && data.title.trim()
-                ? data.title.trim()
-                : activeLesson?.topicName ?? "Lesson video";
-            return (
-              <div key={key} className="rounded-3xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                <div className="w-full bg-black aspect-video">
-                  <iframe
-                    className="w-full h-full"
-                    src={videoUrl}
-                    title={title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              </div>
-            );
-          }
-
-          if (block.type === "ppt") {
-            const rawUrl = typeof data?.url === "string" ? data.url : "";
-            const pptUrl = buildOfficeViewerUrl(rawUrl);
-            if (!pptUrl) return null;
-            const title =
-              typeof data?.title === "string" && data.title.trim()
-                ? data.title.trim()
-                : "Slides Viewer";
-            return (
-              <div key={key} className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
-                  <FileText size={16} className="text-[#bf2f1f]" />
-                  <span>{title}</span>
-                </div>
-                <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
-                  <iframe
-                    title={title}
-                    src={pptUrl}
-                    className="w-full h-full border-0"
-                    referrerPolicy="no-referrer"
-                    allowFullScreen
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-            );
-          }
-
-          return null;
-        })
-        .filter(Boolean);
-    },
-    [activeLesson?.topicName, isReadingMode, studyPersona],
-  );
   const contentBlocks = useMemo(() => parseContentBlocks(activeLesson?.textContent), [activeLesson?.textContent]);
   const hasBlockLayout = Boolean(contentBlocks?.blocks?.length);
+  const firstBlockIsVideo = hasBlockLayout && contentBlocks?.blocks?.[0]?.type === "video";
+  const firstTextBlockIndex = useMemo(() => {
+    if (!contentBlocks?.blocks) return null;
+    const index = contentBlocks.blocks.findIndex((block) => block.type === "text");
+    return index >= 0 ? index : null;
+  }, [contentBlocks?.blocks]);
   const hasStudyContent = hasBlockLayout ? Boolean(contentBlocks?.blocks?.length) : Boolean(formattedStudyText);
+  const blockVideoMaxHeightClass = isCompactLayout ? "max-h-[40vh]" : "max-h-[65vh]";
+  const scrollMainToTop = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const container = contentScrollRef.current;
+    if (container) {
+      container.scrollTo({ top: 0, behavior });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior });
+  }, []);
+  const handleToggleReadMode = useCallback(() => {
+    setIsReadingMode((prev) => {
+      const next = !prev;
+      if (next) {
+        scrollMainToTop("smooth");
+      }
+      return next;
+    });
+  }, [scrollMainToTop]);
+  const renderStudyHeader = useCallback(
+    () => (
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
+        <div className="flex items-start gap-3 text-left">
+          <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg flex-shrink-0">
+            <Book size={24} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
+            <p className="text-sm text-[#4a4845]">
+              Companion reading for {activeLesson?.topicName ?? ""}
+            </p>
+            {personaReady && (
+              <button
+                type="button"
+                onClick={handleOpenPersonaModal}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#bf2f1f] hover:underline"
+              >
+                {studyPersona === "normal"
+                  ? "Personalize this text"
+                  : `${personaOptions[studyPersona].label} style - Change`}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          <button
+            onClick={handleToggleReadMode}
+            className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${isReadingMode
+              ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
+              : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
+              }`}
+          >
+            {isReadingMode ? (
+              <>
+                <ArrowUpLeftFromCircle size={16} /> Restore Video
+              </>
+            ) : (
+              <>
+                <BookOpen size={16} /> Read Mode
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    ),
+    [activeLesson?.topicName, handleOpenPersonaModal, handleToggleReadMode, isReadingMode, personaReady, studyPersona],
+  );
+  const renderContentBlocks = useCallback(
+    (blocks: ContentBlock[], variant: "main" | "widget") => {
+      const output: React.ReactNode[] = [];
+      let headerInserted = false;
+
+      const buildImageNode = (imageBlock: ContentBlock, nodeKey: string) => {
+        const imageData = imageBlock.data;
+        const url = typeof imageData?.url === "string" ? imageData.url.trim() : "";
+        if (!url) return null;
+        const alt =
+          typeof imageData?.alt === "string" && imageData.alt.trim() ? imageData.alt.trim() : "Lesson visual";
+        const caption =
+          typeof imageData?.caption === "string" && imageData.caption.trim() ? imageData.caption.trim() : "";
+        return (
+          <figure key={nodeKey} className="rounded-3xl border border-[#e8e1d8] bg-white overflow-hidden shadow-sm">
+            <img src={url} alt={alt} className="w-full object-cover" loading="lazy" />
+            {caption && (
+              <figcaption className="px-5 py-3 text-xs text-[#4a4845] bg-[#f8f1e6]/60 border-t border-[#f2ebe0]">
+                {caption}
+              </figcaption>
+            )}
+          </figure>
+        );
+      };
+
+      for (let index = 0; index < blocks.length; index += 1) {
+        const block = blocks[index];
+        const key = block.id ?? `${block.type}-${index}`;
+        const data = block.data;
+
+        if (block.type === "text") {
+          const content = resolveTextVariant(data, studyPersona);
+          if (!content) {
+            continue;
+          }
+          const isFirstTextBlock = firstTextBlockIndex !== null && index === firstTextBlockIndex;
+          if (variant === "main" && !headerInserted) {
+            output.push(<div key={`study-header-${key}`}>{renderStudyHeader()}</div>);
+            headerInserted = true;
+          }
+
+          const containerClass =
+            variant === "main"
+              ? "rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+              : "rounded-2xl border border-[#000000]/10 bg-white shadow-sm";
+          const paddingClass = variant === "main" ? "p-6 sm:p-8" : "p-4";
+
+          let attachedImage: React.ReactNode | null = null;
+          if (variant === "main" && isFirstTextBlock) {
+            const nextBlock = blocks[index + 1];
+            if (nextBlock?.type === "image") {
+              attachedImage = buildImageNode(nextBlock, `${key}-attached-image`);
+              if (attachedImage) {
+                index += 1;
+              }
+            }
+          }
+
+          output.push(
+            <div
+              key={key}
+              id={isFirstTextBlock ? "study-text-start" : undefined}
+              className={containerClass}
+            >
+              <div className={`${paddingClass} prose prose-base max-w-none text-[#1e293b]`}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                  components={studyMarkdownComponents}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
+              {attachedImage && <div className="px-6 pb-6">{attachedImage}</div>}
+            </div>,
+          );
+          continue;
+        }
+
+        if (block.type === "image") {
+          const imageNode = buildImageNode(block, key);
+          if (imageNode) {
+            output.push(imageNode);
+          }
+          continue;
+        }
+
+        if (block.type === "video") {
+          const rawUrl = typeof data?.url === "string" ? data.url : "";
+          const videoUrl = normalizeVideoUrl(rawUrl);
+          if (!videoUrl) {
+            continue;
+          }
+          const title =
+            typeof data?.title === "string" && data.title.trim()
+              ? data.title.trim()
+              : activeLesson?.topicName ?? "Lesson video";
+          const videoWrapperClass = `transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isReadingMode
+            ? "max-h-0 opacity-0 pointer-events-none"
+            : `${blockVideoMaxHeightClass} opacity-100`
+            }`;
+          output.push(
+            <div key={key} className={videoWrapperClass} style={isReadingMode ? { marginTop: 0 } : undefined}>
+              <div className="space-y-2">
+                <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                  <div className="w-full bg-black aspect-video">
+                    <iframe
+                      className="w-full h-full"
+                      src={videoUrl}
+                      title={title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+                {variant === "main" && firstBlockIsVideo && firstTextBlockIndex !== null && index === 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      document.getElementById("study-text-start")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                    className="text-xs font-semibold text-[#bf2f1f] hover:underline"
+                  >
+                    Skip to reading
+                  </button>
+                )}
+              </div>
+            </div>,
+          );
+          continue;
+        }
+
+        if (block.type === "ppt") {
+          const rawUrl = typeof data?.url === "string" ? data.url : "";
+          const pptUrl = buildOfficeViewerUrl(rawUrl);
+          if (!pptUrl) {
+            continue;
+          }
+          const title =
+            typeof data?.title === "string" && data.title.trim()
+              ? data.title.trim()
+              : "Slides Viewer";
+          output.push(
+            <div key={key} className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                <FileText size={16} className="text-[#bf2f1f]" />
+                <span>{title}</span>
+              </div>
+              <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                <iframe
+                  title={title}
+                  src={pptUrl}
+                  className="w-full h-full border-0"
+                  referrerPolicy="no-referrer"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
+            </div>,
+          );
+        }
+      }
+
+      return output;
+    },
+    [
+      activeLesson?.topicName,
+      blockVideoMaxHeightClass,
+      firstBlockIsVideo,
+      firstTextBlockIndex,
+      isReadingMode,
+      renderStudyHeader,
+      studyPersona,
+    ],
+  );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
@@ -2055,7 +2206,10 @@ const CoursePlayerPage: React.FC = () => {
             <span>Progress {Math.round(courseProgress)}%</span>
           </div>
         </div>
-        <div className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}>
+        <div
+          ref={contentScrollRef}
+          className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
+        >
           {/* Video */}
           {!isQuizMode && !hasBlockLayout && (
             <div
@@ -2087,50 +2241,7 @@ const CoursePlayerPage: React.FC = () => {
           {!isFullScreen && !isQuizMode && (
             <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
               <div className={`w-full ${studySectionPadding} space-y-8`}>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
-                  <div className="flex items-start gap-3 text-left">
-                    <div className="p-2 bg-[#000000] text-[#f8f1e6] rounded-lg flex-shrink-0">
-                      <Book size={24} />
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-bold text-[#000000]">Study Material</h3>
-                      <p className="text-sm text-[#4a4845]">
-                        Companion reading for {activeLesson?.topicName ?? ""}
-                      </p>
-                      {personaReady && (
-                        <button
-                          type="button"
-                          onClick={handleOpenPersonaModal}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#bf2f1f] hover:underline"
-                        >
-                          {studyPersona === "normal"
-                            ? "Personalize this text"
-                            : `${personaOptions[studyPersona].label} style - Change`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-                    <button
-                      onClick={() => setIsReadingMode(!isReadingMode)}
-                      className={`flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 font-bold text-sm transition ${isReadingMode
-                        ? "bg-[#bf2f1f] text-white border-[#bf2f1f] hover:bg-[#a62619]"
-                        : "bg-white text-[#000000] border-[#000000] hover:bg-[#4a4845]/10"
-                        }`}
-                    >
-                      {isReadingMode ? (
-                        <>
-                          <ArrowUpLeftFromCircle size={16} /> Restore Video
-                        </>
-                      ) : (
-                        <>
-                          <BookOpen size={16} /> Read Mode
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+                {!hasBlockLayout && renderStudyHeader()}
 
                 <div className="space-y-4 text-left">
                   {hasBlockLayout && contentBlocks ? (
