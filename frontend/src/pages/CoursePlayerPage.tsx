@@ -41,6 +41,90 @@ const buildOfficeViewerUrl = (rawUrl?: string | null) => {
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(trimmed)}`;
 };
 
+const normalizeVideoUrl = (rawUrl?: string | null) => {
+  if (!rawUrl) return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname.toLowerCase();
+
+    const toEmbed = (id: string | null) => (id ? `https://www.youtube.com/embed/${id}` : trimmed);
+
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname.startsWith("/embed/")) {
+        return `https://www.youtube.com${parsed.pathname}`;
+      }
+      if (parsed.pathname === "/watch") {
+        return toEmbed(parsed.searchParams.get("v"));
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        return toEmbed(parsed.pathname.split("/").pop() ?? null);
+      }
+    }
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\/+/, "");
+      return toEmbed(id || null);
+    }
+
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+};
+
+type ContentBlock = {
+  id?: string;
+  type: "text" | "image" | "video" | "ppt";
+  data?: Record<string, unknown>;
+};
+
+type ContentBlockPayload = {
+  version?: string;
+  blocks: ContentBlock[];
+};
+
+const parseContentBlocks = (raw?: string | null): ContentBlockPayload | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const blocksRaw = (parsed as Record<string, unknown>).blocks;
+    if (!Array.isArray(blocksRaw)) return null;
+    const blocks = blocksRaw
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const node = entry as Record<string, unknown>;
+        const rawType = typeof node.type === "string" ? node.type : "";
+        if (rawType !== "text" && rawType !== "image" && rawType !== "video" && rawType !== "ppt") return null;
+        return {
+          id: typeof node.id === "string" ? node.id : undefined,
+          type: rawType as ContentBlock["type"],
+          data: typeof node.data === "object" && node.data ? (node.data as Record<string, unknown>) : undefined,
+        } as ContentBlock;
+      })
+      .filter((block): block is ContentBlock => Boolean(block));
+    if (blocks.length === 0) return null;
+    const version = typeof (parsed as Record<string, unknown>).version === "string"
+      ? ((parsed as Record<string, unknown>).version as string)
+      : undefined;
+    return { version, blocks };
+  } catch {
+    return null;
+  }
+};
+
+const resolveTextVariant = (data: Record<string, unknown> | undefined, persona: StudyPersona) => {
+  if (!data) return "";
+  const variants = typeof data.variants === "object" && data.variants
+    ? (data.variants as Record<string, unknown>)
+    : null;
+  const preferred = variants && typeof variants[persona] === "string" ? (variants[persona] as string) : null;
+  const normal = variants && typeof variants.normal === "string" ? (variants.normal as string) : null;
+  const content = typeof data.content === "string" ? data.content : "";
+  return (preferred || normal || content).trim();
+};
+
 const parseCohortProjectPayload = (value: unknown): CohortProjectPayload | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -1683,6 +1767,114 @@ const CoursePlayerPage: React.FC = () => {
     }
     return normalizeStudyMarkdown(DEFAULT_STUDY_FALLBACK);
   }, [activeStudyText]);
+  const renderContentBlocks = useCallback(
+    (blocks: ContentBlock[], variant: "main" | "widget") => {
+      return blocks
+        .map((block, index) => {
+          const key = block.id ?? `${block.type}-${index}`;
+          const data = block.data;
+
+          if (block.type === "text") {
+            const content = resolveTextVariant(data, studyPersona);
+            if (!content) return null;
+            const containerClass =
+              variant === "main"
+                ? "rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]"
+                : "rounded-2xl border border-[#000000]/10 bg-white shadow-sm";
+            const paddingClass = variant === "main" ? "p-6 sm:p-8" : "p-4";
+            return (
+              <div key={key} className={containerClass}>
+                <div className={`${paddingClass} prose prose-base max-w-none text-[#1e293b]`}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={studyMarkdownComponents}
+                  >
+                    {content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            );
+          }
+
+          if (block.type === "image") {
+            const url = typeof data?.url === "string" ? data.url.trim() : "";
+            if (!url) return null;
+            const alt = typeof data?.alt === "string" && data.alt.trim() ? data.alt.trim() : "Lesson visual";
+            const caption = typeof data?.caption === "string" && data.caption.trim() ? data.caption.trim() : "";
+            return (
+              <figure key={key} className="rounded-3xl border border-[#e8e1d8] bg-white overflow-hidden shadow-sm">
+                <img src={url} alt={alt} className="w-full object-cover" loading="lazy" />
+                {caption && (
+                  <figcaption className="px-5 py-3 text-xs text-[#4a4845] bg-[#f8f1e6]/60 border-t border-[#f2ebe0]">
+                    {caption}
+                  </figcaption>
+                )}
+              </figure>
+            );
+          }
+
+          if (block.type === "video") {
+            if (isReadingMode) return null;
+            const rawUrl = typeof data?.url === "string" ? data.url : "";
+            const videoUrl = normalizeVideoUrl(rawUrl);
+            if (!videoUrl) return null;
+            const title =
+              typeof data?.title === "string" && data.title.trim()
+                ? data.title.trim()
+                : activeLesson?.topicName ?? "Lesson video";
+            return (
+              <div key={key} className="rounded-3xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                <div className="w-full bg-black aspect-video">
+                  <iframe
+                    className="w-full h-full"
+                    src={videoUrl}
+                    title={title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            );
+          }
+
+          if (block.type === "ppt") {
+            const rawUrl = typeof data?.url === "string" ? data.url : "";
+            const pptUrl = buildOfficeViewerUrl(rawUrl);
+            if (!pptUrl) return null;
+            const title =
+              typeof data?.title === "string" && data.title.trim()
+                ? data.title.trim()
+                : "Slides Viewer";
+            return (
+              <div key={key} className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                  <FileText size={16} className="text-[#bf2f1f]" />
+                  <span>{title}</span>
+                </div>
+                <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                  <iframe
+                    title={title}
+                    src={pptUrl}
+                    className="w-full h-full border-0"
+                    referrerPolicy="no-referrer"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+    },
+    [activeLesson?.topicName, isReadingMode, studyPersona],
+  );
+  const contentBlocks = useMemo(() => parseContentBlocks(activeLesson?.textContent), [activeLesson?.textContent]);
+  const hasBlockLayout = Boolean(contentBlocks?.blocks?.length);
+  const hasStudyContent = hasBlockLayout ? Boolean(contentBlocks?.blocks?.length) : Boolean(formattedStudyText);
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
@@ -1865,7 +2057,7 @@ const CoursePlayerPage: React.FC = () => {
         </div>
         <div className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}>
           {/* Video */}
-          {!isQuizMode && (
+          {!isQuizMode && !hasBlockLayout && (
             <div
               className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
                 }`}
@@ -1941,7 +2133,9 @@ const CoursePlayerPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-4 text-left">
-                  {formattedStudyText ? (
+                  {hasBlockLayout && contentBlocks ? (
+                    <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
+                  ) : formattedStudyText ? (
                     <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
                       <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
                         <ReactMarkdown
@@ -1958,11 +2152,11 @@ const CoursePlayerPage: React.FC = () => {
                   )}
                 </div>
 
-                {formattedStudyText && activeLesson?.topicId && (
+                {hasStudyContent && activeLesson?.topicId && (
                   <ColdCalling topicId={activeLesson.topicId} session={session} onTelemetryEvent={emitTelemetry} />
                 )}
 
-                {activePptEmbedUrl && activeLesson?.pptUrl && (
+                {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
                       <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
@@ -2278,17 +2472,24 @@ const CoursePlayerPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
-            {activeStudyText
-              ? activeStudyText.split("\n").map((line, i) => {
-                if (line.startsWith("## ")) return <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-[#bf2f1f] border-l-4 border-[#bf2f1f] pl-3">{line.replace("## ", "")}</h2>;
-                if (line.startsWith("### ")) return <h3 key={i} className="text-xl font-bold mt-6 mb-3 text-current">{line.replace("### ", "")}</h3>;
-                if (line.startsWith("* ")) return <li key={i} className="ml-6 list-disc opacity-80 mb-1">{line.replace("* ", "")}</li>;
-                if (line.startsWith("1. ")) return <li key={i} className="ml-6 list-decimal opacity-80 mb-1 font-bold">{line.replace("1. ", "")}</li>;
-                if (line.trim() === "") return <div key={i} className="h-2"></div>;
-                return <p key={i} className="mb-3 leading-relaxed opacity-90 text-lg">{line}</p>;
-              })
-              : <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>}
-            {activePptEmbedUrl && activeLesson?.pptUrl && (
+            {hasBlockLayout && contentBlocks ? (
+              <div className="space-y-4">{renderContentBlocks(contentBlocks.blocks, "widget")}</div>
+            ) : formattedStudyText ? (
+              <div className="rounded-2xl border border-[#000000]/10 bg-white shadow-sm">
+                <div className="p-4 prose prose-sm max-w-none text-[#1e293b]">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={studyMarkdownComponents}
+                  >
+                    {formattedStudyText}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+            )}
+            {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
               <div className="mt-6 space-y-2">
                 <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
