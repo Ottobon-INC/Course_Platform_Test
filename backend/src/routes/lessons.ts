@@ -68,6 +68,21 @@ type TopicWithContent = {
   textContent?: string | null;
 };
 
+type ContentLayoutBlock = {
+  id?: string;
+  type?: string;
+  contentKey?: string;
+  data?: unknown;
+  tutorPersona?: string;
+};
+
+type ContentLayoutPayload = {
+  version?: string;
+  blocks: ContentLayoutBlock[];
+};
+
+const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt"]);
+
 function getOptionalAuthUserId(req: Request): string | null {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
@@ -85,34 +100,125 @@ function getOptionalAuthUserId(req: Request): string | null {
   }
 }
 
-function filterTutorPersonaBlocks(rawTextContent: string | null | undefined, personaKey: string | null): string | null {
+function parseContentLayout(rawTextContent: string | null | undefined): ContentLayoutPayload | null {
+  if (!rawTextContent) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(rawTextContent) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    const blocksRaw = parsed.blocks;
+    if (!Array.isArray(blocksRaw)) {
+      return null;
+    }
+    const blocks = blocksRaw
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const node = entry as Record<string, unknown>;
+        const type = typeof node.type === "string" ? node.type : undefined;
+        const contentKey = typeof node.contentKey === "string" ? node.contentKey : undefined;
+        const tutorPersona = typeof node.tutorPersona === "string" ? node.tutorPersona : undefined;
+        const data = typeof node.data === "object" && node.data ? node.data : undefined;
+        return {
+          id: typeof node.id === "string" ? node.id : undefined,
+          type,
+          contentKey,
+          data,
+          tutorPersona,
+        } as ContentLayoutBlock;
+      })
+      .filter((block): block is ContentLayoutBlock => Boolean(block));
+    if (blocks.length === 0) {
+      return null;
+    }
+    const version = typeof parsed.version === "string" ? parsed.version : undefined;
+    return { version, blocks };
+  } catch {
+    return null;
+  }
+}
+
+type ContentAssetRecord = {
+  topicId: string;
+  contentKey: string;
+  contentType: string;
+  personaKey: string | null;
+  payload: unknown;
+};
+
+function buildAssetIndex(assets: ContentAssetRecord[]): Map<string, ContentAssetRecord> {
+  const index = new Map<string, ContentAssetRecord>();
+  for (const asset of assets) {
+    const personaPart = asset.personaKey ?? "default";
+    const key = `${asset.topicId}:${asset.contentKey}:${personaPart}`;
+    index.set(key, asset);
+  }
+  return index;
+}
+
+function resolveContentLayout(
+  rawTextContent: string | null | undefined,
+  topicId: string,
+  personaKey: string | null,
+  assetIndex: Map<string, ContentAssetRecord>,
+): string | null {
   if (!rawTextContent) {
     return rawTextContent ?? null;
   }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawTextContent);
-  } catch {
+  const layout = parseContentLayout(rawTextContent);
+  if (!layout) {
     return rawTextContent;
   }
 
-  if (!parsed || typeof parsed !== "object") {
-    return rawTextContent;
+  const hasContentKeys = layout.blocks.some(
+    (block) => typeof block.contentKey === "string" && block.contentKey.trim().length > 0,
+  );
+
+  if (hasContentKeys) {
+    const resolvedBlocks = layout.blocks
+      .map((block) => {
+        const type = block.type;
+        if (!type || !SUPPORTED_BLOCK_TYPES.has(type)) {
+          return null;
+        }
+        const contentKey = block.contentKey?.trim();
+        if (!contentKey) {
+          const data = block.data && typeof block.data === "object" ? (block.data as Record<string, unknown>) : undefined;
+          return { id: block.id, type, data };
+        }
+        const personaPart = personaKey ?? "default";
+        const exact = assetIndex.get(`${topicId}:${contentKey}:${personaPart}`);
+        const fallback = assetIndex.get(`${topicId}:${contentKey}:default`);
+        const asset = exact ?? fallback;
+        if (!asset || asset.contentType !== type) {
+          const data = block.data && typeof block.data === "object" ? (block.data as Record<string, unknown>) : undefined;
+          return data ? { id: block.id, type, data } : null;
+        }
+        const payload =
+          asset.payload && typeof asset.payload === "object"
+            ? (asset.payload as Record<string, unknown>)
+            : null;
+        if (!payload) {
+          return null;
+        }
+        return { id: block.id, type, data: payload };
+      })
+      .filter((block): block is { id?: string; type: string; data?: Record<string, unknown> } => Boolean(block));
+
+    return JSON.stringify({ version: layout.version, blocks: resolvedBlocks });
   }
 
-  const payload = parsed as { blocks?: unknown };
-  if (!Array.isArray(payload.blocks)) {
-    return rawTextContent;
-  }
-
-  const filteredBlocks = payload.blocks
+  const filteredBlocks = layout.blocks
     .filter((block) => {
-      if (!block || typeof block !== "object") {
+      const type = block.type;
+      if (!type || !SUPPORTED_BLOCK_TYPES.has(type)) {
         return false;
       }
-      const tutorPersonaValue = (block as { tutorPersona?: unknown }).tutorPersona;
-      const tutorPersona = typeof tutorPersonaValue === "string" ? tutorPersonaValue.trim() : "";
+      const tutorPersona = block.tutorPersona?.trim() ?? "";
       if (!tutorPersona) {
         return true;
       }
@@ -121,21 +227,22 @@ function filterTutorPersonaBlocks(rawTextContent: string | null | undefined, per
       }
       return tutorPersona === personaKey;
     })
-    .map((block) => {
-      if (!block || typeof block !== "object") {
-        return block;
-      }
-      const { tutorPersona, ...rest } = block as Record<string, unknown>;
-      return rest;
-    });
+    .map((block) => ({
+      id: block.id,
+      type: block.type,
+      data: block.data && typeof block.data === "object" ? (block.data as Record<string, unknown>) : undefined,
+    }));
 
-  return JSON.stringify({ ...payload, blocks: filteredBlocks });
+  return JSON.stringify({ version: layout.version, blocks: filteredBlocks });
 }
 
-const mapTopicForResponse = <T extends TopicWithContent>(topic: T, personaKey?: string | null) => ({
+const mapTopicForResponse = <T extends TopicWithContent>(
+  topic: T,
+  resolvedTextContent?: string | null,
+) => ({
   ...topic,
   videoUrl: normalizeVideoUrl(topic.videoUrl),
-  textContent: filterTutorPersonaBlocks(topic.textContent ?? null, personaKey ?? null),
+  textContent: resolvedTextContent ?? (topic.textContent ?? null),
 });
 
 const mapPromptSuggestion = (suggestion: { suggestionId: string; promptText: string; answer: string | null }) => ({
@@ -233,7 +340,50 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics: topics.map((topic) => mapTopicForResponse(topic, null)) });
+    const contentKeyByTopic = new Map<string, Set<string>>();
+    const allContentKeys = new Set<string>();
+
+    topics.forEach((topic) => {
+      const layout = parseContentLayout(topic.textContent ?? null);
+      if (!layout) {
+        return;
+      }
+      const keys = layout.blocks
+        .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
+        .filter((key) => key.length > 0);
+      if (keys.length === 0) {
+        return;
+      }
+      const keySet = new Set(keys);
+      contentKeyByTopic.set(topic.topicId, keySet);
+      keys.forEach((key) => allContentKeys.add(key));
+    });
+
+    const assets =
+      contentKeyByTopic.size > 0
+        ? await prisma.topicContentAsset.findMany({
+            where: {
+              topicId: { in: Array.from(contentKeyByTopic.keys()) },
+              contentKey: { in: Array.from(allContentKeys) },
+              personaKey: null,
+            },
+            select: {
+              topicId: true,
+              contentKey: true,
+              contentType: true,
+              personaKey: true,
+              payload: true,
+            },
+          })
+        : [];
+    const assetIndex = buildAssetIndex(assets);
+
+    res.status(200).json({
+      topics: topics.map((topic) => {
+        const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, null, assetIndex);
+        return mapTopicForResponse(topic, resolved);
+      }),
+    });
   }),
 );
 
@@ -293,7 +443,51 @@ lessonsRouter.get(
       },
     });
 
-    res.status(200).json({ topics: topics.map((topic) => mapTopicForResponse(topic, personaKey)) });
+    const contentKeyByTopic = new Map<string, Set<string>>();
+    const allContentKeys = new Set<string>();
+
+    topics.forEach((topic) => {
+      const layout = parseContentLayout(topic.textContent ?? null);
+      if (!layout) {
+        return;
+      }
+      const keys = layout.blocks
+        .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
+        .filter((key) => key.length > 0);
+      if (keys.length === 0) {
+        return;
+      }
+      const keySet = new Set(keys);
+      contentKeyByTopic.set(topic.topicId, keySet);
+      keys.forEach((key) => allContentKeys.add(key));
+    });
+
+    const personaFilters = personaKey ? [{ personaKey }, { personaKey: null }] : [{ personaKey: null }];
+    const assets =
+      contentKeyByTopic.size > 0
+        ? await prisma.topicContentAsset.findMany({
+            where: {
+              topicId: { in: Array.from(contentKeyByTopic.keys()) },
+              contentKey: { in: Array.from(allContentKeys) },
+              OR: personaFilters,
+            },
+            select: {
+              topicId: true,
+              contentKey: true,
+              contentType: true,
+              personaKey: true,
+              payload: true,
+            },
+          })
+        : [];
+    const assetIndex = buildAssetIndex(assets);
+
+    res.status(200).json({
+      topics: topics.map((topic) => {
+        const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, personaKey, assetIndex);
+        return mapTopicForResponse(topic, resolved);
+      }),
+    });
   }),
 );
 
