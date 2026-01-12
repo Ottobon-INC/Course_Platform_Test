@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 import { requireAuth } from "../middleware/requireAuth";
+import { verifyAccessToken } from "../services/sessionService";
 const LEGACY_COURSE_SLUGS = {
     "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
 };
@@ -50,9 +51,141 @@ function normalizeVideoUrl(url) {
         return trimmed;
     }
 }
-const mapTopicForResponse = (topic) => ({
+const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt"]);
+function getOptionalAuthUserId(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+        return null;
+    }
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (!token) {
+        return null;
+    }
+    try {
+        const payload = verifyAccessToken(token);
+        return payload.sub;
+    }
+    catch {
+        return null;
+    }
+}
+function parseContentLayout(rawTextContent) {
+    if (!rawTextContent) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(rawTextContent);
+        if (!parsed || typeof parsed !== "object") {
+            return null;
+        }
+        const blocksRaw = parsed.blocks;
+        if (!Array.isArray(blocksRaw)) {
+            return null;
+        }
+        const blocks = blocksRaw
+            .map((entry) => {
+            if (!entry || typeof entry !== "object") {
+                return null;
+            }
+            const node = entry;
+            const type = typeof node.type === "string" ? node.type : undefined;
+            const contentKey = typeof node.contentKey === "string" ? node.contentKey : undefined;
+            const tutorPersona = typeof node.tutorPersona === "string" ? node.tutorPersona : undefined;
+            const data = typeof node.data === "object" && node.data ? node.data : undefined;
+            return {
+                id: typeof node.id === "string" ? node.id : undefined,
+                type,
+                contentKey,
+                data,
+                tutorPersona,
+            };
+        })
+            .filter((block) => Boolean(block));
+        if (blocks.length === 0) {
+            return null;
+        }
+        const version = typeof parsed.version === "string" ? parsed.version : undefined;
+        return { version, blocks };
+    }
+    catch {
+        return null;
+    }
+}
+function buildAssetIndex(assets) {
+    const index = new Map();
+    for (const asset of assets) {
+        const personaPart = asset.personaKey ?? "default";
+        const key = `${asset.topicId}:${asset.contentKey}:${personaPart}`;
+        index.set(key, asset);
+    }
+    return index;
+}
+function resolveContentLayout(rawTextContent, topicId, personaKey, assetIndex) {
+    if (!rawTextContent) {
+        return rawTextContent ?? null;
+    }
+    const layout = parseContentLayout(rawTextContent);
+    if (!layout) {
+        return rawTextContent;
+    }
+    const hasContentKeys = layout.blocks.some((block) => typeof block.contentKey === "string" && block.contentKey.trim().length > 0);
+    if (hasContentKeys) {
+        const resolvedBlocks = layout.blocks
+            .map((block) => {
+            const type = block.type;
+            if (!type || !SUPPORTED_BLOCK_TYPES.has(type)) {
+                return null;
+            }
+            const contentKey = block.contentKey?.trim();
+            if (!contentKey) {
+                const data = block.data && typeof block.data === "object" ? block.data : undefined;
+                return { id: block.id, type, data };
+            }
+            const personaPart = personaKey ?? "default";
+            const exact = assetIndex.get(`${topicId}:${contentKey}:${personaPart}`);
+            const fallback = assetIndex.get(`${topicId}:${contentKey}:default`);
+            const asset = exact ?? fallback;
+            if (!asset || asset.contentType !== type) {
+                const data = block.data && typeof block.data === "object" ? block.data : undefined;
+                return data ? { id: block.id, type, data } : null;
+            }
+            const payload = asset.payload && typeof asset.payload === "object"
+                ? asset.payload
+                : null;
+            if (!payload) {
+                return null;
+            }
+            return { id: block.id, type, data: payload };
+        })
+            .filter((block) => Boolean(block));
+        return JSON.stringify({ version: layout.version, blocks: resolvedBlocks });
+    }
+    const filteredBlocks = layout.blocks
+        .filter((block) => {
+        const type = block.type;
+        if (!type || !SUPPORTED_BLOCK_TYPES.has(type)) {
+            return false;
+        }
+        const tutorPersona = block.tutorPersona?.trim() ?? "";
+        if (!tutorPersona) {
+            return true;
+        }
+        if (!personaKey) {
+            return false;
+        }
+        return tutorPersona === personaKey;
+    })
+        .map((block) => ({
+        id: block.id,
+        type: block.type,
+        data: block.data && typeof block.data === "object" ? block.data : undefined,
+    }));
+    return JSON.stringify({ version: layout.version, blocks: filteredBlocks });
+}
+const mapTopicForResponse = (topic, resolvedTextContent) => ({
     ...topic,
     videoUrl: normalizeVideoUrl(topic.videoUrl),
+    textContent: resolvedTextContent ?? (topic.textContent ?? null),
 });
 const mapPromptSuggestion = (suggestion) => ({
     id: suggestion.suggestionId,
@@ -133,7 +266,46 @@ lessonsRouter.get("/modules/:moduleNo/topics", asyncHandler(async (req, res) => 
             },
         },
     });
-    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
+    const contentKeyByTopic = new Map();
+    const allContentKeys = new Set();
+    topics.forEach((topic) => {
+        const layout = parseContentLayout(topic.textContent ?? null);
+        if (!layout) {
+            return;
+        }
+        const keys = layout.blocks
+            .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
+            .filter((key) => key.length > 0);
+        if (keys.length === 0) {
+            return;
+        }
+        const keySet = new Set(keys);
+        contentKeyByTopic.set(topic.topicId, keySet);
+        keys.forEach((key) => allContentKeys.add(key));
+    });
+    const assets = contentKeyByTopic.size > 0
+        ? await prisma.topicContentAsset.findMany({
+            where: {
+                topicId: { in: Array.from(contentKeyByTopic.keys()) },
+                contentKey: { in: Array.from(allContentKeys) },
+                personaKey: null,
+            },
+            select: {
+                topicId: true,
+                contentKey: true,
+                contentType: true,
+                personaKey: true,
+                payload: true,
+            },
+        })
+        : [];
+    const assetIndex = buildAssetIndex(assets);
+    res.status(200).json({
+        topics: topics.map((topic) => {
+            const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, null, assetIndex);
+            return mapTopicForResponse(topic, resolved);
+        }),
+    });
 }));
 lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) => {
     const { courseKey } = req.params;
@@ -146,6 +318,19 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
         res.status(404).json({ message: "Course not found" });
         return;
     }
+    const userId = getOptionalAuthUserId(req);
+    const personaProfile = userId
+        ? await prisma.learnerPersonaProfile.findUnique({
+            where: {
+                userId_courseId: {
+                    userId,
+                    courseId: resolvedCourseId,
+                },
+            },
+            select: { personaKey: true },
+        })
+        : null;
+    const personaKey = personaProfile?.personaKey ?? null;
     const topics = await prisma.topic.findMany({
         where: { courseId: resolvedCourseId },
         orderBy: [{ moduleNo: "asc" }, { topicNumber: "asc" }],
@@ -172,7 +357,47 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
             },
         },
     });
-    res.status(200).json({ topics: topics.map(mapTopicForResponse) });
+    const contentKeyByTopic = new Map();
+    const allContentKeys = new Set();
+    topics.forEach((topic) => {
+        const layout = parseContentLayout(topic.textContent ?? null);
+        if (!layout) {
+            return;
+        }
+        const keys = layout.blocks
+            .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
+            .filter((key) => key.length > 0);
+        if (keys.length === 0) {
+            return;
+        }
+        const keySet = new Set(keys);
+        contentKeyByTopic.set(topic.topicId, keySet);
+        keys.forEach((key) => allContentKeys.add(key));
+    });
+    const personaFilters = personaKey ? [{ personaKey }, { personaKey: null }] : [{ personaKey: null }];
+    const assets = contentKeyByTopic.size > 0
+        ? await prisma.topicContentAsset.findMany({
+            where: {
+                topicId: { in: Array.from(contentKeyByTopic.keys()) },
+                contentKey: { in: Array.from(allContentKeys) },
+                OR: personaFilters,
+            },
+            select: {
+                topicId: true,
+                contentKey: true,
+                contentType: true,
+                personaKey: true,
+                payload: true,
+            },
+        })
+        : [];
+    const assetIndex = buildAssetIndex(assets);
+    res.status(200).json({
+        topics: topics.map((topic) => {
+            const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, personaKey, assetIndex);
+            return mapTopicForResponse(topic, resolved);
+        }),
+    });
 }));
 lessonsRouter.get("/courses/:courseKey/personalization", requireAuth, asyncHandler(async (req, res) => {
     const { courseKey } = req.params;
@@ -353,7 +578,7 @@ lessonsRouter.get("/:lessonId/progress", requireAuth, asyncHandler(async (req, r
     }
     const topic = await prisma.topic.findUnique({
         where: { topicId: lessonId },
-        select: { topicId: true },
+        select: { topicId: true, courseId: true },
     });
     if (!topic) {
         res.status(404).json({ message: "Lesson not found" });
@@ -389,7 +614,7 @@ lessonsRouter.put("/:lessonId/progress", requireAuth, asyncHandler(async (req, r
     }
     const topic = await prisma.topic.findUnique({
         where: { topicId: lessonId },
-        select: { topicId: true },
+        select: { topicId: true, courseId: true },
     });
     if (!topic) {
         res.status(404).json({ message: "Lesson not found" });

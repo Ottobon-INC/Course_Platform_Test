@@ -81,7 +81,7 @@ export async function upsertPersonaProfile(params: {
   userId: string;
   courseId: string;
   personaKey: LearnerPersonaProfileKey;
-  rawAnswers: Prisma.JsonValue;
+  rawAnswers: Prisma.InputJsonValue;
   analysisSummary: string;
   analysisVersion: string;
 }) {

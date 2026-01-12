@@ -55,6 +55,9 @@ export async function askCourseAssistant(options) {
             courseTitle: options.courseTitle ?? "MetaLearn Course",
             question: sanitizedQuestion,
             contexts,
+            summary: options.summary ?? null,
+            conversation: options.conversation ?? [],
+            personaPrompt: options.personaPrompt ?? null,
         });
         const answer = await generateAnswerFromContext(prompt);
         logRagUsage(options.userId, "success");
@@ -87,12 +90,30 @@ function buildPrompt(params) {
     const contextBlock = params.contexts
         .map((ctx, index) => `Context ${index + 1}:\n${ctx.content}`)
         .join("\n\n");
+    const summaryBlock = params.summary?.trim()
+        ? `Conversation summary:\n${params.summary.trim()}`
+        : "";
+    const historyBlock = params.conversation && params.conversation.length > 0
+        ? [
+            "Recent conversation:",
+            params.conversation
+                .map((turn) => `${turn.role === "user" ? "User" : "Assistant"}: ${turn.content}`)
+                .join("\n"),
+        ].join("\n")
+        : "";
+    const personaBlock = params.personaPrompt?.trim()
+        ? `Learner personalization:\n${params.personaPrompt.trim()}`
+        : "";
     return [
         `You are a warm, encouraging mentor assisting a learner in the course "${params.courseTitle}".`,
-        "Use only the provided contexts from the official course material.",
+        "Use conversation history only to understand the learner's intent.",
+        "Answer using only the provided contexts from the official course material.",
         "If the answer is not contained in the contexts, politely say you don't have that information.",
         "Respond in 3-6 sentences total and keep the tone human and supportive.",
         "",
+        personaBlock,
+        summaryBlock,
+        historyBlock,
         "Course contexts:",
         contextBlock,
         "",

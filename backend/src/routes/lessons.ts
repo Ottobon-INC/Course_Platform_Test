@@ -207,7 +207,7 @@ function resolveContentLayout(
         }
         return { id: block.id, type, data: payload };
       })
-      .filter((block): block is { id?: string; type: string; data?: Record<string, unknown> } => Boolean(block));
+      .filter((block): block is { id: string | undefined; type: string; data: Record<string, unknown> | undefined } => Boolean(block));
 
     return JSON.stringify({ version: layout.version, blocks: resolvedBlocks });
   }
