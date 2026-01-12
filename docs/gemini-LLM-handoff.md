@@ -1,6 +1,6 @@
 # Handoff Pack - Course_Platform_Test
 
-This document is the entry point for any LLM thread that must build a complete mental model of the Course Platform codebase using documentation only.
+This document is the entry point for any LLM thread that must build a complete mental model of the codebase using documentation only.
 
 ## 1) Recommended reading order
 1. `README.md`
@@ -40,7 +40,7 @@ This document is the entry point for any LLM thread that must build a complete m
 - `*` - NotFound
 
 Notes:
-- `TutorLoginPage.tsx` exists but is not currently wired into routing; tutor login is handled inside `BecomeTutorPage` via `/api/tutors/login`.
+- `TutorLoginPage.tsx` exists but is not wired; tutor login is handled inside `BecomeTutorPage` via `/api/tutors/login`.
 
 ## 4) Backend routers and endpoints
 Routers are mounted at both `/` and `/api`.
@@ -57,7 +57,7 @@ Catalog + enrollment:
 - `POST /courses/:courseKey/enroll` (supports `?checkOnly=true`)
 
 Lessons + personalization:
-- `GET /lessons/modules/:moduleNo/topics` (returns topics for a module across all courses)
+- `GET /lessons/modules/:moduleNo/topics`
 - `GET /lessons/courses/:courseKey/topics`
 - `GET /lessons/courses/:courseKey/personalization`
 - `POST /lessons/courses/:courseKey/personalization`
@@ -66,11 +66,14 @@ Lessons + personalization:
 - `GET /lessons/:lessonId/progress`
 - `PUT /lessons/:lessonId/progress`
 
+Cohort projects:
+- `GET /cohort-projects/:courseKey`
+
 AI tutor (learner):
 - `POST /assistant/query`
 - `GET /assistant/session`
 
-Persona profile analysis (LLM-driven):
+Persona profile analysis:
 - `GET /persona-profiles/:courseKey/status`
 - `POST /persona-profiles/:courseKey/analyze`
 
@@ -107,17 +110,25 @@ Admin:
 Other supporting:
 - `/cart/*`, `/pages/*`, `/tutor-applications/*`, `/users/*`, `/health`
 
-## 5) Data model focus (see `docs/databaseSchema.md`)
+## 5) Content resolution invariants
+- `topics.text_content` can be plain text or a derived JSON layout.
+- Derived layout blocks can include `contentKey` values.
+- `topic_content_assets` stores the master payloads keyed by `(topic_id, content_key, persona_key)`.
+- `lessonsRouter` resolves content keys using the learner tutor persona (`learner_persona_profiles`), falls back to default payloads, and returns resolved blocks to the frontend.
+- The frontend should not filter by tutor persona; it renders the resolved JSON it receives.
+
+## 6) Data model focus (see `docs/databaseSchema.md`)
 Core learner tables:
 - `courses`, `topics`, `topic_progress`, `module_progress`
 - `topic_personalization` (study persona: `normal|sports|cooking|adventure`)
-- `learner_persona_profiles` (LLM persona profiles for tutor prompts)
+- `learner_persona_profiles` (tutor personas for personalization)
+- `topic_content_assets` (master content payloads)
 - `topic_prompt_suggestions`, `module_prompt_usage`
 - `quiz_questions`, `quiz_options`, `quiz_attempts`
 - `enrollments`
 
 Cohort + cold calling:
-- `cohorts`, `cohort_members`
+- `cohorts`, `cohort_members`, `cohort_batch_projects`
 - `cold_call_prompts`, `cold_call_messages`, `cold_call_stars`
 
 AI tutor + memory:
@@ -130,7 +141,7 @@ Telemetry + tutor monitor:
 Tutor/admin:
 - `tutor_applications`, `tutors`, `course_tutors`
 
-## 6) Runtime constants (code-level truth)
+## 7) Runtime constants (code-level truth)
 RAG + tutor:
 - Vector top-K: 5
 - Embedding dims: 1536
@@ -144,26 +155,24 @@ RAG + tutor:
 Quiz gating:
 - Pass threshold: 70%
 - Default question limit: 5 (max 20)
-- Module cooldown window: 7 days (`MODULE_WINDOW_DURATION = "7d"`)
+- Module cooldown window: 7 days
 
 Auth/session:
 - Access token TTL: 900s (default)
 - Refresh token TTL: 30d (default)
 - Refresh buffer: 60s; min refresh delay: 15s
 
-Session storage keys (frontend): `session`, `user`, `isAuthenticated`.
-
 Telemetry:
 - Max events per request: 50
 - History query limit max: 100
 
-## 7) Course resolution rules (important differences)
-- `coursesRouter`: resolves by UUID, legacy slug alias, or `courseName` (decoded + hyphen/underscore normalized). Does not use `slug` field directly.
+## 8) Course resolution rules
+- `coursesRouter`: resolves by UUID, legacy slug alias, or `courseName` (decoded + hyphen/underscore normalized). Does not use `slug` directly.
 - `lessonsRouter`: resolves by UUID, legacy alias, or `courseName` only.
 - `assistantRouter` + `quizRouter`: resolve UUID, legacy alias, `slug`, and `courseName`.
-- RAG retrieval uses the raw `courseId` passed by the client. That value must match the `course_chunks.course_id` used during ingestion (typically the slug).
+- RAG retrieval uses the raw `courseId` passed by the client. It must match `course_chunks.course_id` from ingestion.
 
-## 8) RAG ingestion + imports
+## 9) RAG ingestion and imports
 - Ingest PDF to pgvector:
   - `cd backend`
   - `npm run rag:ingest "../AI Native Full Stack Developer.pdf" ai-native-fullstack-developer "AI Native FullStack Developer"`
@@ -171,8 +180,8 @@ Telemetry:
 - Import precomputed embeddings:
   - `npm run rag:import <json>`
 
-## 9) Known legacy wiring (current reality)
-- `AuthPage.tsx` and `TutorLoginPage.tsx` exist but are not wired in `frontend/src/App.tsx` (landing CTA and `BecomeTutorPage` handle auth instead).
-- Several frontend constants still reference the legacy slug `ai-in-web-development` (e.g., `frontend/src/constants/routes.ts`, Auth callback defaults, older pages). These still work because the backend resolves the legacy slug.
+## 10) Known legacy wiring
+- `AuthPage.tsx` and `TutorLoginPage.tsx` exist but are not wired in `frontend/src/App.tsx`.
+- Some frontend constants still reference the legacy slug `ai-in-web-development`. This is safe because the backend resolves the legacy slug.
 
-This handoff must be treated as authoritative for LLM context building.
+This handoff should be treated as authoritative for LLM context building.

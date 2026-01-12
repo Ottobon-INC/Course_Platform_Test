@@ -1,173 +1,68 @@
 # Frontend Documentation
 
-This document describes the Ottolearn frontend: architectural decisions, directory layout, color palette, authentication flow, and the responsibilities of major pages for both learners and tutors.
+This document describes the Ottolearn frontend: architecture, layout rules, and the responsibilities of major pages.
 
-## 1. Tech Stack & Build
+## 1. Tech stack
+- React 18 + TypeScript
+- Vite build tooling
+- Tailwind CSS + shadcn/ui components
+- TanStack Query for data fetching
+- Wouter for routing
+- Session heartbeat in `src/utils/session.ts`
 
-- **Framework:** React 18 + TypeScript
-- **Bundler / Dev Server:** Vite (see `frontend/vite.config.ts`)
-- **Styling:** Tailwind CSS with CSS variables defined in `src/index.css`; Radix UI primitives wrapped via ShadCN components under `src/components/ui`
-- **Data Layer:** TanStack Query (`src/lib/queryClient.ts`) using helpers in `src/lib/api.ts`
-- **State / Auth:** Browser storage + helper utilities in `src/utils/auth.ts` and `src/utils/session.ts`
-- **Animations:** framer-motion (`LandingPage`, `TutorDashboardPage`, etc.)
-- **Charts / UI:** Recharts, Radix UI (dropdowns, dialogs, etc.) surfaced via custom components
-- **Build Targets:** Dockerfile in `frontend/` builds with `npm ci --legacy-peer-deps`; static files served by nginx
-
-## 2. Directory Structure
-
+## 2. Directory structure
 ```
 frontend/
-├── components/              // reusable UI blocks (VideoPlayer, EnrollmentGateway, etc.)
-│   ├── ui/                  // Radix-based primitives (button, dialog, dropdown, etc.)
-│   ├── layout/              // shared layout wrappers (SiteHeader, SiteLayout)
-│   └── examples/            // story-style samples of key components
-├── constants/               // navigation metadata, route configs, theme tokens
-├── hooks/                   // shared hooks (use-mobile, use-toast)
-├── lib/                     // API helpers, TanStack query client
-├── pages/                   // top-level routes
-│   ├── LandingPage.tsx      // marketing + acquisition
-│   ├── CourseDetailsPage.tsx
-│   ├── CoursePlayerPage.tsx
-│   ├── TutorDashboardPage.tsx, TutorLoginPage.tsx
-│   ├── AuthPage.tsx / AuthCallbackPage.tsx
-│   ├── EnrollmentPage.tsx, CartPage.tsx, AssessmentPage.tsx, etc.
-│   └── not-found.tsx
-├── utils/                   // telemetry, auth, session helpers
-├── types/                   // shared TypeScript interfaces
-├── assets/                  // static images, generated marketing art
-├── tailwind.config.ts       // theme extensions & custom palette
-└── src/index.css            // CSS variables, global resets, font definitions
+  src/
+    pages/
+      LandingPage.tsx
+      CourseDetailsPage.tsx
+      CoursePlayerPage.tsx
+      CourseCertificatePage.tsx
+      TutorDashboardPage.tsx
+      AuthCallbackPage.tsx
+    components/
+      CourseSidebar.tsx
+      ColdCalling.tsx
+      SimulationExercise.tsx
+      CohortProjectModal.tsx
+      ChatBot.tsx
+    lib/
+      api.ts
+      queryClient.ts
+    utils/
+      session.ts
+      telemetry.ts
 ```
 
-> **Tip:** All entry routes are wired in `src/App.tsx`. Each page composes shared components via `SiteLayout` and the UI primitives.
+## 3. Primary routes
+- `/` - LandingPage
+- `/course/:id` - CourseDetailsPage
+- `/course/:id/learn/:lesson` - CoursePlayerPage
+- `/course/:id/congrats/certificate` - CourseCertificatePage
+- `/tutors` - TutorDashboardPage
+- `/become-a-tutor` - BecomeTutorPage
 
-## 3. Color Palette & Typography
+## 4. Course player behavior (CoursePlayerPage)
+- Loads all topics from `GET /lessons/courses/:courseKey/topics`.
+- If `topics.text_content` is JSON, `parseContentBlocks` renders block types: `text`, `image`, `video`, `ppt`.
+- The Study Material header appears immediately before the first text block.
+- If the first block is video, the video renders at the top with no header above it.
+- If the first text block is followed by an image block, the image attaches under that text card.
+- Read Mode collapses the video block with a smooth transition and auto-scrolls to the top.
+- Cohort Project button sits in the course player header and opens `CohortProjectModal` after calling `/cohort-projects/:courseKey`.
+- Study persona variants (sports/cooking/adventure) are switched client-side using `topic_personalization`.
 
-Defined in `src/index.css` and exposed as Tailwind utilities (see `tailwind.config.ts`):
+Note: Tutor persona selection is resolved on the backend via `topic_content_assets`. The frontend never filters by tutor persona.
 
-| Token           | RGB / Hex            | Usage                                |
-|-----------------|----------------------|--------------------------------------|
-| `retro-teal`    | `rgb(36,72,85)` (#244855)  | Primary text, headings, cards        |
-| `retro-salmon`  | `rgb(230,72,51)` (#E64833) | Primary CTA, highlights               |
-| `retro-sage`    | `rgb(216,234,211)`        | Subtle backgrounds, badges           |
-| `retro-cyan`    | `rgb(144,174,173)`        | Secondary text, icons                |
-| `retro-bg`      | `rgb(251,233,208)` (#FBE9D0) | Landing hero & course sections   |
-| `retro-yellow`  | `rgb(245,158,11)`         | Status chips, accents                |
-| `retro-brown`   | `rgb(135,79,65)`          | Borders, typography flourishes       |
-
-Font families (`--font-sans`, `--font-serif`, `--font-mono`) default to Inter, Georgia, JetBrains Mono respectively. Dark-mode tokens are also defined in `index.css` under the `.dark` class.
-
-## 4. Global User Flow
-
-### 4.1 Learner Flow
-1. **Landing (`/`)** – hero, curriculum teaser, testimonials, CTA buttons. `onLogin` triggers Google OAuth.
-2. **Auth (`/auth/callback`)** – OAuth starts from the Landing CTA (no dedicated `/auth` route). After Google OAuth, the backend redirects to `/auth/callback` handled by `AuthCallbackPage.tsx`, which stores tokens via `utils/auth.ts` and routes to the intended course. `AuthPage.tsx` exists but is not wired in `App.tsx`.
-3. **Course Detail (`/course/:slug`)** – `CourseDetailsPage.tsx` fetches course info, modules, and gating rules via TanStack Query. Enrollment buttons open `EnrollmentGateway` or `CartPage` depending on payment stage.
-4. **Course Player (`/course/:slug/learn/:topic`)** – `CoursePlayerPage.tsx` orchestrates video, AI copilot, cold-calls, telemetry dispatch (via `utils/telemetry.ts`). Idle detection + quiz interactions send events to backend.
-5. **Assessment / Congrats** – `AssessmentPage.tsx`, `CongratsPage.tsx`, `CongratsFeedbackPage.tsx`, and `CourseCertificatePage.tsx` handle gating, feedback, certificate prompts, and payment checkouts (routes live under `/course/:id/congrats/*`).
-
-### 4.2 Tutor Flow
-1. **Tutor Login (within `/become-a-tutor`)** – the tutor login form posts to `/api/tutors/login` (email + password). `TutorLoginPage.tsx` exists but is not wired in the router.
-2. **Tutor Dashboard (`/tutors`)** – `TutorDashboardPage.tsx` shows:
-   - Course overview cards (active learners, module progress, alert counts)
-   - Enrollments table and progress table
-   - Learner Monitor section pulling `learner_activity_events` + derived engagement states
-   - AI Tutor Copilot chat backed by `/api/tutors/assistant/query`
-   - Cold-call and persona widgets for managing live cohorts
-3. **Tutor Detail Actions** – selecting a learner fetches timeline data via `/api/activity/learners/:id/history` and shows the event stream. Tutors can answer cold-calls or push interventions (UI hooks already in place).
-
-## 5. Page-by-Page Notes
-
-### LandingPage.tsx
-- **Purpose:** Marketing funnel; collects searches (`TypewriterInput`), provides CTA buttons, testimonial slider, syllabus modal.
-- **Key components:** `SiteLayout` wrapper, `ChatBot` snippet, `ValueProp` grid, `Testimonials`, `Hero` with Typewriter search, certificate CTA.
-- **External assets:** `Certificate.png`, generated hero imagery in `src/assets`.
-- **Actions:** `onEnroll`, `onLogin`, `onApplyTutor`, `scrollToSection` handlers passed from `App.tsx`.
-
-### CourseDetailsPage.tsx
-- **Purpose:** Show syllabus, cohort availability, pricing before entry.
-- **Data:** TanStack Query fetches course metadata, module outlines, persona notes.
-- **Components:** `CourseSidebar`, `LessonTabs`, `QuizCard` preview, `AssessmentResults` sample.
-- **Interactions:** Enroll buttons route to `EnrollmentPage` or `AuthPage` based on auth state and cohort eligibility.
-
-### CoursePlayerPage.tsx
-- **Purpose:** Unlockable player with gating logic (module lock system + telemetry).
-- **Key children:** `VideoPlayer` (custom wrapper around media-chrome), `LessonTabs` for outline, `ColdCalling`, `SimulationExercise`, `ChatBot` for AI assistant, `QuizCard` for inline quizzes.
-- **Telemetry:** `useEffect` hooks call `utils/telemetry.ts` to emit `lesson.view`, `idle.start`, persona changes, etc. Idle heuristics feed the tutor dashboard.
-- **Persona profiles:** the AI tutor personalization modal checks `/api/persona-profiles/:courseKey/status` and submits survey responses to `/api/persona-profiles/:courseKey/analyze`.
-- **Lock System:** `course_chunks` and `module_progress` data determine disabled cards; UI uses “Unlocked/Locked” states with `status` badges.
-
-### TutorDashboardPage.tsx
-- **Purpose:** Control tower for tutors. Layout contains hero “Command Center”, stats cards, enrollments list, progress table, Learner Monitor, Copilot panel.
-- **Data:** Uses `/api/tutors/me/courses`, `/api/tutors/:courseId/enrollments`, `/api/tutors/:courseId/progress`, `/api/lessons/courses/:courseId/topics`, and `/api/activity/courses/:courseId/learners` (30s refresh).
-- **Learner Monitor:** `learner_activity_events` summarized into statuses (Engaged, Attention Drift, Content Friction, Unknown). Selecting a learner expands timeline cards.
-- **Copilot:** Chat UI that posts prompts to `/api/tutors/assistant/query` with the selected course id.
-
-### Enrollment & Cart Pages
-- **EnrollmentPage.tsx:** Handles cohort-gated entry; checks `cohort_members` status, displays verification modals.
-- **CartPage.tsx:** Upsell for optional add-ons; uses `cart_items` data and `QuizCard` previews.
-
-### Auth Pages
-- **AuthPage.tsx:** Central login view for learners, but it is not currently wired in `App.tsx` (landing CTA uses `/auth/google` directly).
-- **AuthCallbackPage.tsx:** Parses tokens from backend redirect, saves to storage via `utils/auth.ts`, hydrates TanStack Query cache, then navigates to `redirectPath` (default `/`).
-
-### Misc Pages
-- `AboutPage`, `LearningPathPage`: editorial content, uses `ValueProp` grids and charts.
-- `DashboardPage`: Learner mini-dashboard (progress summary).
-- `not-found.tsx`: Friendly 404 with CTA back to landing.
-
-## 6. Component Highlights
-
-- **`components/layout/SiteLayout.tsx`** – wraps pages with header/footer, handles theme background.
-- **`components/ui/*`** – ShadCN wrappers around Radix primitives, ensuring consistent styling with theme tokens.
-- **`components/ChatBot.tsx`** – shared chat interface; takes props describing persona (Tutor Copilot vs Learner Copilot).
-- **`components/CourseSidebar.tsx`** – left navigation inside player/dashboards, aware of lock status and progress numbers.
-- **`components/ColdCalling.tsx`** – renders cold-call prompts and buttons to acknowledge/reschedule; surfaces state to tutor analytics.
-
-## 7. Utilities & Telemetry
-
-- `src/utils/telemetry.ts` – central dispatcher for learner actions. Wraps `fetch` to `/api/activity` batches. Events supported: `lesson.view`, `video.play/pause`, `quiz.submit`, `persona.change`, `idle.start/idle.end`, `cold_call.*`, etc.
-- `src/utils/auth.ts` – login/logout helpers storing tokens, session IDs, and user info in `localStorage`.
-- `src/utils/session.ts` – guard functions to read `accessToken`, check expiry, and refresh via backend if needed.
-
-## 8. User & Tutor Flows (Stepwise)
-
-### Learner
-1. Visit `LandingPage` ⇨ search or hit “Enroll”/“Continue with Google” button.
-2. Google OAuth success triggers `AuthCallbackPage` to store session.
-3. `CourseDetailsPage` accessible; gating enforcement based on `cohort_members` record (populated server-side).
-4. `EnrollmentGateway` verifies lock rules; once satisfied, route to `CoursePlayerPage`.
-5. During learning, telemetry events accumulate + quizzes unlock next modules.
-6. After final assessment, `CongratsPage` ⇨ `CourseCertificatePage` with download prompts.
-
-### Tutor
-1. Tutor login form (inside `BecomeTutorPage`) posts to `/api/tutors/login`; backend validates tutor/admin credentials and issues a session.
-2. `TutorDashboardPage` loads course filter + hero stats.
-3. Tutors monitor statuses via `/api/activity/courses/:courseId/learners`, drill into `/api/activity/learners/:id/history`, respond to cold-calls, or query AI Copilot for summaries.
-4. Optional: Manage assignments via “Manage assignments” CTA (routes into dashboard subsections when enabled).
-
-## 9. Styling Guidelines
-
-- **Border Radius:** use `rounded-3xl`, `rounded-2xl`, or tokens defined in Tailwind config for consistent pill shapes.
-- **Shadow Language:** Soft shadows like `shadow-[0_20px_60px_rgba(20,19,69,0.08)]` for cards; use tinted backgrounds plus border overlays for “glass” look.
-- **Buttons:** Primary CTA uses `bg-retro-salmon` with hover state `hover:bg-retro-teal`. Outline buttons use `border-gray-300` + uppercase text (e.g., Google login).
-- **Typography:** Headings set in `text-retro-teal` with `font-bold`. Body copy uses `text-retro-teal/80` or `text-[#244855]` for readability.
-
-## 10. Running & Testing
-
+## 5. Running the frontend
 ```bash
 cd frontend
-npm ci --legacy-peer-deps   # install deps (mirrors Docker build)
-npm run dev                 # start Vite dev server
-npm run build               # production build (outputs to dist/)
+npm install
+npm run dev
 ```
 
-Docker build uses `frontend/Dockerfile`, copying app, running `npm ci --legacy-peer-deps`, `npm run build`, then serving via nginx.
-
-## 11. Future Notes
-
-- **Cohort Data:** Authentication relies on backend verifying `cohort_members`. No frontend change is required when adding cohorts; UI simply reflects API responses.
-- **Telemetry & Tutor Dashboard:** For new learner actions, update both `utils/telemetry.ts` (frontend) and backend `/activity` service to keep Tutor Monitor accurate.
-- **Color Palette Extensions:** Add tokens inside `index.css` and reference them via Tailwind `extend.colors` for consistency.
-
-This document should serve as the authoritative reference for the frontend structure, styling language, and primary flows. Update it whenever new routes/components are introduced to keep onboarding friction low.
+Build:
+```bash
+npm run build
+```

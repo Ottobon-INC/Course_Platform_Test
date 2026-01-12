@@ -1,65 +1,60 @@
 # Course Platform Project Structure
 
-Use this guide to understand where each major feature lives. Pair it with `Course_Platform.md` for behavioural context.
+Use this guide to locate major features quickly. Pair it with `Course_Platform.md` for behavior details.
 
 ## Root
-- `CP_Arc.md`, `Course_Platform.md`, `README.md`, `docs/` – documentation packet to share with external reviewers or LLMs.
-- `task_progress.md`, `docs/App Changes.md` – running task log + changelog.
-- `AI Native Full Stack Developer.pdf` – source material for RAG ingestion.
-- `backend/`, `frontend/` – main workspaces.
+- `CP_Arc.md`, `Course_Platform.md`, `README.md`, `Frontend.md` - high-level docs.
+- `task_progress.md`, `docs/App Changes.md` - task log and changelog.
+- `AI Native Full Stack Developer.pdf` - source material for RAG ingestion.
+- `backend/`, `frontend/` - main workspaces.
+- `docs/` - documentation bundle.
 
-Optional: JSON exports for `rag:import` are stored outside the repo and loaded via `backend/scripts/importCourseChunks.ts` when needed.
+Optional: JSON exports for `rag:import` live outside the repo and can be loaded with `backend/scripts/importCourseChunks.ts`.
 
 ## Frontend (`frontend/`)
-- `package.json`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig.json` – tooling.
+- `package.json`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig.json`.
 - `src/main.tsx` (bootstraps React), `src/App.tsx` (routes + providers).
 - `src/pages/`
-  - `LandingPage.tsx` – marketing hero + CTA entry.
-  - `CourseDetailsPage.tsx` – curriculum timeline, Ottolearn modal, auto enrollment + questionnaire redirection.
-  - `CoursePlayerPage.tsx` – orchestrates modules, progress, personas, quiz tab, tutor chat.
-  - `CourseCertificatePage.tsx` – certificate preview & upgrade CTA.
-  - `EnrollmentPage.tsx`, `AssessmentPage.tsx` – purchase/quiz scaffolds.
-  - `AuthCallbackPage.tsx` – Google OAuth redirect handler.
-  - `BecomeTutorPage.tsx`, `AboutPage.tsx`, `not-found.tsx` – supporting routes.
+  - `LandingPage.tsx` - marketing hero + CTA entry.
+  - `CourseDetailsPage.tsx` - curriculum timeline + enrollment modal.
+  - `CoursePlayerPage.tsx` - main learning experience (blocks, quizzes, tutor chat).
+  - `CourseCertificatePage.tsx` - certificate preview.
+  - `TutorDashboardPage.tsx`, `BecomeTutorPage.tsx`, `AuthCallbackPage.tsx`.
 - `src/components/`
-  - `CourseSidebar.tsx` – module accordion + progress stats.
-  - `LessonTabs.tsx` – study material/practice tabs with Markdown rendering.
-  - `ColdCalling.tsx` – blind-response cohort prompt with threaded replies and star reactions.
-  - `ChatBot.tsx` – AI tutor dock (suggestions, typed prompts, quota messaging, chat history hydration).
-  - `layout/` (SiteHeader, SiteLayout) and `ui/` (shadcn primitives) reused across pages.
-- `src/lib/queryClient.ts`, `src/lib/api.ts` – fetch wrappers.
-- `src/utils/session.ts` – session storage, refresh heartbeat, subscribe/unsubscribe API.
+  - `CourseSidebar.tsx` - module accordion + progress.
+  - `ColdCalling.tsx` - cohort prompt + replies.
+  - `SimulationExercise.tsx` - simulation block rendering.
+  - `CohortProjectModal.tsx` - project brief modal.
+  - `ChatBot.tsx` - AI tutor dock.
+- `src/lib/api.ts`, `src/lib/queryClient.ts` - API helpers.
+- `src/utils/session.ts`, `src/utils/telemetry.ts` - session heartbeat and telemetry buffer.
 
 ## Backend (`backend/`)
-- `src/server.ts`, `src/app.ts` – Express bootstrap.
+- `src/server.ts`, `src/app.ts` - Express bootstrap.
 - `src/routes/`
-  - `auth.ts` – Google OAuth + JWT lifecycle.
-  - `courses.ts` – catalog fetch + POST enroll (cohort eligibility enforced here).
-  - `lessons.ts` – topic aggregation, progress CRUD, personas, curated prompts.
-  - `quiz.ts` – sections/progress/attempts/submit endpoints.
-  - `assistant.ts` – RAG tutor with rate limiting, prompt quotas, and persistent chat memory (`/assistant/session`).
-  - `personaProfiles.ts` – persona profile analysis (`/persona-profiles/*`).
-  - `coldCall.ts` – cold calling prompts, blind-response gating, replies, and stars.
-  - `cart.ts`, `pages.ts`, `tutorApplications.ts`, `users.ts`, `health.ts` – supporting routes.
-  - `tutors.ts` – tutor login, dashboards, enrollments, progress, copilot.
-  - `admin.ts` – admin approvals for tutor applications.
+  - `auth.ts` - Google OAuth + JWT lifecycle.
+  - `courses.ts` - catalog fetch + enroll.
+  - `lessons.ts` - topics, personalization, progress, content resolution.
+  - `cohortProjects.ts` - cohort project lookup.
+  - `quiz.ts`, `assistant.ts`, `coldCall.ts`, `activity.ts`, `personaProfiles.ts`.
+  - `tutors.ts`, `admin.ts`, `cart.ts`, `pages.ts`, `users.ts`, `health.ts`.
 - `src/services/`
-  - `sessionService.ts`, `googleOAuth.ts`, `userService.ts` – auth helpers.
-  - `cohortAccess.ts` – cohort allowlist checks keyed by course + email/userId.
-  - `enrollmentService.ts` – ensures unique enrollments.
-  - `promptUsageService.ts` – typed prompt quota helpers.
-  - `personaProfileService.ts`, `personaPromptTemplates.ts` – LLM persona profile analysis + prompt templates.
-  - `cartService.ts`, `prisma.ts` – commerce + DB helpers.
-- `src/rag/`
-  - `openAiClient.ts` / `ragService.ts` / `rateLimiter.ts` / `usageLogger.ts` / `textChunker.ts` / `pii.ts`.
-- `prisma/schema.prisma`, `prisma/migrations/*` – data model + migrations.
-  - `prisma/migrations/20251230_add_cold_calling` – cold calling prompt + message tables.
-  - `prisma/migrations/20251231_add_rag_chat_memory` – persistent tutor chat sessions + messages (cp_ prefixed).
-- `scripts/ingestCourseContent.ts` – CLI entry to chunk the PDF, generate embeddings, and load them into Postgres pgvector.
-- `scripts/importCourseChunks.ts` – import precomputed embeddings from JSON exports into `course_chunks`.
+  - `sessionService.ts`, `googleOAuth.ts`, `enrollmentService.ts`.
+  - `cohortAccess.ts`, `promptUsageService.ts`.
+  - `personaProfileService.ts`, `personaPromptTemplates.ts`.
+  - `prisma.ts`.
+- `src/rag/` - OpenAI client, pgvector retrieval, rate limiter, usage logging.
+- `prisma/schema.prisma`, `prisma/migrations/*`
+  - `20251230_add_cold_calling`
+  - `20251231_add_rag_chat_memory`
+  - `20260108_add_cohort_batch_projects`
+  - `20260109_add_topic_content_assets`
+- `scripts/ingestCourseContent.ts`, `scripts/importCourseChunks.ts`
 
 ## Docs (`docs/`)
-- `LLM-handoff.md` / `gemini-handoff.md` – recommended reading order + system invariants for LLM onboarding.
-- `App Changes.md`, `backend-dev-log.md`, `databaseSchema.md`, `design_guidelines.md`, `project-walkthrough.md`, `project-structure.md` (this file).
+- `LLM-handoff.md`, `gemini-LLM-handoff.md` - LLM onboarding.
+- `databaseSchema.md`, `design_guidelines.md`.
+- `project-structure.md`, `project-walkthrough.md`.
+- `backend-dev-log.md`, `App Changes.md`.
 
-With this map you can quickly locate the React components, Express routers, and documentation needed to trace any feature end to end.
+This map should stay updated whenever new components or routes are added.

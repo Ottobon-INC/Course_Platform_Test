@@ -1,41 +1,50 @@
 # Database Schema - Course Platform
 
-> Source of truth: `backend/prisma/schema.prisma` (Prisma 6, PostgreSQL provider). All columns in the physical database remain snake_case; Prisma maps them to camelCase fields for TypeScript ergonomics.
+Source of truth: `backend/prisma/schema.prisma`. Physical tables are snake_case; Prisma maps them to camelCase fields.
 
-## 1. Entity Overview
+## 1. Entity overview
 | Group | Tables | Highlights |
 | --- | --- | --- |
-| Accounts & sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | Google OAuth identities, hashed refresh tokens, tutor staffing |
-| Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, persona text, simulations, CMS pages |
-| Cohort access | `cohorts`, `cohort_members` | Enrollment allowlist per course with batch grouping |
-| Cohort interaction | `cold_call_prompts`, `cold_call_messages`, `cold_call_stars` | Blind-response prompts, threaded replies, star validation |
-| Knowledge store | `course_chunks` | RAG embeddings stored in Postgres pgvector |
-| Tutor memory | `cp_rag_chat_sessions`, `cp_rag_chat_messages` | Persistent per-topic chat history and rolling summaries |
-| Personalisation | `topic_personalization`, `learner_persona_profiles`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas per learner/course, LLM persona profiles, curated tutor prompts, typed prompt counters |
-| Progress & assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion, question banks, attempt storage, module unlock state |
-| Commerce & enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment rows created automatically, cart storage retained for future upgrades |
+| Accounts and sessions | `users`, `user_sessions`, `tutors`, `tutor_applications`, `course_tutors` | OAuth identities, hashed refresh tokens, tutor staffing |
+| Course catalog | `courses`, `topics`, `simulation_exercises`, `page_content` | Module/topic metadata, legacy persona text, simulations, CMS pages |
+| Content assets | `topic_content_assets` | Master content store keyed by `content_key` + `persona_key` |
+| Cohort access | `cohorts`, `cohort_members`, `cohort_batch_projects` | Allowlist batches and assigned project briefs |
+| Cohort interaction | `cold_call_prompts`, `cold_call_messages`, `cold_call_stars` | Blind-response prompts and reactions |
+| Knowledge store | `course_chunks` | RAG embeddings stored in pgvector |
+| Tutor memory | `cp_rag_chat_sessions`, `cp_rag_chat_messages` | Persistent chat history and summaries |
+| Personalization | `topic_personalization`, `learner_persona_profiles`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas, tutor personas, prompt trees, quotas |
+| Progress and assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion and module unlock state |
+| Commerce and enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment writes and cart storage |
 
-## 2. Mermaid Diagram
+## 2. Mermaid diagram (abridged)
 ```
 classDiagram
     class User {
         +UUID userId
         +String email
-        +String fullName
-        +Role role (learner|tutor|admin)
-    }
-    class UserSession {
-        +UUID jwtId
-        +UUID userId
-        +String refreshToken (hashed)
-        +DateTime expiresAt
+        +Role role
     }
     class Course {
         +UUID courseId
-        +String slug
         +String courseName
-        +Int priceCents
-        +String category/level
+        +String slug
+    }
+    class Topic {
+        +UUID topicId
+        +UUID courseId
+        +Int moduleNo
+        +Int topicNumber
+        +String topicName
+        +String textContent (derived JSON)
+    }
+    class TopicContentAsset {
+        +UUID assetId
+        +UUID topicId
+        +UUID courseId
+        +String contentKey
+        +String contentType
+        +PersonaKey? personaKey
+        +Json payload
     }
     class Cohort {
         +UUID cohortId
@@ -49,42 +58,12 @@ classDiagram
         +UUID? userId
         +String email
         +Int batchNo
-        +String status
     }
-    class ColdCallPrompt {
-        +UUID promptId
-        +UUID courseId
-        +UUID topicId
-        +String promptText
-        +String? helperText
-    }
-    class ColdCallMessage {
-        +UUID messageId
-        +UUID promptId
+    class CohortBatchProject {
+        +UUID projectId
         +UUID cohortId
-        +UUID userId
-        +UUID? parentId
-        +UUID? rootId
-        +String body
-    }
-    class ColdCallStar {
-        +UUID starId
-        +UUID messageId
-        +UUID userId
-    }
-    class Topic {
-        +UUID topicId
-        +UUID courseId
-        +Int moduleNo
-        +Int topicNumber
-        +String topicName
-        +String textContent(+persona variants)
-    }
-    class TopicProgress {
-        +UUID topicId
-        +UUID userId
-        +Bool isCompleted
-        +Int lastPosition (percentage proxy)
+        +Int batchNo
+        +Json payload
     }
     class TopicPersonalization {
         +UUID userId
@@ -95,192 +74,46 @@ classDiagram
         +UUID profileId
         +UUID userId
         +UUID courseId
-        +String personaKey
-        +String? analysisSummary
-        +String? analysisVersion
-    }
-    class TopicPromptSuggestion {
-        +UUID suggestionId
-        +UUID? courseId
-        +UUID? topicId
-        +UUID? parentSuggestionId
-        +String promptText
-        +String? answer
-    }
-    class ModulePromptUsage {
-        +UUID userId
-        +UUID courseId
-        +Int moduleNo
-        +Int typedCount
-    }
-    class CourseChunk {
-        +String chunkId
-        +String courseId
-        +Int position
-        +Vector embedding
-    }
-    class RagChatSession {
-        +UUID sessionId
-        +UUID userId
-        +UUID courseId
-        +UUID topicId
-        +String? summary
-        +Timestamp? lastMessageAt
-    }
-    class RagChatMessage {
-        +UUID messageId
-        +UUID sessionId
-        +UUID userId
-        +RagChatRole role
-        +String content
-    }
-    class QuizQuestion {
-        +UUID questionId
-        +UUID courseId
-        +Int moduleNo
-        +Int topicPairIndex
-    }
-    class QuizOption {
-        +UUID optionId
-        +UUID questionId
-        +String optionText
-        +Bool isCorrect
-    }
-    class QuizAttempt {
-        +UUID attemptId
-        +UUID userId
-        +UUID courseId
-        +Int moduleNo
-        +Int topicPairIndex
-        +Json questionSet
-        +Json answers
-    }
-    class ModuleProgress {
-        +UUID userId
-        +UUID courseId
-        +Int moduleNo
-        +Bool quizPassed
-        +Timestamp unlocked_at
-        +Timestamp? cooldown_until
-    }
-    class Enrollment {
-        +UUID userId
-        +UUID courseId
-        +String status
-    }
-    class CartItem {
-        +UUID userId
-        +String courseSlug
-        +Json? courseData
+        +PersonaKey personaKey
     }
 
-    User "1" -- "*" UserSession
-    User "1" -- "*" TopicProgress
     User "1" -- "*" TopicPersonalization
     User "1" -- "*" LearnerPersonaProfile
-    User "1" -- "*" ModulePromptUsage
-    User "1" -- "*" QuizAttempt
-    User "1" -- "*" ModuleProgress
-    User "1" -- "*" Enrollment
-    User "1" -- "*" CartItem
     User "1" -- "*" CohortMember
     Course "1" -- "*" Topic
     Course "1" -- "*" Cohort
-    Course "1" -- "*" CourseChunk
-    Course "1" -- "*" RagChatSession
-    Course "1" -- "*" TopicPromptSuggestion
-    Course "1" -- "*" LearnerPersonaProfile
-    Course "1" -- "*" ModulePromptUsage
-    Course "1" -- "*" ColdCallPrompt
-    Course "1" -- "*" QuizQuestion
-    Course "1" -- "*" ModuleProgress
-    Course "1" -- "*" Enrollment
-    Topic "1" -- "*" TopicProgress
-    Topic "1" -- "*" TopicPromptSuggestion
-    Topic "1" -- "*" ColdCallPrompt
-    Topic "1" -- "*" RagChatSession
-    RagChatSession "1" -- "*" RagChatMessage
-    User "1" -- "*" RagChatSession
-    User "1" -- "*" RagChatMessage
-    QuizQuestion "1" -- "*" QuizOption
+    Topic "1" -- "*" TopicContentAsset
     Cohort "1" -- "*" CohortMember
-    Cohort "1" -- "*" ColdCallMessage
-    ColdCallPrompt "1" -- "*" ColdCallMessage
-    ColdCallMessage "1" -- "*" ColdCallStar
-    User "1" -- "*" ColdCallMessage
-    User "1" -- "*" ColdCallStar
+    Cohort "1" -- "*" CohortBatchProject
 ```
 
-## 3. Table Notes
-### users
-- Primary key `userId` (UUID generated via `gen_random_uuid()`).
-- `passwordHash` is required even for Google logins; OAuth signups receive a generated hash.
-- Relations: `cartItems`, `cartLines`, `enrollments`, `topicProgress`, `personalizations`, `promptUsage`, `sessions`, optional `tutorProfile`.
+## 3. Table notes
+### topics
+- Stores module/topic metadata and legacy content fields (`video_url`, `ppt_url`, `text_content_*`).
+- `text_content` may hold a derived JSON layout with blocks and `contentKey` references.
 
-### user_sessions
-- Stores hashed refresh tokens (`refresh_token` column) plus the JWT ID.
-- Composite index on `user_id` for quick cleanup; tokens expire through the `expires_at` timestamp.
+### topic_content_assets
+- Master store for persona-specific assets referenced by `contentKey`.
+- `content_type` is one of `text`, `image`, `video`, `ppt`.
+- `persona_key` uses `LearnerPersonaProfileKey` and can be null to represent default content.
+- Payload is JSON and is returned to the frontend after backend filtering.
 
-### courses & topics
-- Courses include marketing metadata used by CourseDetails (category, level, hero imagery, rating, students).
-- Primary course slug is `ai-native-fullstack-developer`; legacy `ai-in-web-development` links still resolve via backend slug resolution.
-- Topics carry persona-aware guide content (`text_content_sports`, `text_content_cooking`, `text_content_adventure`), ppt/video URLs, optional simulation JSON, and unique `(courseId, moduleNo, topicNumber)` constraints.
+### cohorts and cohort_members
+- Cohort allowlists are tracked per course.
+- `cohort_members.batch_no` assigns learners to batches used for project briefs.
 
-### cohorts & cohort_members
-- `cohorts` groups enrollment allowlists per course (e.g., "Cohort 1").
-- `cohort_members` stores approved emails with `status` and `batch_no` to track batch grouping.
-- Enrollment checks use email/userId to validate access before opening the protocol modal.
-
-### cold_call_prompts, cold_call_messages, cold_call_stars
-- `cold_call_prompts` attaches a blind-response cohort question to a topic.
-- `cold_call_messages` stores both top-level responses and nested replies (using `parent_id` + `root_id`).
-- `cold_call_stars` enforces one star per user per message to surface the most helpful responses.
+### cohort_batch_projects
+- One row per `(cohort_id, batch_no)` storing a project brief payload.
+- Payload format is `{ title, tagline, description, notes? }`.
 
 ### topic_personalization
-- Unique per `(userId, courseId)`.
-- `StudyPersona` enum: `normal`, `sports`, `cooking`, `adventure`.
-- Used by `/lessons/courses/:slug/personalization`.
+- Study narrator preference per learner/course (`normal`, `sports`, `cooking`, `adventure`).
 
 ### learner_persona_profiles
-- Stores LLM-classified learner personas used to personalize tutor prompts (distinct from study narration personas).
-- Unique per `(userId, courseId)` with `personaKey` values defined in `backend/src/services/personaPromptTemplates.ts`.
-- Populated via `/persona-profiles/:courseKey/analyze` and checked via `/persona-profiles/:courseKey/status`.
+- LLM-derived tutor persona per learner/course (non_it_migrant, rote_memorizer, english_hesitant, last_minute_panic, pseudo_coder).
+- Used by the backend to select persona-specific content assets.
 
-### topic_prompt_suggestions
-- Tree structure using `parentSuggestionId` for follow-up prompts.
-- Suggestions can be course-wide (no topicId) or topic-specific.
-- `isActive` flag allows soft-deleting prompts without re-ingesting content.
-
-### module_prompt_usage
-- Composite unique index `(userId, courseId, moduleNo)`.
-- `typedCount` increments whenever a typed prompt finishes successfully; used to enforce the per-module quota in `assistantRouter`.
-
-### course_chunks (pgvector)
-- Stores chunked course material plus embeddings (`vector(1536)`).
-- Backed by the pgvector extension and a vector similarity index for RAG retrieval.
-
-### cp_rag_chat_sessions & cp_rag_chat_messages
-- Persist chat sessions per `(user_id, course_id, topic_id)` with rolling summaries for follow-up context.
-- Messages are stored with roles (user/assistant) to rebuild recent history for the tutor dock.
-- `summary_message_count` tracks how many messages have been summarized; `summary_updated_at` records the last summary refresh.
-
-### quiz tables
-- `quiz_questions` contain module number + topic pair index so sections can be grouped dynamically.
-- `quiz_options` mark `is_correct` per option; serialization excludes the boolean to keep answers hidden from the client.
-- `quiz_attempts` store the frozen question set plus submitted answers, score, and status (`passed`/`failed`).
-- `module_progress` records `unlocked_at`, `cooldown_until`, `quiz_passed`, and timestamps for gating logic.
-
-### enrollments & cart_items
-- `ensureEnrollment` upserts status `active` rows so re-enrolling never duplicates data.
-- Cart storage is retained for future commerce flows even though the current funnel offers a free cohort.
-
-### CMS and tutor applications
-- `page_content` holds serialized sections for marketing pages (hero blocks, FAQs, etc.).
-- `tutor_applications` capture inbound tutor leads for internal review (name, headline, proposed course, availability).
-
-## 4. Schema Tips
-- Run `npx prisma format` after editing `schema.prisma` to keep naming consistent.
-- The repo prefers Prisma migrations over manual SQL. Use `npx prisma migrate dev --name <change>` locally, then commit the generated files under `backend/prisma/migrations/`.
-- Enable pgvector in Postgres with `CREATE EXTENSION vector;`.
-- When ingesting new course PDFs, re-run `npm run rag:ingest` so `course_chunks` stays in sync with the slugs stored in `courses.slug`.
-- If reusing exported embeddings, run `npm run rag:import <json>` instead of re-embedding.
+## 4. Schema tips
+- Run `npx prisma format` after editing `schema.prisma`.
+- Prefer Prisma migrations over manual SQL in repo workflows.
+- Enable pgvector with `CREATE EXTENSION vector;`.

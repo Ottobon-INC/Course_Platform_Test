@@ -1,48 +1,42 @@
 # Backend Development Log
 
-## 2025-12-31
-- **Tutor chat memory** - added `cp_rag_chat_sessions` + `cp_rag_chat_messages` plus `/assistant/session` for per-topic history hydration.
-- **Follow-up rewrite** - assistant now rewrites ambiguous prompts using the last assistant turn and stores rolling summaries for context.
+## 2026-01-09
+- Added `topic_content_assets` and contentKey resolution in `lessonsRouter`.
+- `topics.text_content` now supports derived block JSON; backend resolves persona assets and returns fully rendered blocks.
 
+## 2026-01-08
+- Added `cohort_batch_projects` table and `/cohort-projects/:courseKey` route.
+- Membership resolution now returns cohort + batch and surfaces project payloads to the client.
+
+## 2025-12-31
+- Tutor chat memory: added `cp_rag_chat_sessions` + `cp_rag_chat_messages` plus `/assistant/session`.
+- Follow-up rewrite: assistant now rewrites ambiguous prompts and stores rolling summaries.
 
 ## 2025-12-30
-- **Cold calling backend** - added cold call tables and `/cold-call` endpoints for blind-response prompts, threaded replies, and star reactions scoped to cohort membership.
-
+- Cold calling backend: added cold call tables and `/cold-call` endpoints.
 
 ## 2025-12-29
-- **Cohort allowlist tables** - added `cohorts` + `cohort_members` (with `batch_no`) to store approved learners per course.
-- **Enroll-only gating** - `POST /courses/:courseKey/enroll` now validates cohort membership and supports `?checkOnly=true` so the frontend can verify eligibility before opening the protocol modal.
-
+- Cohort allowlist tables: added `cohorts` + `cohort_members` with `batch_no`.
+- Enrollment gating: `/courses/:courseKey/enroll?checkOnly=true` validates membership.
 
 ## 2025-12-24
-- **RAG store migrated to Postgres pgvector** - added `course_chunks` table + pgvector index, switched `ragService` retrieval to SQL similarity search, and removed Neo4j dependencies from env validation and runtime.
-- **Import pipeline added** - new `scripts/importCourseChunks.ts` ingests JSON exports with precomputed embeddings to avoid re-embedding costs.
-
+- RAG store migrated to Postgres pgvector (`course_chunks`).
+- Import pipeline added (`scripts/importCourseChunks.ts`).
 
 ## 2025-12-15
-- **Resilient study personas** - Added the `topic_personalization` CRUD endpoints in `backend/src/routes/lessons.ts` plus client caching so learners can always switch back to their saved persona even after logging out. Upserts ensure we never duplicate rows for the same `(user_id, course_id)` pair.
-- **Prompt suggestions API** - `/lessons/courses/:courseKey/prompts` now validates optional `topicId` and `parentSuggestionId` query parameters, returning curated prompts in display order. This powers the follow-up suggestion tree rendered inside the tutor dock.
-
+- Study personas: `topic_personalization` CRUD endpoints and client caching.
+- Prompt suggestions API: `/lessons/courses/:courseKey/prompts`.
 
 ## 2025-12-05
-- **Enrollment endpoint** - Added `POST /courses/:courseKey/enroll` in `backend/src/routes/courses.ts` (with helper `ensureEnrollment`), reusing slug resolution so CourseDetails can create or reactivate enrollments idempotently.
-- **Tutor quota enforcement** - Introduced `module_prompt_usage`, `services/promptUsageService.ts`, and quota checks inside `assistantRouter`. Each typed prompt increments the counter after OpenAI succeeds, while follow-up suggestions bypass the quota because they use curated answers.
-
+- Enrollment endpoint and `ensureEnrollment` helper.
+- Tutor quota enforcement via `module_prompt_usage`.
 
 ## 2025-12-02
-- **AI tutor identifier fix** - Frontend and backend now consistently use the public course slug (`ai-native-fullstack-developer`; legacy `ai-in-web-development` still resolves) for RAG calls. The tutor route was already slug-aware, but the player sent the Postgres UUID, so the vector store could not find relevant chunks. `handleSendChat` now falls back to the slug before publishing requests.
-- **Documentation sweep** - README, `Course_Platform.md`, `CP_Arc.md`, and `rag/rag.md` explicitly describe the ingestion command and the slug requirement so future contributors do not regress the behavior.
-
+- AI tutor identifier fix for slug-based RAG queries.
+- Documentation sweep for ingestion and slug rules.
 
 ## 2025-11-25
-- Diagnosed quiz API failures caused by the frontend `apiRequest` helper clobbering `Content-Type: application/json` whenever callers supplied custom headers. Without the header, Express treated quiz POST bodies as empty, Zod reported `courseId`/`moduleNo` as missing, and `quiz_attempts` rows showed the anonymous fallback user id.
-- Updated the helper so it now merges headers before sending the `fetch` request, guaranteeing both the bearer `Authorization` header and JSON content type reach the backend. Verified the `/api/quiz/sections`, `/api/quiz/progress`, `/api/quiz/attempts`, and submission endpoints now return full question sets for all topic pairs and persist attempts against the signed-in learner.
-
+- Quiz API header merge fix to restore POST payloads.
 
 ## 2025-10-08
-- Bootstrapped Prisma ORM (`prisma/schema.prisma`) to match the production Postgres schema and generated the client for the Node runtime.
-- Hardened environment validation (`src/config/env.ts`) with Google OAuth + JWT settings and wired Prisma datasource sharing (`src/services/prisma.ts`).
-- Implemented Google OAuth flow helpers (`src/services/googleOAuth.ts`) and user provisioning logic (`src/services/userService.ts`).
-- Added session management service (`src/services/sessionService.ts`) to issue, rotate, hash, and revoke JWT-backed sessions persisted in `user_sessions`.
-- Introduced authentication middleware (`src/middleware/requireAuth.ts`) and async route helper to streamline Express error handling.
-- Created new API routes for OAuth, token refresh, logout, profile lookup, and Postgres-backed health checks.
+- Prisma bootstrap, OAuth flow helpers, session service, and core API routes.

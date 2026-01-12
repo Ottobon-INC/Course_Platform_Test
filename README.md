@@ -1,12 +1,17 @@
 # Course_Platform_Test
 
-Full-stack LearnHub prototype pairing a React + Vite frontend with an Express + Prisma backend. Highlights:
+Full-stack course platform (React/Vite frontend + Express/Prisma backend).
 
-- Single-course marketing funnel that deep-links into the AI Native FullStack Developer curriculum.
-- Course player with study personas, cold-calling checkpoint, quizzes that unlock downstream modules, and an AI tutor dock backed by pgvector + OpenAI.
-- AI tutor now keeps persistent per-topic memory (chat sessions + message history) and rewrites ambiguous follow-ups before retrieval.
-- Google OAuth, JWT sessions, cohort-allowlist enrollment gate, cart, tutor intake, and CMS-backed pages.
-- Canonical course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-development` links still resolve via backend slug resolution).
-- New (Dec 2025): Learner telemetry and tutor monitor. The course player emits buffered activity events (video interactions, idle signals, quiz status, persona switches, cold-call prompts, etc.). The backend stores them in `learner_activity_events`, exposes `/api/activity/events`, `/api/activity/courses/:courseId/learners`, and `/api/activity/learners/:id/history`, and classifies events into `engaged`, `attention_drift`, and `content_friction` for tutor monitoring.
+Highlights:
+- Course player with block-based content layout stored in `topics.text_content` and resolved server-side from `topic_content_assets`.
+- Study personas (normal/sports/cooking/adventure) plus learner tutor personas (non_it_migrant, rote_memorizer, english_hesitant, last_minute_panic, pseudo_coder).
+- AI tutor with RAG (pgvector), prompt suggestions, and persistent chat memory.
+- Cohort allowlist gating, cold calling, quizzes, and cohort batch projects.
 
-See `Course_Platform.md`, `CP_Arc.md`, and `task_progress.md` for detailed architecture notes and the changelog. For LLM onboarding, start with `docs/gemini-handoff.md`.
+Canonical course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-development` still resolves).
+
+Docs:
+- `Course_Platform.md`, `CP_Arc.md`, `Frontend.md`
+- `docs/project-structure.md`, `docs/project-walkthrough.md`, `docs/databaseSchema.md`
+- `task_progress.md`, `docs/App Changes.md`, `docs/backend-dev-log.md`
+- LLM onboarding: `docs/gemini-LLM-handoff.md` and `docs/LLM-handoff.md`
