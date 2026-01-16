@@ -1,51 +1,77 @@
 import React from 'react';
 import { useLocation } from "wouter";
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Home } from 'lucide-react';
 
-const OfferingsNavbar: React.FC = () => {
+const OfferingsNavbar: React.FC<{ sections?: { id: string; label: string }[] }> = ({ sections = [] }) => {
     const [location, setLocation] = useLocation();
+    const [activeSection, setActiveSection] = React.useState<string>("");
 
-    const getLinkClass = (path: string) => {
-        return location === path
-            ? "text-sm font-bold text-white bg-[#1A1C2E] px-6 py-2 rounded-full shadow-sm transition-all"
-            : "text-sm font-medium text-slate-500 hover:text-[#1A1C2E] hover:bg-slate-100/50 px-6 py-2 rounded-full transition-all";
+    React.useEffect(() => {
+        const handleScroll = () => {
+            const scrollPosition = window.scrollY + 100; // Offset for navbar height
+
+            for (const section of sections) {
+                const element = document.getElementById(section.id);
+                if (element) {
+                    const { offsetTop, offsetHeight } = element;
+                    if (
+                        scrollPosition >= offsetTop &&
+                        scrollPosition < offsetTop + offsetHeight
+                    ) {
+                        setActiveSection(section.id);
+                        break;
+                    }
+                }
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, [sections]);
+
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const navbarHeight = 80; // Approximate height of sticky + global nav overlap
+            const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+            const offsetPosition = elementPosition - navbarHeight;
+
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: "smooth"
+            });
+        }
+    };
+
+    const getLinkClass = (id: string) => {
+        return activeSection === id
+            ? "text-sm font-bold text-black border-b-2 border-black px-4 py-2 transition-all cursor-pointer"
+            : "text-sm font-medium text-slate-500 hover:text-black px-4 py-2 transition-all cursor-pointer";
     };
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 py-3 shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                <div className="flex items-center gap-4">
+        <nav className="sticky top-[60px] left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 py-2 shadow-sm transition-all">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center items-center">
+                <div className="flex items-center gap-6 md:gap-8 overflow-x-auto no-scrollbar">
                     <button
-                        onClick={() => setLocation('/')}
-                        className="group flex items-center gap-2 text-gray-500 hover:text-black transition-colors font-medium text-xs uppercase tracking-wider"
+                        onClick={() => setLocation('/our-courses/cohort')}
+                        className={`text-sm md:text-base font-semibold py-2 border-b-2 transition-all ${location === '/our-courses/cohort' ? 'text-retro-teal border-retro-teal' : 'text-gray-500 border-transparent hover:text-retro-teal/70'}`}
                     >
-                        <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-                        Back to Home
+                        Cohort Program
                     </button>
-
-                    <div className="hidden md:flex items-center text-gray-300">
-                        <span className="h-4 w-px bg-gray-200 mx-2"></span>
-                    </div>
-
-                    <div className="hidden md:flex items-center gap-1">
-                        <span className="text-sm font-bold text-gray-900 tracking-tight">Ottolearn</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 uppercase">Offerings</span>
-                    </div>
-                </div>
-
-                <div className="flex flex-1 items-center justify-end gap-2 md:gap-4 overflow-x-auto no-scrollbar ml-4">
-                    <button onClick={() => setLocation('/offerings/cohort')} className={`${getLinkClass('/offerings/cohort')} whitespace-nowrap`}>
-                        Cohort
-                    </button>
-                    <button onClick={() => setLocation('/offerings/on-demand')} className={`${getLinkClass('/offerings/on-demand')} whitespace-nowrap`}>
+                    <button
+                        onClick={() => setLocation('/our-courses/on-demand')}
+                        className={`text-sm md:text-base font-semibold py-2 border-b-2 transition-all ${location === '/our-courses/on-demand' ? 'text-retro-teal border-retro-teal' : 'text-gray-500 border-transparent hover:text-retro-teal/70'}`}
+                    >
                         On-Demand
                     </button>
-                    <button onClick={() => setLocation('/offerings/workshops')} className={`${getLinkClass('/offerings/workshops')} whitespace-nowrap`}>
+                    <button
+                        onClick={() => setLocation('/our-courses/workshops')}
+                        className={`text-sm md:text-base font-semibold py-2 border-b-2 transition-all ${location === '/our-courses/workshops' ? 'text-retro-teal border-retro-teal' : 'text-gray-500 border-transparent hover:text-retro-teal/70'}`}
+                    >
                         Workshops
                     </button>
                 </div>
-
-
             </div>
         </nav>
     );

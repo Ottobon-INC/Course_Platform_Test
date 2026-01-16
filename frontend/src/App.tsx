@@ -1,11 +1,12 @@
-import { Switch, Route } from "wouter";
-import { useEffect, useRef } from "react";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect, useRef, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ScrollToTop from "@/components/layout/ScrollToTop";
-import { logoutAndRedirect, resetSessionHeartbeat, subscribeToSession } from "@/utils/session";
+import { logoutAndRedirect, resetSessionHeartbeat, subscribeToSession, readStoredSession } from "@/utils/session";
+import Navbar from "@/components/layout/Navbar";
 import NotFound from "@/pages/not-found";
 import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
@@ -23,15 +24,18 @@ import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
 
+import MethodologyPage from "@/pages/MethodologyPage";
+import MoreInfoPage from "@/pages/MoreInfoPage";
+
 function Router() {
   return (
     <Switch>
       <Route path="/become-a-tutor" component={BecomeTutorPage} />
-
-      {/* Offerings Routes */}
-      <Route path="/offerings/cohort" component={CohortPage} />
-      <Route path="/offerings/on-demand" component={OnDemandPage} />
-      <Route path="/offerings/workshops" component={WorkshopPage} />
+      <Route path="/methodology" component={MethodologyPage} />
+      <Route path="/more-info" component={MoreInfoPage} />
+      <Route path="/our-courses/cohort" component={CohortPage} />
+      <Route path="/our-courses/on-demand" component={OnDemandPage} />
+      <Route path="/our-courses/workshops" component={WorkshopPage} />
 
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
@@ -54,9 +58,12 @@ function Router() {
   );
 }
 
-function App() {
+
+function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
+  const [location] = useLocation();
   const hadSessionRef = useRef(false);
   const logoutTriggeredRef = useRef(false);
+  const shouldHideNavbar = location === "/course" || location.startsWith("/course/");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -106,10 +113,76 @@ function App() {
       <TooltipProvider>
         <ScrollToTop />
         <Toaster />
+        {!shouldHideNavbar && (
+          <Navbar
+            onLogin={() => {
+              const homeRedirect = '/';
+              sessionStorage.setItem("postLoginRedirect", homeRedirect);
+              // Ideally use buildApiUrl from client, but keeping simple:
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+              const target = `${API_URL}/auth/google?redirect=${encodeURIComponent(homeRedirect)}`;
+              window.location.href = target;
+            }}
+            onApplyTutor={() => window.location.href = '/become-a-tutor'}
+            isAuthenticated={isAuthenticated}
+            user={user ?? undefined}
+            onLogout={() => {
+              localStorage.removeItem('session');
+              localStorage.removeItem('user');
+              localStorage.setItem('isAuthenticated', 'false');
+              setIsAuthenticated(false);
+              setUser(null);
+              window.location.href = '/';
+            }}
+          />
+        )}
         <Router />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
 
-export default App;
+function AppWithState() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ fullName?: string; email?: string; picture?: string } | null>(null);
+
+  useEffect(() => {
+    // Check initial auth
+    const init = async () => {
+      const session = await readStoredSession();
+      if (session?.accessToken) {
+        setIsAuthenticated(true);
+        const u = localStorage.getItem('user');
+        if (u) setUser(JSON.parse(u));
+      } else {
+        // Fallback to purely local storage if session check fails or is simpler
+        const storedAuth = localStorage.getItem('isAuthenticated') === 'true';
+        const storedUser = localStorage.getItem('user');
+        if (storedAuth && storedUser) {
+          setIsAuthenticated(true);
+          setUser(JSON.parse(storedUser));
+        }
+      }
+    }
+    init();
+
+    // Subscribe to changes
+    const unsubscribe = subscribeToSession((session) => {
+      if (session?.accessToken) {
+        setIsAuthenticated(true);
+        // We might not get full user object from session update event depending on implementation
+        // but we can try reading from LS
+        const u = localStorage.getItem('user');
+        if (u) setUser(JSON.parse(u));
+      } else {
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return <App isAuthenticated={isAuthenticated} user={user} setIsAuthenticated={setIsAuthenticated} setUser={setUser} />;
+}
+
+export default AppWithState;

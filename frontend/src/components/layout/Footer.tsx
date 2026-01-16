@@ -12,14 +12,14 @@ const Footer: React.FC = () => {
 
                 {/* Copyright */}
                 <div className="text-sm text-slate-300/80">
-                    © 2024 Ottolearn. All rights reserved.
+                    © 2026 Ottolearn. All rights reserved.
                 </div>
 
                 {/* Links */}
                 <div className="flex items-center gap-8 text-sm font-medium text-slate-300/80">
                     <button className="hover:text-white transition-colors">Privacy</button>
                     <button className="hover:text-white transition-colors">Terms</button>
-                    <button className="hover:text-white transition-colors">Contact</button>
+                    {/* <button className="hover:text-white transition-colors">Contact </button> */}
                 </div>
             </div>
         </footer>

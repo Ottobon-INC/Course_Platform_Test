@@ -1,7 +1,11 @@
 import React from 'react';
 import { useLocation } from "wouter";
+import { motion, AnimatePresence } from 'framer-motion';
 import OfferingsNavbar from '@/components/layout/OfferingsNavbar';
 import Footer from '@/components/layout/Footer';
+import CohortHeroImage from '@/assets/cohort-hero-2.png';
+import ProjectConceptArt from '@/assets/project-concept-art.png';
+import AiTutorPreview from '@/assets/ai-tutor-preview.png';
 
 // Type Definitions
 interface JourneyStageProps {
@@ -94,21 +98,23 @@ const JourneyStage: React.FC<JourneyStageProps> = ({ index, isLeft, headline, mi
   );
 };
 
-const ValueItem: React.FC<{ text: string }> = ({ text }) => (
-  <div className="group relative overflow-hidden flex items-start gap-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all hover:scale-[1.02]">
+const HighlightItem: React.FC<{ text: string }> = ({ text }) => (
+  <div className="group relative overflow-hidden flex items-start gap-4 p-6 bg-white border border-[#EAEAEA] rounded-xl transition-all shadow-sm hover:shadow-md hover:scale-[1.02]">
     {/* Shine Effect */}
     <div className="absolute top-0 -left-[100%] w-full h-full bg-gradient-to-r from-transparent via-slate-100 to-transparent transform -skew-x-12 transition-all duration-1000 ease-in-out group-hover:left-[100%] z-0" />
 
-    <div className="mt-0.5 relative z-10 flex-shrink-0">
-      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="mt-1 relative z-10">
+      <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
       </svg>
     </div>
-    <span className="text-slate-700 font-medium text-sm leading-snug relative z-10">{text}</span>
+    <span className="text-[#244855] font-medium text-base relative z-10">{text}</span>
   </div>
 );
 
 const CohortPage: React.FC = () => {
+  const [isPathExpanded, setIsPathExpanded] = React.useState(false);
+  // Auth state handled in App.tsx now
   const valuePoints = [
     "Cohort-specific access and learning spaces",
     "Cohort-Aligned Start Dates and Timeliness",
@@ -116,7 +122,7 @@ const CohortPage: React.FC = () => {
     "Industry-Aligned Project Execution",
     "Team-based collaboration and peer learning",
     "Structured, journey-driven progression",
-    "Persona based leraning"
+    "Persona based learning"
   ];
 
   const courses = [
@@ -178,92 +184,81 @@ const CohortPage: React.FC = () => {
 
   const [showAllCourses, setShowAllCourses] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [selectedStatus, setSelectedStatus] = React.useState("All");
 
   const filteredCourses = courses.filter(course =>
-    course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    course.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (selectedStatus === "All" || course.status === selectedStatus) &&
+    (course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const visibleCourses = searchQuery ? filteredCourses : (showAllCourses ? courses : courses.slice(0, 3));
+  const visibleCourses = searchQuery ? filteredCourses : (showAllCourses ? filteredCourses : filteredCourses.slice(0, 3));
 
   return (
-    <div className="animate-fadeIn">
-      <OfferingsNavbar /> {/* Use the Distinct Offerings Navbar */}
+    <div className="animate-fadeIn min-h-screen bg-[#FBE9D0]/30 pt-[72px]">
+      <OfferingsNavbar
+        sections={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'path-to-mastery', label: 'Path to Mastery' },
+          { id: 'available-cohorts', label: 'Available Cohorts' }
+        ]}
+      />
 
       {/* Hero Section */}
-      <section className="bg-white border-b border-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
-          <div className="flex flex-col items-center text-center space-y-10">
-            <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 text-indigo-600 text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">
+      <section id="overview" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+          <div className="flex-1">
+            <div className="text-sm font-bold text-[#E64833] uppercase tracking-widest mb-4">
               Mentor-Led · Project-Driven · Outcome-Focused
             </div>
-            <h1 className="text-4xl md:text-7xl font-black text-[#1A1C2E] tracking-tight max-w-4xl leading-[1.1]">
-              Cohort-Based Program for Real Career Outcomes
+            <h1 className="text-4xl md:text-5xl font-bold text-[#244855] mb-8 leading-tight">
+              Program for Real Career Outcomes
             </h1>
-            <div className="max-w-4xl text-left md:text-center space-y-6">
-              <p className="text-slate-600 text-lg md:text-xl leading-relaxed">
-                Ottobon’s cohort program is a structured, mentor-led learning experience where a selected group of learners progress together on a fixed schedule, working on real-world projects in small, collaborative teams.
+            <div className="space-y-6">
+              <p className="text-[#244855]/80 text-lg md:text-xl leading-relaxed">
+                The program is a structured, mentor-led learning experience where a selected group of learners progress together on a fixed schedule, working on real-world projects in small, collaborative teams.
+              </p>
+              <p className="text-[#244855]/80 text-lg md:text-xl leading-relaxed">
                 The program emphasizes accountability, collaboration, and execution—combining mentor guidance, AI-assisted support, and centralized progress tracking to simulate real professional work environments.
               </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                {/* Hero Search */}
-                <div className="relative flex-grow max-w-md">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="What do you want to master?"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-4 rounded-xl border border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium text-slate-700 shadow-sm"
-                  />
-                </div>
-
-                {/* View All Programs Button */}
-                <button
-                  onClick={() => document.getElementById('available-cohorts')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="flex items-center justify-center gap-2 px-8 py-4 bg-[#1A1C2E] text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 whitespace-nowrap"
-                >
-                  View All Programs
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
-
             </div>
-            <div className="w-full pt-12 pb-8 text-left">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {valuePoints.map((point, i) => (
-                  <ValueItem key={i} text={point} />
-                ))}
-              </div>
+
+            {/* Hero Search */}
+            <div className="mt-8">
+              <button
+                onClick={() => document.getElementById('available-cohorts')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-6 py-3 bg-transparent border-2 border-[#244855] text-[#244855] font-bold rounded-full hover:bg-[#244855] hover:text-white transition-all shadow-sm hover:shadow-md flex items-center gap-2 text-sm"
+              >
+                View All Programs
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
-            <div className="w-full max-w-4xl">
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-4 text-center md:text-left shadow-sm">
-                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-indigo-500 shadow-sm flex-shrink-0">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">BEST FOR:</h4>
-                  <p className="text-slate-800 font-semibold text-lg italic">
-                    "Designed for learners who want structure, guidance, teamwork, and serious career outcomes."
-                  </p>
-                </div>
-              </div>
-            </div>
+          </div>
+
+          <div className="flex-1 hidden lg:block relative">
+            <img
+              src={CohortHeroImage}
+              alt="Cohort Session"
+              className="w-full h-auto max-w-md mx-auto object-cover rounded-3xl shadow-xl hover:opacity-100 transition-all duration-700"
+            />
+          </div>
+        </div>
+
+        {/* Key Highlights Grid */}
+        <div className="mt-20">
+          <h2 className="text-2xl font-bold text-[#244855] mb-10">What You’ll Experience</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {valuePoints.map((point, i) => (
+              <HighlightItem key={i} text={point} />
+            ))}
           </div>
         </div>
       </section>
 
       {/* Journey Section */}
-      <section className="relative w-full bg-[#FEFBF7] py-32 overflow-hidden">
+      <section id="path-to-mastery" className="relative w-full bg-[#FEFBF7] py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24 md:mb-32">
             <h2 className="text-4xl md:text-5xl font-black text-[#1A1C2E] mb-4">The Path to Mastery</h2>
@@ -281,11 +276,11 @@ const CohortPage: React.FC = () => {
               visual={
                 <div className="space-y-4">
                   <div className="flex justify-between items-center px-4 py-2 bg-gray-50 rounded-lg">
-                    <span className="text-xs font-bold text-gray-400">LOGIC & REASONING</span>
-                    <span className="text-xs font-black text-indigo-600">92%</span>
+                    <span className="text-xs font-bold text-gray-400">BEHAVIOURAL & REASONING</span>
+                    <span className="text-xs font-black text-indigo-600">80%</span>
                   </div>
                   <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 w-[92%]"></div>
+                    <div className="h-full bg-indigo-500 w-[80%]"></div>
                   </div>
                   <div className="flex items-center gap-3 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
                     <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs">✓</div>
@@ -295,132 +290,195 @@ const CohortPage: React.FC = () => {
               }
             />
 
-            <Connector direction="left-to-right" />
+            <AnimatePresence>
+              {!isPathExpanded ? (
+                <motion.div
+                  key="explore-button"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="mt-8 mb-16 flex justify-center z-20"
+                >
+                  <button
+                    onClick={() => setIsPathExpanded(true)}
+                    className="group px-8 py-3 bg-white border-2 border-retro-teal text-retro-teal font-bold rounded-full shadow-md hover:shadow-lg hover:bg-retro-teal hover:text-white transition-all duration-300 flex items-center gap-2 active:scale-95"
+                  >
+                    Explore Full Journey
+                    <svg className="w-4 h-4 group-hover:translate-y-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="journey-path"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0, overflow: "hidden" }}
+                  transition={{ duration: 0.6, ease: [0.04, 0.62, 0.23, 0.98] }}
+                  className="overflow-hidden"
+                >
+                  <Connector direction="left-to-right" />
 
-            <JourneyStage
-              index={2}
-              isLeft={false}
-              headline="Join your specialized cohort and core team"
-              microLine="Collaborate within a 25-member cohort and a dedicated 5-person squad."
-              evolution="SOLO LEARNER → COLLABORATIVE TEAMMATE"
-              gradient="from-[#a18cd1] via-[#fbc2eb] to-[#fad0c4]"
-              visual={
-                <div className="space-y-4">
-                  <div className="text-center border-b border-gray-100 pb-4">
-                    <h4 className="text-sm font-black text-gray-900">Cohort #42 · Squad Delta</h4>
-                  </div>
-                  <div className="flex -space-x-3 justify-center">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-gray-200 overflow-hidden">
-                        <img src={`https://i.pravatar.cc/150?u=${i}`} alt="Avatar" className="w-full h-full object-cover" />
+                  <JourneyStage
+                    index={2}
+                    isLeft={false}
+                    headline="Join your specialized cohort and core team"
+                    microLine="Collaborate within a 25-member cohort and a dedicated 5-person squad."
+                    evolution="SOLO LEARNER → COLLABORATIVE TEAMMATE"
+                    gradient="from-[#a18cd1] via-[#fbc2eb] to-[#fad0c4]"
+                    visual={
+                      <div className="space-y-4">
+                        <div className="text-center border-b border-gray-100 pb-4">
+                          <h4 className="text-sm font-black text-gray-900">Cohort #1</h4>
+                        </div>
+                        <div className="flex -space-x-3 justify-center">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-gray-200 overflow-hidden">
+                              <img src={`https://i.pravatar.cc/150?u=${i}`} alt="Avatar" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-center gap-2">
+                          <span className="px-2 py-1 bg-green-50 text-[10px] font-bold text-green-600 rounded uppercase">Active Now</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <span className="px-2 py-1 bg-green-50 text-[10px] font-bold text-green-600 rounded uppercase">Active Now</span>
-                  </div>
-                </div>
-              }
-            />
+                    }
+                  />
 
-            <Connector direction="right-to-left" />
+                  <Connector direction="right-to-left" />
 
-            <JourneyStage
-              index={3}
-              isLeft={true}
-              headline="Tackle industry projects in a live environment"
-              microLine="Execute real-world briefs with full access to community discussion forums."
-              evolution="THEORY FOCUSED → PRACTICE DRIVEN"
-              gradient="from-[#84fab0] via-[#8fd3f4] to-[#a6c0fe]"
-              visual={
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="w-4 h-4 rounded bg-emerald-500 mb-2"></div>
-                    <div className="h-2 w-full bg-gray-100 rounded mb-1"></div>
-                    <div className="h-2 w-2/3 bg-gray-50 rounded"></div>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                    <div className="w-4 h-4 rounded bg-orange-500 mb-2"></div>
-                    <div className="h-2 w-full bg-gray-100 rounded mb-1"></div>
-                    <div className="h-2 w-1/2 bg-gray-50 rounded"></div>
-                  </div>
-                  <div className="col-span-2 bg-emerald-50 p-3 rounded-xl flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span className="text-[10px] font-bold text-emerald-800">Reviewing PR #124</span>
-                  </div>
-                </div>
-              }
-            />
+                  <JourneyStage
+                    index={3}
+                    isLeft={true}
+                    headline="Tackle industry projects in a live environment"
+                    microLine="Execute real-world briefs with full access to community discussion forums."
+                    evolution="THEORY FOCUSED → PRACTICE DRIVEN"
+                    gradient="from-[#84fab0] via-[#8fd3f4] to-[#a6c0fe]"
+                    visual={
+                      <div className="w-full h-full flex items-center justify-center p-2">
+                        <img
+                          src={ProjectConceptArt}
+                          alt="Project Features"
+                          className="w-full h-auto rounded-xl shadow-sm transform hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    }
+                  />
 
-            <Connector direction="left-to-right" />
+                  <Connector direction="left-to-right" />
 
-            <JourneyStage
-              index={4}
-              isLeft={false}
-              headline="Refine skills with simulations and AI guidance"
-              microLine="Validate knowledge via simulations with 24/7 AI and mentor support."
-              evolution="UNCERTAIN → PROFICIENT"
-              gradient="from-[#f6d365] via-[#fda085] to-[#fbc2eb]"
-              visual={
-                <div className="bg-[#1A1C2E] rounded-2xl p-6 text-white font-mono text-xs space-y-3">
-                  <div className="text-gray-400">// AI Tutor Feedback</div>
-                  <div className="flex gap-2">
-                    <span className="text-emerald-400">✓</span>
-                    <span>Component logic optimized.</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="text-yellow-400">!</span>
-                    <span>Consider adding error boundaries.</span>
-                  </div>
-                  <div className="pt-2 border-t border-white/10 flex justify-between items-center">
-                    <span className="text-[10px] text-gray-500">SIMULATION MODE</span>
-                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded">PASS</span>
-                  </div>
-                </div>
-              }
-            />
+                  <JourneyStage
+                    index={4}
+                    isLeft={false}
+                    headline="Refine skills with simulations and AI guidance"
+                    microLine="Validate knowledge via simulations with 24/7 AI and mentor support."
+                    evolution="UNCERTAIN → PROFICIENT"
+                    gradient="from-[#f6d365] via-[#fda085] to-[#fbc2eb]"
+                    visual={
+                      <div className="w-full h-full flex items-center justify-center p-2">
+                        <img
+                          src={AiTutorPreview}
+                          alt="AI Tutor Interface"
+                          className="w-full h-auto rounded-xl shadow-sm transform hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    }
+                  />
 
-            <Connector direction="right-to-left" />
+                  <Connector direction="right-to-left" />
 
-            <JourneyStage
-              index={5}
-              isLeft={true}
-              headline="Secure top-tier internships and professional roles"
-              microLine="Complete the program to unlock exclusive internship opportunities for top performers."
-              evolution="STUDENT → PROFESSIONAL"
-              gradient="from-[#667eea] via-[#764ba2] to-[#a18cd1]"
-              visual={
-                <div className="text-center space-y-4">
-                  <div className="relative inline-block">
-                    <div className="w-20 h-20 bg-indigo-600 rounded-2xl rotate-12 flex items-center justify-center text-white text-3xl font-serif">O</div>
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs">★</div>
+                  <JourneyStage
+                    index={5}
+                    isLeft={true}
+                    headline="Secure top-tier internships and professional roles"
+                    microLine="Complete the program to unlock exclusive internship opportunities for top performers."
+                    evolution="STUDENT → PROFESSIONAL"
+                    gradient="from-[#667eea] via-[#764ba2] to-[#a18cd1]"
+                    visual={
+                      <div className="text-center space-y-4">
+                        <div className="relative inline-block">
+                          <div className="w-20 h-20 bg-indigo-600 rounded-2xl rotate-12 flex items-center justify-center text-white text-3xl font-serif">O</div>
+                          <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xs">★</div>
+                        </div>
+                        <div className="space-y-1">
+                          <h5 className="font-bold text-gray-900">Certificate of Mastery</h5>
+                          <p className="text-[10px] text-gray-400">Fullstack Product Development</p>
+                        </div>
+                        <div className="bg-indigo-50 py-2 px-4 rounded-full text-indigo-700 text-xs font-black">
+                          INTERNSHIP OFFER RECEIVED
+                        </div>
+                      </div>
+                    }
+                  />
+
+                  <div className="mt-16 flex justify-center">
+                    <button
+                      onClick={() => {
+                        setIsPathExpanded(false);
+                        // Jump scroll immediately to the top of the section to keep it in view while it shrinks
+                        document.getElementById('path-to-mastery')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+                      }}
+                      className="px-6 py-2 text-gray-400 hover:text-indigo-600 font-bold border border-transparent hover:border-indigo-100 rounded-full transition-all flex items-center gap-2"
+                    >
+                      Collapse Journey
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
                   </div>
-                  <div className="space-y-1">
-                    <h5 className="font-bold text-gray-900">Certificate of Mastery</h5>
-                    <p className="text-[10px] text-gray-400">Fullstack Product Development</p>
-                  </div>
-                  <div className="bg-indigo-50 py-2 px-4 rounded-full text-indigo-700 text-xs font-black">
-                    INTERNSHIP OFFER RECEIVED
-                  </div>
-                </div>
-              }
-            />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </section>
+      </section >
 
 
       {/* Available AI Programs Section */}
-      <section id="available-cohorts" className="bg-slate-50 py-32 border-t border-slate-200">
+      < section id="available-cohorts" className="bg-slate-50 py-32 border-t border-slate-200" >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
             <div className="max-w-2xl">
               <h2 className="text-3xl md:text-4xl font-bold text-[#1A1C2E] mb-4">
                 Available Cohorts
               </h2>
-              <p className="text-slate-600 text-lg">
-                Choose the program that best fits your career goals.
-              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+              {/* Status Dropdown */}
+              <div className="relative min-w-[180px]">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="appearance-none w-full pl-4 pr-10 py-3 rounded-xl border border-[#90AEAD]/30 bg-white focus:border-[#E64833] focus:ring-4 focus:ring-[#E64833]/10 transition-all font-medium text-[#244855] shadow-sm cursor-pointer"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="live">Live Now</option>
+                  <option value="coming_soon">Coming Soon</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#244855]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full md:w-80">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-[#244855]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search cohort programs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#90AEAD]/30 bg-white focus:border-[#E64833] focus:ring-4 focus:ring-[#E64833]/10 transition-all font-medium text-[#244855] placeholder-[#244855]/40 shadow-sm"
+                />
+              </div>
             </div>
           </div>
 
@@ -524,10 +582,10 @@ const CohortPage: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
       <Footer />
-    </div>
+    </div >
   );
 };
 

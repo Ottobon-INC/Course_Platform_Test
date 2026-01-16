@@ -13,7 +13,8 @@ import { readStoredSession } from '@/utils/session';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Navbar from '@/components/layout/Navbar';
-import certificateHero from '@/Certificate.png';
+import HeroCarousel from '@/components/landing/HeroCarousel';
+
 import humanLoopImg from '@/assets/human-loop.png';
 import aiAssistantImg from '@/assets/ai-assistant.png';
 import assessmentImg from '@/assets/assessment.png';
@@ -91,333 +92,7 @@ interface Feature {
   icon: React.ReactNode;
 }
 
-const syllabusSections = [
-  {
-    title: 'Module 1 · Foundations',
-    summary: 'Learn how modern web development works in the AI era by mastering the core stack, essential tools, and your development environment.',
-    topics: [
-      '1.1 Introduction to Web Development in the AI Era',
-      '1.2 Essential Web Technologies Overview',
-      '1.3 AI Tools for Web Development',
-      '1.4 Setting Up Your AI-Enhanced Development Environment'
-    ]
-  },
-  {
-    title: 'Module 2 · Ideation & Planning',
-    summary: 'Use AI to validate ideas, research user needs, and translate them into structured project plans and requirements.',
-    topics: [
-      '2.1 Brainstorming Web Application Ideas with AI',
-      '2.2 AI-Assisted Market Research and Persona Mapping',
-      '2.3 Project Planning and Scope Definition',
-      '2.4 Technical Requirements Gathering'
-    ]
-  },
-  {
-    title: 'Module 3 · Design & Architecture',
-    summary: 'Craft UX flows, UI systems, and technical architecture with AI copilots before moving into high-fidelity prototypes.',
-    topics: [
-      '3.1 User Experience (UX) Design with AI',
-      '3.2 User Interface (UI) Design Using AI',
-      '3.3 Technical Architecture Planning',
-      '3.4 Prototyping with AI'
-    ]
-  },
-  {
-    title: 'Module 4 · Implementation',
-    summary: 'Build the full stack with AI assistance—from interactive frontends to production-ready backends.',
-    topics: [
-      '4.1 Frontend Development with AI',
-      '4.2 Backend Development Using AI Tools'
-    ]
-  },
-  {
-    title: 'Module 5 · Testing & Hardening',
-    summary: 'Adopt AI-driven strategies for testing, debugging, optimization, and security reviews.',
-    topics: [
-      '5.1 Testing Strategies with AI Assistance',
-      '5.2 Debugging and Problem Solving with AI',
-      '5.3 Code Quality and Optimization',
-      '5.4 Security and Best Practices'
-    ]
-  },
-  {
-    title: 'Module 6 · Deployment & Operations',
-    summary: 'Prepare, launch, and monitor your application using AI-powered deployment and observability workflows.',
-    topics: [
-      '6.1 Deployment Preparation',
-      '6.2 AI-Powered Deployment Platforms',
-      '6.3 Monitoring and Maintenance',
-      '6.4 Post-Launch Optimization'
-    ]
-  },
-  {
-    title: 'Module 7 · AI Feature Integration',
-    summary: 'Bring intelligence into your app with LLM APIs, conversational interfaces, retrieval systems, and personalization.',
-    topics: [
-      '7.1 Introduction to LLM APIs (OpenAI, Gemini, Anthropic)',
-      '7.2 Building Conversational Interfaces',
-      '7.3 Implementing Retrieval-Augmented Generation',
-      '7.4 Dynamic Content Generation & Personalization Engines'
-    ]
-  },
-  {
-    title: 'Module 8 · AI Orchestration & Scaling',
-    summary: 'Design production-grade AI pipelines with LangChain/LlamaIndex, advanced memory, streaming, and observability.',
-    topics: [
-      '8.1 Deep Dive into LangChain & LlamaIndex',
-      '8.2 Advanced Memory Management',
-      '8.3 Streaming & Event-Driven AI',
-      '8.4 Observability & Tracing'
-    ]
-  }
-];
 
-// --- Components ---
-
-
-
-const TypewriterInput: React.FC<{ suggestions: string[]; onSearch: (term: string) => void }> = ({
-  suggestions,
-  onSearch,
-}) => {
-  const placeholders =
-    suggestions.length > 0
-      ? suggestions
-      : ["Search for 'AI Native FullStack Developer'...", "Search for 'Machine Learning Basics'...", "Search for 'Full Stack Development'..."];
-  const [currentText, setCurrentText] = useState("");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [loopNum, setLoopNum] = useState(0);
-  const [inputValue, setInputValue] = useState("");
-  const typingSpeed = 100;
-  const deletingSpeed = 50;
-  const pauseTime = 2000;
-
-  useEffect(() => {
-    const handleTyping = () => {
-      const i = loopNum % placeholders.length;
-      const fullText = placeholders[i];
-
-      if (isDeleting) {
-        setCurrentText(fullText.substring(0, currentText.length - 1));
-      } else {
-        setCurrentText(fullText.substring(0, currentText.length + 1));
-      }
-
-      if (!isDeleting && currentText === fullText) {
-        setTimeout(() => setIsDeleting(true), pauseTime);
-      } else if (isDeleting && currentText === "") {
-        setIsDeleting(false);
-        setLoopNum(loopNum + 1);
-      }
-    };
-
-    const timer = setTimeout(handleTyping, isDeleting ? deletingSpeed : typingSpeed);
-    return () => clearTimeout(timer);
-  }, [currentText, isDeleting, loopNum, placeholders]);
-
-  return (
-    <form
-      className="relative max-w-3xl w-full mt-8"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const term = (inputValue || currentText).trim();
-        if (term) {
-          onSearch(term);
-        }
-      }}
-    >
-      <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-        <Search className="h-6 w-6 text-[#90AEAD]" />
-      </div>
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(event) => setInputValue(event.target.value)}
-        placeholder={currentText}
-        className="w-full py-5 pl-14 pr-16 text-lg text-[#244855] bg-white/80 backdrop-blur-md border border-[#90AEAD]/40 rounded-2xl shadow-[0_10px_30px_rgba(36,72,85,0.18)] focus:outline-none focus:ring-2 focus:ring-[#E64833]/60 transition-all placeholder:text-[#90AEAD]"
-      />
-      <div className="absolute inset-y-0 right-3 flex items-center">
-        <button
-          type="submit"
-          className="bg-[#E64833] hover:bg-[#c93b29] text-white p-3 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-[0_6px_18px_rgba(230,72,51,0.3)]"
-        >
-          <Search className="h-5 w-5" />
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const Hero: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }> = ({ onEnroll, onSearch }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"]
-  });
-
-  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" }
-    }
-  };
-
-  return (
-    <section ref={ref} className="relative min-h-screen w-full overflow-x-hidden flex items-center justify-center bg-gradient-to-br from-retro-bg via-white to-retro-sage/20 pt-32 pb-12 md:h-screen md:pt-0">
-
-      {/* Background Parallax Image */}
-      <motion.div
-        style={{ y: yBg }}
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
-      >
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
-      </motion.div>
-
-      <div className="w-full px-6 md:px-12 z-10 relative grid md:grid-cols-2 gap-8 items-center">
-
-        {/* Text Content */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-8 flex flex-col justify-center h-full items-center md:items-start text-center md:text-left"
-        >
-          <motion.div className="overflow-hidden">
-            <motion.h1
-              className="text-5xl md:text-7xl font-bold text-retro-teal tracking-tight leading-[1.1]"
-              variants={itemVariants}
-            >
-              The First Course    <br />
-              <span className="text-retro-salmon inline-block relative">
-
-                you will ever need <br />to take off.
-                <motion.svg
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ delay: 1, duration: 1.5 }}
-                  className="absolute -bottom-2 left-0 w-full"
-                  height="10" viewBox="0 0 200 10" fill="none" xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M2 8Q100 2 198 8" stroke="#90AEAD" strokeWidth="4" strokeLinecap="round" />
-                </motion.svg>
-              </span>
-            </motion.h1>
-          </motion.div>
-
-          <motion.p
-            variants={itemVariants}
-            className="text-lg md:text-xl text-retro-teal/80 max-w-xl leading-relaxed"
-          >
-            Most courses let you skip to the end. We don't. Prove your skills at every step to unlock the next module.
-          </motion.p>
-
-          <motion.div variants={itemVariants} className="w-full flex justify-center md:justify-start">
-            <TypewriterInput suggestions={["AI Native FullStack Developer", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
-          </motion.div>
-
-          <motion.div variants={itemVariants} className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
-            <motion.button
-              onClick={onEnroll}
-              whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(230, 72, 51, 0.2)" }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all"
-            >
-              Enroll <ChevronRight size={20} />
-            </motion.button>
-            <motion.button
-              onClick={() => {
-                const el = document.getElementById('cohort-promo');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(36, 72, 85, 0.15)" }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white border-2 border-retro-teal text-retro-teal px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all hover:bg-retro-teal/5"
-            >
-              TRENDING <ChevronRight size={20} />
-            </motion.button>
-          </motion.div>
-        </motion.div>
-
-        {/* Hero Image Gallery */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, duration: 1, type: "spring" }}
-          className="relative hidden md:block"
-        >
-          <div className="relative h-[65vh] overflow-hidden rounded-3xl">
-            {/* Scrolling Images Container */}
-            <motion.div
-              className="flex flex-col gap-4"
-              animate={{
-                y: [0, -400, 0]
-              }}
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            >
-              <img
-                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000&auto=format&fit=crop"
-                alt="Students Learning"
-                className="rounded-3xl shadow-2xl w-full h-[30vh] object-cover border-8 border-white"
-              />
-              <img
-                src="https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=1000&auto=format&fit=crop"
-                alt="Coding Together"
-                className="rounded-3xl shadow-2xl w-full h-[30vh] object-cover border-8 border-white"
-              />
-              <img
-                src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000&auto=format&fit=crop"
-                alt="Learning Environment"
-                className="rounded-3xl shadow-2xl w-full h-[30vh] object-cover border-8 border-white"
-              />
-              <img
-                src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=1000&auto=format&fit=crop"
-                alt="Study Group"
-                className="rounded-3xl shadow-2xl w-full h-[30vh] object-cover border-8 border-white"
-              />
-              {/* Duplicate for seamless loop */}
-              <img
-                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1000&auto=format&fit=crop"
-                alt="Students Learning"
-                className="rounded-3xl shadow-2xl w-full h-[30vh] object-cover border-8 border-white"
-              />
-            </motion.div>
-          </div>
-
-        </motion.div>
-      </div>
-
-      <motion.div
-        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-retro-teal/50"
-        animate={{ y: [0, 10, 0] }}
-        transition={{ repeat: Infinity, duration: 2 }}
-      >
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-px h-12 bg-gradient-to-b from-retro-sage to-transparent"></div>
-        </div>
-      </motion.div>
-    </section >
-  );
-};
 
 const techs = [
   { name: "React", color: "hover:text-[#61DAFB]" },
@@ -430,26 +105,7 @@ const techs = [
 
 const TrustedBy: React.FC = () => {
   return (
-    <div className="w-full bg-white py-12 border-b border-retro-sage/20">
-      <div className="container mx-auto px-6 text-center">
-        <p className="mb-6 text-sm font-semibold uppercase tracking-[0.35em] text-[#244855] opacity-80">
-          Master the Modern Tech Stack
-        </p>
-        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-          {techs.map((tech, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0.8, filter: 'grayscale(20%)' }}
-              whileHover={{ opacity: 1, filter: 'grayscale(0%)', scale: 1.08 }}
-              transition={{ duration: 0.3 }}
-              className={`text-2xl md:text-3xl font-bold text-[#244855] cursor-default select-none transition-colors ${tech.color}`}
-            >
-              {tech.name}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <div className="w-full bg-white h-4"></div>
   );
 };
 
@@ -462,107 +118,100 @@ const ValueProp: React.FC = () => {
           <p className="text-retro-teal/70 mt-4 text-lg">More than just videos. A complete ecosystem.</p>
         </div>
 
-        {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[350px]">
+        {/* Bento Grid Layout - Square Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
 
-          {/* Box 1: Practical Assignments (Span 2) - Retro Teal */}
+          {/* Box 1: Practical Assignments (Square) */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="md:col-span-2 bg-retro-teal rounded-3xl p-8 relative overflow-hidden flex flex-col justify-between group"
+            className="bg-retro-teal rounded-2xl p-6 relative overflow-hidden flex flex-col gap-4 group"
           >
             <div className="relative z-20">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white">
-                  <Terminal size={24} />
-                </div>
-                <h3 className="text-2xl font-bold text-white">Practical Assignments</h3>
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-white mb-4">
+                <Terminal size={20} />
               </div>
-              <p className="text-retro-sage/80 text-lg max-w-sm">Theory is useless without practice. Solve coding challenges directly in the browser.</p>
+              <h3 className="text-xl font-bold text-white mb-2">Practical Assignments</h3>
+              <p className="text-retro-sage/80 text-sm leading-snug">Solve coding challenges directly in the browser.</p>
             </div>
 
-            {/* Code Editor Animation Illustration */}
-            <div className="absolute right-0 bottom-0 w-full md:w-3/4 h-[55%] bg-[#1a3540] rounded-tl-3xl p-4 shadow-2xl border-t border-l border-white/10 transform translate-x-8 translate-y-8 transition-transform duration-500 group-hover:translate-x-4 group-hover:translate-y-4 z-20">
-              <div className="flex items-center gap-1.5 mb-4">
-                <div className="w-3 h-3 rounded-full bg-retro-salmon"></div>
-                <div className="w-3 h-3 rounded-full bg-retro-sage"></div>
-                <div className="w-3 h-3 rounded-full bg-retro-bg"></div>
+            {/* Code Editor Animation - Bottom */}
+            <div className="relative w-full bg-[#1a3540] rounded-xl p-3 shadow-lg border border-white/10">
+              <div className="flex gap-1.5 mb-2">
+                <div className="w-2 h-2 rounded-full bg-retro-salmon"></div>
+                <div className="w-2 h-2 rounded-full bg-retro-sage"></div>
               </div>
-              <div className="space-y-2 font-mono text-sm">
-                <div className="text-retro-salmon">const <span className="text-retro-sage">Assignment</span> = <span className="text-retro-bg">()</span> <span className="text-retro-salmon">=&gt;</span> {'{'}</div>
-                <div className="pl-4 text-white/80">return <span className="text-retro-bg">"Submit Code"</span>;</div>
-                <div className="text-retro-salmon">{'}'}</div>
-                <motion.div
-                  animate={{ opacity: [0, 1, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.8 }}
-                  className="w-2 h-4 bg-retro-sage inline-block ml-1"
-                ></motion.div>
+              <div className="font-mono text-[10px] space-y-1">
+                <div className="text-retro-salmon">const <span className="text-retro-sage">Job</span> = <span className="text-retro-bg">()</span> <span className="text-retro-salmon">=&gt;</span></div>
+                <div className="text-white/80 pl-2">
+                  return <span className="text-retro-bg">"Hired"</span>;
+                  <motion.div
+                    animate={{ opacity: [0, 1, 0] }}
+                    transition={{ repeat: Infinity, duration: 0.8 }}
+                    className="w-1.5 h-3 bg-retro-sage inline-block ml-1 align-middle"
+                  ></motion.div>
+                </div>
               </div>
             </div>
           </motion.div>
 
-          {/* Box 2: Community (Span 1) - Retro Brown */}
+          {/* Box 2: Community (Square) */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="md:col-span-1 bg-retro-brown rounded-3xl p-8 relative overflow-hidden flex flex-col justify-between group transition-colors"
+            className="bg-retro-brown rounded-2xl p-6 relative overflow-hidden flex flex-col gap-4 group"
           >
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white">
-                  <Users size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-white">Community-Led</h3>
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white mb-4">
+                <Users size={20} />
               </div>
-              <p className="text-white/90">Join 10,000+ peers.</p>
+              <h3 className="text-xl font-bold text-white mb-1">Community-Led</h3>
+              <p className="text-white/90 text-sm">Join 10,000+ peers.</p>
             </div>
 
-            <div className="flex -space-x-4 mt-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-12 h-12 rounded-full border-4 border-retro-brown bg-slate-300 overflow-hidden relative z-0 hover:z-10 hover:scale-110 transition-transform">
-                  <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="Avatar" className="w-full h-full object-cover" />
+            <div className="flex flex-col gap-2">
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="w-8 h-8 rounded-full border-2 border-retro-brown bg-slate-300 overflow-hidden">
+                    <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+              <div className="w-full bg-white/10 rounded-xl p-3 backdrop-blur-sm border border-white/10">
+                <div className="flex gap-2 items-center">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                  <p className="text-white text-xs font-medium">142 online now</p>
                 </div>
-              ))}
-              <div className="w-12 h-12 rounded-full border-4 border-retro-brown bg-white/30 flex items-center justify-center text-white font-bold text-xs relative z-0">
-                +10k
               </div>
             </div>
           </motion.div>
 
-          {/* Box 3: 24/7 Support (Full Width Row) - Retro Sage */}
+          {/* Box 3: 24/7 Support (Square) */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
-            className="md:col-span-3 bg-retro-sage rounded-3xl p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between group transition-colors"
+            className="bg-retro-sage rounded-2xl p-6 relative overflow-hidden flex flex-col gap-4 group"
           >
-            <div className="relative z-10 max-w-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center text-[#244855]">
-                  <LifeBuoy size={24} />
-                </div>
-                <h3 className="text-2xl font-bold text-[#244855]">24/7 AI Support</h3>
+            <div>
+              <div className="w-10 h-10 bg-white/40 rounded-xl flex items-center justify-center text-[#244855] mb-4">
+                <LifeBuoy size={20} />
               </div>
-              <p className="text-[#2f5e6d] text-lg">Never learn alone. Our AI understands your specific context and unblocks you instantly.</p>
+              <h3 className="text-xl font-bold text-[#244855] mb-2">24/7 AI Support</h3>
+              <p className="text-[#2f5e6d] text-sm leading-snug">Unblock yourself instantly.</p>
             </div>
 
-            {/* Floating Chat Bubble Animation */}
-            <motion.div
-              animate={{ y: [0, -15, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-              className="mt-6 md:mt-0 bg-white p-6 rounded-2xl rounded-tr-none shadow-xl border border-retro-sage/30 text-sm max-w-xs relative z-10"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-retro-salmon animate-pulse"></div>
-                <span className="font-bold text-retro-teal">Tutor Bot</span>
-                <span className="text-xs text-retro-teal/60 ml-auto">Now</span>
+            {/* Chat Bubble - Bottom */}
+            <div className="bg-white p-3 rounded-xl rounded-bl-sm shadow-sm border border-retro-sage/30 text-xs relative">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-bold text-retro-teal text-[10px]">Tutor Bot</span>
               </div>
-              <p className="text-retro-teal leading-relaxed">"It looks like you missed the closing bracket on line 42. Try adding <code className="bg-retro-bg px-1 rounded text-retro-salmon">{'}'}</code>"</p>
-            </motion.div>
+              <p className="text-retro-teal text-[10px] leading-relaxed">"Try adding a closing bracket <code className="bg-retro-bg px-1 rounded">{'}'}</code> on line 42."</p>
+            </div>
           </motion.div>
 
         </div>
@@ -669,55 +318,78 @@ const TimelineItem: React.FC<{ step: Step; index: number }> = ({ step, index }) 
 };
 
 const Methodology: React.FC = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start center", "end center"]
-  });
-
-  const scaleY = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
+  const [, setLocation] = useLocation();
 
   return (
-    <section id="how" ref={ref} className="py-32 bg-retro-bg relative overflow-hidden">
-      {/* Section Header */}
-      <div className="container mx-auto px-6 max-w-5xl mb-24 text-center relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4">The Ottolearn Method</h2>
-          <p className="text-xl text-retro-teal/70 max-w-2xl mx-auto mb-6">We don't just sell courses. We guarantee mastery.</p>
-          <div className="inline-block px-4 py-1.5 rounded-full bg-white border border-retro-sage/30">
-            <p className="text-xs font-bold text-retro-teal uppercase tracking-wider">
-              Inspired by the Harvard Method of Teaching
+    <section id="how" className="relative py-12 px-4 md:px-8">
+      {/* Background Image */}
+      {/* Background - Platform Theme */}
+      <div className="absolute inset-0 z-0 bg-retro-bg"></div>
+
+      <div className="container mx-auto max-w-[1300px] relative z-10">
+        <div className="bg-white shadow-2xl p-8 md:p-10 w-full mx-auto rounded-lg">
+          {/* Header Section */}
+          <div className="text-center mb-8 max-w-4xl mx-auto">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="h-px bg-[#E6AF2E] w-12 md:w-24"></div>
+              <h2 className="text-xl md:text-2xl font-bold text-[#244855] tracking-wider uppercase">
+                WHAT SETS OTTOLEARN APART?
+              </h2>
+              <div className="h-px bg-[#E6AF2E] w-12 md:w-24"></div>
+            </div>
+            <p className="text-base md:text-lg text-[#244855]/80 leading-relaxed font-medium">
+              Our flexible, AI-powered programs are designed to bring the elite engineering classroom to you, and are built around three key characteristics:
             </p>
           </div>
-        </motion.div>
-      </div>
 
-      {/* Tree Container */}
-      <div className="container mx-auto max-w-7xl px-6 relative">
+          {/* Three Columns */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            {/* Column 1: Real-World Cases */}
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <Sparkles size={40} strokeWidth={1.5} className="text-[#244855]" />
+              </div>
+              <h3 className="text-lg font-bold text-[#244855] mb-2">Real-World Projects</h3>
+              <p className="text-[#244855]/70 leading-relaxed text-sm">
+                Apply your learning through production-grade challenges and projects. You won't just watch videos; you'll build features, debug real codebases, and deploy live applications. As the curriculum unfolds, you'll leverage industry-standard tools and patterns.
+              </p>
+            </div>
 
-        {/* Central Line */}
-        <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-1 md:-ml-0.5 h-full z-0 bg-gray-200">
-          <motion.div
-            className="w-full bg-retro-salmon origin-top"
-            style={{ scaleY, height: "100%" }}
-          />
+            {/* Column 2: Active */}
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <LifeBuoy size={40} strokeWidth={1.5} className="text-[#244855]" />
+              </div>
+              <h3 className="text-lg font-bold text-[#244855] mb-2">Active Learning</h3>
+              <p className="text-[#244855]/70 leading-relaxed text-sm">
+                Immerse yourself in a dynamic, interactive learning experience. You'll engage in a new coding activity every three to five minutes through AI-guided quizzes and debugging exercises designed to accelerate your mastery.
+              </p>
+            </div>
+
+            {/* Column 3: Social */}
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4">
+                <Users size={40} strokeWidth={1.5} className="text-[#244855]" />
+              </div>
+              <h3 className="text-lg font-bold text-[#244855] mb-2">Social & Mentorship</h3>
+              <p className="text-[#244855]/70 leading-relaxed text-sm">
+                Join a global community of ambitious developers. Learn from peers and mentors. Collaborate on open-source initiatives, give code reviews, and share experiences to grow your career.
+              </p>
+            </div>
+          </div>
+
+          {/* CTA Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setLocation('/methodology')}
+              className="group border-2 border-[#E64833] text-[#E64833] bg-white px-6 py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#E64833] hover:text-white transition-all duration-300 flex items-center gap-2"
+            >
+              LEARN MORE ABOUT THE OTTOLEARN MODEL
+              <ChevronRight size={14} className="transition-transform group-hover:translate-x-1" />
+            </button>
+          </div>
+
         </div>
-
-        {/* Steps */}
-        <div className="space-y-24 relative z-10">
-          {steps.map((step, index) => (
-            <TimelineItem key={index} step={step} index={index} />
-          ))}
-        </div>
-
       </div>
     </section>
   );
@@ -1269,75 +941,7 @@ const AiStructure: React.FC = () => {
   );
 };
 
-const Certification: React.FC = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "center center"]
-  });
 
-  // Soft transition from white/gray to a premium pastel gold/yellow
-  const backgroundColor = useTransform(scrollYProgress, [0, 1], ["#FAFAF9", "#FFFDE7"]);
-
-  return (
-    <motion.section
-      ref={ref}
-      style={{ backgroundColor }}
-      className="py-32 overflow-hidden"
-    >
-      <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
-
-        <motion.div
-          initial={{ opacity: 0, rotate: -10 }}
-          whileInView={{ opacity: 1, rotate: 0 }}
-          transition={{ type: "spring", bounce: 0.4, duration: 1.5 }}
-          viewport={{ once: true, margin: "-100px" }}
-          className="relative"
-        >
-          {/* Certificate Image */}
-          <div className="rounded shadow-2xl transform hover:scale-105 transition-transform duration-500">
-            <img
-              src={certificateHero}
-              alt="Certificate of Completion"
-              className="w-full h-auto rounded"
-              loading="lazy"
-            />
-          </div>
-        </motion.div>
-
-        <div>
-          <motion.h2
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-4xl font-bold text-retro-teal mb-6"
-          >
-            Your Success, <span className="text-retro-yellow">Certified.</span>
-          </motion.h2>
-          <p className="text-xl text-retro-teal/70 mb-8">
-            Upon 100% completion and successful assessment, instantly download your verified certificate, complete with a unique ID for portfolio validation.
-          </p>
-
-          <ul className="space-y-4">
-            {["Instant Download PDF", "Unique Verification ID", "LinkedIn Integratable", "Portfolio Ready"].map((item, i) => (
-              <motion.li
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-3 text-retro-teal font-medium"
-              >
-                <div className="bg-retro-yellow/30 rounded-full p-1"><Check size={14} className="text-retro-teal" /></div>
-                {item}
-              </motion.li>
-            ))}
-          </ul>
-        </div>
-
-      </div>
-    </motion.section>
-  );
-};
 
 const testimonials = [
   {
@@ -1724,18 +1328,7 @@ const CallToAction: React.FC<{ onEnroll: () => void; onViewCurriculum: () => voi
           >
             Start Your Free Trial <ArrowRight />
           </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-transparent text-white border-2 border-retro-sage px-10 py-5 rounded-full font-bold text-xl flex items-center gap-3 hover:bg-white/10 hover:border-white transition-all backdrop-blur-sm"
-            onClick={onViewCurriculum}
-          >
-            View Curriculum <BookOpen size={20} />
-          </motion.button>
         </div>
-
-        <p className="mt-8 text-sm text-retro-sage">No credit card required for the first lesson.</p>
 
       </div>
     </section>
@@ -1750,7 +1343,7 @@ const Footer: React.FC = () => {
           <div className="w-6 h-6 bg-retro-salmon rounded transform rotate-45"></div>
           Ottolearn
         </div>
-        <p className="text-white/60 text-sm">© 2024 Ottolearn. All rights reserved.</p>
+        <p className="text-white/60 text-sm">© 2026 Ottolearn. All rights reserved.</p>
         <div className="flex gap-6 text-white/80">
           <a href="#" className="hover:text-retro-salmon transition-colors">Privacy</a>
           <a href="#" className="hover:text-retro-salmon transition-colors">Terms</a>
@@ -1778,203 +1371,7 @@ const ProgressBar: React.FC = () => {
   );
 };
 
-const CohortPromoSection: React.FC = () => {
-  const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
 
-  return (
-    <section id="cohort-promo" className="w-full py-24 bg-[#FBE9D0]/30 flex justify-center border-b border-retro-sage/10">
-      <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
-        <div className="space-y-8 md:pl-16">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-retro-salmon text-white rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-retro-salmon/20"
-          >
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-            Trending Cohort
-          </motion.div>
-
-          {/* Heading */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-          >
-            <motion.h2
-              animate={{
-                y: [0, -8, 0],
-                textShadow: [
-                  "0px 0px 0px rgba(230,72,51,0)",
-                  "0px 0px 15px rgba(230,72,51,0.3)",
-                  "0px 0px 0px rgba(230,72,51,0)"
-                ]
-              }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-              className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-retro-teal"
-            >
-              AI Native <br />
-              <span className="text-retro-salmon">FullStack</span> Developer
-            </motion.h2>
-          </motion.div>
-
-          {/* Description */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl text-retro-teal/70 max-w-lg leading-relaxed font-medium"
-          >
-            The definitive roadmap for developers building the next generation of intelligent software. Master LLM Orchestration, RAG Pipelines, and Agentic Systems.
-          </motion.p>
-
-          {/* Availability Card */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="bg-white p-6 rounded-3xl shadow-xl shadow-retro-teal/5 border border-retro-sage/20 max-w-md w-full"
-          >
-            <div className="flex justify-between items-center mb-5">
-              <span className="text-xs font-bold text-retro-teal/60 tracking-widest uppercase">Cohort Availability</span>
-              <span className="px-3 py-1 bg-retro-salmon/10 text-retro-salmon text-[10px] font-bold rounded-full uppercase tracking-wide">18 Spots Left</span>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-5">
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: "75%" }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-retro-salmon to-[#FF8A75] rounded-full relative overflow-hidden"
-              >
-                {/* Shine Effect */}
-                <motion.div
-                  className="absolute top-0 left-0 bottom-0 w-full h-full bg-gradient-to-r from-transparent via-white/50 to-transparent -skew-x-12"
-                  initial={{ x: "-100%" }}
-                  animate={{ x: "200%" }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 2,
-                    ease: "linear",
-                  }}
-                />
-              </motion.div>
-            </div>
-
-            <div className="flex items-center gap-2 text-[10px] font-bold text-retro-teal/40 uppercase tracking-widest">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              hurry up seats are filling fast
-            </div>
-          </motion.div>
-
-          {/* Form/Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6"
-          >
-            <a
-              href="https://Ottobon-Cohort-regestration---07.replit.app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <button className="w-full sm:w-auto bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide text-center">
-                grab your spot
-              </button>
-            </a>
-
-            <button
-              onClick={() => setIsSyllabusOpen(true)}
-              className="group inline-flex w-full justify-center sm:w-auto sm:justify-between items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
-            >
-              View Full Syllabus
-              <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-            </button>
-          </motion.div>
-        </div>
-
-        {/* Right side - 3D Cube Feature */}
-        <div className="hidden md:flex justify-center items-center h-full min-h-[400px]">
-          <div className="cube-container">
-            <div className="box-card">
-              <div className="face front" style={{ '--img': `url(${cohortEngagementImg})` } as React.CSSProperties}></div>
-              <div className="face back" style={{ '--img': `url(${peerInsightImg})` } as React.CSSProperties}></div>
-              <div className="face right" style={{ '--img': `url(${personaLearningImg})` } as React.CSSProperties}></div>
-              <div className="face left" style={{ '--img': `url(${assessmentImg})` } as React.CSSProperties}></div>
-              <div className="face top" style={{ '--img': `url(${aiAssistantImg})` } as React.CSSProperties}></div>
-              <div className="face bottom" style={{ '--img': `url(${humanLoopImg})` } as React.CSSProperties}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {isSyllabusOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-            onClick={() => setIsSyllabusOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] relative shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setIsSyllabusOpen(false)}
-                className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors z-10"
-              >
-                <X size={24} />
-              </button>
-              <div className="overflow-y-auto max-h-[85vh] p-6 space-y-6">
-                <div className="rounded-2xl border border-retro-sage/40 bg-retro-bg/40 p-6 shadow-inner text-retro-teal">
-                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-retro-salmon">Cohort syllabus</p>
-                  <h3 className="text-2xl md:text-3xl font-semibold text-retro-teal mt-2">AI Native FullStack Developer</h3>
-                  <p className="text-sm md:text-base text-retro-teal/80 mt-3">
-                    A 5-module, mentor-led journey that combines product thinking, AI-native delivery, and telemetry-driven coaching. Each module ends with a cold-call style checkpoint and tutor review.
-                  </p>
-                </div>
-                <div className="grid gap-4">
-                  {syllabusSections.map((section) => (
-                    <div key={section.title} className="rounded-2xl border border-retro-sage/30 bg-white/90 p-5 shadow-sm">
-                      <div className="flex flex-col gap-1">
-                        <h4 className="text-lg font-semibold text-retro-teal">{section.title}</h4>
-                        <p className="text-sm text-retro-teal/70">{section.summary}</p>
-                      </div>
-                      <ul className="mt-3 space-y-2 text-sm text-retro-teal">
-                        {section.topics.map((topic) => (
-                          <li key={topic} className="flex items-start gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-retro-salmon" />
-                            <span>{topic}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </section>
-  );
-};
 
 
 function App() {
@@ -1994,51 +1391,7 @@ function App() {
       return null;
     }
   });
-  const [catalog, setCatalog] = useState<Course[]>(courses);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    // Ensure light theme when landing page mounts (prevents dark-mode bleed from course player)
-    document.documentElement.classList.remove('dark');
-    document.body.style.backgroundColor = 'white';
-
-    let mounted = true;
-    const fetchCourses = async () => {
-      try {
-        const res = await fetch(buildApiUrl('/api/courses'));
-        if (!res.ok) return;
-        const payload = await res.json();
-        const mapped: Course[] = (payload?.courses ?? []).map((course: any, idx: number) => {
-          const title = course.title ?? course.courseName ?? 'Course';
-          const thumbnail = course.thumbnail ?? course.thumbnailUrl ?? null;
-          return {
-            id: course.id ?? course.courseId ?? course.slug ?? course.title ?? `course-${idx}`,
-            title,
-            rating: course.rating ?? 4.8,
-            students: course.students ?? 0,
-            description: course.description ?? 'Learn with Ottolearn.',
-            image: thumbnail ?? getCourseImage(title),
-            status: 'Available',
-          };
-        });
-        if (mounted && mapped.length > 0) {
-          setCatalog(mapped);
-        }
-      } catch (error) {
-        if (mounted) {
-          toast({
-            title: 'Could not load courses',
-            description: error instanceof Error ? error.message : 'Please try again shortly.',
-            variant: 'destructive',
-          });
-        }
-      }
-    };
-    fetchCourses();
-    return () => {
-      mounted = false;
-    };
-  }, [toast]);
 
   const primaryCourseId = 'ai-in-web-development';
   const primaryCourseTitle = 'AI Native FullStack Developer';
@@ -2109,14 +1462,7 @@ function App() {
   };
 
   const handleSearchCourses = (term: string) => {
-    const cleaned = term.trim();
-    setSearchQuery(cleaned);
-    const el = document.getElementById('courses');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      setLocation('/courses');
-    }
+    setLocation(`/courses?q=${encodeURIComponent(term.trim())}`);
   };
 
   const handleLogout = () => {
@@ -2142,24 +1488,24 @@ function App() {
       className="w-full min-h-screen"
       style={{ background: "linear-gradient(180deg, #FBE9D0 0%, #FFFFFF 55%, #FFFFFF 100%)" }}
     >
+      {/* Removed spacer div to eliminate gap */}
       <ProgressBar />
       <Navbar
         onLogin={handleLogin}
-        onApplyTutor={handleApplyTutor}
         isAuthenticated={isAuthenticated}
-        user={user ?? undefined}
+        user={user}
         onLogout={handleLogout}
+        onApplyTutor={handleApplyTutor}
       />
-      <Hero onEnroll={() => handleEnroll()} onSearch={handleSearchCourses} />
-      <CohortPromoSection />
+      <HeroCarousel onEnroll={() => handleEnroll()} onSearch={handleSearchCourses} />
       <TrustedBy />
       <ValueProp />
       <Methodology />
       <CurriculumStructure />
       <AiStructure />
-      <TrendingCourses onEnroll={handleEnroll} courseCatalog={catalog} searchTerm={searchQuery} />
+
       <PlatformStats />
-      <Certification />
+
       <Testimonials />
       {/* Faculty section removed */}
       {/* <Faculty /> */}

@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   Code2,
   Lightbulb,
   Lock,
@@ -509,8 +510,17 @@ const CourseDetailsPage: React.FC = () => {
 
       <nav className="bg-[#000000] p-4 sticky top-0 z-40 border-b border-[#4a4845]">
         <div className="container mx-auto flex justify-between items-center">
-          <div className="text-2xl font-extrabold text-[#f8f1e6] tracking-tight">
-            Meta<span className="text-[#bf2f1f]">Learn</span>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setLocation("/")}
+              className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
+            >
+              <ChevronLeft size={18} /> Home
+            </button>
+            <div className="text-2xl font-extrabold text-[#f8f1e6] tracking-tight">
+              Meta<span className="text-[#bf2f1f]">Learn</span>
+            </div>
           </div>
           <div className="hidden md:flex gap-6 text-[#f8f1e6]/70 text-sm font-medium">
             <span className="cursor-pointer hover:text-[#f8f1e6] transition">Curriculum</span>
