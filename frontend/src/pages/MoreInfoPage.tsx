@@ -119,15 +119,15 @@ const TOPICS: Record<string, {
         )
     },
     'payments': {
-        title: 'Payments & Enrollment',
+        title: ' Enrollments',
         icon: CreditCard,
         description: 'Financial aid, payment plans, and deadlines.',
         details: (
             <div className="space-y-6">
-                <p className="text-gray-700">We strive to make elite education accessible. We offer flexible payment plans (pay-in-3) and merit-based scholarships.</p>
+                <p className="text-gray-700">We strive to make elite education accessible. We offer merit-based scholarships.</p>
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
                     <p className="font-bold text-yellow-800">Next Application Deadline</p>
-                    <p className="text-sm text-yellow-700">Applications for the Summer Cohort close on August 15th.</p>
+                    <p className="text-sm text-yellow-700">Applications for the 1st cohort is live</p>
                 </div>
             </div>
         )
@@ -325,7 +325,7 @@ const MoreInfoPage: React.FC = () => {
                                     {[
                                         { id: 'faq', icon: MessageCircleQuestion, title: 'Frequently Asked Questions', text: 'Get answers quickly.' },
                                         { id: 'learner-support', icon: Headphones, title: 'Learner Support', text: 'Technical and academic help.' },
-                                        { id: 'payments', icon: CreditCard, title: 'Enrollment', text: 'Financial aid and plans.' },
+                                        { id: 'payments', icon: CreditCard, title: 'Enrollment', text: 'students enrollments' },
                                         { id: 'policies', icon: FileText, title: 'Policies & Guidelines', text: 'Academic details.' }
                                     ].map((card) => (
                                         <div
