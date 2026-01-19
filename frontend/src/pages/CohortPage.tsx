@@ -6,6 +6,8 @@ import Footer from '@/components/layout/Footer';
 import CohortHeroImage from '@/assets/cohort-hero-2.png';
 import ProjectConceptArt from '@/assets/project-concept-art.png';
 import AiTutorPreview from '@/assets/ai-tutor-preview.png';
+import { buildApiUrl } from '@/lib/api';
+import { readStoredSession } from '@/utils/session';
 
 // Type Definitions
 interface JourneyStageProps {
@@ -114,7 +116,22 @@ const HighlightItem: React.FC<{ text: string }> = ({ text }) => (
 
 const CohortPage: React.FC = () => {
   const [isPathExpanded, setIsPathExpanded] = React.useState(false);
+  const [, setLocation] = useLocation();
   // Auth state handled in App.tsx now
+  const primaryCourseId = "ai-in-web-development";
+  const courseDetailsPath = `/course/${primaryCourseId}`;
+
+  const handleJoinNow = () => {
+    const session = readStoredSession();
+    if (session?.accessToken) {
+      setLocation(courseDetailsPath);
+      return;
+    }
+
+    const redirectTarget = `${buildApiUrl("/auth/google")}?redirect=${encodeURIComponent(courseDetailsPath)}`;
+    sessionStorage.setItem("postLoginRedirect", courseDetailsPath);
+    window.location.href = redirectTarget;
+  };
   const valuePoints = [
     "Cohort-specific access and learning spaces",
     "Cohort-Aligned Start Dates and Timeliness",
@@ -541,7 +558,10 @@ const CohortPage: React.FC = () => {
                     {/* Action Button - Pushed to bottom */}
                     <div className="mt-auto pt-6">
                       {course.status === 'live' ? (
-                        <button className="w-full py-2.5 bg-[#1A1C2E] hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                        <button
+                          onClick={handleJoinNow}
+                          className="w-full py-2.5 bg-[#1A1C2E] hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        >
                           Join Now
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />

@@ -169,18 +169,6 @@ const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => vo
                     <motion.div variants={itemVariants} className="w-full flex justify-center md:justify-start">
                         <TypewriterInput suggestions={["AI Native FullStack Developer", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
                     </motion.div>
-
-                    <motion.div variants={itemVariants} className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
-                        <motion.button
-                            onClick={onEnroll}
-                            whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(230, 72, 51, 0.2)" }}
-                            whileTap={{ scale: 0.95 }}
-                            className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-full font-semibold text-lg flex items-center gap-2 transition-all"
-                        >
-                            Enroll <ChevronRight size={20} />
-                        </motion.button>
-
-                    </motion.div>
                 </motion.div>
 
                 {/* Hero Image Gallery */}
@@ -350,30 +338,45 @@ const PromoSlide: React.FC<{ onEnroll: () => void }> = ({ onEnroll }) => {
 
                     {/* Form/Buttons */}
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: 0.4 }}
-                        className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6"
-                    >
-                        <a
-                            href="https://Ottobon-Cohort-regestration---07.replit.app"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <button className="w-full sm:w-auto bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide text-center">
-                                grab your spot
-                            </button>
-                        </a>
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ delay: 0.4 }}
+    className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 pt-4"
+>
+    {/* 1. Grab Your Spot Button */}
+    <a
+        href="https://Ottobon-Cohort-regestration---07.replit.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full sm:w-auto"
+    >
+        <button className="w-full bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide text-center">
+            grab your spot
+        </button>
+    </a>
 
-                        <button
-                            onClick={() => setIsSyllabusOpen(true)}
-                            className="group inline-flex w-full justify-center sm:w-auto sm:justify-between items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
-                        >
-                            View Full Syllabus
-                            <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                        </button>
-                    </motion.div>
+
+    {/* 3. View Full Syllabus Button */}
+    <button
+        onClick={() => setIsSyllabusOpen(true)}
+        className="group inline-flex w-full justify-center sm:w-auto items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
+    >
+        View Full Syllabus
+        <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+    </button>
+
+ {/* 2. Integrated Enroll Button */}
+    <motion.button
+        onClick={onEnroll}
+        whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(230, 72, 51, 0.2)" }}
+        whileTap={{ scale: 0.95 }}
+        className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
+    >
+        Enroll <ChevronRight size={20} />
+    </motion.button>
+
+</motion.div>
                 </div>
 
                 {/* Right side - 3D Cube Feature */}
