@@ -1267,7 +1267,7 @@ const CoursePlayerPage: React.FC = () => {
       return;
     }
     let idle = false;
-    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let idleTimer: number | null = null;
 
     const markActive = () => {
       if (idle) {
@@ -1521,7 +1521,7 @@ const CoursePlayerPage: React.FC = () => {
       setQuizResult(null);
       setIsQuizMode(true);
       setQuizPhase("intro");
-      setQuizTimer(60);
+      setQuizTimer(150);
       setSidebarOpen(false);
       setChatOpen(false);
       setNotesOpen(false);
@@ -2342,7 +2342,8 @@ const CoursePlayerPage: React.FC = () => {
                     <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
                       <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
                       <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
-                        00:{quizTimer.toString().padStart(2, "0")}
+                        {Math.floor(quizTimer / 60).toString().padStart(2, "0")}:
+                        {(quizTimer % 60).toString().padStart(2, "0")}
                       </span>
                     </div>
 
