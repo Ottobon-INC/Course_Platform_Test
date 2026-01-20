@@ -17,30 +17,41 @@ This document is the entry point for any LLM thread that must build a complete m
 12. `docs/design_guidelines.md`
 
 ## 2) Canonical identifiers and invariants
-- Primary course name: AI Native FullStack Developer.
-- Primary course slug: `ai-native-fullstack-developer`.
-- Legacy slug: `ai-in-web-development` still resolves via backend slug/name resolution.
-- RAG source PDF: `AI Native Full Stack Developer.pdf`.
+- Primary course name in DB: `AI in Web Development`.
+- Primary marketing label in UI: `AI Native FullStack Developer`.
+- Primary course slug (DB seed): `ai-in-web-development`.
+- Primary course UUID (seed): `f26180b2-5dda-495a-a014-ae02e63f172f`.
+- Additional seed courses also exist (see `backend/prisma/seed.ts`).
+- RAG source PDFs in repo root:
+  - `Web Dev using AI Course Content.pdf` (default in ingest script)
+  - `AI Native Full Stack Developer.pdf` (alternate source)
 - Frontend dev URL: `http://localhost:5173`.
 - Backend dev URL: `http://localhost:4000` (API mounted at `/` and `/api`).
 
 ## 3) Frontend routes (from `frontend/src/App.tsx`)
 - `/` - LandingPage
 - `/become-a-tutor` - BecomeTutorPage
+- `/methodology` - MethodologyPage
+- `/more-info` - MoreInfoPage
+- `/our-courses/cohort` - CohortPage
+- `/our-courses/on-demand` - OnDemandPage
+- `/our-courses/workshops` - WorkshopPage
 - `/tutors` - TutorDashboardPage (tutor/admin only)
 - `/auth/callback` - AuthCallbackPage
 - `/course/:id` - CourseDetailsPage
-- `/course/:id/enroll` - EnrollmentPage
+- `/course/:id/enroll` - EnrollmentPage (legacy flow)
 - `/course/:id/path` - LearningPathPage (study persona questionnaire flow)
 - `/course/:id/learn/:lesson` - CoursePlayerPage
-- `/course/:id/assessment` - AssessmentPage
+- `/course/:id/assessment` - AssessmentPage (legacy flow)
 - `/course/:id/congrats` - CongratsPage
 - `/course/:id/congrats/feedback` - CongratsFeedbackPage
 - `/course/:id/congrats/certificate` - CourseCertificatePage
 - `*` - NotFound
 
 Notes:
-- `TutorLoginPage.tsx` exists but is not wired; tutor login is handled inside `BecomeTutorPage` via `/api/tutors/login`.
+- The marketing navbar is hidden on `/course/*` routes.
+- `AuthPage.tsx`, `TutorLoginPage.tsx`, `CoursesPage.tsx`, `DashboardPage.tsx`, `CartPage.tsx`, `AboutPage.tsx` exist but are not wired in `App.tsx`.
+- `frontend/src/pages/examples/*` are local examples only.
 
 ## 4) Backend routers and endpoints
 Routers are mounted at both `/` and `/api`.
@@ -67,13 +78,13 @@ Lessons + personalization:
 - `PUT /lessons/:lessonId/progress`
 
 Cohort projects:
-- `GET /cohort-projects/:courseKey`
+- `GET /cohort-projects/:courseKey` (auth + cohort membership required)
 
 AI tutor (learner):
 - `POST /assistant/query`
 - `GET /assistant/session`
 
-Persona profile analysis:
+Persona profile analysis (tutor personas):
 - `GET /persona-profiles/:courseKey/status`
 - `POST /persona-profiles/:courseKey/analyze`
 
@@ -110,19 +121,26 @@ Admin:
 Other supporting:
 - `/cart/*`, `/pages/*`, `/tutor-applications/*`, `/users/*`, `/health`
 
-## 5) Content resolution invariants
-- `topics.text_content` can be plain text or a derived JSON layout.
-- Derived layout blocks can include `contentKey` values.
-- `topic_content_assets` stores the master payloads keyed by `(topic_id, content_key, persona_key)`.
-- `lessonsRouter` resolves content keys using the learner tutor persona (`learner_persona_profiles`), falls back to default payloads, and returns resolved blocks to the frontend.
-- The frontend should not filter by tutor persona; it renders the resolved JSON it receives.
+## 5) Content storage and rendering
+- `topics.text_content` is either plain text or a JSON layout.
+- Persona variants live in `text_content_sports`, `text_content_cooking`, `text_content_adventure`.
+- Video and PPT assets live in `video_url` and `ppt_url`.
+- `topics.text_content` JSON layout supports ordered `blocks` with `type` (`text|image|video|ppt`).
+- Two layout modes are supported by the backend:
+  - `contentKey` mode: blocks include a `contentKey`, which is resolved via `topic_content_assets` using the learner tutor persona (from `learner_persona_profiles`). The backend returns resolved block `data` payloads.
+  - inline `data` mode: blocks include `data` directly and can optionally include `tutorPersona`. The backend filters blocks by `tutorPersona` when present.
+- The frontend never sees `contentKey` or persona keys; it renders the resolved JSON it receives.
+- In the course player:
+  - If `text_content` parses as JSON, blocks render in order.
+  - `data.variants` may include study persona variants (`normal`, `sports`, `cooking`, `adventure`) and the UI chooses the correct copy.
+  - If `text_content` is plain text, the UI selects the study persona column (`text_content_*`) and falls back to `text_content`.
 
 ## 6) Data model focus (see `docs/databaseSchema.md`)
 Core learner tables:
 - `courses`, `topics`, `topic_progress`, `module_progress`
 - `topic_personalization` (study persona: `normal|sports|cooking|adventure`)
-- `learner_persona_profiles` (tutor personas for personalization)
-- `topic_content_assets` (master content payloads)
+- `learner_persona_profiles` (tutor persona)
+- `topic_content_assets` (content payloads keyed by `content_key` + persona)
 - `topic_prompt_suggestions`, `module_prompt_usage`
 - `quiz_questions`, `quiz_options`, `quiz_attempts`
 - `enrollments`
@@ -138,8 +156,10 @@ AI tutor + memory:
 Telemetry + tutor monitor:
 - `learner_activity_events`
 
-Tutor/admin:
+Tutor/admin + CMS + commerce:
 - `tutor_applications`, `tutors`, `course_tutors`
+- `page_content`
+- `cart_items`, `cart_lines`
 
 ## 7) Runtime constants (code-level truth)
 RAG + tutor:
@@ -156,32 +176,34 @@ Quiz gating:
 - Pass threshold: 70%
 - Default question limit: 5 (max 20)
 - Module cooldown window: 7 days
+- Frontend quiz timer: 150 seconds (2:30) in `CoursePlayerPage.tsx`
 
-Auth/session:
-- Access token TTL: 900s (default)
-- Refresh token TTL: 30d (default)
-- Refresh buffer: 60s; min refresh delay: 15s
+Auth/session defaults (see `backend/src/config/env.ts`):
+- Access token TTL: 900s
+- Refresh token TTL: 30 days
 
 Telemetry:
 - Max events per request: 50
 - History query limit max: 100
 
 ## 8) Course resolution rules
-- `coursesRouter`: resolves by UUID, legacy slug alias, or `courseName` (decoded + hyphen/underscore normalized). Does not use `slug` directly.
-- `lessonsRouter`: resolves by UUID, legacy alias, or `courseName` only.
-- `assistantRouter` + `quizRouter`: resolve UUID, legacy alias, `slug`, and `courseName`.
-- RAG retrieval uses the raw `courseId` passed by the client. It must match `course_chunks.course_id` from ingestion.
+- `coursesRouter` and `lessonsRouter`: resolve by UUID, legacy alias (`ai-in-web-development`), or `courseName`. They do not resolve arbitrary slugs.
+- `assistantRouter` and `quizRouter`: resolve by UUID, legacy alias, `slug`, or `courseName`.
+- `cohortProjectsRouter`: resolve by UUID, legacy alias, or `courseName`.
+- RAG retrieval uses the raw `courseId` passed to `/assistant/query` after router resolution. Ensure `course_chunks.course_id` matches that value.
 
 ## 9) RAG ingestion and imports
-- Ingest PDF to pgvector:
+- Ingest PDF to pgvector (default script uses `Web Dev using AI Course Content.pdf`):
   - `cd backend`
-  - `npm run rag:ingest "../AI Native Full Stack Developer.pdf" ai-native-fullstack-developer "AI Native FullStack Developer"`
-- Defaults in the script still point to the legacy PDF/slug, so pass explicit args when using the new slug.
+  - `npm run rag:ingest "../Web Dev using AI Course Content.pdf" ai-in-web-development "AI in Web Development"`
 - Import precomputed embeddings:
   - `npm run rag:import <json>`
 
-## 10) Known legacy wiring
-- `AuthPage.tsx` and `TutorLoginPage.tsx` exist but are not wired in `frontend/src/App.tsx`.
-- Some frontend constants still reference the legacy slug `ai-in-web-development`. This is safe because the backend resolves the legacy slug.
+## 10) Build + run (quick reference)
+Frontend:
+- `cd frontend && npm run dev`
+
+Backend:
+- `cd backend && npm run dev`
 
 This handoff should be treated as authoritative for LLM context building.

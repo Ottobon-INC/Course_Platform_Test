@@ -12,8 +12,8 @@ Running log of notable tasks and changes completed on the backend and frontend s
 - Course player header now includes a Cohort Project button and modal.
 
 ## 2026-01-05 - Course slug and content source update
-- Canonical course slug updated to `ai-native-fullstack-developer` (legacy `ai-in-web-development` still resolves).
-- RAG source PDF renamed to `AI Native Full Stack Developer.pdf` and referenced across docs.
+- Canonical course slug remains `ai-in-web-development` (UI marketing label `ai-native-fullstack-developer` appears in copy).
+- RAG source PDFs include `Web Dev using AI Course Content.pdf` (default) and `AI Native Full Stack Developer.pdf` (alternate).
 
 ## 2025-12-31 - Learner telemetry and tutor monitor APIs
 - Added `learner_activity_events` plus ingestion service. Frontend buffers events in `src/utils/telemetry.ts` and posts to `/api/activity/events`.

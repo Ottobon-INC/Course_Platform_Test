@@ -3,7 +3,7 @@
 This document explains how the React SPA, Express API, Postgres, and the AI tutor stack work together.
 
 ## 1. Runtime topology
-Primary course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-development` still resolves).
+Primary course slug: `ai-in-web-development` (UI marketing label `ai-native-fullstack-developer` is display-only).
 
 ```
 Browser -> React SPA (5173) -> Express API (4000) -> Prisma -> Postgres

@@ -17,26 +17,29 @@ Version: January 2026 monorepo snapshot (frontend + backend + shared assets)
 12. Deployment checklist
 
 ## 1. Project overview
-The Course Platform delivers a LearnHub-branded experience for browsing, enrolling in, and completing AI-centric coursework. A React SPA drives every learner touchpoint (landing page, enrollment funnel, course player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api`, handling OAuth, enrollment writes, module content, quiz scoring, tutor prompts, CMS pages, and tutor applications.
+The Course Platform delivers an Ottolearn-branded learning experience for browsing, enrolling, and completing AI-focused courses. A React SPA drives the marketing pages, course detail funnel, and the learning environment (player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api` (mirrored at `/`), handling OAuth, enrollment writes, module content, quizzes, tutor prompts, CMS pages, and tutor applications.
 
-Canonical course slug: `ai-native-fullstack-developer` (legacy `ai-in-web-development` links resolve via backend slug resolution).
+Canonical course slug in the seed data is `ai-in-web-development` (UI copy may show `AI Native FullStack Developer`).
 
 ## 2. Feature map
-- Single-course marketing funnel with live curriculum data and a deep link into the course player.
-- Cohort allowlist gate (cohorts + cohort_members) for enrollment, while browsing remains public.
-- Dynamic course player with video, study material, PPT, simulation exercises, cold calling, quizzes, and AI tutor.
-- Study personas (sports/cooking/adventure) stored per learner/course; switching back to Standard never deletes the saved persona.
-- Tutor persona profiles stored in `learner_persona_profiles` and used to personalize tutor responses and content assets.
-- Master/derived content system: layout JSON stored in `topics.text_content`, content payloads stored in `topic_content_assets`.
+- Multi-course catalog seeded in `backend/prisma/seed.ts` (primary focus is the AI in Web Development course).
+- Marketing and discovery pages: landing, methodology, more-info, cohort/on-demand/workshop collections.
+- Cohort allowlist gate (cohorts + cohort_members) for enrollment; browsing remains public.
+- Dynamic course player with block-based content, video, study material, PPT, simulation exercises, cold calling, quizzes, and AI tutor.
+- Study personas (sports/cooking/adventure) stored per learner/course; switching back to normal does not delete saved persona.
+- Tutor persona profiles stored in `learner_persona_profiles` and used for content asset resolution and tutor prompts.
+- Master/derived content system: layout JSON in `topics.text_content`, payloads in `topic_content_assets`.
 - Cohort batch projects: per-batch project briefs surfaced in the course player header.
 - Quiz-driven module gating with cooldown windows and progress tracking.
 - AI tutor with pgvector RAG, prompt suggestions, and persistent chat memory.
 - Tutor telemetry monitor with learner activity events.
+- Commerce surfaces (cart, enrollments) are present but only partially surfaced in routing.
 
 ## 3. Repository structure (high level)
 ```
 ./
   CP_Arc.md, Course_Platform.md, README.md, Frontend.md, task_progress.md
+  Web Dev using AI Course Content.pdf
   AI Native Full Stack Developer.pdf
   frontend/        # React + Vite SPA
   backend/         # Express + Prisma API
@@ -64,36 +67,52 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
 - `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TOKEN_TTL_SECONDS`, `JWT_REFRESH_TOKEN_TTL_DAYS`.
 - `OPENAI_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL`.
-- Frontend `.env`: `VITE_API_BASE_URL`.
+- Frontend `.env`: `VITE_API_BASE_URL` (API base URL for `buildApiUrl`).
+- Navbar OAuth uses `VITE_API_URL` in `frontend/src/App.tsx` (keep aligned or unify).
 
 ## 6. Frontend architecture
-### Routing
+### Routing (from `frontend/src/App.tsx`)
 | Path | Component |
 | --- | --- |
 | `/` | LandingPage |
-| `/course/:id` | CourseDetailsPage |
-| `/course/:id/learn/:lesson` | CoursePlayerPage |
-| `/course/:id/path` | LearningPathPage |
-| `/course/:id/congrats/certificate` | CourseCertificatePage |
-| `/tutors` | TutorDashboardPage |
 | `/become-a-tutor` | BecomeTutorPage |
+| `/methodology` | MethodologyPage |
+| `/more-info` | MoreInfoPage |
+| `/our-courses/cohort` | CohortPage |
+| `/our-courses/on-demand` | OnDemandPage |
+| `/our-courses/workshops` | WorkshopPage |
+| `/tutors` | TutorDashboardPage |
+| `/auth/callback` | AuthCallbackPage |
+| `/course/:id` | CourseDetailsPage |
+| `/course/:id/enroll` | EnrollmentPage (legacy) |
+| `/course/:id/path` | LearningPathPage |
+| `/course/:id/learn/:lesson` | CoursePlayerPage |
+| `/course/:id/assessment` | AssessmentPage (legacy) |
+| `/course/:id/congrats` | CongratsPage |
+| `/course/:id/congrats/feedback` | CongratsFeedbackPage |
+| `/course/:id/congrats/certificate` | CourseCertificatePage |
+| `*` | NotFound |
+
+Notes:
+- The marketing navbar is hidden on `/course/*` routes.
+- `AuthPage`, `TutorLoginPage`, `CoursesPage`, `DashboardPage`, `CartPage`, `AboutPage` exist but are not wired in `App.tsx`.
 
 ### Course player highlights
 - Hydrates topics from `GET /lessons/courses/:courseKey/topics`.
 - Renders block-based JSON when `topics.text_content` contains a derived layout.
-- Study header appears before the first text block; video-first layouts render without a header above.
+- Study Material header appears before the first text block; video-first layouts render without a header above.
 - The first text block can attach the next image block under the same card.
 - Read Mode collapses video blocks with smooth transitions and auto-scrolls to the top.
 - Cohort Project button fetches `/cohort-projects/:courseKey` and opens a project brief modal.
-- Study persona selection is stored in `topic_personalization`.
+- Study persona selection is stored in `topic_personalization` and affects text variants.
 
 ## 7. Backend architecture
 ### Router matrix
 | Router | Responsibilities |
 | --- | --- |
 | authRouter | Google OAuth redirect/callback, token refresh, logout |
-| coursesRouter | Catalog fetch, slug/UUID/name resolution, enrollments |
-| lessonsRouter | Topics, progress CRUD, study personas, prompt suggestions, content resolution |
+| coursesRouter | Catalog fetch, course resolution, enrollments + cohort access |
+| lessonsRouter | Topics, personalization, progress CRUD, content resolution |
 | cohortProjectsRouter | Cohort batch project lookup |
 | quizRouter | Sections, attempts, submissions, module gating |
 | assistantRouter | Tutor chat with RAG and chat memory |
@@ -125,7 +144,7 @@ Master content lives in `topic_content_assets`:
 }
 ```
 
-`lessonsRouter` resolves each block by persona, falls back to `persona_key = null`, and returns resolved blocks to the frontend.
+`lessonsRouter` resolves each `contentKey` by tutor persona (from `learner_persona_profiles`), falls back to `persona_key = null`, and returns resolved blocks to the frontend.
 
 ## 8. Data model highlights
 - `topics` still carries legacy fields (`video_url`, `ppt_url`, `text_content_*`).
@@ -133,14 +152,15 @@ Master content lives in `topic_content_assets`:
 - `topic_personalization` stores study narrator preference.
 - `learner_persona_profiles` stores tutor personas used for content resolution and tutor prompts.
 - `cohort_batch_projects` stores project briefs per cohort batch.
+- `course_chunks` stores RAG embeddings (pgvector) keyed by `course_id` string.
 
 See `docs/databaseSchema.md` for detailed diagrams.
 
 ## 9. End-to-end experience flows
 ### 9.1 Enrollment and personalization
-1. CourseDetails checks cohort eligibility with `POST /courses/:slug/enroll?checkOnly=true`.
+1. `CourseDetailsPage` checks cohort eligibility with `POST /courses/:courseKey/enroll?checkOnly=true`.
 2. Enrollment writes to `enrollments` on success.
-3. If no study persona exists, the user is routed through `/course/:slug/path`.
+3. If no study persona exists, the learner is routed to `/course/:courseKey/path`.
 
 ### 9.2 Lesson playback
 1. `CoursePlayerPage` loads topics and renders the layout.
@@ -152,8 +172,9 @@ See `docs/databaseSchema.md` for detailed diagrams.
 2. The modal displays `payload.title`, `payload.tagline`, `payload.description`, and `payload.notes`.
 
 ### 9.4 Tutor chat
-1. Prompt suggestions come from `/lessons/courses/:slug/prompts`.
-2. `/assistant/query` runs the RAG pipeline and applies typed prompt quotas.
+1. Prompt suggestions come from `/lessons/courses/:courseKey/prompts`.
+2. `/assistant/session` hydrates chat history.
+3. `/assistant/query` runs the RAG pipeline and applies typed prompt quotas.
 
 ## 10. Runtime constants
 - RAG top-K contexts: 5.
@@ -161,15 +182,19 @@ See `docs/databaseSchema.md` for detailed diagrams.
 - Rate limit: 8 tutor requests per 60 seconds per user.
 - Typed prompt quota: 5 per module.
 - Quiz passing threshold: 70%.
+- Quiz default limit: 5 questions (max 20).
+- Module cooldown window: 7 days.
 
 ## 11. Testing and troubleshooting
 - Ensure `topics.text_content` JSON parses and `topic_content_assets` rows exist for each `contentKey`.
 - If Cohort Project modal shows "not assigned", check `cohort_batch_projects` and `cohort_members.batch_no`.
-- RAG ingestion: `npm run rag:ingest <pdf> <slug> "<Course Title>"`.
+- RAG ingestion must use the same `course_id` string that `/assistant/query` resolves to (UUID vs slug mismatches will return no contexts).
+- OAuth errors: verify redirect URIs and `FRONTEND_APP_URLS`.
 
 ## 12. Deployment checklist
-1. Set backend env vars and frontend `VITE_API_BASE_URL`.
+1. Set backend env vars and frontend `VITE_API_BASE_URL` (and keep `VITE_API_URL` in sync).
 2. Apply Prisma migrations.
 3. Enable pgvector (`CREATE EXTENSION vector;`).
-4. Seed cohort allowlists, cold call prompts, and topic content assets.
-5. Build and deploy backend and frontend.
+4. Seed cohort allowlists, cold call prompts, topic content assets, and quiz questions.
+5. Ingest RAG content with `npm run rag:ingest` or import with `rag:import`.
+6. Build and deploy backend and frontend.

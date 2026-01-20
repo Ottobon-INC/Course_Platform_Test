@@ -98,6 +98,10 @@ classDiagram
 - `persona_key` uses `LearnerPersonaProfileKey` and can be null to represent default content.
 - Payload is JSON and is returned to the frontend after backend filtering.
 
+### course_chunks
+- Stores RAG embeddings for tutor retrieval.
+- `course_id` is a string identifier (not a FK); ensure it matches what `/assistant/query` uses.
+
 ### cohorts and cohort_members
 - Cohort allowlists are tracked per course.
 - `cohort_members.batch_no` assigns learners to batches used for project briefs.

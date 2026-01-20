@@ -5,7 +5,7 @@ Use this guide to locate major features quickly. Pair it with `Course_Platform.m
 ## Root
 - `CP_Arc.md`, `Course_Platform.md`, `README.md`, `Frontend.md` - high-level docs.
 - `task_progress.md`, `docs/App Changes.md` - task log and changelog.
-- `AI Native Full Stack Developer.pdf` - source material for RAG ingestion.
+- `Web Dev using AI Course Content.pdf` and `AI Native Full Stack Developer.pdf` - RAG source PDFs.
 - `backend/`, `frontend/` - main workspaces.
 - `docs/` - documentation bundle.
 
@@ -15,17 +15,18 @@ Optional: JSON exports for `rag:import` live outside the repo and can be loaded 
 - `package.json`, `vite.config.ts`, `tailwind.config.ts`, `tsconfig.json`.
 - `src/main.tsx` (bootstraps React), `src/App.tsx` (routes + providers).
 - `src/pages/`
-  - `LandingPage.tsx` - marketing hero + CTA entry.
-  - `CourseDetailsPage.tsx` - curriculum timeline + enrollment modal.
-  - `CoursePlayerPage.tsx` - main learning experience (blocks, quizzes, tutor chat).
-  - `CourseCertificatePage.tsx` - certificate preview.
-  - `TutorDashboardPage.tsx`, `BecomeTutorPage.tsx`, `AuthCallbackPage.tsx`.
+  - Marketing: `LandingPage.tsx`, `MethodologyPage.tsx`, `MoreInfoPage.tsx`, `CohortPage.tsx`, `OnDemandPage.tsx`, `WorkshopPage.tsx`.
+  - Course flow: `CourseDetailsPage.tsx`, `LearningPathPage.tsx`, `CoursePlayerPage.tsx`, `CongratsPage.tsx`, `CongratsFeedbackPage.tsx`, `CourseCertificatePage.tsx`.
+  - Auth + tutor: `AuthCallbackPage.tsx`, `BecomeTutorPage.tsx`, `TutorDashboardPage.tsx`.
+  - Legacy/not wired: `EnrollmentPage.tsx`, `AssessmentPage.tsx`, `AuthPage.tsx`, `TutorLoginPage.tsx`, `CoursesPage.tsx`, `DashboardPage.tsx`, `CartPage.tsx`, `AboutPage.tsx`.
 - `src/components/`
-  - `CourseSidebar.tsx` - module accordion + progress.
-  - `ColdCalling.tsx` - cohort prompt + replies.
-  - `SimulationExercise.tsx` - simulation block rendering.
-  - `CohortProjectModal.tsx` - project brief modal.
-  - `ChatBot.tsx` - AI tutor dock.
+  - `Navbar.tsx`, `HeroCarousel.tsx`, `OfferingsNavbar.tsx`.
+  - `CourseSidebar.tsx` (module accordion + progress).
+  - `ColdCalling.tsx` (cohort prompt + replies).
+  - `SimulationExercise.tsx` (simulation block rendering).
+  - `CohortProjectModal.tsx` (project brief modal).
+  - `ChatBot.tsx` (AI tutor dock).
+  - `QuizCard.tsx` (quiz UI + timer display).
 - `src/lib/api.ts`, `src/lib/queryClient.ts` - API helpers.
 - `src/utils/session.ts`, `src/utils/telemetry.ts` - session heartbeat and telemetry buffer.
 
@@ -49,7 +50,7 @@ Optional: JSON exports for `rag:import` live outside the repo and can be loaded 
   - `20251231_add_rag_chat_memory`
   - `20260108_add_cohort_batch_projects`
   - `20260109_add_topic_content_assets`
-- `scripts/ingestCourseContent.ts`, `scripts/importCourseChunks.ts`
+- `scripts/ingestCourseContent.ts`, `scripts/importCourseChunks.ts`.
 
 ## Docs (`docs/`)
 - `LLM-handoff.md`, `gemini-LLM-handoff.md` - LLM onboarding.
