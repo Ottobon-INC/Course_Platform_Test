@@ -19,10 +19,10 @@ Version: January 2026 monorepo snapshot (frontend + backend + shared assets)
 ## 1. Project overview
 The Course Platform delivers an Ottolearn-branded learning experience for browsing, enrolling, and completing AI-focused courses. A React SPA drives the marketing pages, course detail funnel, and the learning environment (player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api` (mirrored at `/`), handling OAuth, enrollment writes, module content, quizzes, tutor prompts, CMS pages, and tutor applications.
 
-Canonical course slug in the seed data is `ai-in-web-development` (UI copy may show `AI Native FullStack Developer`).
+Canonical course slug in the seed data is `ai-in-web-development` (course name: `AI Native Full Stack Developer`).
 
 ## 2. Feature map
-- Multi-course catalog seeded in `backend/prisma/seed.ts` (primary focus is the AI in Web Development course).
+- Multi-course catalog seeded in `backend/prisma/seed.ts` (primary focus is the AI Native Full Stack Developer course).
 - Marketing and discovery pages: landing, methodology, more-info, cohort/on-demand/workshop collections.
 - Cohort allowlist gate (cohorts + cohort_members) for enrollment; browsing remains public.
 - Dynamic course player with block-based content, video, study material, PPT, simulation exercises, cold calling, quizzes, and AI tutor.

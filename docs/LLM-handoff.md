@@ -17,8 +17,7 @@ This document is the entry point for any LLM thread that must build a complete m
 12. `docs/design_guidelines.md`
 
 ## 2) Canonical identifiers and invariants
-- Primary course name in DB: `AI in Web Development`.
-- Primary marketing label in UI: `AI Native FullStack Developer`.
+- Primary course name: `AI Native Full Stack Developer`.
 - Primary course slug (DB seed): `ai-in-web-development`.
 - Primary course UUID (seed): `f26180b2-5dda-495a-a014-ae02e63f172f`.
 - Additional seed courses also exist (see `backend/prisma/seed.ts`).
@@ -195,7 +194,7 @@ Telemetry:
 ## 9) RAG ingestion and imports
 - Ingest PDF to pgvector (default script uses `Web Dev using AI Course Content.pdf`):
   - `cd backend`
-  - `npm run rag:ingest "../Web Dev using AI Course Content.pdf" ai-in-web-development "AI in Web Development"`
+  - `npm run rag:ingest "../Web Dev using AI Course Content.pdf" ai-in-web-development "AI Native Full Stack Developer"`
 - Import precomputed embeddings:
   - `npm run rag:import <json>`
 
