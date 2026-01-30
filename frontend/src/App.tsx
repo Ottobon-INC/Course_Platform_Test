@@ -23,6 +23,7 @@ import TutorDashboardPage from "@/pages/TutorDashboardPage";
 import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
+import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
 import MoreInfoPage from "@/pages/MoreInfoPage";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/our-courses/cohort" component={CohortPage} />
       <Route path="/our-courses/on-demand" component={OnDemandPage} />
       <Route path="/our-courses/workshops" component={WorkshopPage} />
+      <Route path="/registration" component={RegistrationPage} />
 
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
