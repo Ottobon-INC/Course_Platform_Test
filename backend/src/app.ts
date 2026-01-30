@@ -19,6 +19,7 @@ import { coldCallRouter } from "./routes/coldCall";
 import { activityRouter } from "./routes/activity";
 import { personaProfilesRouter } from "./routes/personaProfiles";
 import { cohortProjectsRouter } from "./routes/cohortProjects";
+import { registrationsRouter } from "./routes/registrations";
 
 export function createApp(): Express {
   const app = express();
@@ -65,6 +66,7 @@ export function createApp(): Express {
   app.use("/activity", activityRouter);
   app.use("/persona-profiles", personaProfilesRouter);
   app.use("/cohort-projects", cohortProjectsRouter);
+  app.use("/registrations", registrationsRouter);
 
   // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
   const apiRouter = express.Router();
@@ -84,6 +86,7 @@ export function createApp(): Express {
   apiRouter.use("/activity", activityRouter);
   apiRouter.use("/persona-profiles", personaProfilesRouter);
   apiRouter.use("/cohort-projects", cohortProjectsRouter);
+  apiRouter.use("/registrations", registrationsRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

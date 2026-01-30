@@ -1,62 +1,47 @@
-﻿import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { fetchOfferings } from '@/lib/registrationApi'
 
 interface SpecificCourseSelectionProps {
     programType: 'cohort' | 'ondemand' | 'workshop'
-    onSelect: (course: string) => void
+    onSelect: (selection: { offeringId: string; title: string }) => void
     onBack: () => void
+    courseSlug?: string
 }
 
-const SpecificCourseSelection = ({ programType, onSelect, onBack }: SpecificCourseSelectionProps) => {
+type OfferingCard = {
+    id: string
+    title: string
+    description: string
+    disabled?: boolean
+}
+
+const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = 'ai-in-web-development' }: SpecificCourseSelectionProps) => {
     const [selectedCourse, setSelectedCourse] = useState<string>('')
+    const [offerings, setOfferings] = useState<OfferingCard[]>([])
+    const [loading, setLoading] = useState<boolean>(true)
 
-    const getCourses = () => {
-        switch (programType) {
-            case 'cohort':
-                return [
-                    {
-                        id: 'Full Stack Web Development',
-                        title: 'AI Native Full Stack Developer',
-                        description: 'Master frontend and backend technologies with live mentorship.',
-                        details: 'online/offline'
-                    }
-                ]
-            case 'ondemand':
-                return [
-                    {
-                        id: 'React Mastery',
-                        title: 'React Mastery',
-                        description: 'Deep dive into React.js ecosystem at your own pace.',
-                        details: 'Self-paced'
-                    },
-                    {
-                        id: 'Node.js Advanced',
-                        title: 'Node.js Advanced',
-                        description: 'Build scalable backend systems with Node.js.',
-                        details: 'Self-paced'
-                    }
-                ]
-            case 'workshop':
-                return [
-                    {
-                        id: 'Ace the HR Interview',
-                        title: 'Ace the HR Interview',
-                        description: 'Learn tips and tricks to crack HR interviews confidently.',
-                        details: 'Live Workshop'
-                    },
-                    {
-                        id: 'Crochet',
-                        title: 'Crochet',
-                        description: 'Learn the art of crochet in this hands-on workshop.',
-                        details: 'Coming Soon',
-                        disabled: true
-                    }
-                ]
-            default:
-                return []
+    useEffect(() => {
+        const load = async () => {
+            setLoading(true)
+            try {
+                const data = await fetchOfferings({ courseSlug })
+                const filtered = (data.offerings || [])
+                    .filter((o: any) => o.programType === programType && o.isActive)
+                    .map((o: any) => ({
+                        id: o.offeringId,
+                        title: o.title,
+                        description: o.description || 'Program offering',
+                    }))
+                setOfferings(filtered)
+            } catch (error) {
+                console.error('Failed to load offerings:', error)
+                setOfferings([])
+            } finally {
+                setLoading(false)
+            }
         }
-    }
-
-    const courses = getCourses()
+        load()
+    }, [courseSlug, programType])
 
     return (
         <div className="animate-fadeIn">
@@ -85,8 +70,11 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack }: SpecificCour
                 </div>
 
                 <div className="space-y-4">
-                    {courses.map((course: any) => {
-                        const isDisabled = course.disabled;
+                    {loading && (
+                        <div className="text-center py-6 text-gray-500">Loading offerings...</div>
+                    )}
+                    {!loading && offerings.map((course) => {
+                        const isDisabled = course.disabled
                         return (
                             <div
                                 key={course.id}
@@ -125,7 +113,7 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack }: SpecificCour
                         )
                     })}
 
-                    {courses.length === 0 && (
+                    {!loading && offerings.length === 0 && (
                         <div className="text-center py-8 text-gray-500">
                             No courses available for this program type yet.
                         </div>
@@ -134,7 +122,10 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack }: SpecificCour
 
                 <div className="mt-8">
                     <button
-                        onClick={() => onSelect(selectedCourse)}
+                        onClick={() => {
+                            const selected = offerings.find(o => o.id === selectedCourse)
+                            if (selected) onSelect({ offeringId: selected.id, title: selected.title })
+                        }}
                         disabled={!selectedCourse}
                         className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition-all transform ${selectedCourse
                             ? 'bg-gradient-to-r from-orange-300 to-orange-400 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'
@@ -163,5 +154,3 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack }: SpecificCour
 }
 
 export default SpecificCourseSelection
-
-

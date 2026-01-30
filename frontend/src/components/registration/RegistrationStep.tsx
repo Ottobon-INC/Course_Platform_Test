@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 // Feature flags for future course availability
 const ON_DEMAND_AVAILABLE = false; // set to true when on-demand courses are ready
 const WORKSHOP_AVAILABLE = true; // set to true when workshop courses are ready
-import { supabase } from "@/lib/registrationSupabase";
+import { submitRegistration } from "@/lib/registrationApi";
 import {
     RegistrationStepProps,
     RegistrationFormData,
     FormErrors,
 } from "@/types/registration";
 
-const RegistrationStep = ({ onSubmit, programType, selectedCourse, onBack }: RegistrationStepProps) => {
+const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, onBack }: RegistrationStepProps) => {
     const [formData, setFormData] = useState<RegistrationFormData>({
         fullName: "",
         email: "",
@@ -191,49 +191,34 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, onBack }: Reg
         setIsSubmitting(true);
 
         try {
-            if (!supabase) {
-                onSubmit({ ...formData, id: `local-${Date.now()}` });
+            if (!offeringId) {
+                setErrors({ submit: "Please select a course offering first." });
                 return;
             }
 
-            const { data, error } = await supabase
-                .from("students")
-                .insert([
-                    {
-                        full_name: formData.fullName,
-                        email: formData.email,
-                        phone_number: formData.phoneNumber,
-                        college_name: formData.collegeName,
-                        year_of_passing: formData.yearOfPassing,
-                        branch: formData.branch,
-                        selected_slot: programType === 'cohort' ? formData.selectedSlot : null,
-                        session_time: programType === 'cohort' ? formData.sessionTime : null,
-                        mode: programType === 'cohort' ? formData.mode : null,
-                        specific_course: formData.specificCourse,
-                        referred_by: formData.referredBy || null,
-                        program_type: programType
-                    },
-                ])
-                .select()
-                .single();
+            const payload = {
+                offeringId,
+                fullName: formData.fullName,
+                email: formData.email,
+                phoneNumber: formData.phoneNumber,
+                collegeName: formData.collegeName,
+                yearOfPassing: formData.yearOfPassing,
+                branch: formData.branch,
+                selectedSlot: programType === 'cohort' ? formData.selectedSlot : null,
+                sessionTime: programType === 'cohort' ? formData.sessionTime : null,
+                mode: programType === 'cohort' ? formData.mode : null,
+                referredBy: formData.referredBy || null,
+            };
 
-            if (error) {
-                if (error.code === "23505") {
-                    setErrors({ email: "This email is already registered" });
-                    setIsSubmitting(false);
-                    return;
-                }
-                throw error;
-            }
+            const response = await submitRegistration(payload);
+            const registrationId = response?.registration?.registrationId ?? `local-${Date.now()}`;
 
-            onSubmit({ ...formData, id: data.id });
+            onSubmit({ ...formData, id: registrationId, offeringId });
         } catch (error) {
             console.error("Error submitting registration:", error);
             setErrors({
                 submit: `Error: ${(error as any).message || "Unknown error occurred"}`,
             });
-            console.log("Connected to Supabase URL:", import.meta.env.VITE_SUPABASE_URL); // DEBUG
-            console.log("Full Error Object:", error);
         } finally {
             setIsSubmitting(false);
         }

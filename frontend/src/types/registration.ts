@@ -1,6 +1,7 @@
 ﻿// Student and Registration Types
 export interface StudentData {
     id?: string | number
+    offeringId?: string
     fullName: string
     email: string
     phoneNumber: string
@@ -16,6 +17,7 @@ export interface StudentData {
 }
 
 export interface RegistrationFormData {
+    offeringId?: string
     fullName: string
     email: string
     phoneNumber: string
@@ -34,7 +36,7 @@ export type FormErrors = Record<string, string>
 
 // Assessment Types
 export interface Question {
-    id: number
+    id: string
     question_number: number
     question_text: string
     question_type: 'text' | 'mcq'
@@ -45,7 +47,7 @@ export interface Question {
     program_type?: 'cohort' | 'ondemand' | 'workshop' | 'all' // Added
 }
 
-export type Answer = Record<number, string>
+export type Answer = Record<string, string>
 
 export interface Submission {
     id?: string | number
@@ -58,7 +60,7 @@ export interface Submission {
 export interface StudentAnswer {
     id?: string | number
     student_id: string | number
-    question_id: number
+    question_id: string
     student_name: string
     student_email: string
     question_number: number
@@ -73,6 +75,7 @@ export interface RegistrationStepProps {
     onSubmit: (data: StudentData) => void
     programType: 'cohort' | 'ondemand' | 'workshop'
     selectedCourse?: string
+    offeringId?: string
     onBack?: () => void
 }
 

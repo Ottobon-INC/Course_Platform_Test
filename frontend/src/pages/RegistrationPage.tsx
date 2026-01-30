@@ -9,14 +9,15 @@ import SpecificCourseSelection from '@/components/registration/SpecificCourseSel
 import { StudentData, Answer } from '@/types/registration'
 
 function RegistrationPage() {
-    const [currentStep, setCurrentStep] = useState<number>(1) // WORKSHOP_ONLY_MODE: Set to 1 (instead of 0) to skip program selection
+    const [currentStep, setCurrentStep] = useState<number>(0)
 
     // Scroll to top whenever step changes
     useEffect(() => {
         window.scrollTo(0, 0)
     }, [currentStep])
-    const [programType, setProgramType] = useState<'cohort' | 'ondemand' | 'workshop'>('workshop') // WORKSHOP_ONLY_MODE: Default to 'workshop'
+    const [programType, setProgramType] = useState<'cohort' | 'ondemand' | 'workshop'>('cohort')
     const [registrationData, setRegistrationData] = useState<StudentData>({
+        offeringId: '',
         fullName: '',
         email: '',
         phoneNumber: '',
@@ -37,8 +38,12 @@ function RegistrationPage() {
         setCurrentStep(1) // Move to Specific Course Selection
     }
 
-    const handleSpecificCourseSelect = (course: string) => {
-        setRegistrationData(prev => ({ ...prev, specificCourse: course }))
+    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string }) => {
+        setRegistrationData(prev => ({
+            ...prev,
+            offeringId: selection.offeringId,
+            specificCourse: selection.title
+        }))
         setCurrentStep(2) // Move to Registration
     }
 
@@ -71,11 +76,9 @@ function RegistrationPage() {
 
                 {/* Step Content */}
                 <div className="mt-12">
-                    {/* WORKSHOP_ONLY_MODE: Step 0 is hidden
                     {currentStep === 0 && (
                         <CourseSelection onSelect={handleCourseSelect} />
                     )}
-                    */}
                     {currentStep === 1 && (
                         <SpecificCourseSelection
                             programType={programType}
@@ -88,6 +91,7 @@ function RegistrationPage() {
                             onSubmit={handleRegistrationSubmit}
                             programType={programType}
                             selectedCourse={registrationData.specificCourse}
+                            offeringId={registrationData.offeringId}
                             onBack={() => goBack(1)}
                         />
                     )}

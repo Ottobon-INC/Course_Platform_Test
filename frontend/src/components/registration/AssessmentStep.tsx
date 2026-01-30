@@ -1,28 +1,9 @@
-﻿import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/registrationSupabase'
+import { useState, useEffect, useRef } from 'react'
+import { fetchAssessmentQuestions, submitRegistration } from '@/lib/registrationApi'
 import { AssessmentStepProps, Question, Answer, FormErrors } from '@/types/registration'
 
-const MOCK_QUESTIONS: Question[] = [
-    {
-        id: 1,
-        question_number: 1,
-        question_text: "Tell us about a project you are proud of and why.",
-        question_type: "text",
-        is_active: true,
-        program_type: "all"
-    },
-    {
-        id: 2,
-        question_number: 2,
-        question_text: "Which area interests you the most right now?",
-        question_type: "mcq",
-        mcq_options: ["Frontend", "Backend", "AI/ML", "DevOps"],
-        is_active: true,
-        program_type: "all"
-    }
-]
 const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
-    const [questions, setQuestions] = useState<Question[]>([])
+    const [questions, setQuestions] = useState<any[]>([])
     const [answers, setAnswers] = useState<Answer>({})
     const [errors, setErrors] = useState<FormErrors>({})
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
@@ -31,65 +12,33 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
     // Timer: Ref to store start time (initialized on mount)
     const startTimeRef = useRef<number>(Date.now())
 
-    // Fetch questions from Supabase on component mount
+    // Fetch questions from API on component mount
     useEffect(() => {
-        // Reset start time when component actually mounts/effect runs
         startTimeRef.current = Date.now()
 
         const fetchQuestions = async (): Promise<void> => {
             try {
-                console.log('Fetching questions from Supabase...')
-
-                if (!supabase) {
-                    setQuestions(MOCK_QUESTIONS)
-                    const initialAnswers: Answer = MOCK_QUESTIONS.reduce((acc, q) => ({ ...acc, [q.id]: '' }), {})
-                    setAnswers(initialAnswers)
+                if (!studentData?.offeringId) {
+                    setErrors({ fetch: "Missing offering selection. Please go back and select a course." })
                     setIsLoading(false)
                     return
                 }
 
-                // Filter by program_type: 'all' or specific type
-                // If programType is undefined (legacy), default to 'all' or 'cohort' if you prefer. 
-                // Using 'cohort' as fallback or just 'all'. 
-                // Since we added programType to StudentData, it should be present.
-                const programType = studentData.programType || 'cohort';
-                const specificCourse = studentData.specificCourse || null;
+                const programType = studentData.programType || 'cohort'
+                const { questions: data } = await fetchAssessmentQuestions({
+                    offeringId: studentData.offeringId,
+                    programType,
+                })
 
-                const { data, error } = await supabase
-                    .from('questions')
-                    .select('*')
-                    .eq('is_active', true)
-                    .in('program_type', ['all', programType])
-                    .order('question_number', { ascending: true })
-
-                if (error) throw error
-
-                // Filter logic:
-                // 1. Keep 'all' program types
-                // 2. Keep matching program types IF:
-                //    a. specific_course_context is NULL (generic for that program)
-                //    b. specific_course_context matches the student's selected course
-                const filteredData = (data || []).filter(q => {
-                    if (q.program_type === 'all') return true;
-                    if (!q.specific_course_context) return true; // Generic for program
-                    return q.specific_course_context === specificCourse; // Specific to course
-                });
-
-                if (!filteredData || filteredData.length === 0) {
-                    console.log('No questions found for this specific course content.');
-                    setQuestions([]);
-                    // Do not auto-submit. Let the UI handle the "No questions" state if deemed appropriate,
-                    // or just show an empty state.
-                    // For now, let's allow them to submit "empty" to finish, but manually.
-                    // Or better, show a message.
-                    setErrors({ fetch: "No assessment questions found for this program. Please contact support or continue." });
-                    setIsLoading(false);
-                    return;
+                if (!data || data.length === 0) {
+                    setQuestions([])
+                    setErrors({ fetch: "No assessment questions found for this program." })
+                    setIsLoading(false)
+                    return
                 }
 
-                // Interleave questions: 3 MCQ followed by 2 Text
-                const mcqs = filteredData.filter(q => q.question_type === 'mcq')
-                const texts = filteredData.filter(q => q.question_type === 'text')
+                const mcqs = data.filter((q: any) => q.questionType === 'mcq')
+                const texts = data.filter((q: any) => q.questionType === 'text')
 
                 const interleaved: Question[] = []
                 let mcqIdx = 0
@@ -105,7 +54,7 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 }
 
                 setQuestions(interleaved)
-                const initialAnswers: Answer = interleaved.reduce((acc, q) => ({ ...acc, [q.id]: '' }), {})
+                const initialAnswers: Answer = interleaved.reduce((acc, q: any) => ({ ...acc, [q.questionId]: '' }), {})
                 setAnswers(initialAnswers)
             } catch (error) {
                 console.error('Error fetching questions:', error)
@@ -116,9 +65,9 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
         }
 
         fetchQuestions()
-    }, [])
+    }, [studentData])
 
-    const handleAnswerChange = (questionId: number, value: string): void => {
+    const handleAnswerChange = (questionId: string, value: string): void => {
         setAnswers(prev => ({ ...prev, [questionId]: value }))
         if (errors[questionId]) {
             setErrors(prev => ({ ...prev, [questionId]: '' }))
@@ -127,12 +76,12 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
 
     const validateAnswers = (): boolean => {
         const newErrors: FormErrors = {}
-        questions.forEach(q => {
-            const answer = answers[q.id]?.trim()
+        questions.forEach((q: any) => {
+            const answer = answers[q.questionId]?.trim()
             if (!answer) {
-                newErrors[q.id] = 'This question requires an answer'
-            } else if (q.question_type === 'text' && answer.length < 50) {
-                newErrors[q.id] = 'Please provide a more detailed answer (minimum 50 characters)'
+                newErrors[q.questionId] = 'This question requires an answer'
+            } else if (q.questionType === 'text' && answer.length < 50) {
+                newErrors[q.questionId] = 'Please provide a more detailed answer (minimum 50 characters)'
             }
         })
         setErrors(newErrors)
@@ -149,8 +98,8 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
             return
         }
 
-        if (!studentData?.id) {
-            setErrors({ submit: 'System Error: Student identification missing.' })
+        if (!studentData?.offeringId) {
+            setErrors({ submit: 'System Error: Offering selection missing.' })
             return
         }
 
@@ -162,36 +111,26 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
             let durationSeconds = Math.floor((now - start) / 1000)
             if (isNaN(durationSeconds) || durationSeconds < 0) durationSeconds = 0
 
-            if (!supabase) {
-                onSubmit(answers)
-                return
+            const payload = {
+                offeringId: studentData.offeringId,
+                fullName: studentData.fullName,
+                email: studentData.email,
+                phoneNumber: studentData.phoneNumber,
+                collegeName: studentData.collegeName,
+                yearOfPassing: studentData.yearOfPassing,
+                branch: studentData.branch,
+                selectedSlot: studentData.selectedSlot || null,
+                sessionTime: studentData.sessionTime || null,
+                mode: studentData.mode || null,
+                referredBy: studentData.referredBy || null,
+                status: "assessed",
+                answersJson: answers,
+                questionsSnapshot: questions,
+                assessmentSubmittedAt: new Date().toISOString(),
+                durationSeconds,
             }
 
-            const { data: submissionData, error: submissionError } = await supabase
-                .from('submissions')
-                .insert([{
-                    student_id: studentData.id,
-                    total_questions: questions.length,
-                    duration_seconds: durationSeconds
-                }])
-                .select().single()
-
-            if (submissionError) throw submissionError
-
-            const answerRows = questions.map(q => ({
-                student_id: studentData.id,
-                submission_id: submissionData.id,
-                question_id: q.id,
-                student_name: studentData.fullName || 'Unknown',
-                student_email: studentData.email || 'unknown@email.com',
-                question_number: q.question_number,
-                question_text: q.question_text,
-                answer_text: answers[q.id] || ''
-            }))
-
-            const { error: answersError } = await supabase.from('student_answers').insert(answerRows)
-            if (answersError) throw answersError
-
+            await submitRegistration(payload)
             onSubmit(answers)
         } catch (error) {
             console.error('Submission error:', error)
@@ -276,24 +215,24 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-                    {questions.map((question, index) => (
-                        <div key={question.id} id={`ans_${question.id}`} className="p-6 rounded-xl border border-gray-100 bg-gray-50/50">
+                    {questions.map((question: any, index) => (
+                        <div key={question.questionId} id={`ans_${question.questionId}`} className="p-6 rounded-xl border border-gray-100 bg-gray-50/50">
                             <div className="flex gap-4">
                                 <span className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
                                     {index + 1}
                                 </span>
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{question.question_text}</h3>
-                                    {question.question_type === 'mcq' ? (
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{question.questionText}</h3>
+                                    {question.questionType === 'mcq' ? (
                                         <div className="space-y-3">
-                                            {question.mcq_options?.map((option, idx) => (
+                                            {question.mcqOptions?.map((option: string, idx: number) => (
                                                 <label key={idx} className="flex items-center p-4 rounded-lg border border-gray-200 bg-white hover:border-indigo-300 transition-colors cursor-pointer group">
                                                     <input
                                                         type="radio"
-                                                        name={`q_${question.id}`}
+                                                        name={`q_${question.questionId}`}
                                                         value={option}
-                                                        checked={answers[question.id] === option}
-                                                        onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                                                        checked={answers[question.questionId] === option}
+                                                        onChange={(e) => handleAnswerChange(question.questionId, e.target.value)}
                                                         className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                                                     />
                                                     <span className="ml-3 text-gray-700 group-hover:text-indigo-900">{option}</span>
@@ -304,19 +243,19 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                                         <>
                                             <p className="text-sm text-gray-500 mb-2">Please use the STAR method (Situation, Task, Action, Result).</p>
                                             <textarea
-                                                className={`w-full p-4 rounded-lg border bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-h-[150px] transition-all ${errors[question.id] ? 'border-red-300' : 'border-gray-200'}`}
+                                                className={`w-full p-4 rounded-lg border bg-white focus:ring-2 focus:ring-indigo-500 outline-none min-h-[150px] transition-all ${errors[question.questionId] ? 'border-red-300' : 'border-gray-200'}`}
                                                 placeholder="Enter your detailed response here..."
-                                                value={answers[question.id]}
-                                                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                                                value={answers[question.questionId]}
+                                                onChange={(e) => handleAnswerChange(question.questionId, e.target.value)}
                                             />
                                             <div className="flex items-center justify-between mt-2">
-                                                <span className={`text-sm ml-auto ${(answers[question.id]?.length || 0) >= 50 ? 'text-green-600' : 'text-gray-400'}`}>
-                                                    {answers[question.id]?.length || 0} characters
+                                                <span className={`text-sm ml-auto ${(answers[question.questionId]?.length || 0) >= 50 ? 'text-green-600' : 'text-gray-400'}`}>
+                                                    {answers[question.questionId]?.length || 0} characters
                                                 </span>
                                             </div>
                                         </>
                                     )}
-                                    {errors[question.id] && <p className="text-red-500 text-sm mt-2">{errors[question.id]}</p>}
+                                    {errors[question.questionId] && <p className="text-red-500 text-sm mt-2">{errors[question.questionId]}</p>}
                                 </div>
                             </div>
                         </div>
@@ -346,6 +285,3 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
 }
 
 export default AssessmentStep
-
-
-

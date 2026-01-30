@@ -65,7 +65,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
   const [location] = useLocation();
   const hadSessionRef = useRef(false);
   const logoutTriggeredRef = useRef(false);
-  const shouldHideNavbar = location === "/course" || location.startsWith("/course/");
+  const shouldHideNavbar = location === "/course" || location.startsWith("/course/") || location.startsWith("/registration");
 
   useEffect(() => {
     if (typeof window === "undefined") {

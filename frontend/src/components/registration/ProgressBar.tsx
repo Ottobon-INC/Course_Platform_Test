@@ -2,15 +2,14 @@
 
 const ProgressBar = ({ currentStep }: ProgressBarProps) => {
     const steps = [
-        // { label: 'Course Selection' }, // WORKSHOP_ONLY_MODE: Removed generic selection step
-        { label: 'Workshop Selection' },
+        { label: 'Course Selection' },
         { label: 'Registration Details' },
         { label: 'Skill Assessment' },
         { label: 'Completion' }
     ]
 
     const totalSteps = steps.length
-    // Ensure currentStep is within bounds for display
+    // Shift by 1 because step 0 is program selection and not shown in this bar
     const activeStepIndex = Math.min(Math.max(currentStep - 1, 0), totalSteps - 1)
 
     return (
@@ -23,7 +22,7 @@ const ProgressBar = ({ currentStep }: ProgressBarProps) => {
                     </h3>
                 </div>
                 <div className="text-xs font-semibold text-gray-500 tracking-wide">
-                    STEP {currentStep} / {totalSteps}
+                    STEP {Math.min(Math.max(currentStep, 1), totalSteps)} / {totalSteps}
                 </div>
             </div>
 
