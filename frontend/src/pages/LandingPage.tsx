@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Navbar from '@/components/layout/Navbar';
 import HeroCarousel from '@/components/landing/HeroCarousel';
+import LandingChatBot from '@/components/LandingChatBot';
 
 import humanLoopImg from '@/assets/human-loop.png';
 import aiAssistantImg from '@/assets/ai-assistant.png';
@@ -1493,7 +1494,7 @@ function App() {
       <Navbar
         onLogin={handleLogin}
         isAuthenticated={isAuthenticated}
-        user={user}
+        user={user ?? undefined}
         onLogout={handleLogout}
         onApplyTutor={handleApplyTutor}
       />
@@ -1515,6 +1516,7 @@ function App() {
       <FAQ />
       <CallToAction onEnroll={handleEnroll} onViewCurriculum={handleViewCurriculum} />
       <Footer />
+      <LandingChatBot userName={user?.fullName} />
     </main>
   );
 }
