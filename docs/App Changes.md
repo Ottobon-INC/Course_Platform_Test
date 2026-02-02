@@ -2,6 +2,11 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why, and the primary files involved.
 
+## 2026-02-02 - Intelligent Landing Chatbot
+- **Responsive Sales Agent**: Implemented `LandingChatBot.tsx` with RAG connection (`landingAssistantRouter`) to explain offerings.
+- **Engagement Enhancements**: Personalized greeting ("Hi Name!"), smart follow-up suggestions, and "Tier 2" token throttling (switching to static buttons after 4 turns).
+- **UX Polish**: Native scrolling, auto-focus, and strict system prompts to refuse off-topic questions.
+
 ## 2026-01-09 - Persona-aware content assets and derived layouts
 - Added `topic_content_assets` as the master store for persona-tagged content payloads.
 - `topics.text_content` now supports derived block JSON with `contentKey` references.

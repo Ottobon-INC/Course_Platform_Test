@@ -49,6 +49,7 @@ frontend/
       SimulationExercise.tsx
       CohortProjectModal.tsx
       ChatBot.tsx
+      LandingChatBot.tsx
       QuizCard.tsx
     lib/
       api.ts

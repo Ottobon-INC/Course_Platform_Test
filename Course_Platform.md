@@ -33,6 +33,7 @@ Canonical course slug in the seed data is `ai-in-web-development` (course name: 
 - Quiz-driven module gating with cooldown windows and progress tracking.
 - AI tutor with pgvector RAG, prompt suggestions, and persistent chat memory.
 - Tutor telemetry monitor with learner activity events.
+- **Intelligent Landing Agent**: Sales-focused chatbot with RAG integration, personalized greetings, and follow-up suggestion throttling.
 - Commerce surfaces (cart, enrollments) are present but only partially surfaced in routing.
 
 ## 3. Repository structure (high level)
@@ -96,6 +97,8 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 Notes:
 - The marketing navbar is hidden on `/course/*` routes.
 - `AuthPage`, `TutorLoginPage`, `CoursesPage`, `DashboardPage`, `CartPage`, `AboutPage` exist but are not wired in `App.tsx`.
+- **LandingChatBot**: Embedded in `LandingPage` for visitor support.
+
 
 ### Course player highlights
 - Hydrates topics from `GET /lessons/courses/:courseKey/topics`.
@@ -116,6 +119,7 @@ Notes:
 | cohortProjectsRouter | Cohort batch project lookup |
 | quizRouter | Sections, attempts, submissions, module gating |
 | assistantRouter | Tutor chat with RAG and chat memory |
+| landingAssistantRouter | Public sales chatbot (generic queries, RAG) |
 | coldCallRouter | Cohort prompts, replies, stars |
 | activityRouter | Telemetry ingestion + tutor monitoring |
 | tutorsRouter | Tutor login, dashboards, copilot |

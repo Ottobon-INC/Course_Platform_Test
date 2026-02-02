@@ -8,6 +8,13 @@ This walkthrough pairs UX steps with code references so another engineer (or LLM
 3. `/auth/google/callback` exchanges the code, upserts the user, and issues JWTs.
 4. `AuthCallbackPage.tsx` stores the session and routes the learner to `postLoginRedirect`.
 
+## 2. Landing page assistance
+1. `LandingPage.tsx` renders `<LandingChatBot />`.
+2. Visitor interaction triggers `/api/landing-assistant/query` (RAG-backed).
+3. If signed in, the bot greets the user by name (`user.fullName`).
+4. Follow-up suggestions appear for the first 4 turns (Tier 1), then fallback to static CTA buttons (Tier 2).
+
+
 ## 2. Enrollment and cohort gate
 1. `CourseDetailsPage.tsx` fetches `/courses/:courseKey` and `/lessons/courses/:courseKey/topics`.
 2. Clicking Enroll calls `POST /courses/:courseKey/enroll?checkOnly=true`.
