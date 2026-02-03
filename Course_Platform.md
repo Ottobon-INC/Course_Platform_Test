@@ -33,8 +33,7 @@ Canonical course slug in the seed data is `ai-in-web-development` (course name: 
 - Quiz-driven module gating with cooldown windows and progress tracking.
 - AI tutor with pgvector RAG, prompt suggestions, and persistent chat memory.
 - Tutor telemetry monitor with learner activity events.
-- **Intelligent Landing Agent**: Sales-focused chatbot with RAG integration, personalized greetings, and follow-up suggestion throttling.
-- Commerce surfaces (cart, enrollments) are present but only partially surfaced in routing.
+- **Intelligent Landing Agent**: Sales-focused chatbot with RAG integration, personalized greetings, smart redirects (`<<ACTION:URL>>`), and session persistence for seamless guest-to-user transition.
 
 ## 3. Repository structure (high level)
 ```

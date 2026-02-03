@@ -49,7 +49,7 @@ frontend/
       SimulationExercise.tsx
       CohortProjectModal.tsx
       ChatBot.tsx
-      LandingChatBot.tsx
+      LandingChatBot.tsx (RAG-powered, limits: 5/10, sessionStorage persistence, smart redirects)
       QuizCard.tsx
     lib/
       api.ts
@@ -84,7 +84,8 @@ Notes:
 - Auth/Enrollment legacy flows are present but not used by the landing CTA.
 
 ## 4. Authentication flow (frontend)
-- Navbar "Login / Signup" triggers Google OAuth via `/auth/google`.
+- Navbar "Login / Signup" triggers Google OAuth via `buildApiUrl('/auth/google')`.
+- Global redirect logic in `App.tsx` ensures backend targeting (port 4000) from any route.
 - `AuthCallbackPage` stores the session and redirects to `postLoginRedirect` (from sessionStorage).
 - `utils/session.ts` stores session tokens in localStorage and handles refresh/heartbeat.
 

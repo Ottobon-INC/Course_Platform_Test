@@ -2,10 +2,11 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why, and the primary files involved.
 
-## 2026-02-02 - Intelligent Landing Chatbot
+## 2026-02-03 - Intelligent Landing Chatbot & Auth Resolution
 - **Responsive Sales Agent**: Implemented `LandingChatBot.tsx` with RAG connection (`landingAssistantRouter`) to explain offerings.
-- **Engagement Enhancements**: Personalized greeting ("Hi Name!"), smart follow-up suggestions, and "Tier 2" token throttling (switching to static buttons after 4 turns).
-- **UX Polish**: Native scrolling, auto-focus, and strict system prompts to refuse off-topic questions.
+- **Smart Engagement**: Personalized greetings, session-persistent history, and "Smart Redirect" buttons (using `<<ACTION:URL>>`) to drive traffic.
+- **Usage Control**: Token throttling (fallback after 10 turns) and strict limits (5 Guest / 10 User).
+- **Core Fixes**: Resolved global auth redirect mechanism via `buildApiUrl` to correctly target backend ports from any route.
 
 ## 2026-01-09 - Persona-aware content assets and derived layouts
 - Added `topic_content_assets` as the master store for persona-tagged content payloads.
