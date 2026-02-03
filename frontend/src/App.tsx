@@ -24,6 +24,7 @@ import TutorDashboardPage from "@/pages/TutorDashboardPage";
 import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
+import StudentDashboardPage from "@/pages/Strudent_Dashboard";
 import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/course/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/course/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
+      <Route path="/student-dashboard" component={StudentDashboardPage} />
       <Route path="/auth/callback" component={AuthCallbackPage} />
       <Route path="/tutors" component={TutorDashboardPage} />
 
@@ -66,7 +68,11 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
   const [location] = useLocation();
   const hadSessionRef = useRef(false);
   const logoutTriggeredRef = useRef(false);
-  const shouldHideNavbar = location === "/course" || location.startsWith("/course/") || location.startsWith("/registration");
+  const shouldHideNavbar =
+    location === "/course" ||
+    location.startsWith("/course/") ||
+    location.startsWith("/registration") ||
+    location === "/student-dashboard";
 
   useEffect(() => {
     if (typeof window === "undefined") {

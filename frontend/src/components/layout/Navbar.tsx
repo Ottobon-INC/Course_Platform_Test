@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
-import { ChevronRight, LogOut, Menu, X } from 'lucide-react';
+import { ChevronRight, LogOut, Menu, User, X } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -168,7 +168,16 @@ const Navbar: React.FC<NavbarProps> = ({
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                    className="flex items-center gap-2 text-destructive focus:text-destructive"
+                                    className="flex items-center gap-2 cursor-pointer"
+                                    onSelect={() => setLocation('/student-dashboard')}
+                                >
+                                    <User className="h-4 w-4" />
+                                    My Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+
+                                <DropdownMenuItem
+                                    className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
                                     onSelect={onLogout}
                                 >
                                     <LogOut className="h-4 w-4" />
