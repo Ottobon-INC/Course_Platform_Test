@@ -33,15 +33,43 @@ interface LandingChatBotProps {
     userName?: string;
 }
 
+const SESSION_KEY = "otto_landing_chat_history";
+const GUEST_LIMIT = 5;
+const USER_LIMIT = 10;
+
 export default function LandingChatBot({ userName }: LandingChatBotProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<Message[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = sessionStorage.getItem(SESSION_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Restore Date objects
+                    return parsed.map((m: any) => ({
+                        ...m,
+                        timestamp: new Date(m.timestamp)
+                    }));
+                } catch (e) {
+                    console.error("Failed to parse chat history", e);
+                }
+            }
+        }
+        return [];
+    });
     const [inputValue, setInputValue] = useState("");
     const [isTyping, setIsTyping] = useState(false);
 
     // Refs for scrolling and input focus
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Persist messages
+    useEffect(() => {
+        if (messages.length > 0) {
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify(messages));
+        }
+    }, [messages]);
 
     // Initialize or update greeting when userName changes
     useEffect(() => {
@@ -80,17 +108,31 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
 
     // Focus input after bot responds
     useEffect(() => {
-        if (!isTyping && isOpen && inputRef.current) {
+        // Only auto-focus if not hit limit
+        const userCount = messages.filter(m => !m.isBot).length;
+        const limit = userName ? USER_LIMIT : GUEST_LIMIT;
+
+        if (!isTyping && isOpen && inputRef.current && userCount < limit) {
             const timeout = setTimeout(() => {
                 inputRef.current?.focus();
             }, 100);
             return () => clearTimeout(timeout);
         }
-    }, [isTyping, isOpen]);
+    }, [isTyping, isOpen, messages, userName]);
 
     const handleSendMessage = async (text?: string) => {
         const messageText = text || inputValue.trim();
         if (!messageText || isTyping) return;
+
+        // Check Limits
+        const userCount = messages.filter(m => !m.isBot).length;
+        const limit = userName ? USER_LIMIT : GUEST_LIMIT;
+
+        if (userCount >= limit) {
+            // If guest hit limit, prompt login. If user hit limit, soft block.
+            /* Logic handled in UI, but safety check here */
+            return;
+        }
 
         const userMsg: Message = {
             id: `user-${Date.now()}`,
@@ -119,9 +161,19 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                 throw new Error(data.message || "Failed to get answer");
             }
 
-            // Parse response for suggestions
+            // Parse response for suggestions and actions
             let botText = data.answer;
             let suggestions: string[] = [];
+            let actionUrl: string | undefined;
+
+            // Extract Action URL
+            if (botText.includes("<<ACTION:")) {
+                const actionMatch = botText.match(/<<ACTION:(.*?)>>/);
+                if (actionMatch) {
+                    actionUrl = actionMatch[1].trim();
+                    botText = botText.replace(actionMatch[0], "").trim();
+                }
+            }
 
             if (botText.includes("<<SUGGESTIONS>>")) {
                 const parts = botText.split("<<SUGGESTIONS>>");
@@ -129,8 +181,10 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                 const rawSuggestions = parts[1] || "";
                 suggestions = rawSuggestions.split("|").map((s: string) => s.trim()).filter(Boolean);
             } else if (messages.length >= 8) {
-                // Fallback for later turns (Tier 2 Throttling)
-                suggestions = ["View All Courses", "Pricing", "Apply as Tutor"];
+                // Fallback for later turns (Tier 2 Throttling) - ONLY if no specific action was found
+                if (!actionUrl) {
+                    suggestions = ["View All Courses", "Pricing", "Apply as Tutor"];
+                }
             }
 
             setMessages((prev) => [
@@ -140,7 +194,8 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                     text: botText,
                     isBot: true,
                     timestamp: new Date(),
-                    suggestions: suggestions.length > 0 ? suggestions : undefined
+                    suggestions: suggestions.length > 0 ? suggestions : undefined,
+                    actionUrl // Save the action URL
                 },
             ]);
         } catch (error) {
@@ -165,6 +220,10 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
         }
     };
 
+    const userMsgCount = messages.filter(m => !m.isBot).length;
+    const currentLimit = userName ? USER_LIMIT : GUEST_LIMIT;
+    const isLimitReached = userMsgCount >= currentLimit;
+
     return (
         <div className="fixed bottom-6 right-6 z-50 font-sans">
             {!isOpen && (
@@ -185,7 +244,9 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                             </div>
                             <div>
                                 <CardTitle className="text-lg">Ottolearn Guide</CardTitle>
-                                <p className="text-xs text-white/80">Ask about our programs</p>
+                                <p className="text-xs text-white/80">
+                                    {userName ? `Hi, ${userName}` : 'Ask about our programs'}
+                                </p>
                             </div>
                         </div>
                         <Button
@@ -226,7 +287,26 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                                         </span>
                                     </div>
 
-                                    {m.suggestions && (
+                                    {/* Primary Redirect Action */}
+                                    {/* We cast to any because TS doesn't know about actionUrl on Message yet, 
+                                        but we are treating the local state as flexible or need to update interface */}
+                                    {(m as any).actionUrl && (
+                                        <div className="mt-2 w-[85%]">
+                                            <Button
+                                                onClick={() => window.location.href = (m as any).actionUrl}
+                                                className={`w-full ${THEME.secondary} hover:bg-[#c43e2b] text-white shadow-md transition-all`}
+                                                size="sm"
+                                            >
+                                                View {
+                                                    (m as any).actionUrl.includes("cohort") ? "Cohorts" :
+                                                        (m as any).actionUrl.includes("workshop") ? "Workshops" :
+                                                            (m as any).actionUrl.includes("on-demand") ? "On-Demand Courses" : "Page"
+                                                }
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {m.suggestions && !isLimitReached && (
                                         <div className="mt-2 flex flex-wrap gap-2 max-w-[85%]">
                                             {m.suggestions.map((s, i) => (
                                                 <button
@@ -249,6 +329,36 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Limit Reached Notice */}
+                            {isLimitReached && (
+                                <div className="flex justify-center my-4">
+                                    <div className="bg-gray-100 px-4 py-3 rounded-xl text-center shadow-inner mx-4">
+                                        <p className="text-sm font-semibold text-[#244855] mb-2">
+                                            {userName
+                                                ? "You've reached the daily question limit."
+                                                : "You've reached the guest limit!"}
+                                        </p>
+                                        {!userName && (
+                                            <p className="text-xs text-gray-600 mb-3">
+                                                Sign in now to get 5 more questions and save your chat history.
+                                            </p>
+                                        )}
+                                        {!userName && (
+                                            <Button
+                                                onClick={() => {
+                                                    sessionStorage.setItem("postLoginRedirect", "/");
+                                                    window.location.href = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent('/')}`;
+                                                }}
+                                                size="sm"
+                                                className={`${THEME.primary} text-white w-full`}
+                                            >
+                                                Sign In to Continue
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-3 border-t bg-gray-50">
@@ -258,13 +368,18 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Ask about Cohorts, Workshops..."
+                                    placeholder={
+                                        isLimitReached
+                                            ? (userName ? "Available limit reached" : "Sign in to continue chatting")
+                                            : "Ask about Cohorts, Workshops..."
+                                    }
                                     className="bg-white border-gray-300 focus-visible:ring-[#244855]"
                                     autoFocus
+                                    disabled={isLimitReached}
                                 />
                                 <Button
                                     onClick={() => void handleSendMessage()}
-                                    disabled={!inputValue.trim() || isTyping}
+                                    disabled={!inputValue.trim() || isTyping || isLimitReached}
                                     size="icon"
                                     className={THEME.primary}
                                 >

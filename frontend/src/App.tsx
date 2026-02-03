@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { buildApiUrl } from "@/lib/api";
 import { useEffect, useRef, useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -120,9 +121,8 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
             onLogin={() => {
               const homeRedirect = '/';
               sessionStorage.setItem("postLoginRedirect", homeRedirect);
-              // Ideally use buildApiUrl from client, but keeping simple:
-              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-              const target = `${API_URL}/auth/google?redirect=${encodeURIComponent(homeRedirect)}`;
+              // Use buildApiUrl to ensure we target the correct backend port (4000)
+              const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
               window.location.href = target;
             }}
             onApplyTutor={() => window.location.href = '/become-a-tutor'}

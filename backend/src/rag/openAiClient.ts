@@ -201,13 +201,22 @@ Use the DATABASE CONTEXT to answer specific questions about available courses, p
 IMPORTANT: You must ONLY answer based on the information provided above (Knowledge Base + Database Context).
 If the user asks about ANY topic not related to these programs (e.g., world history, general coding help, recipes), you must politely refuse and say: "I can only answer questions about Ottolearn's cohorts, workshops, and on-demand courses."`;
 
-  // Throttling: Only ask AI to generate suggestions for the first 4 turns
-  if (turnCount < 4) {
-    systemPrompt += `\n\nAfter your answer, generate 3 follow-up questions for the user.
-- Two questions should be directly related to the current topic.
-- One question should be about a different program (e.g., if talking about Cohorts, ask about Workshops).
-- Format them at the very end of your response like this:
-<<SUGGESTIONS>>Question 1?|Question 2?|Question 3?`;
+  // Throttling: Ask AI to generate suggestions for up to 10 turns (covering Guest + User limits)
+  if (turnCount < 10) {
+    systemPrompt += `\n\nAfter your answer, follow these steps:
+1. DETECT INTENT: If the user is asking about a specific program, append a redirect action on a new line:
+   - Cohorts -> <<ACTION:/our-courses/cohort>>
+   - Workshops -> <<ACTION:/our-courses/workshops>>
+   - On-Demand -> <<ACTION:/our-courses/on-demand>>
+   (Only one action per response. If generic, do not add an action.)
+
+2. GENERATE SUGGESTIONS: Generate 3 follow-up questions.
+   - Two questions directly related to the user's last query.
+   - One question pivoting to a related program.
+   - IMPORTANT: Only suggest questions that you can answer using your Knowledge Base.
+   - Format: <<SUGGESTIONS>>Question 1?|Question 2?|Question 3?
+
+3. BREVITY: If you included an <<ACTION:...>> tag, keep your text explanation short (max 2-3 sentences) to encourage clicking the button.`;
   }
 
   return runChatCompletion({
