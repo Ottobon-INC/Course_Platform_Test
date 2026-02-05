@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'wouter'
 import { fetchOfferings } from '@/lib/registrationApi'
 
 interface SpecificCourseSelectionProps {
@@ -16,6 +17,7 @@ type OfferingCard = {
 }
 
 const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = 'ai-in-web-development' }: SpecificCourseSelectionProps) => {
+    const [, setLocation] = useLocation()
     const [selectedCourse, setSelectedCourse] = useState<string>('')
     const [offerings, setOfferings] = useState<OfferingCard[]>([])
     const [loading, setLoading] = useState<boolean>(true)
@@ -42,6 +44,15 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
         }
         load()
     }, [courseSlug, programType])
+
+    const handleContinue = () => {
+        const selected = offerings.find(o => o.id === selectedCourse)
+        if (selected) {
+            onSelect({ offeringId: selected.id, title: selected.title })
+            const slug = selected.title.toLowerCase().replace(/ /g, '-')
+            setLocation(`/registration/${programType}/${slug}`)
+        }
+    }
 
     return (
         <div className="animate-fadeIn">
@@ -79,10 +90,10 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                             <div
                                 key={course.id}
                                 className={`p-5 rounded-xl border-2 transition-all ${isDisabled
-                                        ? 'bg-gray-50 border-gray-200 opacity-70 cursor-not-allowed'
-                                        : `cursor-pointer hover:border-indigo-400 ${selectedCourse === course.id
-                                            ? 'border-indigo-600 bg-indigo-50 shadow-sm'
-                                            : 'border-gray-200 bg-white'}`
+                                    ? 'bg-gray-50 border-gray-200 opacity-70 cursor-not-allowed'
+                                    : `cursor-pointer hover:border-indigo-400 ${selectedCourse === course.id
+                                        ? 'border-indigo-600 bg-indigo-50 shadow-sm'
+                                        : 'border-gray-200 bg-white'}`
                                     }`}
                                 onClick={() => !isDisabled && setSelectedCourse(course.id)}
                             >
@@ -122,10 +133,7 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
 
                 <div className="mt-8">
                     <button
-                        onClick={() => {
-                            const selected = offerings.find(o => o.id === selectedCourse)
-                            if (selected) onSelect({ offeringId: selected.id, title: selected.title })
-                        }}
+                        onClick={handleContinue}
                         disabled={!selectedCourse}
                         className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition-all transform ${selectedCourse
                             ? 'bg-gradient-to-r from-orange-300 to-orange-400 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5'

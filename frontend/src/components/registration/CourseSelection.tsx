@@ -1,8 +1,17 @@
-﻿interface CourseSelectionProps {
+﻿import { useLocation } from 'wouter'
+
+interface CourseSelectionProps {
     onSelect: (type: 'cohort' | 'ondemand' | 'workshop') => void
 }
 
 const CourseSelection = ({ onSelect }: CourseSelectionProps) => {
+    const [, setLocation] = useLocation()
+
+    const handleSelect = (type: 'cohort' | 'ondemand' | 'workshop') => {
+        onSelect(type)
+        setLocation(`/registration/${type}`)
+    }
+
     return (
         <div className="animate-fadeIn">
             <div className="card max-w-2xl mx-auto">
@@ -19,7 +28,7 @@ const CourseSelection = ({ onSelect }: CourseSelectionProps) => {
                     {/* Cohort Option */}
                     <div
                         className="p-6 rounded-xl border-2 cursor-pointer transition-all border-gray-200 bg-white hover:border-indigo-600 hover:bg-indigo-50 group"
-                        onClick={() => onSelect('cohort')}
+                        onClick={() => handleSelect('cohort')}
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -52,7 +61,7 @@ const CourseSelection = ({ onSelect }: CourseSelectionProps) => {
                     {/* Workshop Option */}
                     <div
                         className="p-6 rounded-xl border-2 cursor-pointer transition-all border-gray-200 bg-white hover:border-indigo-600 hover:bg-indigo-50 group"
-                        onClick={() => onSelect('workshop')}
+                        onClick={() => handleSelect('workshop')}
                     >
                         <div className="flex items-center justify-between">
                             <div>

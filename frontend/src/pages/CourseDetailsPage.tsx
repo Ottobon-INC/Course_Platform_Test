@@ -592,6 +592,15 @@ const CourseDetailsPage: React.FC = () => {
             >
               {enrolling ? "Processing..." : "Enroll Now"}
             </button>
+            <button
+              className="bg-white hover:bg-gray-50 text-[#bf2f1f] border-2 border-[#bf2f1f] px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
+              onClick={() => {
+                const slug = courseId || 'ai-in-web-development';
+                setLocation(`/registration/cohort/${slug}`);
+              }}
+            >
+              Register Now
+            </button>
             <div className="text-[#f8f1e6]">
               <div className="text-3xl font-black">
                 {formatCurrency(courseMeta.displayPriceCents, "₹1,499")}
