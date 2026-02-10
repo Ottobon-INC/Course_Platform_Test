@@ -11,6 +11,7 @@ import {
 } from "../services/promptUsageService";
 import { rewriteFollowUpQuestion, summarizeConversation } from "../rag/openAiClient";
 import { getPersonaPromptTemplate } from "../services/personaPromptTemplates";
+import { ensurePersonaProfile } from "../services/personaProfileService";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHAT_HISTORY_LIMIT = 10;
@@ -336,14 +337,9 @@ assistantRouter.post(
     });
 
     const { summary, conversation, lastAssistantMessage } = await loadChatContext(chatSession.sessionId);
-    const personaProfile = await prisma.learnerPersonaProfile.findUnique({
-      where: {
-        userId_courseId: {
-          userId: auth.userId,
-          courseId: resolvedCourseId,
-        },
-      },
-      select: { personaKey: true },
+    const personaProfile = await ensurePersonaProfile({
+      userId: auth.userId,
+      courseId: resolvedCourseId,
     });
     const personaPrompt = personaProfile ? getPersonaPromptTemplate(personaProfile.personaKey) : null;
     const userQuestionForHistory = effectiveQuestion;

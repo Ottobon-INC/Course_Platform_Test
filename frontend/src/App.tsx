@@ -15,7 +15,6 @@ import CoursePlayerPage from "@/pages/CoursePlayerPage";
 import CongratsPage from "@/pages/CongratsPage";
 import CongratsFeedbackPage from "@/pages/CongratsFeedbackPage";
 import CourseCertificatePage from "@/pages/CourseCertificatePage";
-import LearningPathPage from "@/pages/LearningPathPage";
 import LandingPage from "@/pages/LandingPage";
 import AuthCallbackPage from "@/pages/AuthCallbackPage";
 import BecomeTutorPage from "@/pages/BecomeTutorPage";
@@ -50,7 +49,6 @@ function Router() {
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
-      <Route path="/course/:id/path" component={LearningPathPage} />
       <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
       <Route path="/course/:id/congrats/certificate" component={CourseCertificatePage} />
       <Route path="/course/:id/congrats/feedback" component={CongratsFeedbackPage} />

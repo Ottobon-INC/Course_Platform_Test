@@ -19,6 +19,8 @@ const KEYWORD_MAP: Record<LearnerPersonaProfileKey, string[]> = {
 
 const DEFAULT_PERSONA: LearnerPersonaProfileKey = "non_it_migrant";
 
+export const DEFAULT_PERSONA_KEY = DEFAULT_PERSONA;
+
 function scorePersonaFromText(text: string): {
   personaKey: LearnerPersonaProfileKey;
   reason: string;
@@ -122,4 +124,53 @@ export async function getPersonaProfile(params: { userId: string; courseId: stri
       updatedAt: true,
     },
   });
+}
+
+export async function ensurePersonaProfile(params: { userId: string; courseId: string }) {
+  const existing = await prisma.learnerPersonaProfile.findUnique({
+    where: {
+      userId_courseId: {
+        userId: params.userId,
+        courseId: params.courseId,
+      },
+    },
+    select: {
+      personaKey: true,
+      updatedAt: true,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await prisma.learnerPersonaProfile.create({
+      data: {
+        userId: params.userId,
+        courseId: params.courseId,
+        personaKey: DEFAULT_PERSONA,
+        rawAnswers: [],
+        analysisSummary: "Auto-assigned default learner persona.",
+        analysisVersion: `${PERSONA_PROFILE_VERSION}-auto`,
+      },
+      select: {
+        personaKey: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error) {
+    return prisma.learnerPersonaProfile.findUnique({
+      where: {
+        userId_courseId: {
+          userId: params.userId,
+          courseId: params.courseId,
+        },
+      },
+      select: {
+        personaKey: true,
+        updatedAt: true,
+      },
+    });
+  }
 }

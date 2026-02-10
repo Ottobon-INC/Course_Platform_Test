@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { verifyAccessToken } from "../services/sessionService";
+import { ensurePersonaProfile } from "../services/personaProfileService";
 
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
   "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
@@ -14,7 +15,6 @@ const progressPayloadSchema = z.object({
   status: z.enum(["not_started", "in_progress", "completed"]),
 });
 
-const studyPersonaSchema = z.enum(["normal", "sports", "cooking", "adventure"]);
 const promptQuerySchema = z.object({
   topicId: z.string().uuid().optional(),
   parentSuggestionId: z.string().uuid().optional(),
@@ -326,9 +326,6 @@ lessonsRouter.get(
         pptUrl: true,
         videoUrl: true,
         textContent: true,
-        textContentSports: true,
-        textContentCooking: true,
-        textContentAdventure: true,
         isPreview: true,
         contentType: true,
         simulation: {
@@ -404,15 +401,7 @@ lessonsRouter.get(
 
     const userId = getOptionalAuthUserId(req);
     const personaProfile = userId
-      ? await prisma.learnerPersonaProfile.findUnique({
-          where: {
-            userId_courseId: {
-              userId,
-              courseId: resolvedCourseId,
-            },
-          },
-          select: { personaKey: true },
-        })
+      ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
       : null;
     const personaKey = personaProfile?.personaKey ?? null;
 
@@ -429,9 +418,6 @@ lessonsRouter.get(
         pptUrl: true,
         videoUrl: true,
         textContent: true,
-        textContentSports: true,
-        textContentCooking: true,
-        textContentAdventure: true,
         isPreview: true,
         contentType: true,
         simulation: {
@@ -488,86 +474,6 @@ lessonsRouter.get(
         return mapTopicForResponse(topic, resolved);
       }),
     });
-  }),
-);
-
-lessonsRouter.get(
-  "/courses/:courseKey/personalization",
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    const { courseKey } = req.params;
-    const auth = (req as AuthenticatedRequest).auth;
-    if (!auth?.userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const resolvedCourseId = await resolveCourseId(courseKey);
-    if (!resolvedCourseId) {
-      res.status(404).json({ message: "Course not found" });
-      return;
-    }
-
-    const record = await prisma.topicPersonalization.findUnique({
-      where: {
-        userId_courseId: {
-          userId: auth.userId,
-          courseId: resolvedCourseId,
-        },
-      },
-      select: {
-        persona: true,
-      },
-    });
-
-    res.status(200).json({
-      persona: record?.persona ?? "normal",
-      hasPreference: Boolean(record),
-    });
-  }),
-);
-
-lessonsRouter.post(
-  "/courses/:courseKey/personalization",
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    const { courseKey } = req.params;
-    const auth = (req as AuthenticatedRequest).auth;
-    if (!auth?.userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const resolvedCourseId = await resolveCourseId(courseKey);
-    if (!resolvedCourseId) {
-      res.status(404).json({ message: "Course not found" });
-      return;
-    }
-
-    const body = z
-      .object({
-        persona: studyPersonaSchema,
-      })
-      .parse(req.body ?? {});
-
-    await prisma.topicPersonalization.upsert({
-      where: {
-        userId_courseId: {
-          userId: auth.userId,
-          courseId: resolvedCourseId,
-        },
-      },
-      create: {
-        userId: auth.userId,
-        courseId: resolvedCourseId,
-        persona: body.persona,
-      },
-      update: {
-        persona: body.persona,
-      },
-    });
-
-    res.status(204).end();
   }),
 );
 
