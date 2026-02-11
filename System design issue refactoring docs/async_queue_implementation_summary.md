@@ -46,7 +46,7 @@ User → GET /job/:jobId → 200 OK {status: "COMPLETED", result: {answer}}
 | REWRITTEN | `backend/src/routes/assistant.ts` | `POST /query` → 202 async; new `GET /job/:jobId` polling endpoint |
 | MODIFIED | `backend/src/server.ts` | Worker starts on boot, stops on shutdown |
 
----
+----
 
 ## Key Design Decisions
 
