@@ -80,6 +80,35 @@ enum QuestionType {
   mcq
 }
 
+enum BackgroundJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model BackgroundJob {
+  jobId        String              @id @default(dbgenerated("gen_random_uuid()")) @map("job_id") @db.Uuid
+  jobType      String              @map("job_type")
+  status       BackgroundJobStatus @default(PENDING) @map("status")
+  payload      Json                @map("payload")
+  result       Json?               @map("result")
+  errorMessage String?             @map("error_message")
+  attempts     Int                 @default(0) @map("attempts")
+  maxAttempts  Int                 @default(3) @map("max_attempts")
+  userId       String              @map("user_id") @db.Uuid
+  sessionId    String?             @map("session_id") @db.Uuid
+  lockedAt     DateTime?           @map("locked_at")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  completedAt  DateTime?           @map("completed_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  @@index([status, createdAt], map: "idx_bg_job_status_created")
+  @@index([userId, jobType], map: "idx_bg_job_user_type")
+  @@index([sessionId], map: "idx_bg_job_session")
+  @@map("background_jobs")
+}
+
 model Course {
   courseId    String      @id @default(dbgenerated("gen_random_uuid()")) @map("course_id") @db.Uuid
   slug        String      @unique @map("slug")

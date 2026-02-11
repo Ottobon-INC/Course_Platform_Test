@@ -6,9 +6,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAut
 import { verifyAccessToken } from "../services/sessionService";
 import { ensurePersonaProfile } from "../services/personaProfileService";
 
-const LEGACY_COURSE_SLUGS: Record<string, string> = {
-  "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
-};
+import { resolveCourseId } from "../services/courseResolutionService";
 
 const progressPayloadSchema = z.object({
   progress: z.number().int().min(0).max(100),
@@ -251,57 +249,7 @@ const mapPromptSuggestion = (suggestion: { suggestionId: string; promptText: str
   answer: suggestion.answer,
 });
 
-async function resolveCourseId(courseKey: string): Promise<string | null> {
-  const trimmedKey = courseKey?.trim();
-  if (!trimmedKey) {
-    return null;
-  }
 
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(trimmedKey)) {
-    return trimmedKey;
-  }
-
-  let decodedKey: string;
-  try {
-    decodedKey = decodeURIComponent(trimmedKey).trim();
-  } catch {
-    decodedKey = trimmedKey;
-  }
-
-  const normalizedSlug = decodedKey.toLowerCase();
-  const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
-  if (aliasMatch) {
-    return aliasMatch;
-  }
-
-  const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
-  const searchNames = Array.from(
-    new Set(
-      [decodedKey, normalizedName]
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0),
-    ),
-  );
-
-  if (searchNames.length === 0) {
-    return null;
-  }
-
-  const course = await prisma.course.findFirst({
-    where: {
-      OR: searchNames.map((name) => ({
-        courseName: {
-          equals: name,
-          mode: "insensitive",
-        },
-      })),
-    },
-    select: { courseId: true },
-  });
-
-  return course?.courseId ?? null;
-}
 
 lessonsRouter.get(
   "/modules/:moduleNo/topics",
@@ -359,19 +307,19 @@ lessonsRouter.get(
     const assets =
       contentKeyByTopic.size > 0
         ? await prisma.topicContentAsset.findMany({
-            where: {
-              topicId: { in: Array.from(contentKeyByTopic.keys()) },
-              contentKey: { in: Array.from(allContentKeys) },
-              personaKey: null,
-            },
-            select: {
-              topicId: true,
-              contentKey: true,
-              contentType: true,
-              personaKey: true,
-              payload: true,
-            },
-          })
+          where: {
+            topicId: { in: Array.from(contentKeyByTopic.keys()) },
+            contentKey: { in: Array.from(allContentKeys) },
+            personaKey: null,
+          },
+          select: {
+            topicId: true,
+            contentKey: true,
+            contentType: true,
+            personaKey: true,
+            payload: true,
+          },
+        })
         : [];
     const assetIndex = buildAssetIndex(assets);
 
@@ -452,19 +400,19 @@ lessonsRouter.get(
     const assets =
       contentKeyByTopic.size > 0
         ? await prisma.topicContentAsset.findMany({
-            where: {
-              topicId: { in: Array.from(contentKeyByTopic.keys()) },
-              contentKey: { in: Array.from(allContentKeys) },
-              OR: personaFilters,
-            },
-            select: {
-              topicId: true,
-              contentKey: true,
-              contentType: true,
-              personaKey: true,
-              payload: true,
-            },
-          })
+          where: {
+            topicId: { in: Array.from(contentKeyByTopic.keys()) },
+            contentKey: { in: Array.from(allContentKeys) },
+            OR: personaFilters,
+          },
+          select: {
+            topicId: true,
+            contentKey: true,
+            contentType: true,
+            personaKey: true,
+            payload: true,
+          },
+        })
         : [];
     const assetIndex = buildAssetIndex(assets);
 

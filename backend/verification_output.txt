@@ -1,0 +1,14 @@
+Fetching verification data...
+
+============================================
+ YOUR VERIFICATION DATA 
+============================================
+JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzaWQiOiJmYmYzMWU4OS1iYzIwLTRhOGEtYTBmYy02MTYzYzE4MzJlMzQiLCJqdGkiOiI0NDlkYWY0NS05NDllLTRmMGYtOTgzYS1lZGRlNzU4MDA3MDEiLCJpYXQiOjE3NzA3MjUwOTksImV4cCI6MTc3MDcyNjg5OX0.3VvGmp7yqFyJxV9ISDAlhL6ekeWohH2j--gUt2FlgeU
+
+COURSE_ID_UUID=649df20e-b731-4efe-a344-410144bdffbc
+COURSE_SLUG=ai-for-web-developer
+TOPIC_ID=NO_TOPIC_FOUND
+MODULE_NO=1
+TOPIC_PAIR_INDEX=1
+(Note: No quiz questions found for this course, /attempts might return empty)
+============================================

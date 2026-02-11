@@ -2,6 +2,7 @@ import process from "node:process";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { prisma } from "./services/prisma";
+import { startAiWorker, stopAiWorker } from "./workers/aiWorker";
 
 const app = createApp();
 
@@ -21,10 +22,14 @@ async function startServer(): Promise<void> {
     console.log(`API ready on http://localhost:${env.port}`);
     console.log(`Primary frontend origin: ${env.frontendAppUrl}`);
     console.log(`OAuth redirect URI: ${env.googleRedirectUri}`);
+
+    // Start the background AI worker after the server is ready
+    startAiWorker();
   });
 
   const shutdown = async () => {
     console.log("Shutting down server...");
+    stopAiWorker();
     server.close();
     await prisma.$disconnect();
     process.exit(0);

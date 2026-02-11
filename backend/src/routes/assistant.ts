@@ -1,220 +1,20 @@
 import express from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { asyncHandler } from "../utils/asyncHandler";
-import { askCourseAssistant } from "../rag/ragService";
+import { processUserQuery, getChatSessionHistory } from "../services/assistantService";
+import { enqueueJob, getJobById } from "../services/jobQueueService";
+import { resolveCourseId } from "../services/courseResolutionService";
+import { getModulePromptUsageCount, PROMPT_LIMIT_PER_MODULE } from "../services/promptUsageService";
 import { assertWithinRagRateLimit, RateLimitError } from "../rag/rateLimiter";
 import { prisma } from "../services/prisma";
-import {
-  getModulePromptUsageCount,
-  incrementModulePromptUsage,
-  PROMPT_LIMIT_PER_MODULE,
-} from "../services/promptUsageService";
-import { rewriteFollowUpQuestion, summarizeConversation } from "../rag/openAiClient";
-import { getPersonaPromptTemplate } from "../services/personaPromptTemplates";
-import { ensurePersonaProfile } from "../services/personaProfileService";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CHAT_HISTORY_LIMIT = 10;
-const CHAT_HISTORY_LOAD_LIMIT = 40;
-const SUMMARY_MIN_MESSAGES = 16;
-
-type ChatTurn = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-const shouldRewriteFollowUp = (question: string): boolean => {
-  const normalized = question.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-  if (normalized.length > 80) {
-    return false;
-  }
-  const followUpPhrases = [
-    "explain",
-    "elaborate",
-    "clarify",
-    "expand",
-    "more",
-    "continue",
-    "what about",
-    "how about",
-    "why",
-    "how",
-    "give an example",
-  ];
-  const pronounPattern = /\b(it|this|that|those|these|they|them|he|she|one|that|there)\b/;
-  return followUpPhrases.some((phrase) => normalized.startsWith(phrase)) || pronounPattern.test(normalized);
-};
-
-const mapChatTurns = (messages: Array<{ role: string; content: string }>): ChatTurn[] =>
-  messages
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .map((message) => ({
-      role: message.role === "assistant" ? "assistant" : "user",
-      content: message.content,
-    }));
-
-const LEGACY_COURSE_SLUGS: Record<string, string> = {
-  "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
-};
-
-const mapSuggestionForResponse = (suggestion: { suggestionId: string; promptText: string; answer: string | null }) => ({
-  id: suggestion.suggestionId,
-  promptText: suggestion.promptText,
-  answer: suggestion.answer,
-});
-
-async function resolveCourseRecordId(courseKey: string): Promise<string | null> {
-  const trimmed = courseKey.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (uuidRegex.test(trimmed)) {
-    return trimmed;
-  }
-
-  let decoded = trimmed;
-  try {
-    decoded = decodeURIComponent(trimmed);
-  } catch {
-    // keep original if decode fails
-  }
-  const normalizedSlug = decoded.toLowerCase();
-  const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
-  if (aliasMatch) {
-    return aliasMatch;
-  }
-
-  const courseBySlug = await prisma.course.findFirst({
-    where: {
-      slug: {
-        equals: normalizedSlug,
-        mode: "insensitive",
-      },
-    },
-    select: { courseId: true },
-  });
-  if (courseBySlug) {
-    return courseBySlug.courseId;
-  }
-
-  const normalizedName = decoded.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
-  const courseByName = await prisma.course.findFirst({
-    where: {
-      OR: [
-        { courseName: { equals: decoded.trim(), mode: "insensitive" } },
-        { courseName: { equals: normalizedName, mode: "insensitive" } },
-      ],
-    },
-    select: { courseId: true },
-  });
-
-  return courseByName?.courseId ?? null;
-}
-
-async function ensureChatSession(params: { userId: string; courseId: string; topicId: string }) {
-  return prisma.ragChatSession.upsert({
-    where: {
-      userId_courseId_topicId: {
-        userId: params.userId,
-        courseId: params.courseId,
-        topicId: params.topicId,
-      },
-    },
-    update: {},
-    create: {
-      userId: params.userId,
-      courseId: params.courseId,
-      topicId: params.topicId,
-    },
-  });
-}
-
-async function loadChatContext(sessionId: string): Promise<{
-  summary: string | null;
-  conversation: ChatTurn[];
-  lastAssistantMessage: string | null;
-}> {
-  const session = await prisma.ragChatSession.findUnique({
-    where: { sessionId },
-    select: { summary: true },
-  });
-
-  const recentMessages = await prisma.ragChatMessage.findMany({
-    where: { sessionId },
-    orderBy: { createdAt: "desc" },
-    take: CHAT_HISTORY_LIMIT,
-    select: { role: true, content: true, createdAt: true },
-  });
-
-  const ordered = [...recentMessages].reverse();
-  const conversation = mapChatTurns(ordered);
-  const lastAssistantMessage =
-    [...ordered].reverse().find((message) => message.role === "assistant")?.content ?? null;
-
-  return {
-    summary: session?.summary ?? null,
-    conversation,
-    lastAssistantMessage,
-  };
-}
-
-async function maybeUpdateChatSummary(sessionId: string): Promise<void> {
-  try {
-    const session = await prisma.ragChatSession.findUnique({
-      where: { sessionId },
-      select: { summary: true, summaryMessageCount: true },
-    });
-    if (!session) {
-      return;
-    }
-
-    const totalMessages = await prisma.ragChatMessage.count({ where: { sessionId } });
-    if (totalMessages < SUMMARY_MIN_MESSAGES) {
-      return;
-    }
-
-    const targetSummaryCount = Math.max(totalMessages - CHAT_HISTORY_LIMIT, 0);
-    if (targetSummaryCount <= session.summaryMessageCount) {
-      return;
-    }
-
-    const messagesToSummarize = await prisma.ragChatMessage.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: "asc" },
-      skip: session.summaryMessageCount,
-      take: targetSummaryCount - session.summaryMessageCount,
-      select: { role: true, content: true },
-    });
-
-    const turns = mapChatTurns(messagesToSummarize);
-    if (turns.length === 0) {
-      return;
-    }
-
-    const summary = await summarizeConversation({
-      previousSummary: session.summary ?? null,
-      messages: turns,
-    });
-
-    await prisma.ragChatSession.update({
-      where: { sessionId },
-      data: {
-        summary,
-        summaryMessageCount: targetSummaryCount,
-        summaryUpdatedAt: new Date(),
-      },
-    });
-  } catch (error) {
-    console.error("Chat summary update failed", error);
-  }
-}
 
 export const assistantRouter = express.Router();
 
+// ─────────────────────────────────────────────────────────────
+// POST /query — ASYNC: Validate, enqueue, return 202 immediately
+// ─────────────────────────────────────────────────────────────
 assistantRouter.post(
   "/query",
   requireAuth,
@@ -225,28 +25,28 @@ assistantRouter.post(
       return;
     }
 
+    // ── Parse inputs (same as before) ──
     const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
     const courseId = typeof req.body?.courseId === "string" ? req.body.courseId.trim() : "";
     const courseTitle = typeof req.body?.courseTitle === "string" ? req.body.courseTitle : undefined;
-    const suggestionIdRaw = typeof req.body?.suggestionId === "string" ? req.body.suggestionId.trim() : "";
-    const suggestionId = suggestionIdRaw && uuidRegex.test(suggestionIdRaw) ? suggestionIdRaw : "";
+    const suggestionId = typeof req.body?.suggestionId === "string" ? req.body.suggestionId.trim() : undefined;
     const topicId = typeof req.body?.topicId === "string" ? req.body.topicId.trim() : "";
+
     const parsedModuleNo =
       typeof req.body?.moduleNo === "number"
         ? Number(req.body.moduleNo)
         : typeof req.body?.moduleNo === "string" && req.body.moduleNo.trim()
           ? Number.parseInt(req.body.moduleNo.trim(), 10)
           : undefined;
-    const moduleNo = Number.isFinite(parsedModuleNo) ? (parsedModuleNo as number) : null;
-    const isTypedPrompt = !suggestionId;
-    let resolvedCourseId: string | null = null;
+    const moduleNo = Number.isFinite(parsedModuleNo) ? (parsedModuleNo as number) : undefined;
 
+    // ── Synchronous validation (catches 400/404/429 instantly) ──
     if (!courseId) {
       res.status(400).json({ message: "courseId is required" });
       return;
     }
 
-    resolvedCourseId = await resolveCourseRecordId(courseId);
+    const resolvedCourseId = await resolveCourseId(courseId);
     if (!resolvedCourseId) {
       res.status(404).json({ message: "Course not found" });
       return;
@@ -266,58 +66,50 @@ assistantRouter.post(
       return;
     }
 
-    let effectiveQuestion = question;
-    let precomposedAnswer: string | null = null;
-    let nextSuggestions: Array<{ id: string; promptText: string; answer: string | null }> = [];
-
-    if (suggestionId) {
-      const suggestion = await prisma.topicPromptSuggestion.findUnique({
-        where: { suggestionId },
-        select: {
-          suggestionId: true,
-          promptText: true,
-          answer: true,
-          courseId: true,
-          parentSuggestionId: true,
-        },
-      });
-
-      if (!suggestion) {
-        res.status(404).json({ message: "Suggestion not found for this course." });
-        return;
+    // Handle suggestion-based queries (pre-composed answers skip the queue)
+    const hasSuggestionId = suggestionId && uuidRegex.test(suggestionId);
+    if (hasSuggestionId) {
+      // Suggestion flow has pre-composed answers → process synchronously (fast, no LLM call)
+      try {
+        const result = await processUserQuery({
+          userId: auth.userId,
+          courseId,
+          question,
+          courseTitle,
+          suggestionId,
+          topicId,
+          moduleNo,
+        });
+        res.status(200).json(result);
+      } catch (error: any) {
+        if (error.message === "Suggestion not found for this course.") {
+          res.status(404).json({ message: error.message });
+          return;
+        }
+        console.error("Suggestion query failed", error);
+        res.status(500).json({ message: error.message || "Something went wrong." });
       }
-
-      effectiveQuestion = suggestion.promptText.trim();
-      precomposedAnswer = suggestion.answer ?? null;
-
-      const followUps = await prisma.topicPromptSuggestion.findMany({
-        where: { parentSuggestionId: suggestion.suggestionId, isActive: true },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-        select: { suggestionId: true, promptText: true, answer: true },
-      });
-      nextSuggestions = followUps.map(mapSuggestionForResponse);
+      return;
     }
 
-    if (!effectiveQuestion) {
+    // Typed prompt validation
+    if (!question) {
       res.status(400).json({ message: "Question is required" });
       return;
     }
 
-    if (isTypedPrompt) {
-      if (moduleNo === null || !Number.isInteger(moduleNo)) {
-        res.status(400).json({ message: "moduleNo is required for typed prompts" });
-        return;
-      }
+    if (moduleNo === null || moduleNo === undefined || !Number.isInteger(moduleNo)) {
+      res.status(400).json({ message: "moduleNo is required for typed prompts" });
+      return;
+    }
 
-      const currentCount = await getModulePromptUsageCount(auth.userId, resolvedCourseId, moduleNo);
-      if (currentCount >= PROMPT_LIMIT_PER_MODULE) {
-        res
-          .status(429)
-          .json({
-            message: `You've reached the tutor question limit for module ${moduleNo}. Please continue to the next module to unlock more questions.`,
-          });
-        return;
-      }
+    // Rate limit + prompt usage checks (synchronous — fail fast)
+    const currentCount = await getModulePromptUsageCount(auth.userId, resolvedCourseId, moduleNo);
+    if (currentCount >= PROMPT_LIMIT_PER_MODULE) {
+      res.status(429).json({
+        message: `You've reached the tutor question limit for module ${moduleNo}. Please continue to the next module to unlock more questions.`,
+      });
+      return;
     }
 
     try {
@@ -330,113 +122,113 @@ assistantRouter.post(
       throw error;
     }
 
-    const chatSession = await ensureChatSession({
-      userId: auth.userId,
-      courseId: resolvedCourseId,
-      topicId,
-    });
-
-    const { summary, conversation, lastAssistantMessage } = await loadChatContext(chatSession.sessionId);
-    const personaProfile = await ensurePersonaProfile({
-      userId: auth.userId,
-      courseId: resolvedCourseId,
-    });
-    const personaPrompt = personaProfile ? getPersonaPromptTemplate(personaProfile.personaKey) : null;
-    const userQuestionForHistory = effectiveQuestion;
-
-    if (precomposedAnswer) {
-      await prisma.ragChatMessage.createMany({
-        data: [
-          {
-            sessionId: chatSession.sessionId,
-            userId: auth.userId,
-            role: "user",
-            content: userQuestionForHistory,
-          },
-          {
-            sessionId: chatSession.sessionId,
-            userId: auth.userId,
-            role: "assistant",
-            content: precomposedAnswer,
-          },
-        ],
-      });
-      await prisma.ragChatSession.update({
-        where: { sessionId: chatSession.sessionId },
-        data: { lastMessageAt: new Date() },
-      });
-      await maybeUpdateChatSummary(chatSession.sessionId);
-
-      res.status(200).json({ answer: precomposedAnswer, nextSuggestions, sessionId: chatSession.sessionId });
-      return;
-    }
-
-    try {
-      if (lastAssistantMessage && shouldRewriteFollowUp(effectiveQuestion)) {
-        try {
-          const rewritten = await rewriteFollowUpQuestion({
-            question: effectiveQuestion,
-            lastAssistantMessage,
-            summary,
-          });
-          if (rewritten && rewritten.trim()) {
-            effectiveQuestion = rewritten.trim();
-          }
-        } catch (error) {
-          console.warn("Follow-up rewrite skipped", error);
-        }
-      }
-
-      const result = await askCourseAssistant({
-        courseId,
-        courseTitle,
-        question: effectiveQuestion,
+    // ── Eagerly create the chat session (so UI has a sessionId) ──
+    const chatSession = await prisma.ragChatSession.upsert({
+      where: {
+        userId_courseId_topicId: {
+          userId: auth.userId,
+          courseId: resolvedCourseId,
+          topicId,
+        },
+      },
+      update: {},
+      create: {
         userId: auth.userId,
-        conversation,
-        summary,
-        personaPrompt,
-      });
+        courseId: resolvedCourseId,
+        topicId,
+      },
+    });
 
-      if (isTypedPrompt && moduleNo !== null) {
-        await incrementModulePromptUsage(auth.userId, resolvedCourseId, moduleNo);
-      }
-
-      await prisma.ragChatMessage.createMany({
-        data: [
-          {
-            sessionId: chatSession.sessionId,
-            userId: auth.userId,
-            role: "user",
-            content: userQuestionForHistory,
-          },
-          {
-            sessionId: chatSession.sessionId,
-            userId: auth.userId,
-            role: "assistant",
-            content: result.answer,
-          },
-        ],
-      });
-      await prisma.ragChatSession.update({
-        where: { sessionId: chatSession.sessionId },
-        data: { lastMessageAt: new Date() },
-      });
-      await maybeUpdateChatSummary(chatSession.sessionId);
-
-      res.status(200).json({
-        answer: result.answer,
-        nextSuggestions,
+    // ── Eagerly write the "user" message to chat history ──
+    await prisma.ragChatMessage.create({
+      data: {
         sessionId: chatSession.sessionId,
-      });
-    } catch (error) {
-      console.error("Assistant query failed", error);
-      const message =
-        error instanceof Error && error.message ? error.message : "Tutor is unavailable right now. Please try again later.";
-      res.status(500).json({ message });
-    }
+        userId: auth.userId,
+        role: "user",
+        content: question,
+      },
+    });
+
+    // ── Enqueue the AI job (fire-and-forget) ──
+    const jobId = await enqueueJob({
+      jobType: "AI_QUERY",
+      userId: auth.userId,
+      sessionId: chatSession.sessionId,
+      payload: {
+        userId: auth.userId,
+        courseId,
+        question,
+        courseTitle,
+        topicId,
+        moduleNo,
+      },
+    });
+
+    // ── Return 202 immediately ──
+    res.status(202).json({
+      jobId,
+      sessionId: chatSession.sessionId,
+      status: "PENDING",
+      message: "Your question has been queued for processing.",
+    });
   }),
 );
 
+// ─────────────────────────────────────────────────────────────
+// GET /job/:jobId — Poll for job status
+// ─────────────────────────────────────────────────────────────
+assistantRouter.get(
+  "/job/:jobId",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const auth = (req as AuthenticatedRequest).auth;
+    if (!auth) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const jobId = req.params.jobId;
+    if (!jobId || !uuidRegex.test(jobId)) {
+      res.status(400).json({ message: "Invalid job ID" });
+      return;
+    }
+
+    const job = await getJobById(jobId);
+    if (!job) {
+      res.status(404).json({ message: "Job not found" });
+      return;
+    }
+
+    if (job.status === "COMPLETED") {
+      res.status(200).json({
+        jobId: job.jobId,
+        status: "COMPLETED",
+        result: job.result,
+        completedAt: job.completedAt,
+      });
+      return;
+    }
+
+    if (job.status === "FAILED") {
+      res.status(200).json({
+        jobId: job.jobId,
+        status: "FAILED",
+        error: job.errorMessage,
+      });
+      return;
+    }
+
+    // PENDING or PROCESSING
+    res.status(200).json({
+      jobId: job.jobId,
+      status: job.status,
+    });
+  }),
+);
+
+// ─────────────────────────────────────────────────────────────
+// GET /session — Chat history (unchanged)
+// ─────────────────────────────────────────────────────────────
 assistantRouter.get(
   "/session",
   requireAuth,
@@ -450,57 +242,29 @@ assistantRouter.get(
     const courseId = typeof req.query?.courseId === "string" ? req.query.courseId.trim() : "";
     const topicId = typeof req.query?.topicId === "string" ? req.query.topicId.trim() : "";
 
-    if (!courseId) {
-      res.status(400).json({ message: "courseId is required" });
-      return;
+    try {
+      const result = await getChatSessionHistory({
+        userId: auth.userId,
+        courseId,
+        topicId,
+      });
+
+      if (!result) {
+        res.status(200).json({ sessionId: null, messages: [] });
+        return;
+      }
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      if (error.message === "Course not found" || error.message === "Topic not found for this course.") {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error.message === "topicId is required" || error.message === "courseId is required") {
+        res.status(400).json({ message: error.message });
+        return;
+      }
+      res.status(500).json({ message: error.message });
     }
-
-    const resolvedCourseId = await resolveCourseRecordId(courseId);
-    if (!resolvedCourseId) {
-      res.status(404).json({ message: "Course not found" });
-      return;
-    }
-
-    if (!topicId || !uuidRegex.test(topicId)) {
-      res.status(400).json({ message: "topicId is required" });
-      return;
-    }
-
-    const topic = await prisma.topic.findFirst({
-      where: { topicId, courseId: resolvedCourseId },
-      select: { topicId: true },
-    });
-    if (!topic) {
-      res.status(404).json({ message: "Topic not found for this course." });
-      return;
-    }
-
-    const session = await prisma.ragChatSession.findUnique({
-      where: {
-        userId_courseId_topicId: {
-          userId: auth.userId,
-          courseId: resolvedCourseId,
-          topicId,
-        },
-      },
-      select: { sessionId: true },
-    });
-
-    if (!session) {
-      res.status(200).json({ sessionId: null, messages: [] });
-      return;
-    }
-
-    const messages = await prisma.ragChatMessage.findMany({
-      where: { sessionId: session.sessionId },
-      orderBy: { createdAt: "asc" },
-      take: CHAT_HISTORY_LOAD_LIMIT,
-      select: { messageId: true, role: true, content: true, createdAt: true },
-    });
-
-    res.status(200).json({
-      sessionId: session.sessionId,
-      messages,
-    });
   }),
 );
