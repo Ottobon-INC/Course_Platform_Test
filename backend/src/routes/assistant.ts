@@ -3,6 +3,7 @@ import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAut
 import { asyncHandler } from "../utils/asyncHandler";
 import { processUserQuery, getChatSessionHistory } from "../services/assistantService";
 import { enqueueJob, getJobById } from "../services/jobQueueService";
+import { handleJobStream } from "./sseStream";
 import { resolveCourseId } from "../services/courseResolutionService";
 import { getModulePromptUsageCount, PROMPT_LIMIT_PER_MODULE } from "../services/promptUsageService";
 import { assertWithinRagRateLimit, RateLimitError } from "../rag/rateLimiter";
@@ -139,15 +140,9 @@ assistantRouter.post(
       },
     });
 
-    // ── Eagerly write the "user" message to chat history ──
-    await prisma.ragChatMessage.create({
-      data: {
-        sessionId: chatSession.sessionId,
-        userId: auth.userId,
-        role: "user",
-        content: question,
-      },
-    });
+    // NOTE: Do NOT write the user message here — processUserQuery()
+    // already writes both user + assistant messages to chat history.
+    // Writing it here would create duplicate user messages.
 
     // ── Enqueue the AI job (fire-and-forget) ──
     const jobId = await enqueueJob({
@@ -225,6 +220,11 @@ assistantRouter.get(
     });
   }),
 );
+
+// ─────────────────────────────────────────────────────────────
+// GET /stream/:jobId — SSE stream (replaces client-side polling)
+// ─────────────────────────────────────────────────────────────
+assistantRouter.get("/stream/:jobId", requireAuth, handleJobStream);
 
 // ─────────────────────────────────────────────────────────────
 // GET /session — Chat history (unchanged)

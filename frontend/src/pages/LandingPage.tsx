@@ -1394,11 +1394,11 @@ function App() {
   });
 
 
-  const primaryCourseId = 'ai-in-web-development';
+  const primaryCourseId = 'ai-native-fullstack-developer';
   const primaryCourseTitle = 'AI Native FullStack Developer';
   const legacyCourseTitle = 'AI in Web Development';
   const primaryCourseSlug = 'ai-native-fullstack-developer';
-  const legacyCourseSlug = 'ai-in-web-development';
+  const legacyCourseSlug = 'ai-native-fullstack-developer';
   const primaryLessonSlug = 'welcome-to-ai-journey';
   const coursePlayerPath = `/course/${primaryCourseId}/learn/${primaryLessonSlug}`;
 

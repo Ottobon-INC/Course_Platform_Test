@@ -16,7 +16,7 @@ type OfferingCard = {
     disabled?: boolean
 }
 
-const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = 'ai-in-web-development' }: SpecificCourseSelectionProps) => {
+const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = 'ai-native-fullstack-developer' }: SpecificCourseSelectionProps) => {
     const [, setLocation] = useLocation()
     const [selectedCourse, setSelectedCourse] = useState<string>('')
     const [offerings, setOfferings] = useState<OfferingCard[]>([])

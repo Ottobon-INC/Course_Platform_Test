@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { resetSessionHeartbeat, writeStoredSession } from "@/utils/session";
 
-const COURSE_PLAYER_DEFAULT_PATH = "/course/ai-in-web-development/learn/welcome-to-ai-journey";
+const COURSE_PLAYER_DEFAULT_PATH = "/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey";
 
 function parseCallbackParams(): Record<string, string | null> {
   const url = new URL(window.location.href);

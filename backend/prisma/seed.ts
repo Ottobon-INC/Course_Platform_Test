@@ -33,7 +33,7 @@ type SeedCourse = {
 const SEED_COURSES: SeedCourse[] = [
   {
     courseId: COURSE_ID,
-    slug: "ai-in-web-development",
+    slug: "ai-native-fullstack-developer",
     courseName: "AI in Web Development",
     description:
       "Master the integration of AI technologies in modern web development while building a complete end-to-end application with guided prompts and real project workflows.",
@@ -236,22 +236,22 @@ async function loadTopicsFromCsv(csvPath: string, courseId: string): Promise<Pri
     return records
       .filter((record) => record.course_id === courseId)
       .map((record) => {
-      const moduleNo = Number.parseInt(record.module_no, 10);
-      const topicNumber = Number.parseInt(record.topic_number, 10);
+        const moduleNo = Number.parseInt(record.module_no, 10);
+        const topicNumber = Number.parseInt(record.topic_number, 10);
 
-      return {
-        topicId: record.topic_id,
-        courseId: record.course_id,
-        moduleNo: Number.isNaN(moduleNo) ? 0 : moduleNo,
-        moduleName: record.module_name?.trim() ?? "",
-        topicNumber: Number.isNaN(topicNumber) ? 0 : topicNumber,
-        topicName: record.topic_name?.trim() ?? "",
-        contentType: record.content_type?.trim().toLowerCase() ?? "video",
-        videoUrl: record.video_url?.trim() || null,
-        textContent: normaliseLineEndings(record.text_content),
-        isPreview: toBoolean(record.is_preview),
-      };
-    });
+        return {
+          topicId: record.topic_id,
+          courseId: record.course_id,
+          moduleNo: Number.isNaN(moduleNo) ? 0 : moduleNo,
+          moduleName: record.module_name?.trim() ?? "",
+          topicNumber: Number.isNaN(topicNumber) ? 0 : topicNumber,
+          topicName: record.topic_name?.trim() ?? "",
+          contentType: record.content_type?.trim().toLowerCase() ?? "video",
+          videoUrl: record.video_url?.trim() || null,
+          textContent: normaliseLineEndings(record.text_content),
+          isPreview: toBoolean(record.is_preview),
+        };
+      });
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
       console.warn(`Topics CSV not found at ${csvPath}. Skipping topic seeding.`);

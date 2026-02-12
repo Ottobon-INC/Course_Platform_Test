@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, Send, X, Bot, Loader2 } from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
+import { streamJobResult } from "@/lib/streamJob";
 
 // Themes for the landing page (Retro Teal/Sage/Salmon)
 const THEME = {
@@ -161,8 +162,20 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                 throw new Error(data.message || "Failed to get answer");
             }
 
+            // ── Resolve the AI answer (async SSE or legacy sync) ──
+            let result: Record<string, unknown>;
+            if (response.status === 202 && data.jobId) {
+                // Async path — stream the result via SSE
+                result = await streamJobResult(
+                    buildApiUrl(`/api/landing-assistant/stream/${data.jobId}`)
+                );
+            } else {
+                // Sync fallback (backward compatible)
+                result = data as Record<string, unknown>;
+            }
+
             // Parse response for suggestions and actions
-            let botText = data.answer;
+            let botText = (result.answer as string) || "";
             let suggestions: string[] = [];
             let actionUrl: string | undefined;
 

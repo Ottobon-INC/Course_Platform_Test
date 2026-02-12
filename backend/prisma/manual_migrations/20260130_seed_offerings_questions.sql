@@ -8,7 +8,7 @@ BEGIN
   SELECT course_id
   INTO cid
   FROM courses
-  WHERE slug = 'ai-in-web-development'
+  WHERE slug = 'ai-native-fullstack-developer'
      OR course_name ILIKE '%AI Native Full Stack Developer%'
   LIMIT 1;
 

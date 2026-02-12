@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Sparkles, Award, Star, BookOpen } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 
-const COURSE_PLAYER_PATH = '/course/ai-in-web-development/learn/welcome-to-ai-journey';
+const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey';
 
 function FloatingField({
   id,

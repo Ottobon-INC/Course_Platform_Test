@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
+import { streamJobResult } from "@/lib/streamJob";
 import { subscribeToSession } from "@/utils/session";
 import { recordTelemetryEvent, updateTelemetryAccessToken } from "@/utils/telemetry";
 import type { StoredSession } from "@/types/session";
@@ -1362,29 +1363,52 @@ const CoursePlayerPage: React.FC = () => {
           const msg = payload?.message || (await res.text()) || "Tutor unavailable";
           throw new Error(msg);
         }
-        const answer = payload?.answer ?? "I could not find an answer for that right now.";
+
+        let answer: string;
+        let sessionId: string | undefined;
+        let nextSuggestions: Array<{ id: string; promptText: string; answer: string | null }> = [];
+
+        if (res.status === 202 && payload?.jobId) {
+          // ── Async path: SSE stream for instant delivery ──
+          if (typeof payload?.sessionId === "string") {
+            setChatSessionId(payload.sessionId);
+          }
+          const jobId = payload.jobId as string;
+          const result = await streamJobResult(
+            buildApiUrl(`/assistant/stream/${jobId}`),
+            { Authorization: `Bearer ${session.accessToken}` },
+          );
+          answer = (result?.answer as string) ?? "I could not find an answer for that right now.";
+          sessionId = typeof result?.sessionId === "string" ? result.sessionId : undefined;
+          nextSuggestions = Array.isArray(result?.nextSuggestions) ? result.nextSuggestions : [];
+        } else {
+          // ── Sync path: suggestion-based queries return 200 with answer inline ──
+          answer = payload?.answer ?? "I could not find an answer for that right now.";
+          sessionId = typeof payload?.sessionId === "string" ? payload.sessionId : undefined;
+          nextSuggestions = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
+        }
+
         const botId = makeId();
         botMessageId = botId;
         setStarterAnchorMessageId(botId);
         setChatMessages((prev) => [...prev, { id: botId, text: answer, isBot: true, suggestionContext: suggestion }]);
-        if (typeof payload?.sessionId === "string") {
-          setChatSessionId(payload.sessionId);
+        if (sessionId) {
+          setChatSessionId(sessionId);
         }
-        const next = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
         if (suggestion) {
           setInlineFollowUps((prev) => ({
             ...prev,
-            [botId]: next,
+            [botId]: nextSuggestions,
           }));
         } else {
           setInlineFollowUps((prev) => ({
             ...prev,
-            [botId]: next,
+            [botId]: nextSuggestions,
           }));
         }
         emitTelemetry(
           "tutor.response_received",
-          { suggestionId: suggestion?.id, followUps: next.length },
+          { suggestionId: suggestion?.id, followUps: nextSuggestions.length },
           { moduleNo: moduleNoForChat, topicId: activeLesson?.topicId ?? null },
         );
       } catch (error) {

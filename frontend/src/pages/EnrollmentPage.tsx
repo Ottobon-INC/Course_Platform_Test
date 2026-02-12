@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { buildApiUrl } from '@/lib/api';
 import type { CourseSummary } from '@/types/content';
 
-const COURSE_PLAYER_PATH = '/course/ai-in-web-development/learn/welcome-to-ai-journey';
+const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey';
 
 export default function EnrollmentPage() {
   const { id } = useParams(); // This is the course slug

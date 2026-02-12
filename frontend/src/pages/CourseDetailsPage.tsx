@@ -87,7 +87,7 @@ const PROMO_PRICING: Record<
     badge?: string;
   }
 > = {
-  "ai-in-web-development": {
+  "ai-native-fullstack-developer": {
     priceCents: 0,
     compareAtCents: 49900,
     badge: "Limited time: free cohort",
@@ -554,7 +554,7 @@ const CourseDetailsPage: React.FC = () => {
             <button
               className="bg-white hover:bg-gray-50 text-[#bf2f1f] border-2 border-[#bf2f1f] px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
               onClick={() => {
-                const slug = courseId || 'ai-in-web-development';
+                const slug = courseId || 'ai-native-fullstack-developer';
                 setLocation(`/registration/cohort/${slug}`);
               }}
             >

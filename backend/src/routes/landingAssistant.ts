@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { generateLandingPageAnswer } from "../rag/openAiClient";
 import { getLandingResouceContext } from "../services/landingKnowledge";
 import { enqueueJob, getJobById } from "../services/jobQueueService";
+import { handleJobStream } from "./sseStream";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -89,3 +90,8 @@ landingAssistantRouter.get(
         });
     })
 );
+
+// ─────────────────────────────────────────────────────────────
+// GET /stream/:jobId — SSE stream (replaces client-side polling)
+// ─────────────────────────────────────────────────────────────
+landingAssistantRouter.get("/stream/:jobId", handleJobStream);

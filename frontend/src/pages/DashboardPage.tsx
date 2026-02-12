@@ -105,7 +105,7 @@ const mergeCourseCollections = (current: Course[], incoming: Course[]): Course[]
 
 const coursesData: Course[] = [
     {
-        id: 'ai-in-web-development',
+        id: 'ai-native-fullstack-developer',
         title: 'AI in Web Development',
         description: 'Master the integration of AI technologies in modern web development. Learn to build intelligent applications using machine learning APIs, natural language processing, and computer vision.',
         instructor: 'Dr. Sarah Chen',
@@ -174,13 +174,13 @@ const coursesData: Course[] = [
 ];
 
 const getEnrollPath = (course: Course): string =>
-    course.id === 'ai-in-web-development'
-        ? '/course/ai-in-web-development/learn/welcome-to-ai-journey'
+    course.id === 'ai-native-fullstack-developer'
+        ? '/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey'
         : `/course/${course.id}/learn/welcome-to-ai-journey`;
 
 const getContinuePath = (course: Course): string =>
-    course.id === 'ai-in-web-development'
-        ? '/course/ai-in-web-development/learn/introduction-to-ai-web-development'
+    course.id === 'ai-native-fullstack-developer'
+        ? '/course/ai-native-fullstack-developer/learn/introduction-to-ai-web-development'
         : `/course/${course.id}/learn/getting-started`;
 
 // --- NEW COURSE DATA FOR LANDING PAGE COURSES ---
@@ -634,145 +634,145 @@ export default function DashboardPage() {
                 isAuthenticated,
                 user: user
                     ? {
-                          name: displayName,
-                          email: user.email,
-                          avatarUrl: user.picture,
-                          initials: userInitials,
-                      }
+                        name: displayName,
+                        email: user.email,
+                        avatarUrl: user.picture,
+                        initials: userInitials,
+                    }
                     : undefined,
                 onLogout: handleLogout,
                 onLoginClick: () => setShowAuthModal(true),
             }}
             mainProps={{ 'data-testid': 'page-dashboard' }}
         >
-                    {/* --- HERO SECTION --- */}
-                    <section className="grid lg:grid-cols-[1.2fr_1fr] gap-7 items-center pt-8 px-2 sm:px-4 lg:px-2 relative">
-                        {/* Left Content */}
-                        <div>
-                            <div className="text-red-600 font-bold mb-2">Learn anywhere</div>
-                            <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight tracking-[-0.02em]">
-                                Your Next <br className="hidden sm:inline" />Online School
-                            </h1>
-                            <p className="text-gray-500 max-w-lg mt-3 mb-5">
-                                Build your portfolio by earning certifications when you complete courses.
-                            </p>
-                            <div className="flex items-center gap-4 flex-wrap">
-                                {/* Enroll Button (Functional) */}
-                                <Button
-                                    className="bg-[#0ea5a7] text-white font-bold px-5 py-3 h-auto rounded-full shadow-lg shadow-[#0ea5a7]/30 hover:shadow-xl hover:translate-y-[-1px] transition-all"
-                                    onClick={() => heroCourse && enrollNow(heroCourse)} // Links to a default course for demo
-                                >
-                                    Enroll
-                                    <ChevronRight className="w-5 h-5 ml-2" />
-                                </Button>
-                                {/* Play Video Link (Functional) */}
-                                <a
-                                    className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer"
-                                    onClick={(e) => { e.preventDefault(); handleVideoModal(true); }}
-                                >
-                                    <span className="w-10 h-10 rounded-full bg-red-500 grid place-items-center text-white shadow-lg shadow-red-500/30">
-                                        <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
-                                    </span>
-                                    Play Video
-                                </a>
+            {/* --- HERO SECTION --- */}
+            <section className="grid lg:grid-cols-[1.2fr_1fr] gap-7 items-center pt-8 px-2 sm:px-4 lg:px-2 relative">
+                {/* Left Content */}
+                <div>
+                    <div className="text-red-600 font-bold mb-2">Learn anywhere</div>
+                    <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight tracking-[-0.02em]">
+                        Your Next <br className="hidden sm:inline" />Online School
+                    </h1>
+                    <p className="text-gray-500 max-w-lg mt-3 mb-5">
+                        Build your portfolio by earning certifications when you complete courses.
+                    </p>
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {/* Enroll Button (Functional) */}
+                        <Button
+                            className="bg-[#0ea5a7] text-white font-bold px-5 py-3 h-auto rounded-full shadow-lg shadow-[#0ea5a7]/30 hover:shadow-xl hover:translate-y-[-1px] transition-all"
+                            onClick={() => heroCourse && enrollNow(heroCourse)} // Links to a default course for demo
+                        >
+                            Enroll
+                            <ChevronRight className="w-5 h-5 ml-2" />
+                        </Button>
+                        {/* Play Video Link (Functional) */}
+                        <a
+                            className="flex items-center gap-2 text-gray-900 font-semibold cursor-pointer"
+                            onClick={(e) => { e.preventDefault(); handleVideoModal(true); }}
+                        >
+                            <span className="w-10 h-10 rounded-full bg-red-500 grid place-items-center text-white shadow-lg shadow-red-500/30">
+                                <Play className="w-4 h-4 ml-0.5" fill="currentColor" />
+                            </span>
+                            Play Video
+                        </a>
+                    </div>
+                </div>
+
+                {/* Right Visual */}
+                <div className="relative min-h-[360px] rounded-2xl overflow-visible hidden sm:block">
+                    <div className="absolute inset-0 filter blur-xl opacity-20" style={{ background: 'conic-gradient(from 220deg, #0ea5a7 0 30%, #2563eb 30% 55%, #ef4444 55% 75%, #10b981 75% 100%)' }}></div>
+                    <div
+                        className="relative h-full min-h-[360px] rounded-2xl bg-center bg-cover bg-no-repeat shadow-2xl"
+                        style={{
+                            backgroundImage: "url('https://images.unsplash.com/photo-1573497491208-6b1acb260507?q=80&w=1200&auto=format&fit=crop')",
+                            clipPath: 'polygon(10% 0, 90% 0, 70% 100%, 0% 100%)',
+                        }}
+                    ></div>
+
+                    {/* Icon Badges (Tailwind converted & positioned) */}
+                    <HeroIconBadge className="left-[14%] top-[52%]" dataTip="Google 101" label="Google 101">
+                        <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 31.9 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 5 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.6 20-21 0-1.4-.2-2.8-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.9 16 19.1 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 5 29.5 3 24 3 15.4 3 8.1 8.1 6.3 14.7z" /><path fill="#4CAF50" d="M24 45c5.2 0 10-2 13.6-5.4l-6.3-5.2C29.3 35 26.8 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8 39.5 15.4 45 24 45z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3C34.8 31.5 29.8 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8 39.5 15.4 45 24 45c10.5 0 20-7.6 20-21 0-1.4-.2-2.8-.4-3.5z" /></svg>
+                    </HeroIconBadge>
+                    <HeroIconBadge className="right-[7%] top-[18%]" dataTip="Sheets" label="Google Sheets">
+                        <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#0F9D58" d="M8 8h22l10 10v22a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" /><path fill="#fff" d="M30 8v10h10" /><rect x="14" y="22" width="20" height="2" fill="#fff" /><rect x="14" y="27" width="20" height="2" fill="#fff" /><rect x="14" y="32" width="20" height="2" fill="#fff" /></svg>
+                    </HeroIconBadge>
+                    <HeroIconBadge className="right-[12%] bottom-[8%]" dataTip="Drive" label="Google Drive">
+                        <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#0F9D58" d="M17 8h14l11 19-7 13H13L6 27 17 8z" /><path fill="#FFCD40" d="M17 8l7 12-11 7L6 27 17 8z" /><path fill="#4285F4" d="M31 8l-7 12 11 7 7-12L31 8z" /></svg>
+                    </HeroIconBadge>
+                    <HeroIconBadge className="left-[36%] bottom-[-12px]" dataTip="AI Assistant" label="AI Assistant">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#0ea5a7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v5M12 17v5M4.2 4.2l3.5 3.5M16.3 16.3l3.5 3.5M2 12h5M17 12h5M4.2 19.8l3.5-3.5M16.3 7.7l3.5-3.5" /></svg>
+                    </HeroIconBadge>
+
+                    {/* Ribbon Outline */}
+                    <svg className="absolute right-[6%] top-[58%] opacity-25 rotate-6" width="120" height="120" viewBox="0 0 120 120" fill="none" stroke="#0f172a" strokeOpacity=".4" strokeWidth="2">
+                        <path d="M60 20a22 22 0 1 1 0 44 22 22 0 0 1 0-44Z" /><path d="M58 70 45 108l16-10 16 10-13-38" />
+                    </svg>
+                </div>
+            </section>
+
+            {/* --- 3. TRENDING COURSES (Mapped to the Explore Courses data, using new card style) --- */}
+            <h2 className={`text-3xl sm:text-4xl ${FONT_PLAYFAIR} text-center mt-16 mb-6 font-bold`}>
+                Trending Courses <span role="img" aria-label="fire">🔥</span>
+            </h2>
+            <section className="relative p-2 sm:p-4 lg:px-11">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute left-1 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-md hover:bg-gray-50 hidden sm:grid"
+                    onClick={() => scrollRail(-1)}
+                    aria-label="Scroll left"
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </Button>
+
+                <div ref={railRef} className="flex gap-4 overflow-x-scroll scroll-smooth snap-x snap-mandatory pb-2 custom-scrollbar">
+                    {/* NOTE: We use the `exploreCourses` data to populate this trending rail */}
+                    {exploreCourses.map((course) => (
+                        <article
+                            key={course.id}
+                            className="flex-shrink-0 w-[250px] sm:w-[280px] bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer snap-start overflow-hidden"
+                            onClick={() => setSelectedCourse(course)}
+                        >
+                            {/* Image Placeholder */}
+                            <div className="w-full h-36 bg-gray-200 overflow-hidden">
+                                <img
+                                    src={course.thumbnail} // Using the provided thumbnail link
+                                    alt={course.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                        e.currentTarget.src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=900&auto=format&fit=crop';
+                                    }}
+                                />
                             </div>
-                        </div>
-
-                        {/* Right Visual */}
-                        <div className="relative min-h-[360px] rounded-2xl overflow-visible hidden sm:block">
-                            <div className="absolute inset-0 filter blur-xl opacity-20" style={{ background: 'conic-gradient(from 220deg, #0ea5a7 0 30%, #2563eb 30% 55%, #ef4444 55% 75%, #10b981 75% 100%)' }}></div>
-                            <div
-                                className="relative h-full min-h-[360px] rounded-2xl bg-center bg-cover bg-no-repeat shadow-2xl"
-                                style={{
-                                    backgroundImage: "url('https://images.unsplash.com/photo-1573497491208-6b1acb260507?q=80&w=1200&auto=format&fit=crop')",
-                                    clipPath: 'polygon(10% 0, 90% 0, 70% 100%, 0% 100%)',
-                                }}
-                            ></div>
-
-                            {/* Icon Badges (Tailwind converted & positioned) */}
-                            <HeroIconBadge className="left-[14%] top-[52%]" dataTip="Google 101" label="Google 101">
-                                <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 31.9 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 5 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.6 20-21 0-1.4-.2-2.8-.4-3.5z" /><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.9 16 19.1 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 5 29.5 3 24 3 15.4 3 8.1 8.1 6.3 14.7z" /><path fill="#4CAF50" d="M24 45c5.2 0 10-2 13.6-5.4l-6.3-5.2C29.3 35 26.8 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8 39.5 15.4 45 24 45z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3C34.8 31.5 29.8 36 24 36c-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8 39.5 15.4 45 24 45c10.5 0 20-7.6 20-21 0-1.4-.2-2.8-.4-3.5z" /></svg>
-                            </HeroIconBadge>
-                            <HeroIconBadge className="right-[7%] top-[18%]" dataTip="Sheets" label="Google Sheets">
-                                <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#0F9D58" d="M8 8h22l10 10v22a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" /><path fill="#fff" d="M30 8v10h10" /><rect x="14" y="22" width="20" height="2" fill="#fff" /><rect x="14" y="27" width="20" height="2" fill="#fff" /><rect x="14" y="32" width="20" height="2" fill="#fff" /></svg>
-                            </HeroIconBadge>
-                            <HeroIconBadge className="right-[12%] bottom-[8%]" dataTip="Drive" label="Google Drive">
-                                <svg className="w-5 h-5" viewBox="0 0 48 48"><path fill="#0F9D58" d="M17 8h14l11 19-7 13H13L6 27 17 8z" /><path fill="#FFCD40" d="M17 8l7 12-11 7L6 27 17 8z" /><path fill="#4285F4" d="M31 8l-7 12 11 7 7-12L31 8z" /></svg>
-                            </HeroIconBadge>
-                            <HeroIconBadge className="left-[36%] bottom-[-12px]" dataTip="AI Assistant" label="AI Assistant">
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#0ea5a7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v5M12 17v5M4.2 4.2l3.5 3.5M16.3 16.3l3.5 3.5M2 12h5M17 12h5M4.2 19.8l3.5-3.5M16.3 7.7l3.5-3.5" /></svg>
-                            </HeroIconBadge>
-
-                            {/* Ribbon Outline */}
-                            <svg className="absolute right-[6%] top-[58%] opacity-25 rotate-6" width="120" height="120" viewBox="0 0 120 120" fill="none" stroke="#0f172a" strokeOpacity=".4" strokeWidth="2">
-                                <path d="M60 20a22 22 0 1 1 0 44 22 22 0 0 1 0-44Z" /><path d="M58 70 45 108l16-10 16 10-13-38" />
-                            </svg>
-                        </div>
-                    </section>
-
-                    {/* --- 3. TRENDING COURSES (Mapped to the Explore Courses data, using new card style) --- */}
-                    <h2 className={`text-3xl sm:text-4xl ${FONT_PLAYFAIR} text-center mt-16 mb-6 font-bold`}>
-                        Trending Courses <span role="img" aria-label="fire">🔥</span>
-                    </h2>
-                    <section className="relative p-2 sm:p-4 lg:px-11">
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="absolute left-1 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-md hover:bg-gray-50 hidden sm:grid"
-                            onClick={() => scrollRail(-1)}
-                            aria-label="Scroll left"
-                        >
-                            <ChevronLeft className="w-5 h-5" />
-                        </Button>
-
-                        <div ref={railRef} className="flex gap-4 overflow-x-scroll scroll-smooth snap-x snap-mandatory pb-2 custom-scrollbar">
-                            {/* NOTE: We use the `exploreCourses` data to populate this trending rail */}
-                            {exploreCourses.map((course) => (
-                                <article
-                                    key={course.id}
-                                    className="flex-shrink-0 w-[250px] sm:w-[280px] bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer snap-start overflow-hidden"
-                                    onClick={() => setSelectedCourse(course)}
+                            <div className="p-4">
+                                <h3 className="text-lg font-bold mb-1">{course.title}</h3>
+                                <div className="text-yellow-500 text-sm flex items-center gap-1">
+                                    <Star className="w-3.5 h-3.5 fill-yellow-500" />
+                                    <span className="font-semibold">{course.rating}</span>
+                                    <span className="text-gray-500 font-normal"> • {course.students} students</span>
+                                </div>
+                                <p className="text-gray-500 text-sm mt-2 line-clamp-2">{course.description}</p>
+                                <Button
+                                    className="w-full mt-4 bg-[#0ea5a7] hover:bg-[#0c9092] text-white font-semibold shadow-md"
+                                    onClick={(e) => { e.stopPropagation(); enrollNow(course); }}
                                 >
-                                    {/* Image Placeholder */}
-                                    <div className="w-full h-36 bg-gray-200 overflow-hidden">
-                                        <img
-                                            src={course.thumbnail} // Using the provided thumbnail link
-                                            alt={course.title}
-                                            className="w-full h-full object-cover"
-                                            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                                e.currentTarget.src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=900&auto=format&fit=crop';
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="text-lg font-bold mb-1">{course.title}</h3>
-                                        <div className="text-yellow-500 text-sm flex items-center gap-1">
-                                            <Star className="w-3.5 h-3.5 fill-yellow-500" />
-                                            <span className="font-semibold">{course.rating}</span>
-                                            <span className="text-gray-500 font-normal"> • {course.students} students</span>
-                                        </div>
-                                        <p className="text-gray-500 text-sm mt-2 line-clamp-2">{course.description}</p>
-                                        <Button
-                                            className="w-full mt-4 bg-[#0ea5a7] hover:bg-[#0c9092] text-white font-semibold shadow-md"
-                                            onClick={(e) => { e.stopPropagation(); enrollNow(course); }}
-                                        >
-                                            Enroll Now
-                                        </Button>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
+                                    Enroll Now
+                                </Button>
+                            </div>
+                        </article>
+                    ))}
+                </div>
 
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            className="absolute right-1 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-md hover:bg-gray-50 hidden sm:grid"
-                            onClick={() => scrollRail(1)}
-                            aria-label="Scroll right"
-                        >
-                            <ChevronRight className="w-5 h-5" />
-                        </Button>
-                    </section>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-md hover:bg-gray-50 hidden sm:grid"
+                    onClick={() => scrollRail(1)}
+                    aria-label="Scroll right"
+                >
+                    <ChevronRight className="w-5 h-5" />
+                </Button>
+            </section>
 
 
             {/* --- 5. VIDEO MODAL (Converted from HTML/JS to a React/TS Dialog) --- */}

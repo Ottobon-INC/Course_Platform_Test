@@ -6,8 +6,9 @@ import { createEmbedding } from "../src/rag/openAiClient";
 import { replaceCourseChunks } from "../src/rag/ragService";
 
 const DEFAULT_PDF_PATH = path.resolve(process.cwd(), "../Web Dev using AI Course Content.pdf");
-const DEFAULT_COURSE_ID = "ai-in-web-development";
-const DEFAULT_COURSE_TITLE = "AI in Web Development";
+// Use the actual UUID — fetchRelevantContexts() searches by resolved UUID, not slug
+const DEFAULT_COURSE_ID = "f26180b2-5dda-495a-a014-ae02e63f172f";
+const DEFAULT_COURSE_TITLE = "AI Native FullStack Developer";
 
 const sanitizePdfText = (text: string): string => {
   if (!text) {

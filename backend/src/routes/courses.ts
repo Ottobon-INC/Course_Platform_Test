@@ -7,7 +7,7 @@ import { ensureEnrollment } from "../services/enrollmentService";
 import { checkCohortAccessForUser } from "../services/cohortAccess";
 
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
-  "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
+  "ai-native-fullstack-developer": "f26180b2-5dda-495a-a014-ae02e63f172f",
 };
 
 const coursesRouter = express.Router();

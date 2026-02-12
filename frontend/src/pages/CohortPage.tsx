@@ -118,7 +118,7 @@ const CohortPage: React.FC = () => {
   const [isPathExpanded, setIsPathExpanded] = React.useState(false);
   const [, setLocation] = useLocation();
   // Auth state handled in App.tsx now
-  const primaryCourseId = "ai-in-web-development";
+  const primaryCourseId = "ai-native-fullstack-developer";
   const courseDetailsPath = `/course/${primaryCourseId}`;
 
   const handleJoinNow = () => {
