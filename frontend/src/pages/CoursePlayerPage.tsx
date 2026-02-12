@@ -665,7 +665,7 @@ const CoursePlayerPage: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     }
-  }, [courseKey, activeSlug, expandedModules.length, setLocation, toast]);
+  }, [courseKey, session?.accessToken, setLocation, toast]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {

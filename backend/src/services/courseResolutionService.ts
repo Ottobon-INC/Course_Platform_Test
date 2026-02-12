@@ -1,4 +1,14 @@
+import { LRUCache } from "lru-cache";
 import { prisma } from "./prisma";
+
+// --- Cache Configuration ---
+// Options:
+// - max: 500 items (Enough for all active courses + aliases)
+// - ttl: 10 minutes (600,000 ms) - Balance between freshness and DB load
+const courseIdCache = new LRUCache<string, string>({
+    max: 500,
+    ttl: 1000 * 60 * 10,
+});
 
 const LEGACY_COURSE_SLUGS: Record<string, string> = {
     "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
@@ -9,6 +19,8 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 /**
  * Resolves a course identifier (UUID, slug, name, or legacy alias) to a valid Course UUID.
  * Returns null if the course cannot be found.
+ * 
+ * Uses an in-memory LRU cache to prevent redundant DB lookups for the same slug.
  */
 export async function resolveCourseId(courseKey: string | null | undefined): Promise<string | null> {
     const trimmedKey = courseKey?.trim();
@@ -16,9 +28,16 @@ export async function resolveCourseId(courseKey: string | null | undefined): Pro
         return null;
     }
 
-    // 1. Direct UUID check
+    // 0. Check Cache (Fast Path)
+    // We cache based on the *exact input string* to cover all variations (slug, name, etc.)
+    // efficiently without re-normalizing every time.
+    if (courseIdCache.has(trimmedKey)) {
+        return courseIdCache.get(trimmedKey)!;
+    }
+
+    // 1. Direct UUID check (No DB/Cache needed if it's already an ID)
     if (uuidRegex.test(trimmedKey)) {
-        return trimmedKey; // Assume valid if it matches UUID format (could add DB check if strict validation needed)
+        return trimmedKey;
     }
 
     // 2. Decode URL component
@@ -34,13 +53,12 @@ export async function resolveCourseId(courseKey: string | null | undefined): Pro
     // 3. Legacy Alias Check
     const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
     if (aliasMatch) {
+        // Cache the alias -> ID mapping too
+        courseIdCache.set(trimmedKey, aliasMatch);
         return aliasMatch;
     }
 
     // 4. Database Lookup (Slug or Name)
-    // Try exact slug match first, then name match
-    // Also try constructing a slug from the name (e.g. "AI in Web Dev" -> "ai-in-web-dev")
-
     const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
 
     // Prepare search candidates
@@ -62,5 +80,12 @@ export async function resolveCourseId(courseKey: string | null | undefined): Pro
         select: { courseId: true },
     });
 
-    return course?.courseId ?? null;
+    const resultId = course?.courseId ?? null;
+
+    // 5. Update Cache
+    if (resultId) {
+        courseIdCache.set(trimmedKey, resultId);
+    }
+
+    return resultId;
 }
