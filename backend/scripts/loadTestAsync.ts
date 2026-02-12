@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import pLimit from "p-limit";
 
 // ─── Configuration ──────────────────────────────────────────
@@ -150,13 +151,19 @@ async function runPhase(concurrency: number) {
     const avgM2 = healthLatencies.reduce((a, b) => a + b, 0) / (healthLatencies.length || 1);
     const maxM2 = Math.max(...healthLatencies, 0);
 
-    console.log("------------------------------------------------");
-    console.log(`✅ Success: ${successes.length} | ❌ Failed: ${failures.length}`);
-    console.log(`⏱️  M1 (E2E Time): Avg ${(avgM1 / 1000).toFixed(2)}s | Max ${(maxM1 / 1000).toFixed(2)}s`);
-    console.log(`❤️  M2 (Health)  : Avg ${avgM2.toFixed(0)}ms | Max ${maxM2.toFixed(0)}ms`);
-    console.log("------------------------------------------------");
+    const output = [
+        "------------------------------------------------",
+        `✅ Success: ${successes.length} | ❌ Failed: ${failures.length}`,
+        `⏱️  M1 (E2E Time): Avg ${(avgM1 / 1000).toFixed(2)}s | Max ${(maxM1 / 1000).toFixed(2)}s`,
+        `❤️  M2 (Health)  : Avg ${avgM2.toFixed(0)}ms | Max ${maxM2.toFixed(0)}ms`,
+        "------------------------------------------------"
+    ].join("\n");
+
+    console.log(output);
+    fs.appendFileSync("load-test-results.txt", `\nRunning Phase: ${concurrency} users\n` + output + "\n");
 
     if (failures.length > 0) {
+        fs.appendFileSync("load-test-results.txt", `Sample failure: ${failures[0].error}\n`);
         console.log("Sample failure:", failures[0].error);
     }
 }
