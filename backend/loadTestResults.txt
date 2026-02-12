@@ -1,0 +1,33 @@
+STARTING LOAD TEST SCRIPT...
+🔥 Warming up...
+
+🚀 Starting Phase: 1 concurrent users
+------------------------------------------------
+✅ Success: 1 | ❌ Failed: 0
+⏱️  M1 (E2E Time): Avg 2.48s | Max 2.48s
+❤️  M2 (Health)  : Avg 16ms | Max 68ms
+------------------------------------------------
+🧪 Testing 10 users...
+
+🚀 Starting Phase: 10 concurrent users
+------------------------------------------------
+✅ Success: 10 | ❌ Failed: 0
+⏱️  M1 (E2E Time): Avg 6.98s | Max 11.58s
+❤️  M2 (Health)  : Avg 3ms | Max 22ms
+------------------------------------------------
+🧪 Testing 25 users...
+
+🚀 Starting Phase: 25 concurrent users
+------------------------------------------------
+✅ Success: 25 | ❌ Failed: 0
+⏱️  M1 (E2E Time): Avg 14.12s | Max 26.87s
+❤️  M2 (Health)  : Avg 4ms | Max 74ms
+------------------------------------------------
+🧪 Testing 50 users...
+
+🚀 Starting Phase: 50 concurrent users
+------------------------------------------------
+✅ Success: 50 | ❌ Failed: 0
+⏱️  M1 (E2E Time): Avg 27.03s | Max 50.98s
+❤️  M2 (Health)  : Avg 3ms | Max 39ms
+------------------------------------------------
