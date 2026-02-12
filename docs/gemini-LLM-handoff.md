@@ -80,7 +80,8 @@ Cohort projects:
 - `GET /cohort-projects/:courseKey` (auth + cohort membership required)
 
 AI tutor (learner):
-- `POST /assistant/query`
+- `POST /assistant/query` (Async: returns 202 + jobId)
+- `GET /assistant/stream/:jobId` (SSE Result Stream)
 - `GET /assistant/session`
 
 Persona profile analysis (tutor personas):

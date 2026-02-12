@@ -8,7 +8,7 @@ Primary responsibilities:
 - Lessons and progress, including derived content resolution via `topic_content_assets`.
 - Study personas and learner tutor persona profiles.
 - Quizzes, cold calling, and cohort batch projects.
-- AI tutor with RAG, prompt suggestions, and chat memory.
+- AI tutor with Async RAG (Job Queue + SSE), prompt suggestions, and chat memory.
 
 Start here:
 - `Course_Platform.md` for end-to-end behavior

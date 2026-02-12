@@ -2,6 +2,12 @@
 
 Running log of notable tasks and changes completed on the backend and frontend stack of the Course Platform project.
 
+## 2026-02-12 - Async Job Queue & Real-time AI
+- Implemented `background_jobs` table for asynchronous AI processing.
+- Replaced polling with `GET /stream/:jobId` SSE endpoint.
+- Validated performance: 50 concurrent users with 3ms server latency.
+- Fixed RAG course ID mismatch; chatbot now functional.
+
 ## 2026-01-09 - Topic content assets + derived layouts
 - Added `topic_content_assets` to store persona-specific content payloads (text, image, video, ppt).
 - `topics.text_content` now supports derived block JSON with `contentKey` references.

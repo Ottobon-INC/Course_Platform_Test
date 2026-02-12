@@ -2,6 +2,13 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why, and the primary files involved.
 
+## 2026-02-12 - Async AI Architecture & RAG Fixes
+- **Async Job Queue**: Replaced blocking AI calls with Postgres-based job queue `background_jobs` + worker process.
+- **Real-time SSE**: Implemented Server-Sent Events (`/stream/:jobId`) for instant job result streaming, removing polling latency.
+- **RAG Fixes**: Resolved UUID/Slug mismatch in vector search; chatbot now answers correctly.
+- **Course Update**: Renamed slug to `ai-native-fullstack-developer` (legacy slug preserved).
+- **Performance**: Validated 50-user concurrent load with <5ms server health latency.
+
 ## 2026-02-03 - Intelligent Landing Chatbot & Auth Resolution
 - **Responsive Sales Agent**: Implemented `LandingChatBot.tsx` with RAG connection (`landingAssistantRouter`) to explain offerings.
 - **Smart Engagement**: Personalized greetings, session-persistent history, and "Smart Redirect" buttons (using `<<ACTION:URL>>`) to drive traffic.

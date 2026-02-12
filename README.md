@@ -8,7 +8,7 @@ Highlights:
 - AI tutor with RAG (pgvector), prompt suggestions, and persistent chat memory.
 - Cohort allowlist gating, cold calling, quizzes, and cohort batch projects.
 
-Canonical course slug: `ai-in-web-development` (marketing label `ai-native-fullstack-developer` appears in UI copy).
+Canonical course slug: `ai-native-fullstack-developer` (Legacy alias `ai-in-web-development` supported).
 
 Docs:
 - `Course_Platform.md`, `CP_Arc.md`, `Frontend.md`

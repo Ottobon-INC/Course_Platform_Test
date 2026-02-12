@@ -3,7 +3,8 @@
 This spec captures the exact AI tutor pipeline used in `backend/src/routes/assistant.ts` + `backend/src/rag/*`.
 
 ## 1) Request entry points
-- **Learner tutor**: `POST /assistant/query` (Auth required)
+- **Learner tutor**: `POST /assistant/query` (Enqueues job)
+- **Result Stream**: `GET /stream/:jobId` (Server-Sent Events)
 - **History hydration**: `GET /assistant/session` (Auth required)
 
 ## 2) Prompt types
@@ -12,11 +13,15 @@ This spec captures the exact AI tutor pipeline used in `backend/src/routes/assis
 - `moduleNo` is **required**.
 - Counts against module prompt quota (`module_prompt_usage`).
 
-**Suggested prompt**
+**Suggested prompt (Sync)**
 - `suggestionId` provided.
-- Uses `topic_prompt_suggestions` as the question source.
-- If `answer` exists, the response is returned **without** hitting OpenAI.
-- Does **not** count against prompt quota.
+- Returns 200 immediately (if pre-calculated answer exists).
+- Does **not** use job queue.
+
+**Typed prompt (Async)**
+- Enters `background_jobs` queue.
+- Client receives `202 Accepted` with `jobId`.
+- Client listens to SSE for completion.
 
 ## 3) Course + topic validation
 - `courseId` is resolved via UUID, legacy alias, slug, or course name.
@@ -26,7 +31,8 @@ This spec captures the exact AI tutor pipeline used in `backend/src/routes/assis
 ## 4) Quotas and rate limits
 - **Typed prompt quota**: 5 per module (`PROMPT_LIMIT_PER_MODULE`).
 - **Rate limit**: 8 requests per 60 seconds per user (`rateLimiter.ts`).
-- Quota exceeded -> 429 with friendly message.
+- Checks occur **before** job enqueue.
+- Quota exceeded -> 429.
 
 ## 5) Chat session memory
 - Session key: `(userId, courseId, topicId)`.

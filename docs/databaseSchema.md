@@ -15,6 +15,7 @@ Source of truth: `backend/prisma/schema.prisma`. Physical tables are snake_case;
 | Personalization | `topic_personalization`, `learner_persona_profiles`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas, tutor personas, prompt trees, quotas |
 | Progress and assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion and module unlock state |
 | Commerce and enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment writes and cart storage |
+| Async Job Queue | `background_jobs` | Persistent job queue for long-running AI tasks |
 
 ## 2. Mermaid diagram (abridged)
 ```
@@ -100,7 +101,7 @@ classDiagram
 
 ### course_chunks
 - Stores RAG embeddings for tutor retrieval.
-- `course_id` is a string identifier (not a FK); ensure it matches what `/assistant/query` uses.
+- `course_id` is a UUID string; must match the resolved course UUID used by `/assistant/query`.
 
 ### cohorts and cohort_members
 - Cohort allowlists are tracked per course.

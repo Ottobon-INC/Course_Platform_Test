@@ -1,6 +1,6 @@
 # Course Platform — Complete Mind Model
 
-> **Generated**: 2026-02-10 | **Source**: Full codebase scan of all 36 documentation files + all backend/frontend source code
+> **Generated**: 2026-02-12 | **Source**: Full codebase scan of all 36 documentation files + all backend/frontend source code
 
 ---
 
@@ -45,9 +45,9 @@
 - **Product name**: Ottolearn-branded Course Platform
 - **Purpose**: Full-stack learning experience for browsing, enrolling, and completing AI-focused courses
 - **Primary course**: "AI Native Full Stack Developer"
-- **Canonical course slug (DB seed)**: `ai-in-web-development`
+- **Canonical course slug (DB seed)**: `ai-native-fullstack-developer`
 - **Canonical course UUID (seed)**: `f26180b2-5dda-495a-a014-ae02e63f172f`
-- **Marketing label (display-only)**: `ai-native-fullstack-developer`
+- **Legacy course slug**: `ai-in-web-development` (preserved for backward compatibility)
 - **Monorepo structure**: `frontend/` + `backend/` workspaces in a single repo
 
 ---
@@ -312,8 +312,9 @@ Browser → React SPA (Vite, :5173) → Express API (:4000) → Prisma → Postg
 | `usersRouter` | `/users` | 1.0KB | `/users/me` profile endpoint |
 | `coursesRouter` | `/courses` | 4.9KB | Catalog fetch, course resolution, enrollment + cohort access gate |
 | `lessonsRouter` | `/lessons` | 22.7KB | Topics, personalization CRUD, progress CRUD, **content resolution** |
-| `assistantRouter` | `/assistant` | 15.7KB | AI tutor chat (RAG + memory + quotas + follow-up rewrite) |
-| `landingAssistantRouter` | `/landing-assistant` | 1.7KB | Public sales chatbot with RAG |
+| `assistantRouter` | `/assistant` | 15.7KB | AI tutor chat (RAG + memory + quotas) — **Async Job Queue** |
+| `landingAssistantRouter` | `/landing-assistant` | 1.7KB | Public sales chatbot (Async RAG) |
+| `streamRouter` | `/stream` | 3.7KB | **NEW**: SSE stream for job results (`/stream/:jobId`) |
 | `quizRouter` | `/quiz` | 27.3KB | Question selection, attempts, submissions, module gating, cooldowns |
 | `coldCallRouter` | `/cold-call` | 13.2KB | Blind-response prompts, threaded replies, star reactions |
 | `activityRouter` | `/activity` | 4.2KB | Telemetry event ingestion + tutor monitor |
@@ -344,6 +345,8 @@ Browser → React SPA (Vite, :5173) → Express API (:4000) → Prisma → Postg
 | `userService.ts` | User lookups by ID |
 | `landingKnowledge.ts` | **NEW**: Context builder for landing sales chatbot |
 | `tutorInsights.ts` | **NEW**: `buildTutorCourseSnapshot()` for copilot prompts |
+| `jobQueueService.ts` | **NEW**: Async job queue (Postgres `background_jobs`) + worker handling |
+| `sseStream.ts` | **NEW**: SSE handler for real-time job result streaming |
 
 ### 6.4 RAG Module (6 files)
 
@@ -769,28 +772,30 @@ Each tutor persona has a custom prompt appended to RAG queries:
 ## 14. AI Tutor — RAG Pipeline
 
 ### 14.1 Entry Points
-- `POST /assistant/query` — Main chat endpoint (requireAuth)
+- `POST /assistant/query` — Enqueues job, returns `202 Accepted` + `jobId`
+- `GET /stream/:jobId` — **SSE Endpoint**: Streams `completed`, `failed` events
 - `GET /assistant/session` — Load chat history for a session (requireAuth)
 
-### 14.2 Query Processing Pipeline
+### 14.2 Query Processing Pipeline (Async)
 1. **Auth check**: Extract `userId` from JWT
-2. **Input validation**: `courseId` (required), `topicId` (required UUID), `question` (required string), optional `suggestionId`, `moduleNo`
-3. **Course resolution**: UUID → direct, slug → lookup by `slug` or `legacyCourseAlias`, name → lookup by `courseName`
-4. **Topic validation**: Verify topic exists and belongs to course
-5. **Prompt type determination**: `suggestionId` present → suggested prompt; else → typed prompt
-6. **Suggested prompt path**: Load pre-composed answer + follow-up suggestions from `topic_prompt_suggestions`
-7. **Typed prompt path**: Check quota (5 typed/module), check rate limit (8 req/60s)
-8. **Session management**: `ensureChatSession(userId, courseId, topicId)` — upserts session
-9. **Context loading**: Get summary + last 10 turns + last assistant message
-10. **Follow-up detection**: If question is ≤80 chars, starts with follow-up phrase ("what about", "can you explain", etc.), or contains pronouns ("it", "this", "that") → rewrite using LLM
-11. **Persona loading**: Fetch `learner_persona_profiles` for `(userId, courseId)` → get persona prompt template
-12. **RAG retrieval**: Embed question → cosine similarity search in `course_chunks` → top 5 contexts
-13. **Prompt assembly**: System instructions + persona block + summary block + history block + course contexts + question
-14. **LLM call**: `generateAnswerFromContext(prompt)` via OpenAI
-15. **Response storage**: Save user message + assistant response to `cp_rag_chat_messages`
-16. **Summary trigger**: If total messages ≥ 16 → generate summary via LLM, store in session
-17. **Response**: `{ answer, nextSuggestions, sessionId }`
-
+2. **Input validation**: `courseId` (required), `topicId` (required UUID), `question` (required string)
+3. **Course resolution**: UUID → direct, slug → lookup by `slug` or `legacyCourseAlias`
+4. **Job Enqueue**:
+   - Creates `BackgroundJob` (status: `PENDING`) in DB
+   - Returns `202 Accepted` immediately with `{ jobId, status: "PENDING" }`
+5. **Worker Processing (`aiWorker.ts`)**:
+   - Polls `background_jobs` for PENDING items
+   - **Context loading**: Get summary + last 10 turns
+   - **Follow-up detection**: Rewrites ambiguous questions
+   - **RAG retrieval**: Embed → Search `course_chunks` (UUID-based) → Top 5
+   - **LLM call**: Generates answer
+   - **Response storage**: Saves messages to `cp_rag_chat_messages`
+   - **Job Completion**: Updates job status to `COMPLETED` with result
+6. **SSE Delivery**:
+   - Client connects to `/stream/:jobId`
+   - Server polls DB (internal 500ms loop)
+   - When job is `COMPLETED`, pushes event to client
+   - Client disconnects
 ### 14.3 RAG Service Internals (`ragService.ts`)
 - `askCourseAssistant()` — Orchestrates: PII scrub → embed → retrieve → build prompt → generate
 - `fetchRelevantContexts()` — Raw SQL: `SELECT ... 1 - (embedding <=> vector) AS score ... ORDER BY ... LIMIT 5`

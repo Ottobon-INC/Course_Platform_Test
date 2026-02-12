@@ -10,8 +10,9 @@ This walkthrough pairs UX steps with code references so another engineer (or LLM
 
 ## 2. Landing page assistance
 1. `LandingPage.tsx` renders `<LandingChatBot />`.
-2. Visitor interaction triggers `/api/landing-assistant/query` (RAG-backed).
-3. If signed in, the bot greets the user by name (`user.fullName`).
+2. Visitor interaction triggers `/api/landing-assistant/query` (enqueues job, returns 202).
+3. Chatbot subscribes to SSE (`/stream/:jobId`) to receive the answer.
+4. If signed in, the bot greets the user by name (`user.fullName`).
 4. Follow-up suggestions appear for the first 4 turns (Tier 1), then fallback to static CTA buttons (Tier 2).
 
 
@@ -47,7 +48,8 @@ This walkthrough pairs UX steps with code references so another engineer (or LLM
 ## 7. Tutor chat
 1. Chat dock loads suggestions via `/lessons/courses/:courseKey/prompts`.
 2. History is hydrated from `/assistant/session?courseId=...&topicId=...`.
-3. Typed prompts go to `/assistant/query` and run through RAG + quota checks.
+3. Typed prompts go to `/assistant/query` (async job).
+4. Player receives `jobId`, subscribes to SSE, and updates chat upon completion.
 
 ## 8. Certificate preview
 1. After all modules pass, the player links to `/course/:courseKey/congrats/certificate`.

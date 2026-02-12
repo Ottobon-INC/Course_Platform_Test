@@ -193,8 +193,26 @@ Error format (common):
   }
   ```
   - `moduleNo` is required for typed prompts (when `suggestionId` is not provided).
-- Response 200: `{ "answer": "...", "nextSuggestions": [ { id, promptText, answer } ], "sessionId": "uuid" }`
+- Response 202:
+  ```json
+  {
+    "jobId": "uuid",
+    "sessionId": "uuid",
+    "status": "PENDING",
+    "message": "Your question has been queued for processing."
+  }
+  ```
 - Errors: 400 (missing fields), 404 (course/topic/suggestion), 429 (rate limit or module quota), 500 (LLM failure)
+- **Note**: The client must subscribe to `GET /stream/:jobId` to receive the result.
+
+### GET `/stream/:jobId`
+- Auth: Yes (Bearer token required, passed via query param or Authorization header if supported by EventSource/fetch)
+- Response: Server-Sent Events (SSE) stream.
+- Events:
+  - `completed`: `{ "answer": "...", "nextSuggestions": [ ... ], "sessionId": "..." }`
+  - `failed`: `{ "error": "..." }`
+  - `timeout`: `{}`
+- Behavior: Connection is held open until job completes or fails.
 
 ### GET `/assistant/session`
 - Auth: Yes
