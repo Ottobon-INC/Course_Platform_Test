@@ -129,7 +129,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
         {!shouldHideNavbar && (
           <Navbar
             onLogin={() => {
-              const homeRedirect = '/';
+              const homeRedirect = '/student-dashboard';
               sessionStorage.setItem("postLoginRedirect", homeRedirect);
               // Use buildApiUrl to ensure we target the correct backend port (4000)
               const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;

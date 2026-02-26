@@ -1857,10 +1857,10 @@ const CoursePlayerPage: React.FC = () => {
             )}
             <button
               type="button"
-              onClick={() => setLocation("/")}
+              onClick={() => setLocation("/student-dashboard")}
               className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
             >
-              <ChevronLeft size={18} /> Home
+              <ChevronLeft size={18} /> Back
             </button>
             <div>
               <p className="text-xs text-[#f8f1e6]/60">

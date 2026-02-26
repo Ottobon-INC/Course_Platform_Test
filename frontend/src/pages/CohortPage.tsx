@@ -1,13 +1,13 @@
 import React from 'react';
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from 'framer-motion';
+import { buildApiUrl } from '@/lib/api';
 import OfferingsNavbar from '@/components/layout/OfferingsNavbar';
 import Footer from '@/components/layout/Footer';
 import CohortHeroImage from '@/assets/cohort-hero-2.png';
 import ProjectConceptArt from '@/assets/project-concept-art.png';
 import AiTutorPreview from '@/assets/ai-tutor-preview.png';
-import { buildApiUrl } from '@/lib/api';
-import { readStoredSession } from '@/utils/session';
+
 
 // Type Definitions
 interface JourneyStageProps {
@@ -117,21 +117,6 @@ const HighlightItem: React.FC<{ text: string }> = ({ text }) => (
 const CohortPage: React.FC = () => {
   const [isPathExpanded, setIsPathExpanded] = React.useState(false);
   const [, setLocation] = useLocation();
-  // Auth state handled in App.tsx now
-  const primaryCourseId = "ai-native-fullstack-developer";
-  const courseDetailsPath = `/course/${primaryCourseId}`;
-
-  const handleJoinNow = () => {
-    const session = readStoredSession();
-    if (session?.accessToken) {
-      setLocation(courseDetailsPath);
-      return;
-    }
-
-    const redirectTarget = `${buildApiUrl("/auth/google")}?redirect=${encodeURIComponent(courseDetailsPath)}`;
-    sessionStorage.setItem("postLoginRedirect", courseDetailsPath);
-    window.location.href = redirectTarget;
-  };
   const valuePoints = [
     "Cohort-specific access and learning spaces",
     "Cohort-Aligned Start Dates and Timeliness",
@@ -144,6 +129,7 @@ const CohortPage: React.FC = () => {
 
   const courses = [
     {
+      id: "ai-native-fullstack-developer",
       title: "AI-Native Full Stack Developer",
       description: "Learn to design, build, and deploy AI-native web applications using modern frontend, backend, and AI integration patterns.",
       focus: "Cohort is live",
@@ -153,6 +139,7 @@ const CohortPage: React.FC = () => {
       image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800"
     },
     {
+      id: "applied-machine-learning-engineer",
       title: "Applied Machine Learning Engineer",
       description: "Work hands-on with real datasets to build, fine-tune, and deploy machine learning models for real use cases.",
       focus: "ML in Practice",
@@ -162,6 +149,7 @@ const CohortPage: React.FC = () => {
       image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&q=80&w=800"
     },
     {
+      id: "generative-ai-llm-engineering",
       title: "Generative AI & LLM Engineering",
       description: "Design prompt systems, RAG pipelines, and AI agents using modern large language models.",
       focus: "LLMs & GenAI Systems",
@@ -171,6 +159,7 @@ const CohortPage: React.FC = () => {
       image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800"
     },
     {
+      id: "ai-product-engineering",
       title: "AI Product Engineering",
       description: "Learn how to design AI-driven features, evaluate feasibility, and ship AI products responsibly.",
       focus: "AI × Product Thinking",
@@ -180,6 +169,7 @@ const CohortPage: React.FC = () => {
       image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=800"
     },
     {
+      id: "data-engineering-for-ai-systems",
       title: "Data Engineering for AI Systems",
       description: "Build scalable data pipelines that support analytics, machine learning, and AI-driven applications.",
       focus: "Data Foundations",
@@ -189,6 +179,7 @@ const CohortPage: React.FC = () => {
       image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800"
     },
     {
+      id: "ai-automation-workflow-engineering",
       title: "AI Automation & Workflow Engineering",
       description: "Design AI-powered automations using workflows, agents, and integrations across tools and platforms.",
       focus: "Automation Systems",
@@ -202,6 +193,39 @@ const CohortPage: React.FC = () => {
   const [showAllCourses, setShowAllCourses] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedStatus, setSelectedStatus] = React.useState("All");
+  const [navigatingCourse, setNavigatingCourse] = React.useState<string | null>(null);
+
+  const handleCardClick = async (courseId: string) => {
+    if (navigatingCourse) return;
+    setNavigatingCourse(courseId);
+    try {
+      const stored = window.localStorage.getItem("session");
+      let token = null;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.accessToken) token = parsed.accessToken;
+      }
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(buildApiUrl(`/api/courses/${courseId}/access-status`), { headers });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isApprovedMember) {
+          setLocation(`/course/${courseId}/learn/start`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setNavigatingCourse(null);
+    }
+    setLocation(`/course/${courseId}`);
+  };
 
   const filteredCourses = courses.filter(course =>
     (selectedStatus === "All" || course.status === selectedStatus) &&
@@ -505,7 +529,15 @@ const CohortPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             {visibleCourses.length > 0 ? (
               visibleCourses.map((course, i) => (
-                <div key={i} className="group bg-white rounded-[1.5rem] border border-slate-200 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ring-1 ring-slate-100/50 overflow-hidden">
+                <div
+                  key={course.id || i}
+                  onClick={() => {
+                    if (course.status === 'live') {
+                      void handleCardClick(course.id);
+                    }
+                  }}
+                  className={`group bg-white rounded-[1.5rem] border border-slate-200 shadow-lg transition-all duration-300 flex flex-col h-full ring-1 ring-slate-100/50 overflow-hidden ${course.status === 'live' ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1' : ''}`}
+                >
 
                   {/* Top Half: Image Background with Title & Description */}
                   <div className="relative h-[220px] flex-shrink-0 overflow-hidden">
@@ -555,22 +587,21 @@ const CohortPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Action Button - Pushed to bottom */}
+                    {/* Action Hint */}
                     <div className="mt-auto pt-6">
                       {course.status === 'live' ? (
-                        <button
-                          onClick={handleJoinNow}
-                          className="w-full py-2.5 bg-[#1A1C2E] hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                        >
-                          Join Now
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                          </svg>
-                        </button>
+                        <div className="w-full py-2.5 bg-[#1A1C2E] group-hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                          {navigatingCourse === course.id ? "Checking Access..." : "View Course"}
+                          {!navigatingCourse && (
+                            <svg className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
+                          )}
+                        </div>
                       ) : (
-                        <button disabled className="w-full py-2.5 bg-slate-100 text-slate-400 text-sm font-bold rounded-xl cursor-not-allowed border border-slate-200">
+                        <div className="w-full py-2.5 bg-slate-100 text-slate-400 text-sm font-bold rounded-xl border border-slate-200 text-center">
                           Coming Soon
-                        </button>
+                        </div>
                       )}
                     </div>
                   </div>

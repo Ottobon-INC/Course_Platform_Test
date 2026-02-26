@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { SiteLayout } from "@/components/layout/SiteLayout";
 
-const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey";
+const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer/learn/start";
 
 export default function AboutPage() {
   const [location, setLocation] = useLocation();

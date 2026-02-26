@@ -9,7 +9,7 @@ import type { CourseSummary, CourseListResponse, PageContentEntry, PageContentRe
 import { SiteLayout } from "@/components/layout/SiteLayout";
 import { useToast } from "@/hooks/use-toast";
 
-const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey";
+const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer/learn/start";
 
 const shimmerArray = Array.from({ length: 6 });
 const CONTINUE_PROGRESS: Record<string, number> = {
@@ -58,7 +58,7 @@ const FALLBACK_CONTINUE_COURSES: CourseSummary[] = [
 
 const getContinuePath = (courseId: string) =>
   courseId === "ai-native-fullstack-developer"
-    ? "/course/ai-native-fullstack-developer/learn/introduction-to-ai-web-development"
+    ? "/course/ai-native-fullstack-developer/learn/start"
     : `/course/${courseId}/learn/getting-started`;
 
 const getCategoryGradient = (category?: string) => {
@@ -85,7 +85,7 @@ const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
 
 const formatCoursePrice = (value: number) => INR_FORMATTER.format(Math.max(0, Math.round(value)));
 const PRIMARY_COURSE_TITLES = new Set(["ai for web-developer", "ai in web development", "intro to ai"]);
-const PRIMARY_COURSE_ROUTE = "/course/ai-native-fullstack-developer/learn/introduction-to-ai-web-development";
+const PRIMARY_COURSE_ROUTE = "/course/ai-native-fullstack-developer/learn/start";
 
 export default function CoursesPage() {
   const [location, setLocation] = useLocation();
@@ -141,7 +141,7 @@ export default function CoursesPage() {
         categories.add(course.category);
       }
     });
-    const configured = (pageContent?.sections.categories ?? []) as string[];
+    const configured = ((pageContent?.sections?.categories as string[] | undefined) ?? []) as string[];
     configured.forEach((category) => categories.add(category));
     return ["all", ...categories];
   }, [courses, pageContent?.sections.categories]);
@@ -243,8 +243,8 @@ export default function CoursesPage() {
               type="button"
               onClick={() => setSelectedCategory(category)}
               className={`rounded-full border px-4 py-1 text-sm font-semibold transition-all duration-300 ${selectedCategory === category
-                  ? "border-emerald-500 bg-emerald-500 text-white shadow-sm"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                ? "border-emerald-500 bg-emerald-500 text-white shadow-sm"
+                : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800"
                 }`}
             >
               {category === "all" ? "All tracks" : category}

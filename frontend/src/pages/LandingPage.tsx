@@ -1404,10 +1404,10 @@ function App() {
 
   const handleLogin = () => {
     if (session?.accessToken) {
-      setLocation('/');
+      setLocation('/student-dashboard');
       return;
     }
-    const homeRedirect = '/';
+    const homeRedirect = '/student-dashboard';
     sessionStorage.setItem("postLoginRedirect", homeRedirect);
     const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
     window.location.href = target;
@@ -1435,9 +1435,6 @@ function App() {
       .replace(/\s+/g, '-');
 
   const handleEnroll = (courseId?: string, courseTitle?: string) => {
-    if (!requireCourseAccess()) {
-      return;
-    }
     const targetCourse = courseId ?? primaryCourseId;
     const normalized = slugifyCourse(targetCourse);
     const normalizedTitle = courseTitle ? slugifyCourse(courseTitle) : '';

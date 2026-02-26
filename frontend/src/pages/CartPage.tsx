@@ -11,7 +11,7 @@ import { ShoppingCart, Trash2, Star, Clock, Users, CreditCard, Home, PartyPopper
 import ThemeToggle from '@/components/ThemeToggle'; // Import ThemeToggle
 import { SiteLayout } from '@/components/layout/SiteLayout';
 
-const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/welcome-to-ai-journey';
+const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/start';
 
 const INR_FORMATTER = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -267,7 +267,7 @@ export default function CartPage() {
       title: "Enrolled Successfully!",
       description: "Course has been added to your learning dashboard.",
     });
-    setLocation(`/course/${courseId}/learn/welcome-to-ai-journey`);
+    setLocation(`/course/${courseId}/learn/start`);
   };
 
   return (

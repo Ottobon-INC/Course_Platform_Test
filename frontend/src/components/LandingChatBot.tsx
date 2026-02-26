@@ -360,8 +360,8 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                                         {!userName && (
                                             <Button
                                                 onClick={() => {
-                                                    sessionStorage.setItem("postLoginRedirect", "/");
-                                                    window.location.href = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent('/')}`;
+                                                    sessionStorage.setItem("postLoginRedirect", "/student-dashboard");
+                                                    window.location.href = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent('/student-dashboard')}`;
                                                 }}
                                                 size="sm"
                                                 className={`${THEME.primary} text-white w-full`}

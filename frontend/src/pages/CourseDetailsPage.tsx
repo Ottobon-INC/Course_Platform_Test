@@ -184,6 +184,11 @@ const CourseDetailsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [firstLessonSlug, setFirstLessonSlug] = useState<string | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+  const [accessStatus, setAccessStatus] = useState<{
+    isAuthenticated: boolean;
+    hasApplied: boolean;
+    isApprovedMember: boolean;
+  } | null>(null);
   const [courseMeta, setCourseMeta] = useState<CourseMeta>({
     subtitle: DEFAULT_SUBTITLE,
     displayPriceCents: null,
@@ -290,6 +295,53 @@ const CourseDetailsPage: React.FC = () => {
       mounted = false;
     };
   }, [courseId, toast, expandedModules.length]);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchAccessStatus = async () => {
+      try {
+        const stored = readStoredSession();
+        const session = await ensureSessionFresh(stored);
+        const headers: Record<string, string> = {};
+        if (session?.accessToken) {
+          headers["Authorization"] = `Bearer ${session.accessToken}`;
+        }
+        const res = await fetch(buildApiUrl(`/api/courses/${courseId}/access-status`), { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted) setAccessStatus(data);
+        } else if (mounted) {
+          setAccessStatus({ isAuthenticated: false, hasApplied: false, isApprovedMember: false });
+        }
+      } catch (e) {
+        if (mounted) setAccessStatus({ isAuthenticated: false, hasApplied: false, isApprovedMember: false });
+      }
+    };
+    void fetchAccessStatus();
+    return () => { mounted = false; };
+  }, [courseId]);
+
+  useEffect(() => {
+    if (!accessStatus || loading) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('login_intent') === 'register') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('login_intent');
+      window.history.replaceState({}, '', url.toString());
+
+      if (accessStatus.isApprovedMember) {
+        if (firstLessonSlug) {
+          setLocation(`/course/${courseId}/learn/${firstLessonSlug}`);
+        } else {
+          setLocation(`/course/${courseId}/learn/start`);
+        }
+      } else if (!accessStatus.hasApplied) {
+        // We do not hardcode the slug, using courseId which represents the current course directly
+        setLocation(`/registration/cohort/${courseId}`);
+      }
+    }
+  }, [accessStatus, loading, courseId, setLocation, firstLessonSlug]);
 
   const toggleModule = (id: number) => {
     setExpandedModules((prev) => (prev.includes(id) ? prev.filter((mId) => mId !== id) : [...prev, id]));
@@ -409,7 +461,7 @@ const CourseDetailsPage: React.FC = () => {
     if (firstLessonSlug) {
       setLocation(`/course/${courseId}/learn/${firstLessonSlug}`);
     } else {
-      setLocation(`/course/${courseId}/learn/welcome-to-ai-journey`);
+      setLocation(`/course/${courseId}/learn/start`);
     }
   };
 
@@ -544,22 +596,45 @@ const CourseDetailsPage: React.FC = () => {
             </div>
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-6">
-            <button
-              className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-              onClick={handleEnrollStart}
-              disabled={enrolling}
-            >
-              {enrolling ? "Processing..." : "Enroll Now"}
-            </button>
-            <button
-              className="bg-white hover:bg-gray-50 text-[#bf2f1f] border-2 border-[#bf2f1f] px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
-              onClick={() => {
-                const slug = courseId || 'ai-native-fullstack-developer';
-                setLocation(`/registration/cohort/${slug}`);
-              }}
-            >
-              Register Now
-            </button>
+            {!accessStatus ? (
+              <div className="h-12 w-32 bg-white/10 animate-pulse rounded-lg"></div>
+            ) : !accessStatus.isAuthenticated ? (
+              <button
+                className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
+                onClick={() => {
+                  const target = `/course/${courseId}?login_intent=register`;
+                  const redirectUrl = `${buildApiUrl("/auth/google")}?redirect=${encodeURIComponent(target)}`;
+                  sessionStorage.setItem("postLoginRedirect", target);
+                  window.location.href = redirectUrl;
+                }}
+              >
+                Register Now
+              </button>
+            ) : !accessStatus.hasApplied ? (
+              <button
+                className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
+                onClick={() => {
+                  setLocation(`/registration/cohort/${courseId}`);
+                }}
+              >
+                Apply for Cohort
+              </button>
+            ) : !accessStatus.isApprovedMember ? (
+              <button
+                disabled
+                className="bg-[#4a4845] text-white px-6 py-3 rounded-lg font-semibold shadow-inner cursor-not-allowed opacity-90"
+              >
+                Application Under Review
+              </button>
+            ) : (
+              <button
+                className="bg-[#0f766e] hover:bg-[#0d645d] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95 flex items-center gap-2"
+                onClick={handleEnrollStart}
+                disabled={enrolling}
+              >
+                <PlayCircle className="w-5 h-5" /> {enrolling ? "Validating..." : "Start Learning"}
+              </button>
+            )}
             <div className="text-[#f8f1e6]">
               <div className="text-3xl font-black">
                 {formatCurrency(courseMeta.displayPriceCents, "₹1,499")}
