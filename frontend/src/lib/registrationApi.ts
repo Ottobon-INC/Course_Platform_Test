@@ -1,4 +1,5 @@
 import { buildApiUrl } from "@/lib/api";
+import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 
 export type CourseOffering = {
   offeringId: string;
@@ -45,9 +46,16 @@ export async function fetchAssessmentQuestions(params: {
 }
 
 export async function submitRegistration(payload: Record<string, unknown>) {
+  const stored = readStoredSession();
+  const session = await ensureSessionFresh(stored, { notifyOnFailure: false });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+
   const res = await fetch(buildApiUrl("/api/registrations"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(payload),
   });
   if (!res.ok) {

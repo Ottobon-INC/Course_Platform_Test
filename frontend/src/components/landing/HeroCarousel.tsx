@@ -360,9 +360,7 @@ const PromoSlide: React.FC<{
 >
     {/* 1. Grab Your Spot Button */}
     <a
-        href="https://Ottobon-Cohort-regestration---07.replit.app"
-        target="_blank"
-        rel="noopener noreferrer"
+        href="/registration/cohort/ai-native-fullstack-developer"
         className="w-full sm:w-auto"
         onMouseEnter={() => onHoverPauseChange(true)}
         onMouseLeave={() => onHoverPauseChange(false)}

@@ -1,9 +1,24 @@
 import express from "express";
 import { prisma } from "../services/prisma";
+import { verifyAccessToken } from "../services/sessionService";
 
 export const registrationsRouter = express.Router();
 
 const PROGRAM_TYPES = new Set(["cohort", "ondemand", "workshop"]);
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+function getOptionalAuthUserId(req: express.Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) return null;
+  try {
+    const payload = verifyAccessToken(token);
+    return payload.sub;
+  } catch {
+    return null;
+  }
+}
 
 registrationsRouter.get("/offerings", async (req, res, next) => {
   try {
@@ -80,7 +95,6 @@ registrationsRouter.post("/", async (req, res, next) => {
   try {
     const {
       offeringId,
-      userId,
       fullName,
       email,
       phoneNumber,
@@ -96,11 +110,13 @@ registrationsRouter.post("/", async (req, res, next) => {
       questionsSnapshot,
       assessmentSubmittedAt,
     } = req.body ?? {};
+    const authUserId = getOptionalAuthUserId(req);
+    const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
 
     const missingFields: string[] = [];
     if (!offeringId) missingFields.push("offeringId");
     if (!fullName) missingFields.push("fullName");
-    if (!email) missingFields.push("email");
+    if (!normalizedEmail) missingFields.push("email");
     if (!phoneNumber) missingFields.push("phoneNumber");
     if (!collegeName) missingFields.push("collegeName");
     if (!yearOfPassing) missingFields.push("yearOfPassing");
@@ -115,15 +131,52 @@ registrationsRouter.post("/", async (req, res, next) => {
       return res.status(404).json({ error: "Offering not found" });
     }
 
+    let resolvedUserId: string | null = null;
+    if (authUserId) {
+      const authUser = await prisma.user.findUnique({
+        where: { userId: authUserId },
+        select: { userId: true, email: true },
+      });
+
+      if (!authUser) {
+        return res.status(401).json({ error: "Authenticated user not found" });
+      }
+
+      if (normalizeEmail(authUser.email) !== normalizedEmail) {
+        return res.status(400).json({
+          error: "Authenticated account email does not match registration email",
+        });
+      }
+
+      resolvedUserId = authUser.userId;
+    } else {
+      const matchedUser = await prisma.user.findFirst({
+        where: {
+          email: {
+            equals: normalizedEmail,
+            mode: "insensitive",
+          },
+        },
+        select: { userId: true },
+      });
+      resolvedUserId = matchedUser?.userId ?? null;
+    }
+
     const existing = await prisma.registration.findFirst({
-      where: { email, offeringId },
+      where: {
+        offeringId,
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     const payload = {
       offeringId,
-      userId: userId || null,
+      userId: resolvedUserId,
       fullName,
-      email,
+      email: normalizedEmail,
       phoneNumber,
       collegeName,
       yearOfPassing,

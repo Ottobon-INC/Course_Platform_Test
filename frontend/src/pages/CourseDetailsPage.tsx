@@ -624,7 +624,7 @@ const CourseDetailsPage: React.FC = () => {
                 disabled
                 className="bg-[#4a4845] text-white px-6 py-3 rounded-lg font-semibold shadow-inner cursor-not-allowed opacity-90"
               >
-                Application Under Review
+                Application is under review
               </button>
             ) : (
               <button

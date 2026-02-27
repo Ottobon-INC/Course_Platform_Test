@@ -11,6 +11,8 @@ const LEGACY_COURSE_SLUGS: Record<string, string> = {
 };
 
 const coursesRouter = express.Router();
+const ACTIVE_MEMBER_STATUS = "active";
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
 const courseSelect = {
   courseId: true,
@@ -205,20 +207,53 @@ coursesRouter.get(
       return;
     }
 
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { email: true },
+    });
+
+    const normalizedEmail = user?.email ? normalizeEmail(user.email) : null;
+    const registrationIdentityFilter = normalizedEmail
+      ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" as const } }]
+      : [{ userId }];
+    const cohortIdentityFilter = normalizedEmail
+      ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" as const } }]
+      : [{ userId }];
+
     const [registration, member] = await Promise.all([
       prisma.registration.findFirst({
         where: {
-          userId,
-          offering: { courseId: resolved.courseId },
+          offering: { courseId: resolved.courseId, programType: "cohort" },
+          OR: registrationIdentityFilter,
         },
+        select: { registrationId: true, userId: true, email: true },
       }),
       prisma.cohortMember.findFirst({
         where: {
-          userId,
+          status: ACTIVE_MEMBER_STATUS,
           cohort: { courseId: resolved.courseId },
+          OR: cohortIdentityFilter,
         },
+        select: { memberId: true, userId: true, email: true },
       }),
     ]);
+
+    if (normalizedEmail) {
+      await Promise.all([
+        registration && (!registration.userId || registration.email !== normalizedEmail)
+          ? prisma.registration.update({
+              where: { registrationId: registration.registrationId },
+              data: { userId, email: normalizedEmail },
+            })
+          : Promise.resolve(),
+        member && (!member.userId || member.email !== normalizedEmail)
+          ? prisma.cohortMember.update({
+              where: { memberId: member.memberId },
+              data: { userId, email: normalizedEmail },
+            })
+          : Promise.resolve(),
+      ]);
+    }
 
     res.status(200).json({
       isAuthenticated: true,
