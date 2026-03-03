@@ -9,6 +9,11 @@ Living changelog for the Course Platform. Each section captures what changed, wh
 - **Course Update**: Renamed slug to `ai-native-fullstack-developer` (legacy slug preserved).
 - **Performance**: Validated 50-user concurrent load with <5ms server health latency.
 
+## 2026-03-03 - On-Demand Player UX + Simulation Theming
+- **On-Demand Player**: Refined `OnDemandPlayerPage.tsx` into a premium dark UI with glassmorphism panels, diffused shadows, and micro-interactions.
+- **Scroll Reset**: Added a dedicated scroll container ref so lesson changes snap the main content back to the top.
+- **Simulation Isolation**: `SimulationExercise` now supports a `theme` prop so On-Demand can render a dark “lab” while Cohort remains light.
+
 ## 2026-02-03 - Intelligent Landing Chatbot & Auth Resolution
 - **Responsive Sales Agent**: Implemented `LandingChatBot.tsx` with RAG connection (`landingAssistantRouter`) to explain offerings.
 - **Smart Engagement**: Personalized greetings, session-persistent history, and "Smart Redirect" buttons (using `<<ACTION:URL>>`) to drive traffic.

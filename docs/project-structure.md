@@ -17,6 +17,7 @@ Optional: JSON exports for `rag:import` live outside the repo and can be loaded 
 - `src/pages/`
   - Marketing: `LandingPage.tsx`, `MethodologyPage.tsx`, `MoreInfoPage.tsx`, `CohortPage.tsx`, `OnDemandPage.tsx`, `WorkshopPage.tsx`.
   - Course flow: `CourseDetailsPage.tsx`, `LearningPathPage.tsx`, `CoursePlayerPage.tsx`, `CongratsPage.tsx`, `CongratsFeedbackPage.tsx`, `CourseCertificatePage.tsx`.
+  - On-demand flow: `OnDemandPlayerPage.tsx` (self-paced player).
   - Auth + tutor: `AuthCallbackPage.tsx`, `BecomeTutorPage.tsx`, `TutorDashboardPage.tsx`.
   - Legacy/not wired: `EnrollmentPage.tsx`, `AssessmentPage.tsx`, `AuthPage.tsx`, `TutorLoginPage.tsx`, `CoursesPage.tsx`, `DashboardPage.tsx`, `CartPage.tsx`, `AboutPage.tsx`.
 - `src/components/`

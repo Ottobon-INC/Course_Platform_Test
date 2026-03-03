@@ -12,6 +12,7 @@ import NotFound from "@/pages/not-found";
 import AssessmentPage from "@/pages/AssessmentPage";
 import EnrollmentPage from "@/pages/EnrollmentPage";
 import CoursePlayerPage from "@/pages/CoursePlayerPage";
+import OnDemandPlayerPage from "@/pages/OnDemandPlayerPage";
 import CongratsPage from "@/pages/CongratsPage";
 import CongratsFeedbackPage from "@/pages/CongratsFeedbackPage";
 import CourseCertificatePage from "@/pages/CourseCertificatePage";
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/course/:id/assessment" component={AssessmentPage} />
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
       <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
+      <Route path="/ondemand/:id/learn/:lesson" component={OnDemandPlayerPage} />
       <Route path="/course/:id/congrats/certificate" component={CourseCertificatePage} />
       <Route path="/course/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/course/:id/congrats" component={CongratsPage} />
@@ -75,6 +77,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
   const shouldHideNavbar =
     location === "/course" ||
     location.startsWith("/course/") ||
+    location.startsWith("/ondemand/") ||
     location.startsWith("/registration") ||
     location === "/student-dashboard";
 

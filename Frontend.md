@@ -24,6 +24,7 @@ frontend/
       CongratsFeedbackPage.tsx
       CohortPage.tsx
       OnDemandPage.tsx
+      OnDemandPlayerPage.tsx
       WorkshopPage.tsx
       MethodologyPage.tsx
       MoreInfoPage.tsx
@@ -73,6 +74,7 @@ frontend/
 - `/course/:id/enroll` - EnrollmentPage (legacy)
 - `/course/:id/path` - LearningPathPage
 - `/course/:id/learn/:lesson` - CoursePlayerPage
+- `/ondemand/:id/learn/:lesson` - OnDemandPlayerPage
 - `/course/:id/assessment` - AssessmentPage (legacy)
 - `/course/:id/congrats` - CongratsPage
 - `/course/:id/congrats/feedback` - CongratsFeedbackPage
@@ -101,6 +103,11 @@ Notes:
 - Cohort Project button sits in the course player header and opens `CohortProjectModal` after calling `/cohort-projects/:courseKey`.
 - Cold calling and simulation exercises render as dedicated sections.
 - Quiz timer is configured in `CoursePlayerPage.tsx` (currently 150 seconds).
+
+## 5a. On-demand player behavior (OnDemandPlayerPage)
+- Loads all topics from `GET /lessons/courses/:courseKey/topics` and keeps navigation unlocked.
+- Uses a dedicated scroll container that resets to top on lesson change.
+- Renders the simulation block with `SimulationExercise` (theme support allows dark styling for On-Demand while Cohort remains light).
 
 ## 6. API helpers
 - `buildApiUrl` in `src/lib/api.ts` uses `VITE_API_BASE_URL`.

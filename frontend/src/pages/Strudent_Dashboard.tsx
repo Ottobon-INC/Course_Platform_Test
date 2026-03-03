@@ -718,10 +718,10 @@ const App: React.FC = () => {
       return;
     }
     if (lessonSlug) {
-      setLocation(`/course/${courseKey}/learn/${lessonSlug}`);
+      setLocation(`/ondemand/${courseKey}/learn/${lessonSlug}`);
       return;
     }
-    setLocation(`/course/${courseKey}/learn/start`);
+    setLocation(`/ondemand/${courseKey}/learn/start`);
   };
 
   const navigateToCourseDetails = (courseSlug?: string | null) => {

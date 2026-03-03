@@ -8,6 +8,11 @@ Running log of notable tasks and changes completed on the backend and frontend s
 - Validated performance: 50 concurrent users with 3ms server latency.
 - Fixed RAG course ID mismatch; chatbot now functional.
 
+## 2026-03-03 - On-Demand Player UX + Simulation Theming
+- Refined `OnDemandPlayerPage.tsx` into a premium dark-mode layout with glassmorphism panels and micro-interactions.
+- Added content-pane scroll reset on lesson changes using a dedicated scroll container ref.
+- Added a `theme` prop to `SimulationExercise` so On-Demand can render dark styling while Cohort stays light.
+
 ## 2026-01-09 - Topic content assets + derived layouts
 - Added `topic_content_assets` to store persona-specific content payloads (text, image, video, ppt).
 - `topics.text_content` now supports derived block JSON with `contentKey` references.

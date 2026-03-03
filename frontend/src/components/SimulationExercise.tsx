@@ -82,14 +82,32 @@ const normalizeSimulation = (simulation: SimulationPayload): NormalizedSimulatio
   };
 };
 
-export const SimulationExercise: React.FC<{ simulation: SimulationPayload }> = ({ simulation }) => {
+export const SimulationExercise: React.FC<{ simulation: SimulationPayload; theme?: "light" | "dark" }> = ({
+  simulation,
+  theme = "light",
+}) => {
   const normalized = normalizeSimulation(simulation);
+  const isDark = theme === "dark";
   const renderListSection = (title: string, items: string[]) => {
     if (items.length === 0) return null;
     return (
-      <div className="rounded-2xl border border-[#f2ebe0] bg-[#fff8f4] p-4 sm:p-5">
-        <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold">{title}</p>
-        <ul className="mt-3 space-y-2 text-sm text-[#4a4845]/90 list-disc list-inside">
+      <div
+        className={
+          isDark
+            ? "rounded-md border border-white/10 bg-white/[0.03] p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+            : "rounded-2xl border border-[#f2ebe0] bg-[#fff8f4] p-4 sm:p-5"
+        }
+      >
+        <p
+          className={
+            isDark
+              ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold"
+              : "text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold"
+          }
+        >
+          {title}
+        </p>
+        <ul className={isDark ? "mt-3 space-y-2 text-sm text-neutral-400 list-disc list-inside" : "mt-3 space-y-2 text-sm text-[#4a4845]/90 list-disc list-inside"}>
           {items.map((item, index) => (
             <li key={`${title}-${index}`}>{item}</li>
           ))}
@@ -99,35 +117,83 @@ export const SimulationExercise: React.FC<{ simulation: SimulationPayload }> = (
   };
 
   return (
-    <div className="mt-8 rounded-[32px] border border-[#e8e1d8] bg-white shadow-lg shadow-[#000000]/5">
+    <div
+      className={
+        isDark
+          ? "mt-8 rounded-lg border border-white/10 bg-[#0A0A0C] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-out hover:border-white/20"
+          : "mt-8 rounded-[32px] border border-[#e8e1d8] bg-white shadow-lg shadow-[#000000]/5"
+      }
+    >
       <div className="p-6 sm:p-8 space-y-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E] font-semibold mb-2">Simulation Exercise</p>
-          <h3 className="text-2xl font-black text-[#1E3A47]">{simulation.title}</h3>
+          <p
+            className={
+              isDark
+                ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold mb-2"
+                : "text-xs uppercase tracking-[0.4em] text-[#E5583E] font-semibold mb-2"
+            }
+          >
+            Simulation Exercise
+          </p>
+          <h3 className={isDark ? "text-2xl font-semibold text-white/90 antialiased" : "text-2xl font-black text-[#1E3A47]"}>
+            {simulation.title}
+          </h3>
           <div className="mt-3 space-y-3">
             {normalized.scenario && (
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold">Scenario</p>
-                <p className="text-base sm:text-lg text-[#4a4845] leading-relaxed">{normalized.scenario}</p>
+                <p
+                  className={
+                    isDark
+                      ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold"
+                      : "text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold"
+                  }
+                >
+                  Scenario
+                </p>
+                <p className={isDark ? "text-base sm:text-lg text-neutral-400 leading-relaxed" : "text-base sm:text-lg text-[#4a4845] leading-relaxed"}>
+                  {normalized.scenario}
+                </p>
               </div>
             )}
             {normalized.contextStory && (
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold">Context story</p>
-                <p className="text-base sm:text-lg text-[#4a4845] leading-relaxed">{normalized.contextStory}</p>
+                <p
+                  className={
+                    isDark
+                      ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold"
+                      : "text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold"
+                  }
+                >
+                  Context story
+                </p>
+                <p className={isDark ? "text-base sm:text-lg text-neutral-400 leading-relaxed" : "text-base sm:text-lg text-[#4a4845] leading-relaxed"}>
+                  {normalized.contextStory}
+                </p>
               </div>
             )}
             {normalized.goal && (
               <div>
-                <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold">Goal</p>
-                <p className="text-base sm:text-lg text-[#4a4845] leading-relaxed">{normalized.goal}</p>
+                <p
+                  className={
+                    isDark
+                      ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold"
+                      : "text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold"
+                  }
+                >
+                  Goal
+                </p>
+                <p className={isDark ? "text-base sm:text-lg text-neutral-400 leading-relaxed" : "text-base sm:text-lg text-[#4a4845] leading-relaxed"}>
+                  {normalized.goal}
+                </p>
               </div>
             )}
             {normalized.overview && (
-              <p className="text-base sm:text-lg text-[#4a4845] leading-relaxed">{normalized.overview}</p>
+              <p className={isDark ? "text-base sm:text-lg text-neutral-400 leading-relaxed" : "text-base sm:text-lg text-[#4a4845] leading-relaxed"}>
+                {normalized.overview}
+              </p>
             )}
             {(normalized.estimatedTimeMinutes !== undefined || normalized.dependencyFromPrevious) && (
-              <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-[#4a4845]/80">
+              <div className={isDark ? "flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-neutral-500" : "flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-[#4a4845]/80"}>
                 {normalized.estimatedTimeMinutes !== undefined && (
                   <span>Estimated time: {normalized.estimatedTimeMinutes} minutes</span>
                 )}
@@ -137,22 +203,65 @@ export const SimulationExercise: React.FC<{ simulation: SimulationPayload }> = (
               </div>
             )}
             {normalized.progressionNote && (
-              <div className="rounded-xl bg-[#fff8f4] border border-[#f5c4b6] p-3 text-sm text-[#782f1b]">
-                <span className="font-semibold text-[#C03520]">Progression note:</span> {normalized.progressionNote}
+              <div
+                className={
+                  isDark
+                    ? "rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-200"
+                    : "rounded-xl bg-[#fff8f4] border border-[#f5c4b6] p-3 text-sm text-[#782f1b]"
+                }
+              >
+                <span className={isDark ? "font-semibold text-red-200" : "font-semibold text-[#C03520]"}>
+                  Progression note:
+                </span>{" "}
+                {normalized.progressionNote}
               </div>
             )}
           </div>
         </div>
         <div className="grid gap-4">
           {normalized.steps.map((step, index) => (
-            <div key={`${step.title}-${index}`} className="rounded-2xl border border-[#f2ebe0] bg-[#fff8f4] p-4 sm:p-5">
-              <p className="text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold">Step {index + 1}</p>
-              <h4 className="text-lg font-bold text-[#1E3A47] mt-1">{step.title}</h4>
-              {step.description && <p className="text-sm text-[#4a4845]/80 mt-2 leading-relaxed">{step.description}</p>}
-              {step.challenge && <p className="text-sm text-[#4a4845]/80 mt-2 leading-relaxed">{step.challenge}</p>}
+            <div
+              key={`${step.title}-${index}`}
+              className={
+                isDark
+                  ? "rounded-md border border-white/5 bg-black/40 p-4 sm:p-5"
+                  : "rounded-2xl border border-[#f2ebe0] bg-[#fff8f4] p-4 sm:p-5"
+              }
+            >
+              <p
+                className={
+                  isDark
+                    ? "text-xs uppercase tracking-[0.15em] text-red-400 font-semibold"
+                    : "text-xs uppercase tracking-[0.4em] text-[#E5583E]/80 font-semibold"
+                }
+              >
+                Step {index + 1}
+              </p>
+              <h4 className={isDark ? "text-lg font-semibold text-white/80 mt-1" : "text-lg font-bold text-[#1E3A47] mt-1"}>
+                {step.title}
+              </h4>
+              {step.description && (
+                <p className={isDark ? "text-sm text-neutral-500 mt-2 leading-relaxed" : "text-sm text-[#4a4845]/80 mt-2 leading-relaxed"}>
+                  {step.description}
+                </p>
+              )}
+              {step.challenge && (
+                <p className={isDark ? "text-sm text-neutral-500 mt-2 leading-relaxed" : "text-sm text-[#4a4845]/80 mt-2 leading-relaxed"}>
+                  {step.challenge}
+                </p>
+              )}
               {step.task && (
-                <div className="mt-3 rounded-xl bg-white border border-[#f5c4b6] p-3 text-sm text-[#782f1b]">
-                  <span className="font-semibold text-[#C03520]">Task:</span> {step.task}
+                <div
+                  className={
+                    isDark
+                      ? "mt-3 rounded-md bg-white/[0.03] border border-white/10 p-3 text-sm text-neutral-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                      : "mt-3 rounded-xl bg-white border border-[#f5c4b6] p-3 text-sm text-[#782f1b]"
+                  }
+                >
+                  <span className={isDark ? "font-semibold text-white/80" : "font-semibold text-[#C03520]"}>
+                    Task:
+                  </span>{" "}
+                  {step.task}
                 </div>
               )}
             </div>
