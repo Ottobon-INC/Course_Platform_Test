@@ -70,3 +70,11 @@ This document outlines the software design patterns implemented within the Cours
 -   **Context**: The system renders course content differently based on the user's "Persona".
     -   **Strategies**: "Default", "Sports-Analogy", "Cooking-Analogy".
     -   **Execution**: The resolution logic checks the `personaKey` and swaps out content blocks implementation dynamically at runtime without changing the core content delivery loop.
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

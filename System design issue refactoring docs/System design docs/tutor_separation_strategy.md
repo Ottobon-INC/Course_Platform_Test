@@ -389,3 +389,11 @@ const envSchema = z.object({
 > The codebase is in a favorable state for decoupling. The tutor functionality has **low entanglement** (555 backend lines, 1714 frontend lines), **clear data boundaries** (read-only on student data), and **no circular dependencies**. The main architectural decision (shared DB with separate JWT secrets) is already resolved.
 >
 > The estimated effort of **~5 working days** accounts for project scaffolding, file extraction, env configuration, and cleanup. No blockers have been identified.
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

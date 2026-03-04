@@ -111,3 +111,11 @@ erDiagram
 | `user_sessions` | Refresh tokens for JWT rotation. | `jwt_id`, `refresh_token_hash` |
 | `cart_items` | Temporary cart storage. | `cart_item_id`, `course_slug` |
 | `tutors` | Profile data for tutor users. | `tutor_id`, `bio`, `specialization` |
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

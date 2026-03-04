@@ -164,3 +164,11 @@ jobId                                status    result
 ## Conclusion
 
 The "Blocking Crisis" is resolved for the two highest-impact features. User requests now return in <100ms, while AI processing runs asynchronously in the background. The Tutor Copilot and Persona Classification remain synchronous for now but can be migrated using the same `enqueueJob()` pattern with minimal effort. The architecture supports horizontal scaling (multiple workers) and is extensible to other job types (`GENERATE_PDF`, `SEND_EMAIL`, etc.) without schema changes.
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

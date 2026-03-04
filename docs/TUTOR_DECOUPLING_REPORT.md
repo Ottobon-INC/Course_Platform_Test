@@ -136,3 +136,11 @@ We now have **four** top-level projects (excluding shared docs).
 | **Authentication** | **Separate Secrets** | Security. A Student JWT cannot be used to hack the Tutor Dashboard, and vice-versa. |
 | **Code Sharing** | **Duplication** | Decoupling. UI components were copied so future Tutor UI changes don't break Student UI. |
 | **AI Features** | **Shared Key** | Cost. Both backends use the same OpenAI Key, but the Tutor Client is simplified (no RAG). |
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

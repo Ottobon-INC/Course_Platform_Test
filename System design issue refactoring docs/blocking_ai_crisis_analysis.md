@@ -137,3 +137,11 @@ sequenceDiagram
 The current "Naive Happy Path" architecture makes the platform fragile under load. The fix is to **decouple AI computation from the HTTP lifecycle** using a job queue. This is a standard pattern (used by ChatGPT, GitHub Copilot, etc.) and maps cleanly onto our existing service layer.
 
 **No code changes are proposed in this document. This is a design-only analysis.**
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

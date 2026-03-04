@@ -58,3 +58,11 @@ The file `lessons.ts` implements a complex `resolveContentLayout` function (line
 | **High** | God Component (`CoursePlayerPage`) | Extract logic into `hooks/useCoursePlayer.ts` and `hooks/useQuiz.ts`. Move UI sub-sections (Chat, Notes, Player) into separate folders. |
 | **Medium** | Logic Duplication (`normalizeVideoUrl`) | Move this function to a shared package (if monorepo) or strictly enforce server-side normalization (Frontend receives a ready-to-use URL). |
 | **Medium** | Logic Leakage (`parseContentBlocks`) | ensure the API returns parsed JSON objects, not stringified JSON that the frontend has to `JSON.parse` manually. |
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+

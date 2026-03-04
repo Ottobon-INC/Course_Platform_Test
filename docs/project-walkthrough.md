@@ -61,3 +61,11 @@ This walkthrough pairs UX steps with code references so another engineer (or LLM
 - Cohort project missing: ensure `cohort_members.batch_no` and `cohort_batch_projects` rows exist for the cohort.
 - Tutor 429: typed prompt quota hit for the current module.
 - RAG results missing: `course_chunks.course_id` must match the resolved course ID used by `/assistant/query`.
+
+## Addendum - 2026-03-04 (No Previous Lines Removed)
+- Verified current runtime architecture: one `frontend/` app and one `backend/` API in this repository.
+- Verified async AI flow: request -> `background_jobs` queue -> `aiWorker` processing -> SSE response stream.
+- Verified cohort access-state source endpoint: `GET /courses/:courseKey/access-status` returning `isAuthenticated`, `hasApplied`, `isApprovedMember`.
+- Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
+- Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
+
