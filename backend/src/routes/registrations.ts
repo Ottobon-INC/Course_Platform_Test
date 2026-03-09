@@ -109,6 +109,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       answersJson,
       questionsSnapshot,
       assessmentSubmittedAt,
+      plan,
     } = req.body ?? {};
     const authUserId = getOptionalAuthUserId(req);
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
@@ -189,13 +190,14 @@ registrationsRouter.post("/", async (req, res, next) => {
       answersJson: answersJson || null,
       questionsSnapshot: questionsSnapshot || null,
       assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : null,
+      plan: plan || null,
     };
 
     const registration = existing
       ? await prisma.registration.update({
-          where: { registrationId: existing.registrationId },
-          data: payload,
-        })
+        where: { registrationId: existing.registrationId },
+        data: payload,
+      })
       : await prisma.registration.create({ data: payload });
 
     return res.status(existing ? 200 : 201).json({ registration });

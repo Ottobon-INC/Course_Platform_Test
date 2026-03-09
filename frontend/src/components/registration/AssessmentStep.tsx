@@ -128,6 +128,7 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 questionsSnapshot: questions,
                 assessmentSubmittedAt: new Date().toISOString(),
                 durationSeconds,
+                plan: studentData.plan || null,
             }
 
             await submitRegistration(payload)

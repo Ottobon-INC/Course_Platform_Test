@@ -179,6 +179,7 @@ model Registration {
   selectedSlot          String?        @map("selected_slot")
   sessionTime           String?        @map("session_time")
   mode                  String?        @map("mode")
+  plan                  String?        @map("plan")
   status                String         @default("new") @map("status")
   answersJson           Json?          @map("answers_json")
   questionsSnapshot     Json?          @map("questions_snapshot")

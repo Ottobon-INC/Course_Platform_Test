@@ -20,7 +20,7 @@ function RegistrationPage() {
     const [matchProgramType, programTypeParams] = useRoute<{ programType: string }>('/registration/:programType')
     const [matchCourseSlug, courseParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug')
     const [matchAssessment, assessmentParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug/assessment')
-    const [matchSuccess] = useRoute('/registration/:programType/:courseSlug/success')
+    const [matchSuccess, successParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug/success')
 
     // Initialize state from localStorage
     const [registrationData, setRegistrationData] = useState<StudentData>(() => {
@@ -44,7 +44,8 @@ function RegistrationPage() {
             sessionTime: '',
             mode: '',
             programType: 'cohort',
-            specificCourse: ''
+            specificCourse: '',
+            plan: ''
         }
     })
 
@@ -66,11 +67,11 @@ function RegistrationPage() {
     }
 
     const currentStep = getCurrentStep()
-    const programType = (assessmentParams?.programType || courseParams?.programType || programTypeParams?.programType || 'cohort') as 'cohort' | 'ondemand' | 'workshop'
+    const programType = (successParams?.programType || assessmentParams?.programType || courseParams?.programType || programTypeParams?.programType || 'cohort') as 'cohort' | 'ondemand' | 'workshop'
 
     // Slug resolution from URL
     useEffect(() => {
-        const slug = assessmentParams?.courseSlug || courseParams?.courseSlug
+        const slug = successParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug
         if (slug) {
             const currentSlug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
 
@@ -97,7 +98,7 @@ function RegistrationPage() {
                 resolveSlug()
             }
         }
-    }, [assessmentParams?.courseSlug, courseParams?.courseSlug, programType, registrationData.offeringId, registrationData.specificCourse])
+    }, [successParams?.courseSlug, assessmentParams?.courseSlug, courseParams?.courseSlug, programType, registrationData.offeringId, registrationData.specificCourse])
 
     const handleCourseSelect = (type: 'cohort' | 'ondemand' | 'workshop') => {
         setRegistrationData(prev => ({ ...prev, programType: type }))
@@ -116,20 +117,20 @@ function RegistrationPage() {
 
     const handleRegistrationSubmit = (data: StudentData): void => {
         setRegistrationData(data)
-        const slug = data.specificCourse.toLowerCase().replace(/ /g, '-')
+        const slug = (data.specificCourse || '').toLowerCase().replace(/ /g, '-')
         setLocation(`/registration/${data.programType}/${slug}/assessment`)
     }
 
     const handleAssessmentSubmit = (answers: Answer): void => {
         setAssessmentAnswers(answers)
-        const slug = registrationData.specificCourse.toLowerCase().replace(/ /g, '-')
+        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
         // Clear localStorage on success
         localStorage.removeItem(STORAGE_KEY)
         setLocation(`/registration/${registrationData.programType}/${slug}/success`)
     }
 
     const goBack = (targetStep: number) => {
-        const slug = registrationData.specificCourse.toLowerCase().replace(/ /g, '-')
+        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
 
         switch (targetStep) {
             case 0:
@@ -187,7 +188,7 @@ function RegistrationPage() {
                         />
                     )}
                     {currentStep === 4 && (
-                        <SuccessStep studentData={registrationData} />
+                        <SuccessStep studentData={{ ...registrationData, programType }} />
                     )}
                 </div>
 

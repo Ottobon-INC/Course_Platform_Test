@@ -14,6 +14,7 @@ export interface StudentData {
     specificCourse?: string // Added
     referredBy?: string
     programType: 'cohort' | 'ondemand' | 'workshop' // Added
+    plan?: string         // Added
 }
 
 export interface RegistrationFormData {
@@ -30,6 +31,7 @@ export interface RegistrationFormData {
     specificCourse: string // Added
     referredBy: string
     programType: 'cohort' | 'ondemand' | 'workshop' // Added
+    plan?: string         // Added
 }
 
 export type FormErrors = Record<string, string>
