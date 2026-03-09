@@ -608,13 +608,24 @@ const CoursePlayerPage: React.FC = () => {
     return starterSuggestions.filter((suggestion) => !usedSuggestionIds.has(suggestion.id));
   }, [starterSuggestions, usedSuggestionIds]);
   const chatListRef = useRef<HTMLDivElement | null>(null);
+  const chatMessageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const activeQuestionAnchorIdRef = useRef<string | null>(null);
+  const lastAutoFocusedQuestionMessageRef = useRef<string | null>(null);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
-    const container = chatListRef.current;
-    if (!container) {
+    const anchorId = activeQuestionAnchorIdRef.current;
+    if (!anchorId) {
       return;
     }
-    container.scrollTop = container.scrollHeight;
+    if (lastAutoFocusedQuestionMessageRef.current === anchorId) {
+      return;
+    }
+    const node = chatMessageRefs.current[anchorId];
+    if (!node) {
+      return;
+    }
+    lastAutoFocusedQuestionMessageRef.current = anchorId;
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [chatMessages]);
 
   useEffect(() => {
@@ -646,6 +657,8 @@ const CoursePlayerPage: React.FC = () => {
   useEffect(() => {
     const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
     setChatMessages([{ id: welcomeId, text: greetingMessage, isBot: true }]);
+    activeQuestionAnchorIdRef.current = null;
+    lastAutoFocusedQuestionMessageRef.current = null;
     setUsedSuggestionIds(new Set());
     setPendingSuggestion(null);
     setInlineFollowUps({});
@@ -1531,6 +1544,8 @@ const CoursePlayerPage: React.FC = () => {
 
       const userMsg: ChatMessage = { id: makeId(), text: question, isBot: false, suggestionContext: suggestion };
       setChatMessages((prev) => [...prev, userMsg]);
+      activeQuestionAnchorIdRef.current = userMsg.id;
+      lastAutoFocusedQuestionMessageRef.current = null;
       if (!suggestion) {
         setChatInput("");
       } else {
@@ -2329,13 +2344,23 @@ const CoursePlayerPage: React.FC = () => {
             ref={chatListRef}
             className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
           >
-            {chatMessages.map((msg, index) => {
+            {chatMessages.map((msg) => {
               const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
               const showInlineChip =
                 !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length);
 
               return (
-                <div key={msg.id} className="space-y-2">
+                <div
+                  key={msg.id}
+                  ref={(node) => {
+                    if (node) {
+                      chatMessageRefs.current[msg.id] = node;
+                    } else {
+                      delete chatMessageRefs.current[msg.id];
+                    }
+                  }}
+                  className="space-y-2"
+                >
                   <div
                     className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
                       }`}
