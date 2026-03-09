@@ -1,2 +1,6 @@
 # Environment variables and secrets
 .env
+
+node_modules/
+frontend/node_modules/
+frontend/node_modules/.vite/

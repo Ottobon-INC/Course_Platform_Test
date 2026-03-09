@@ -1,10 +1,11 @@
-﻿// ... (imports remain mostly same, adding useEffect)
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
+import { readStoredSession } from "@/utils/session";
 
 // Feature flags for future course availability
 const ON_DEMAND_AVAILABLE = false; // set to true when on-demand courses are ready
 const WORKSHOP_AVAILABLE = true; // set to true when workshop courses are ready
 import { submitRegistration } from "@/lib/registrationApi";
+import { supabase } from "@/lib/registrationSupabase";
 import {
     RegistrationStepProps,
     RegistrationFormData,
@@ -12,9 +13,12 @@ import {
 } from "@/types/registration";
 
 const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, onBack }: RegistrationStepProps) => {
+    // Get stored session to pre-fill email/name
+    const session = readStoredSession();
+
     const [formData, setFormData] = useState<RegistrationFormData>({
-        fullName: "",
-        email: "",
+        fullName: session?.fullName || "",
+        email: session?.email || "",
         phoneNumber: "",
         collegeName: "",
         yearOfPassing: "",
@@ -25,6 +29,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
         specificCourse: selectedCourse || "",
         referredBy: "",
         programType: programType,
+        plan: "",
     });
 
     // Update formData if programType or selectedCourse prop changes
@@ -133,6 +138,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
+            if (!formData.plan) {
+                newErrors.plan = "Please select a plan";
+            }
         }
 
         setErrors(newErrors);
@@ -178,10 +186,11 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
             collegeName: true,
             yearOfPassing: true,
             branch: true,
-            specificCourse: true, // This will be conditionally set based on programType in validateForm
+            specificCourse: true,
             selectedSlot: programType === 'cohort',
             sessionTime: programType === 'cohort',
             mode: programType === 'cohort',
+            plan: programType === 'workshop',
         });
 
         if (!validateForm()) {
@@ -208,6 +217,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                 sessionTime: programType === 'cohort' ? formData.sessionTime : null,
                 mode: programType === 'cohort' ? formData.mode : null,
                 referredBy: formData.referredBy || null,
+                plan: programType === 'workshop' ? formData.plan : null,
             };
 
             const response = await submitRegistration(payload);
@@ -564,6 +574,33 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                 )}
                             </div>
                         </>
+                    )}
+
+                    {/* Workshop Specific Fields */}
+                    {programType === 'workshop' && (
+                        <div>
+                            <label htmlFor="plan" className="label">
+                                Select Your Plan <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="plan"
+                                name="plan"
+                                value={formData.plan}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                className={`input-field ${touched.plan && errors.plan
+                                    ? "border-red-500"
+                                    : ""
+                                    }`}
+                            >
+                                <option value="">Select a price plan</option>
+                                <option value="399">Standard Plan - ₹399</option>
+                                <option value="599">Premium Plan - ₹599</option>
+                            </select>
+                            {touched.plan && errors.plan && (
+                                <p className="error-text">{errors.plan}</p>
+                            )}
+                        </div>
                     )}
 
                     {/* Referred By (Optional) */}
