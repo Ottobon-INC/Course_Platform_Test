@@ -114,7 +114,6 @@ const Sidebar: React.FC<{
         </div>
         <div className="flex flex-col">
           <span className="font-black text-lg tracking-tighter leading-none">OTTOLEARN</span>
-          <span className="text-[8px] font-black tracking-[0.3em] text-retro-salmon uppercase">Command</span>
         </div>
       </button>
 
@@ -306,7 +305,7 @@ const QuickStats: React.FC<{
     </div>
     <div className="bg-white rounded-2xl p-4 border border-retro-sage/10 shadow-sm">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-teal/50 mb-2">Workshops</p>
-      <p className="text-lg font-black text-retro-teal">{workshopCount} upcoming</p>
+      <p className="text-lg font-black text-retro-teal">{workshopCount} sessions</p>
       <p className="text-xs text-retro-teal/60 mt-1">Registration from your dashboard</p>
     </div>
   </section>
@@ -341,6 +340,7 @@ const DashboardContent: React.FC<{
   onNavigateCohortCatalog: () => void;
   onNavigateOnDemandCatalog: () => void;
   onNavigateRegistration: () => void;
+  onNavigateWorkshops: () => void;
 }> = ({
   data,
   onNavigateCourse,
@@ -348,6 +348,7 @@ const DashboardContent: React.FC<{
   onNavigateCohortCatalog,
   onNavigateOnDemandCatalog,
   onNavigateRegistration,
+  onNavigateWorkshops,
 }) => {
     const hasCohorts = data.cohorts.length > 0;
     const hasOnDemand = data.onDemand.length > 0;
@@ -497,9 +498,15 @@ const DashboardContent: React.FC<{
           <div className="flex items-center justify-between border-b border-retro-sage/10 pb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-retro-salmon/10 rounded-xl text-retro-salmon"><CalendarClock size={20} /></div>
-              <h3 className="text-xl font-black text-retro-teal tracking-tight uppercase tracking-widest">Upcoming Workshops</h3>
+              <h3 className="text-xl font-black text-retro-teal tracking-tight uppercase tracking-widest">My Workshops</h3>
             </div>
-            <p className="text-[10px] font-black text-retro-teal/40 uppercase tracking-[0.2em] hidden sm:block">Live Interactive Sessions</p>
+            <button
+              className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-colors uppercase tracking-widest"
+              type="button"
+              onClick={() => onNavigateWorkshops()}
+            >
+              Explore Workshops
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -744,6 +751,10 @@ const App: React.FC = () => {
   const navigateToRegistration = () => {
     setLocation('/registration');
   };
+
+  const navigateToWorkshops = () => {
+    setLocation('/our-courses/workshops');
+  };
   const nextAction = useMemo(() => {
     if (heroCourse) {
       return {
@@ -851,6 +862,7 @@ const App: React.FC = () => {
               onNavigateCohortCatalog={navigateToCohortCatalog}
               onNavigateOnDemandCatalog={navigateToOnDemandCatalog}
               onNavigateRegistration={navigateToRegistration}
+              onNavigateWorkshops={navigateToWorkshops}
             />
           </div>
         </main>
