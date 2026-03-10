@@ -1,4 +1,4 @@
-﻿import { ProgressBarProps } from '@/types/registration'
+import { ProgressBarProps } from '@/types/registration'
 
 const ProgressBar = ({ currentStep }: ProgressBarProps) => {
     const steps = [
