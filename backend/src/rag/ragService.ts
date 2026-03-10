@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { createEmbedding, generateAnswerFromContext } from "./openAiClient";
+import { createEmbedding, generateAnswerFromContext, generateAnswerFromContextStream } from "./openAiClient";
 import { scrubPossiblePii } from "./pii";
 import { logRagUsage } from "./usageLogger";
 import { prisma } from "../services/prisma";
@@ -75,6 +75,8 @@ export async function askCourseAssistant(options: {
   conversation?: ConversationTurn[];
   summary?: string | null;
   personaPrompt?: string | null;
+  onToken?: (token: string) => void;
+  onStatus?: (stage: "retrieving_context" | "generating_answer", message?: string) => void;
 }): Promise<{ answer: string }> {
   const sanitizedQuestion = scrubPossiblePii(options.question ?? "").trim();
   if (!sanitizedQuestion) {
@@ -82,6 +84,7 @@ export async function askCourseAssistant(options: {
   }
 
   try {
+    options.onStatus?.("retrieving_context", "Reviewing course context...");
     const queryEmbedding = await createEmbedding(sanitizedQuestion);
     const contexts = await fetchRelevantContexts(options.courseId, queryEmbedding);
 
@@ -102,7 +105,10 @@ export async function askCourseAssistant(options: {
       personaPrompt: options.personaPrompt ?? null,
     });
 
-    const answer = await generateAnswerFromContext(prompt);
+    options.onStatus?.("generating_answer", "Generating tutor response...");
+    const answer = options.onToken
+      ? await generateAnswerFromContextStream(prompt, options.onToken)
+      : await generateAnswerFromContext(prompt);
     logRagUsage(options.userId, "success");
     return { answer };
   } catch (error) {

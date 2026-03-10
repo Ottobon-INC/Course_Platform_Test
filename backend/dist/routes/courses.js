@@ -3,11 +3,14 @@ import { prisma } from "../services/prisma";
 import { asyncHandler } from "../utils/asyncHandler";
 import { requireAuth } from "../middleware/requireAuth";
 import { ensureEnrollment } from "../services/enrollmentService";
+import { verifyAccessToken } from "../services/sessionService";
 import { checkCohortAccessForUser } from "../services/cohortAccess";
 const LEGACY_COURSE_SLUGS = {
-    "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
+    "ai-native-fullstack-developer": "f26180b2-5dda-495a-a014-ae02e63f172f",
 };
 const coursesRouter = express.Router();
+const ACTIVE_MEMBER_STATUS = "active";
+const normalizeEmail = (value) => value.trim().toLowerCase();
 const courseSelect = {
     courseId: true,
     courseName: true,
@@ -123,5 +126,85 @@ coursesRouter.post("/:courseKey/enroll", requireAuth, asyncHandler(async (req, r
     }
     await ensureEnrollment(auth.userId, resolved.courseId);
     res.status(200).json({ status: "enrolled", courseId: resolved.courseId });
+}));
+function getOptionalAuthUserId(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer "))
+        return null;
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (!token)
+        return null;
+    try {
+        const payload = verifyAccessToken(token);
+        return payload.sub;
+    }
+    catch {
+        return null;
+    }
+}
+coursesRouter.get("/:courseKey/access-status", asyncHandler(async (req, res) => {
+    const resolved = await resolveCourseIdOrError(req.params.courseKey);
+    if ("errorStatus" in resolved) {
+        res.status(resolved.errorStatus).json({ message: resolved.errorMessage });
+        return;
+    }
+    const userId = getOptionalAuthUserId(req);
+    if (!userId) {
+        res.status(200).json({
+            isAuthenticated: false,
+            hasApplied: false,
+            isApprovedMember: false,
+        });
+        return;
+    }
+    const user = await prisma.user.findUnique({
+        where: { userId },
+        select: { email: true },
+    });
+    const normalizedEmail = user?.email ? normalizeEmail(user.email) : null;
+    const registrationIdentityFilter = normalizedEmail
+        ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" } }]
+        : [{ userId }];
+    const cohortIdentityFilter = normalizedEmail
+        ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" } }]
+        : [{ userId }];
+    const [registration, member] = await Promise.all([
+        prisma.registration.findFirst({
+            where: {
+                offering: { courseId: resolved.courseId, programType: "cohort" },
+                OR: registrationIdentityFilter,
+            },
+            select: { registrationId: true, userId: true, email: true },
+        }),
+        prisma.cohortMember.findFirst({
+            where: {
+                status: ACTIVE_MEMBER_STATUS,
+                cohort: { courseId: resolved.courseId },
+                OR: cohortIdentityFilter,
+            },
+            select: { memberId: true, userId: true, email: true },
+        }),
+    ]);
+    if (normalizedEmail) {
+        await Promise.all([
+            registration && (!registration.userId || registration.email !== normalizedEmail)
+                ? prisma.registration.update({
+                    where: { registrationId: registration.registrationId },
+                    data: { userId, email: normalizedEmail },
+                })
+                : Promise.resolve(),
+            member && (!member.userId || member.email !== normalizedEmail)
+                ? prisma.cohortMember.update({
+                    where: { memberId: member.memberId },
+                    data: { userId, email: normalizedEmail },
+                })
+                : Promise.resolve(),
+        ]);
+    }
+    res.status(200).json({
+        isAuthenticated: true,
+        hasApplied: Boolean(registration),
+        isApprovedMember: Boolean(member),
+    });
 }));
 export { coursesRouter };

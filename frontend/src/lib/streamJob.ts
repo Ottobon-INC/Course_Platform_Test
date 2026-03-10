@@ -14,6 +14,11 @@
 export async function streamJobResult(
     url: string,
     headers?: Record<string, string>,
+    callbacks?: {
+        onStatus?: (event: { seq?: number; stage?: string; message?: string }) => void;
+        onChunk?: (chunkText: string, event: { seq?: number; text?: string }) => void;
+        onCompleted?: (result: Record<string, unknown>) => void;
+    },
 ): Promise<Record<string, unknown>> {
     const res = await fetch(url, {
         headers: headers ?? {},
@@ -59,7 +64,9 @@ export async function streamJobResult(
                 }
 
                 if (eventType === "completed" && data) {
-                    return JSON.parse(data) as Record<string, unknown>;
+                    const parsed = JSON.parse(data) as Record<string, unknown>;
+                    callbacks?.onCompleted?.(parsed);
+                    return parsed;
                 }
 
                 if (eventType === "failed" && data) {
@@ -74,6 +81,24 @@ export async function streamJobResult(
                 if (eventType === "error" && data) {
                     const parsed = JSON.parse(data) as { message?: string };
                     throw new Error(parsed.message || "Stream error");
+                }
+
+                if (eventType === "status" && data) {
+                    const parsed = JSON.parse(data) as { seq?: number; stage?: string; message?: string };
+                    callbacks?.onStatus?.(parsed);
+                }
+
+                if (eventType === "chunk" && data) {
+                    let parsed: { seq?: number; text?: string } = {};
+                    try {
+                        parsed = JSON.parse(data) as { seq?: number; text?: string };
+                    } catch {
+                        parsed = { text: data };
+                    }
+                    const chunkText = typeof parsed.text === "string" ? parsed.text : "";
+                    if (chunkText) {
+                        callbacks?.onChunk?.(chunkText, parsed);
+                    }
                 }
             }
         }

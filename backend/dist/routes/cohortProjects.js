@@ -5,7 +5,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { COHORT_ACCESS_DENIED_MESSAGE } from "../services/cohortAccess";
 const cohortProjectsRouter = express.Router();
 const LEGACY_COURSE_SLUGS = {
-    "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
+    "ai-native-fullstack-developer": "f26180b2-5dda-495a-a014-ae02e63f172f",
 };
 const ACTIVE_MEMBER_STATUS = "active";
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

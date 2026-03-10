@@ -9,6 +9,7 @@ const KEYWORD_MAP = {
     rote_memorizer: ["memorize", "theory", "definitions", "exam", "interview", "mcq"],
 };
 const DEFAULT_PERSONA = "non_it_migrant";
+export const DEFAULT_PERSONA_KEY = DEFAULT_PERSONA;
 function scorePersonaFromText(text) {
     const normalized = text.toLowerCase();
     const scores = PERSONA_KEYS.reduce((acc, key) => {
@@ -95,4 +96,51 @@ export async function getPersonaProfile(params) {
             updatedAt: true,
         },
     });
+}
+export async function ensurePersonaProfile(params) {
+    const existing = await prisma.learnerPersonaProfile.findUnique({
+        where: {
+            userId_courseId: {
+                userId: params.userId,
+                courseId: params.courseId,
+            },
+        },
+        select: {
+            personaKey: true,
+            updatedAt: true,
+        },
+    });
+    if (existing) {
+        return existing;
+    }
+    try {
+        return await prisma.learnerPersonaProfile.create({
+            data: {
+                userId: params.userId,
+                courseId: params.courseId,
+                personaKey: DEFAULT_PERSONA,
+                rawAnswers: [],
+                analysisSummary: "Auto-assigned default learner persona.",
+                analysisVersion: `${PERSONA_PROFILE_VERSION}-auto`,
+            },
+            select: {
+                personaKey: true,
+                updatedAt: true,
+            },
+        });
+    }
+    catch (error) {
+        return prisma.learnerPersonaProfile.findUnique({
+            where: {
+                userId_courseId: {
+                    userId: params.userId,
+                    courseId: params.courseId,
+                },
+            },
+            select: {
+                personaKey: true,
+                updatedAt: true,
+            },
+        });
+    }
 }
