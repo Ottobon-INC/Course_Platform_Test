@@ -31,6 +31,7 @@ model User {
   ragChatSessions RagChatSession[]
   ragChatMessages RagChatMessage[]
   registrations Registration[]
+  certificates CourseCertificate[]
 
   @@map("users")
 }
@@ -140,6 +141,7 @@ model Course {
   ragChatSessions RagChatSession[]
   contentAssets TopicContentAsset[]
   offerings   CourseOffering[]
+  certificates CourseCertificate[]
 
   @@map("courses")
 }
@@ -581,6 +583,27 @@ model ModulePromptUsage {
 
   @@unique([userId, courseId, moduleNo], map: "uq_prompt_usage_user_course_module")
   @@map("module_prompt_usage")
+}
+
+model CourseCertificate {
+  certificateId String      @id @default(dbgenerated("gen_random_uuid()")) @map("certificate_id") @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  courseId      String      @map("course_id") @db.Uuid
+  programType   ProgramType @map("program_type")
+  displayName   String      @map("display_name")
+  courseTitle   String      @map("course_title")
+  rating        Int?        @map("rating")
+  feedbackText  String?     @map("feedback_text")
+  issuedAt      DateTime    @default(now()) @map("issued_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  user          User        @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course        Course      @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+
+  @@unique([userId, courseId, programType], map: "uq_course_certificate_user_course_program")
+  @@index([courseId], map: "idx_course_certificate_course")
+  @@index([userId], map: "idx_course_certificate_user")
+  @@map("course_certificates")
 }
 
 model CourseChunk {

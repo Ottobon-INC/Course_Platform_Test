@@ -22,6 +22,7 @@ import { cohortProjectsRouter } from "./routes/cohortProjects";
 import { registrationsRouter } from "./routes/registrations";
 import { landingAssistantRouter } from "./routes/landingAssistant";
 import { dashboardRouter } from "./routes/dashboard";
+import { certificatesRouter } from "./routes/certificates";
 
 export function createApp(): Express {
   const app = express();
@@ -71,6 +72,7 @@ export function createApp(): Express {
   app.use("/registrations", registrationsRouter);
   app.use("/landing-assistant", landingAssistantRouter);
   app.use("/dashboard", dashboardRouter);
+  app.use("/certificates", certificatesRouter);
 
   // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
   const apiRouter = express.Router();
@@ -93,6 +95,7 @@ export function createApp(): Express {
   apiRouter.use("/registrations", registrationsRouter);
   apiRouter.use("/landing-assistant", landingAssistantRouter);
   apiRouter.use("/dashboard", dashboardRouter);
+  apiRouter.use("/certificates", certificatesRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

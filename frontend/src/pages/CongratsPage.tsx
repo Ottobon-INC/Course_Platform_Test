@@ -1,11 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { Trophy, Star } from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
-import { readStoredSession } from "@/utils/session";
+import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 
 type CourseSummary = {
   title?: string;
+};
+
+type CertificateSummary = {
+  id: string;
+  displayName: string;
+  courseTitle: string;
+  rating: number | null;
+  feedbackText: string | null;
+  issuedAt: string;
+};
+
+type CongratsSummary = {
+  course?: { id?: string; title?: string };
+  learner?: { name?: string; email?: string };
+  certificate?: CertificateSummary | null;
 };
 
 const Confetti = () => {
@@ -130,42 +145,103 @@ const CongratsPage = () => {
   const [hoverRating, setHoverRating] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [course, setCourse] = useState<CourseSummary>({});
+  const [learnerName, setLearnerName] = useState("Learner");
+  const [issuedAt, setIssuedAt] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const learnerName = useMemo(() => {
+  const fallbackLearnerName = useMemo(() => {
     const stored = readStoredSession();
     return stored?.fullName ?? stored?.email ?? "Learner";
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    const loadCourse = async () => {
+    const loadSummary = async () => {
       try {
-        const res = await fetch(buildApiUrl(`/api/courses/${courseKey}`));
-        if (!res.ok) throw new Error("Unable to load course details");
-        const payload = (await res.json()) as { course?: CourseSummary };
+        const currentSession = await ensureSessionFresh(readStoredSession());
+        const headers: HeadersInit = {};
+        if (currentSession?.accessToken) {
+          headers.Authorization = `Bearer ${currentSession.accessToken}`;
+        }
+        const res = await fetch(buildApiUrl(`/api/certificates/${courseKey}?programType=ondemand`), { headers });
+        if (!res.ok) throw new Error("Unable to load certificate details");
+        const payload = (await res.json()) as CongratsSummary;
         if (mounted) {
-          setCourse(payload.course ?? {});
+          const certificate = payload.certificate ?? null;
+          const courseTitle =
+            certificate?.courseTitle ??
+            payload.course?.title ??
+            course?.title ??
+            "Advanced Web Development Masterclass";
+          setCourse({ title: courseTitle });
+          setLearnerName(payload.learner?.name ?? fallbackLearnerName);
+          if (certificate?.rating) {
+            setRating(certificate.rating);
+          }
+          if (certificate?.feedbackText) {
+            setFeedback(certificate.feedbackText);
+          }
+          setIssuedAt(certificate?.issuedAt ?? null);
         }
       } catch {
-        // ignore – fallback strings already provided
+        try {
+          const res = await fetch(buildApiUrl(`/api/courses/${courseKey}`));
+          if (!res.ok) throw new Error("Unable to load course details");
+          const payload = (await res.json()) as { course?: CourseSummary };
+          if (mounted) {
+            setCourse(payload.course ?? {});
+          }
+        } catch {
+          // ignore - fallback strings already provided
+        }
+        if (mounted) {
+          setLearnerName(fallbackLearnerName);
+        }
       }
     };
-    void loadCourse();
+    void loadSummary();
     return () => {
       mounted = false;
     };
-  }, [courseKey]);
+  }, [courseKey, fallbackLearnerName]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!rating) {
       alert("Please provide a rating before continuing.");
       return;
     }
-    localStorage.setItem("courseFeedbackRating", rating.toString());
-    localStorage.setItem("courseFeedbackText", feedback);
-    localStorage.setItem("courseCertificateName", learnerName);
-    localStorage.setItem("courseCertificateTitle", course?.title ?? "AI in Web Development Masterclass");
-    setLocation(`/ondemand/${courseKey}/congrats/feedback`);
+    if (isSubmitting) {
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const currentSession = await ensureSessionFresh(readStoredSession());
+      if (!currentSession?.accessToken) {
+        alert("Please sign in to submit feedback.");
+        return;
+      }
+      const res = await fetch(buildApiUrl(`/api/certificates/${courseKey}/feedback?programType=ondemand`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentSession.accessToken}`,
+        },
+        body: JSON.stringify({
+          rating,
+          feedbackText: feedback,
+          displayName: learnerName,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("Unable to submit feedback");
+      }
+      setLocation(`/ondemand/${courseKey}/congrats/feedback`);
+    } catch (error) {
+      console.error(error);
+      alert("We could not submit your feedback. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const courseTitle = course?.title ?? "Advanced Web Development Masterclass";
@@ -203,7 +279,7 @@ const CongratsPage = () => {
             <h2 className="text-2xl font-bold text-[#FBE9D0] sm:text-3xl">{learnerName}</h2>
             <p className="text-base text-[#90AEAD] sm:text-lg">has successfully completed</p>
             <h3 className="text-xl font-semibold text-[#FBE9D0] sm:text-2xl">{courseTitle}</h3>
-            <p className="text-sm text-[#90AEAD] sm:text-base">Credential earned — add it to your profile and showcase your expertise.</p>
+            <p className="text-sm text-[#90AEAD] sm:text-base">Credential earned - add it to your profile and showcase your expertise.</p>
           </div>
 
           <div
@@ -212,7 +288,12 @@ const CongratsPage = () => {
             <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-center sm:justify-between">
               <h4 className="text-xl font-bold text-[#FBE9D0]">Share Your Experience</h4>
               <p className="text-xs font-medium text-[#90AEAD] uppercase tracking-wide">
-                Issued {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                Issued{" "}
+                {new Date(issuedAt ?? Date.now()).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
               </p>
             </div>
             <p className="text-sm leading-relaxed text-[#90AEAD] sm:text-base">
@@ -253,10 +334,11 @@ const CongratsPage = () => {
 
             <button
               type="button"
-              onClick={handleSubmit}
-              className="w-full rounded-2xl border border-[#fbe9d0]/20 bg-[#E64833] py-4 text-lg font-semibold text-[#FBE9D0] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#cf3c28]"
+              onClick={() => void handleSubmit()}
+              disabled={isSubmitting}
+              className="w-full rounded-2xl border border-[#fbe9d0]/20 bg-[#E64833] py-4 text-lg font-semibold text-[#FBE9D0] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#cf3c28] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Submit feedback &amp; view certificate
+              {isSubmitting ? "Submitting..." : "Submit feedback & view certificate"}
             </button>
           </div>
         </div>
