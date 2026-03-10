@@ -108,13 +108,13 @@ const Sidebar: React.FC<{
   const notificationCount = notifications.length;
 
   return (
-    <nav className="fixed top-0 left-0 w-full h-16 bg-retro-teal text-retro-bg flex items-center justify-between px-6 lg:px-10 z-50 border-b border-retro-sage/30 shadow-lg backdrop-blur-md bg-opacity-95">
+    <nav className="fixed top-0 left-0 w-full h-16 bg-retro-teal text-retro-bg flex items-center justify-between px-6 lg:px-10 z-50 border-b border-retro-sage/30 backdrop-blur-md bg-opacity-95">
       <button
         type="button"
         onClick={onHomeClick}
         className="flex items-center gap-3 min-w-max group cursor-pointer"
       >
-        <div className="w-9 h-9 bg-retro-salmon rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-white shadow-lg group-hover:scale-110 transition-all">
+        <div className="w-9 h-9 bg-retro-salmon rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-white ring-1 ring-inset ring-slate-900/10 group-hover:scale-110 transition-all">
           <Zap size={18} fill="white" />
         </div>
         <div className="flex flex-col">
@@ -141,7 +141,7 @@ const Sidebar: React.FC<{
           </button>
 
           {open && (
-            <div className="absolute right-0 top-12 w-72 bg-white text-retro-teal rounded-2xl shadow-xl border border-retro-sage/20 overflow-hidden z-50">
+            <div className="absolute right-0 top-12 w-72 bg-white text-retro-teal rounded-2xl ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 border border-retro-sage/20 overflow-hidden z-50">
               <div className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-retro-teal/60 border-b border-retro-sage/10">
                 Notifications
               </div>
@@ -203,17 +203,17 @@ const ResumeHero: React.FC<{
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-retro-teal/90 backdrop-blur-xl rounded-3xl p-6 lg:p-10 text-retro-bg flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden shadow-[0_20px_50px_rgba(36,72,85,0.3)] border border-white/10"
+      className="bg-retro-teal/90 backdrop-blur-xl rounded-2xl p-6 lg:p-10 text-retro-bg flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5"
     >
       <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-retro-salmon/20 rounded-full blur-[100px] animate-pulse pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-5%] w-64 h-64 bg-retro-cyan/10 rounded-full blur-[80px] pointer-events-none" />
 
       <div className="relative z-10 space-y-5 max-w-2xl">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="px-3 py-1 bg-retro-salmon text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5">
+          <span className="px-3 py-1 bg-retro-salmon text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-inset ring-slate-900/10 flex items-center gap-1.5">
             <Play size={10} fill="currentColor" /> {course ? "Resume" : "Get Started"}
           </span>
-          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] border border-white/10 flex items-center gap-1.5">
+          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-inset ring-slate-900/10 flex items-center gap-1.5">
             <GraduationCap size={12} /> {course ? "On-Demand Course" : "Course Library"}
           </span>
           <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white/40 flex items-center gap-1.5 ml-auto md:ml-0">
@@ -225,7 +225,7 @@ const ResumeHero: React.FC<{
           <h2 className="text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
             {course ? course.title : "No active course to resume yet"}
           </h2>
-          <p className="text-base opacity-75 font-medium italic flex items-center gap-2">
+          <p className="text-base opacity-75 font-medium flex items-center gap-2">
             <Layers size={16} className="text-retro-salmon" />
             {course?.lastAccessedModule
               ? `Currently on: "${course.lastAccessedModule}"`
@@ -236,7 +236,7 @@ const ResumeHero: React.FC<{
         <div className="pt-2">
           {course ? (
             <button
-              className="flex items-center gap-3 bg-white text-retro-teal px-8 py-3 rounded-2xl font-black transition-all hover:scale-105 hover:shadow-xl active:scale-95 text-base group shadow-lg"
+              className="flex items-center gap-3 bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-base group"
               onClick={onContinue}
               type="button"
             >
@@ -245,7 +245,7 @@ const ResumeHero: React.FC<{
             </button>
           ) : (
             <button
-              className="flex items-center gap-3 bg-white text-retro-teal px-8 py-3 rounded-2xl font-black transition-all hover:scale-105 hover:shadow-xl active:scale-95 text-base group shadow-lg"
+              className="flex items-center gap-3 bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-base group"
               onClick={onBrowse}
               type="button"
             >
@@ -256,7 +256,7 @@ const ResumeHero: React.FC<{
         </div>
       </div>
 
-      <div className="relative z-10 bg-white/5 backdrop-blur-2xl rounded-3xl p-6 border border-white/10 w-full md:w-64 flex flex-col items-center justify-center text-center shadow-inner">
+      <div className="relative z-10 bg-white/5 backdrop-blur-2xl rounded-2xl p-6 ring-1 ring-inset ring-slate-900/10 w-full md:w-64 flex flex-col items-center justify-center text-center shadow-inner">
         {course ? (
           <>
             <div className="relative w-32 h-32 mb-4">
@@ -327,11 +327,11 @@ const QuickStats: React.FC<{
           key={i}
           variants={item}
           whileHover={{ y: -5, transition: { duration: 0.2 } }}
-          className="bg-white/40 backdrop-blur-md rounded-2xl p-5 border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.05)] hover:bg-white/60 transition-colors"
+          className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col justify-between hover:bg-white/95 transition-colors"
         >
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-teal/50 mb-2">{stat.label}</p>
-          <p className="text-xl font-black text-retro-teal">{stat.value}</p>
-          <p className="text-xs text-retro-teal/60 mt-1">{stat.sub}</p>
+          <p className="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">{stat.label}</p>
+          <p className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</p>
+          <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
         </motion.div>
       ))}
     </motion.section>
@@ -347,10 +347,10 @@ const NextActionCard: React.FC<{
   <motion.section
     initial={{ opacity: 0, x: -20 }}
     animate={{ opacity: 1, x: 0 }}
-    className="bg-white/60 backdrop-blur-lg rounded-3xl p-6 border border-white/50 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
+    className="bg-white rounded-2xl p-6 ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
   >
     <div className="flex gap-4">
-      <div className="w-12 h-12 bg-retro-salmon rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg group-hover:rotate-12 transition-transform">
+      <div className="w-12 h-12 bg-retro-salmon rounded-2xl flex items-center justify-center flex-shrink-0 ring-1 ring-inset ring-slate-900/10 group-hover:rotate-12 transition-transform">
         <Play size={20} className="text-white fill-current" />
       </div>
       <div>
@@ -362,7 +362,7 @@ const NextActionCard: React.FC<{
     <button
       type="button"
       onClick={onAction}
-      className="bg-retro-teal text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-retro-salmon transition-all hover:scale-105 active:scale-95"
+      className="bg-slate-800 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-slate-900/50 hover:bg-slate-900 transition-colors shadow-sm text-xs uppercase"
     >
       {cta}
     </button>
@@ -401,7 +401,7 @@ const DashboardContent: React.FC<{
             </div>
             {hasCohorts && (
               <button
-                className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-all uppercase tracking-widest bg-white/50 px-4 py-2 rounded-xl border border-white/50 shadow-sm"
+                className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-colors uppercase tracking-widest bg-white/70 px-4 py-2 rounded-xl ring-1 ring-inset ring-slate-900/10"
                 type="button"
                 onClick={() => onNavigateCohortCatalog()}
               >
@@ -432,7 +432,7 @@ const DashboardContent: React.FC<{
                     show: { opacity: 1, y: 0 }
                   }}
                   key={cohort.id}
-                  className="bg-white/70 backdrop-blur-lg rounded-[2.5rem] p-8 border border-white/50 hover:border-retro-salmon/30 transition-all shadow-[0_15px_45px_-15px_rgba(0,0,0,0.08)] hover:shadow-[0_25px_65px_-10px_rgba(0,0,0,0.12)] group flex flex-col justify-between overflow-hidden relative"
+                  className="bg-white rounded-2xl p-8 ring-1 ring-inset ring-slate-900/10 transition-colors group flex flex-col justify-between overflow-hidden relative"
                 >
                   {/* Enhanced Background Glows */}
                   <div className="absolute top-0 right-0 w-48 h-48 bg-retro-teal/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-retro-salmon/15 transition-all duration-500 scale-125" />
@@ -466,7 +466,7 @@ const DashboardContent: React.FC<{
                         <p className="text-2xl font-black text-retro-teal tracking-tighter">{cohort.progress}<span className="text-xs text-retro-teal/40 ml-0.5">%</span></p>
                       </div>
                       <button
-                        className="bg-retro-teal text-white p-3 rounded-2xl hover:bg-retro-salmon transition-all shadow-lg group-hover:scale-110 active:scale-95 group-hover:rotate-6 relative overflow-hidden"
+                        className="bg-retro-teal text-white p-3 rounded-2xl hover:bg-retro-salmon transition-colors ring-1 ring-inset ring-slate-900/10 group-hover:scale-110 active:scale-95 group-hover:rotate-6 relative overflow-hidden"
                         type="button"
                         onClick={() =>
                           cohort.courseSlug ? onNavigateCourseDetails(cohort.courseSlug) : onNavigateCohortCatalog()
@@ -484,12 +484,14 @@ const DashboardContent: React.FC<{
                 </motion.div>
               ))
             ) : (
-              <div className="bg-white/40 backdrop-blur-md rounded-[2rem] p-10 border border-dashed border-retro-teal/20 text-retro-teal/60 text-center col-span-full">
-                <div className="text-base font-bold mb-3 italic">"The journey of a thousand miles begins with a single step."</div>
+              <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
+                <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
+                  "The journey of a thousand miles begins with a single step."
+                </div>
                 <button
                   type="button"
                   onClick={onNavigateCohortCatalog}
-                  className="bg-retro-teal text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-lg hover:bg-retro-salmon transition-all"
+                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
                 >
                   Join Your First Cohort
                 </button>
@@ -544,7 +546,7 @@ const DashboardContent: React.FC<{
                     show: { opacity: 1, y: 0 }
                   }}
                   key={course.id}
-                  className="bg-white/60 backdrop-blur-lg rounded-[2rem] p-8 border border-white/40 hover:border-retro-salmon/20 transition-all shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.1)] group flex flex-col justify-between"
+                  className="bg-white rounded-2xl p-8 ring-1 ring-inset ring-slate-900/10 transition-colors group flex flex-col justify-between"
                 >
                   <div className="mb-8">
                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-salmon mb-4">On-Demand Path</h5>
@@ -578,12 +580,14 @@ const DashboardContent: React.FC<{
                 </motion.div>
               ))
             ) : (
-              <div className="bg-white/40 backdrop-blur-md rounded-[2rem] p-10 border border-dashed border-retro-teal/20 text-retro-teal/60 text-center col-span-full">
-                <div className="text-base font-bold mb-3 italic">"Knowledge is power. Information is liberating."</div>
+              <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
+                <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
+                  "Knowledge is power. Information is liberating."
+                </div>
                 <button
                   type="button"
                   onClick={onNavigateOnDemandCatalog}
-                  className="bg-retro-salmon text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-lg hover:bg-retro-teal transition-all"
+                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
                 >
                   Start Learning Today
                 </button>
@@ -632,10 +636,12 @@ const DashboardContent: React.FC<{
                     show: { opacity: 1, y: 0 }
                   }}
                   key={workshop.id}
-                  className="bg-white/60 backdrop-blur-lg p-8 rounded-[2rem] border border-white/40 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden flex flex-col justify-between"
+                  className="bg-white p-8 rounded-2xl ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 transition-colors group relative overflow-hidden flex flex-col justify-between"
                 >
                   {workshop.isJoined && (
-                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-retro-teal text-[9px] font-black text-white uppercase tracking-widest rounded-bl-2xl shadow-sm z-10">Registered</div>
+                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-retro-teal text-[9px] font-black text-white uppercase tracking-widest rounded-bl-2xl ring-1 ring-inset ring-slate-900/10 z-10">
+                      Registered
+                    </div>
                   )}
                   <div className="mb-10 relative z-10">
                     <p className="text-xl font-black text-retro-teal mb-5 line-clamp-2 leading-tight group-hover:text-retro-salmon transition-colors min-h-[3rem]">{workshop.title}</p>
@@ -651,9 +657,9 @@ const DashboardContent: React.FC<{
                     </div>
                   </div>
                   <button
-                    className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all relative z-10 shadow-lg ${workshop.isJoined
-                      ? 'bg-retro-teal text-white hover:bg-retro-teal/90'
-                      : 'bg-white border border-retro-teal/20 text-retro-teal hover:bg-retro-teal hover:text-white'
+                    className={`w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-colors relative z-10 ring-1 ring-inset ${workshop.isJoined
+                      ? 'bg-slate-800 text-white ring-slate-900/50 hover:bg-slate-900 shadow-sm'
+                      : 'bg-red-500 text-white ring-red-600/50 hover:bg-red-600 shadow-sm'
                       }`}
                     type="button"
                     onClick={() => {
@@ -667,12 +673,14 @@ const DashboardContent: React.FC<{
                 </motion.div>
               ))
             ) : (
-              <div className="bg-white/40 backdrop-blur-md rounded-[2rem] p-10 border border-dashed border-retro-teal/20 text-retro-teal/60 text-center col-span-full">
-                <div className="text-base font-bold mb-3 italic">"Never stop learning, because life never stops teaching."</div>
+              <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
+                <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
+                  "Never stop learning, because life never stops teaching."
+                </div>
                 <button
                   type="button"
                   onClick={onNavigateWorkshops}
-                  className="bg-retro-teal text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-lg hover:bg-retro-salmon transition-all"
+                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
                 >
                   View All Workshops
                 </button>
