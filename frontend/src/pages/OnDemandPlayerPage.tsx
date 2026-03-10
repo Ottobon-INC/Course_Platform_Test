@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import {
+  ArrowDown,
   ArrowLeft,
   BookOpen,
   CheckCircle,
   ChevronDown,
-  ChevronRight,
   FileText,
+  Lock,
+  Menu,
   MessageSquare,
+  Play,
   Send,
   X,
 } from "lucide-react";
@@ -181,20 +184,36 @@ const normalizeStudyMarkdown = (raw?: string | null): string => {
 };
 
 const studyMarkdownComponents: Components = {
-  h1: (props) => <h1 className="text-3xl font-semibold text-white/90 mb-4 tracking-tight" {...props} />,
-  h2: (props) => (
-    <h2 className="text-2xl font-semibold text-white/85 mt-8 mb-3 border-l-2 border-[#bf2f1f] pl-3" {...props} />
+  h1: (props) => (
+    <h1 className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
   ),
-  h3: (props) => <h3 className="text-lg font-semibold text-white/80 mt-6 mb-2 uppercase tracking-widest" {...props} />,
-  p: (props) => <p className="text-sm sm:text-base leading-6 text-neutral-300 mb-3" {...props} />,
-  ul: (props) => <ul className="list-disc marker:text-[#bf2f1f] pl-5 space-y-2 text-neutral-300" {...props} />,
-  ol: (props) => <ol className="list-decimal pl-5 space-y-2 text-neutral-300" {...props} />,
+  h2: (props) => (
+    <h2
+      className="text-2xl font-bold text-[#bf2f1f] mt-8 mb-4 border-l-4 border-[#bf2f1f] pl-3"
+      {...props}
+    />
+  ),
+  h3: (props) => (
+    <h3 className="text-xl font-semibold text-[#1e3a47] mt-6 mb-3 uppercase tracking-wide" {...props} />
+  ),
+  p: (props) => (
+    <p className="text-base sm:text-lg leading-7 text-[#2c3e50] mb-4" {...props} />
+  ),
+  ul: (props) => (
+    <ul className="list-disc marker:text-[#bf2f1f] pl-6 space-y-2 text-[#2c3e50]" {...props} />
+  ),
+  ol: (props) => (
+    <ol className="list-decimal pl-6 space-y-2 text-[#2c3e50]" {...props} />
+  ),
   li: (props) => <li className="leading-relaxed" {...props} />,
   blockquote: (props) => (
-    <blockquote className="border-l-2 border-[#bf2f1f]/70 bg-white/5 rounded-md px-4 py-3 text-neutral-300" {...props} />
+    <blockquote
+      className="border-l-4 border-[#bf2f1f]/60 bg-white/80 rounded-r-2xl px-4 py-3 text-[#4a4845] italic shadow-sm"
+      {...props}
+    />
   ),
-  strong: (props) => <strong className="font-semibold text-white/90" {...props} />,
-  em: (props) => <em className="italic text-neutral-200" {...props} />,
+  strong: (props) => <strong className="font-semibold text-[#111827]" {...props} />,
+  em: (props) => <em className="italic text-[#374151]" {...props} />,
 };
 
 const normalizeSlugValue = (value: string) =>
@@ -223,16 +242,39 @@ type Lesson = {
   simulation?: SimulationPayload | null;
 };
 
+type ContentType = "video" | "quiz";
+
+type SubModule = {
+  id: string;
+  title: string;
+  type: ContentType;
+  slug?: string;
+  topicId?: string;
+  moduleNo: number;
+  topicPairIndex?: number;
+  topicNumber?: number;
+  unlocked?: boolean;
+  quizPassed?: boolean;
+};
+
 type Module = {
   id: number;
   title: string;
-  lessons: Lesson[];
+  submodules: SubModule[];
 };
 
 type LessonProgress = {
   lessonId: string;
   status: "not_started" | "in_progress" | "completed";
   progress: number;
+};
+
+type QuizSection = {
+  moduleNo: number;
+  topicPairIndex: number;
+  title: string;
+  questionCount: number;
+  passed: boolean;
 };
 
 type PromptSuggestion = {
@@ -249,6 +291,20 @@ type ChatMessage = {
   suggestionContext?: PromptSuggestion | null;
 };
 
+type QuizQuestion = {
+  questionId: string;
+  prompt: string;
+  options: { optionId: string; text: string }[];
+};
+
+type QuizAttemptResult = {
+  correctCount: number;
+  totalQuestions: number;
+  scorePercent: number;
+  passed: boolean;
+  thresholdPercent: number;
+};
+
 const buildTopicGreeting = (lesson?: Lesson | null) => {
   if (!lesson) return "Hi! Ask anything about this course.";
   return `Learning about "${lesson.topicName}"? I can summarize the takeaways or offer a quick practice prompt.`;
@@ -256,6 +312,8 @@ const buildTopicGreeting = (lesson?: Lesson | null) => {
 
 const DEFAULT_STUDY_FALLBACK =
   "### Study material coming soon\nWe'll keep this lesson updated with fresh guidance. Check back later or explore the simulation exercise below.";
+
+const PASSING_PERCENT_THRESHOLD = 70;
 
 const OnDemandPlayerPage: React.FC = () => {
   const { id: courseKey, lesson: lessonSlugParam } = useParams();
@@ -265,8 +323,8 @@ const OnDemandPlayerPage: React.FC = () => {
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
+  const [sections, setSections] = useState<QuizSection[]>([]);
   const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
-  const [courseProgress, setCourseProgress] = useState(0);
   const [lessonProgressMap, setLessonProgressMap] = useState<Map<string, LessonProgress>>(new Map());
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -289,6 +347,15 @@ const OnDemandPlayerPage: React.FC = () => {
   const [usedSuggestionIds, setUsedSuggestionIds] = useState<Set<string>>(new Set());
   const [visibleStarterSuggestions, setVisibleStarterSuggestions] = useState<PromptSuggestion[]>([]);
 
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizAttemptId, setQuizAttemptId] = useState<string | null>(null);
+  const [quizPhase, setQuizPhase] = useState<"intro" | "active" | "result">("intro");
+  const [quizTimer, setQuizTimer] = useState(60);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
+  const [isQuizMode, setIsQuizMode] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<{ moduleNo: number; topicPairIndex: number } | null>(null);
+
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const contentScrollRef = useRef<HTMLElement | null>(null);
   const dragInfo = useRef<{
@@ -299,10 +366,17 @@ const OnDemandPlayerPage: React.FC = () => {
     widget: "chat" | "notes";
   } | null>(null);
 
-  const activeLesson = useMemo(
-    () => lessons.find((lesson) => lesson.slug === activeSlug) ?? lessons[0] ?? null,
-    [lessons, activeSlug],
-  );
+  const activeLesson = useMemo(() => {
+    if (!activeSlug) {
+      return lessons[0] ?? null;
+    }
+    return (
+      lessons.find((lesson) => lesson.topicId === activeSlug) ??
+      lessons.find((lesson) => lesson.slug === activeSlug) ??
+      lessons[0] ??
+      null
+    );
+  }, [lessons, activeSlug]);
 
   useEffect(() => {
     const unsubscribe = subscribeToSession((nextSession) => setSession(nextSession));
@@ -331,7 +405,7 @@ const OnDemandPlayerPage: React.FC = () => {
   useEffect(() => {
     if (!contentScrollRef.current) return;
     contentScrollRef.current.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [activeLesson?.slug, lessonSlugParam]);
+  }, [activeLesson?.topicId, lessonSlugParam]);
 
   useLayoutEffect(() => {
     const container = chatListRef.current;
@@ -444,14 +518,22 @@ const OnDemandPlayerPage: React.FC = () => {
 
       const normalizedParam = lessonSlugParam ? normalizeSlugValue(lessonSlugParam) : null;
       const normalizedActive = activeSlug ? normalizeSlugValue(activeSlug) : null;
+      const findById = (value: string | null | undefined) =>
+        value ? sorted.find((lesson) => lesson.topicId === value) : null;
       const findBySlug = (slug: string | null) =>
         slug ? sorted.find((lesson) => normalizeSlugValue(lesson.slug) === slug) : null;
 
-      const matched = findBySlug(normalizedParam) ?? findBySlug(normalizedActive) ?? sorted[0] ?? null;
-      if (matched?.slug) {
-        setActiveSlug(matched.slug);
-        if (normalizedParam && normalizeSlugValue(matched.slug) !== normalizedParam) {
-          setLocation(`/ondemand/${courseKey}/learn/${matched.slug}`);
+      const matched =
+        findById(lessonSlugParam) ??
+        findById(activeSlug) ??
+        findBySlug(normalizedParam) ??
+        findBySlug(normalizedActive) ??
+        sorted[0] ??
+        null;
+      if (matched?.topicId) {
+        setActiveSlug(matched.topicId);
+        if (lessonSlugParam !== matched.topicId) {
+          setLocation(`/ondemand/${courseKey}/learn/${matched.topicId}`);
         }
       }
     } catch (error) {
@@ -461,7 +543,7 @@ const OnDemandPlayerPage: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     }
-  }, [courseKey, session?.accessToken, activeSlug, setLocation, toast]);
+  }, [courseKey, session?.accessToken, activeSlug, lessonSlugParam, setLocation, toast]);
 
   const fetchProgress = useCallback(async () => {
     if (!courseKey || !session?.accessToken) return;
@@ -479,12 +561,108 @@ const OnDemandPlayerPage: React.FC = () => {
             progress: lesson.progress ?? 0,
           }))
         : [];
-      setCourseProgress(Number.isFinite(data?.percent) ? data.percent : 0);
       setLessonProgressMap(new Map(lessonsProgress.map((entry) => [entry.lessonId, entry])));
     } catch (error) {
       console.error("Failed to load on-demand progress", error);
     }
   }, [courseKey, session?.accessToken]);
+
+  const fetchSections = useCallback(async () => {
+    if (!courseKey || !session?.accessToken) {
+      setSections([]);
+      return;
+    }
+    try {
+      const res = await fetch(buildApiUrl(`/api/quiz/sections/${courseKey}`), {
+        credentials: "include",
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const list: QuizSection[] = (data.sections ?? []).map((s: any) => ({
+        moduleNo: s.moduleNo,
+        topicPairIndex: s.topicPairIndex,
+        title: s.title ?? `Module ${s.moduleNo} - Topic pair ${s.topicPairIndex}`,
+        questionCount: typeof s.questionCount === "number" ? s.questionCount : Number(s.questionCount ?? 0),
+        passed: Boolean(s.passed),
+      }));
+      const withQuestions = list.filter((section) => (Number(section.questionCount) || 0) > 0);
+      setSections(withQuestions);
+    } catch (error) {
+      console.error("Failed to load quiz sections", error);
+      setSections([]);
+    }
+  }, [courseKey, session?.accessToken]);
+
+  const handleStartQuiz = useCallback(
+    async (moduleNo: number, topicPairIndex: number) => {
+      if (!courseKey) return;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+      try {
+        const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({ courseId: courseKey, moduleNo, topicPairIndex, limit: 5 }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setSelectedSection({ moduleNo, topicPairIndex });
+        setQuizAttemptId(data.attemptId ?? null);
+        setQuizQuestions(data.questions ?? []);
+        setAnswers({});
+        setQuizResult(null);
+        setIsQuizMode(true);
+        setQuizPhase("intro");
+        setQuizTimer(60);
+        setSidebarOpen(false);
+        setChatOpen(false);
+        setNotesOpen(false);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Quiz unavailable",
+          description: error instanceof Error ? error.message : "Please try again",
+        });
+      }
+    },
+    [courseKey, session?.accessToken, toast],
+  );
+
+  const handleSubmitQuiz = useCallback(async () => {
+    if (!quizAttemptId) return;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+    try {
+      const payload = Object.entries(answers).map(([questionId, optionId]) => ({ questionId, optionId }));
+      const res = await fetch(buildApiUrl(`/api/quiz/attempts/${quizAttemptId}/submit`), {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({ answers: payload }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const base = data?.result ?? {};
+      setQuizResult({
+        correctCount: base.correctCount ?? 0,
+        totalQuestions: base.totalQuestions ?? quizQuestions.length,
+        scorePercent: base.scorePercent ?? 0,
+        passed: Boolean(base.passed),
+        thresholdPercent: base.thresholdPercent ?? PASSING_PERCENT_THRESHOLD,
+      });
+      setQuizPhase("result");
+      toast({ title: base?.passed ? "Quiz passed" : "Quiz submitted" });
+      void fetchSections();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Could not submit quiz",
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    }
+  }, [quizAttemptId, answers, quizQuestions.length, session?.accessToken, toast, fetchSections]);
 
   useEffect(() => {
     void fetchTopics();
@@ -495,6 +673,38 @@ const OnDemandPlayerPage: React.FC = () => {
   }, [fetchProgress]);
 
   useEffect(() => {
+    void fetchSections();
+  }, [fetchSections]);
+
+  const handleSubmoduleSelect = (sub: SubModule) => {
+    if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
+    if (sub.type === "quiz") {
+      void handleStartQuiz(sub.moduleNo, sub.topicPairIndex ?? 1);
+      return;
+    }
+    const nextLessonId = sub.topicId ?? sub.id;
+    if (nextLessonId) {
+      setIsQuizMode(false);
+      setQuizPhase("intro");
+      setActiveSlug(nextLessonId);
+      setLocation(`/ondemand/${courseKey}/learn/${nextLessonId}`);
+    }
+  };
+
+  useEffect(() => {
+    if (isQuizMode && quizPhase === "active" && quizTimer > 0) {
+      const interval = window.setInterval(() => {
+        setQuizTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+    if (isQuizMode && quizPhase === "active" && quizTimer === 0) {
+      void handleSubmitQuiz();
+    }
+    return;
+  }, [isQuizMode, quizPhase, quizTimer, handleSubmitQuiz]);
+
+  useEffect(() => {
     if (lessons.length === 0) return;
     const grouped = new Map<number, Lesson[]>();
     lessons.forEach((lesson) => {
@@ -503,18 +713,56 @@ const OnDemandPlayerPage: React.FC = () => {
       grouped.set(lesson.moduleNo, list);
     });
     const moduleEntries = Array.from(grouped.entries()).sort(([a], [b]) => a - b);
-    const newModules: Module[] = moduleEntries.map(([moduleNo, moduleLessons]) => ({
-      id: moduleNo,
-      title: moduleLessons[0]?.moduleName ?? `Module ${moduleNo}`,
-      lessons: moduleLessons.sort((a, b) => a.topicNumber - b.topicNumber),
-    }));
+    const newModules: Module[] = moduleEntries.map(([moduleNo, moduleLessons]) => {
+      const sortedLessons = moduleLessons.sort((a, b) => a.topicNumber - b.topicNumber);
+      const submodules: SubModule[] = [];
+      const sectionForModule = sections
+        .filter((section) => section.moduleNo === moduleNo)
+        .sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+      const sectionByPair = new Map(sectionForModule.map((section) => [section.topicPairIndex, section]));
+
+      sortedLessons.forEach((lesson, idx) => {
+        const pairIdx = Math.ceil((idx + 1) / 2);
+        submodules.push({
+          id: lesson.topicId,
+          title: lesson.topicName,
+          type: "video",
+          slug: lesson.slug,
+          topicId: lesson.topicId,
+          moduleNo: lesson.moduleNo,
+          topicNumber: lesson.topicNumber,
+          topicPairIndex: pairIdx,
+          unlocked: true,
+        });
+        if ((idx + 1) % 2 === 0) {
+          const section = sectionByPair.get(pairIdx);
+          if (section) {
+            submodules.push({
+              id: `quiz-${moduleNo}-${pairIdx}`,
+              title: `Quiz ${pairIdx}`,
+              type: "quiz",
+              moduleNo,
+              topicPairIndex: pairIdx,
+              unlocked: true,
+              quizPassed: section.passed,
+            });
+          }
+        }
+      });
+
+      return {
+        id: moduleNo,
+        title: sortedLessons[0]?.moduleName ?? `Module ${moduleNo}`,
+        submodules,
+      };
+    });
     setModules(newModules);
     setExpandedModules(new Set(newModules.map((m) => m.id)));
-  }, [lessons]);
+  }, [lessons, sections]);
 
   useEffect(() => {
     const greeting = buildTopicGreeting(activeLesson);
-    const welcomeId = `welcome-${activeLesson?.slug ?? "welcome"}`;
+    const welcomeId = `welcome-${activeLesson?.topicId ?? activeLesson?.slug ?? "welcome"}`;
     setChatMessages([{ id: welcomeId, text: greeting, isBot: true }]);
     setUsedSuggestionIds(new Set());
     setInlineFollowUps({});
@@ -547,7 +795,10 @@ const OnDemandPlayerPage: React.FC = () => {
           text: typeof message?.content === "string" ? message.content : "",
           isBot: message?.role !== "user",
         }));
-        setChatMessages([{ id: `welcome-${activeLesson?.slug ?? "welcome"}`, text: greeting, isBot: true }, ...mapped]);
+        setChatMessages([
+          { id: `welcome-${activeLesson?.topicId ?? activeLesson?.slug ?? "welcome"}`, text: greeting, isBot: true },
+          ...mapped,
+        ]);
       }
       setChatSessionId(typeof payload?.sessionId === "string" ? payload.sessionId : null);
     } finally {
@@ -711,6 +962,17 @@ const OnDemandPlayerPage: React.FC = () => {
       }
       void fetchProgress();
       toast({ title: "Lesson completed", description: "Nice work. Progress updated." });
+      if (courseKey) {
+        const moduleLessons = lessons
+          .filter((lesson) => lesson.moduleNo === activeLesson.moduleNo)
+          .sort((a, b) => a.topicNumber - b.topicNumber);
+        const currentIndex = moduleLessons.findIndex((lesson) => lesson.topicId === activeLesson.topicId);
+        const nextLesson = currentIndex >= 0 ? moduleLessons[currentIndex + 1] : null;
+        if (nextLesson?.topicId) {
+          setActiveSlug(nextLesson.topicId);
+          setLocation(`/ondemand/${courseKey}/learn/${nextLesson.topicId}`);
+        }
+      }
     } catch (error) {
       toast({
         variant: "destructive",
@@ -718,11 +980,18 @@ const OnDemandPlayerPage: React.FC = () => {
         description: error instanceof Error ? error.message : "Please try again.",
       });
     }
-  }, [activeLesson, session?.accessToken, fetchProgress, toast]);
+  }, [activeLesson, session?.accessToken, fetchProgress, toast, lessons, courseKey, setLocation]);
 
   const activeProgress = activeLesson ? lessonProgressMap.get(activeLesson.topicId) : null;
   const isLessonCompleted = activeProgress?.status === "completed";
-  const safeProgress = Math.max(0, Math.min(100, Math.round(courseProgress)));
+  const lessonCompletedCount = lessons.reduce((count, lesson) => {
+    const progress = lessonProgressMap.get(lesson.topicId);
+    return progress?.status === "completed" ? count + 1 : count;
+  }, 0);
+  const quizPassedCount = sections.filter((section) => section.passed).length;
+  const totalUnits = lessons.length + sections.length;
+  const combinedProgress = totalUnits === 0 ? 0 : Math.round(((lessonCompletedCount + quizPassedCount) / totalUnits) * 100);
+  const safeProgress = Math.max(0, Math.min(100, combinedProgress));
 
   const parsedBlocks = parseContentBlocks(activeLesson?.textContent ?? null);
   const activePptEmbedUrl = useMemo(() => buildOfficeViewerUrl(activeLesson?.pptUrl), [activeLesson?.pptUrl]);
@@ -743,24 +1012,26 @@ const OnDemandPlayerPage: React.FC = () => {
             if (!content) return null;
             const normalized = normalizeStudyMarkdown(content);
             return (
-              <section key={`${block.id ?? "text"}-${index}`} className="mb-10">
+              <section key={`${block.id ?? "text"}-${index}`} className="mb-10 space-y-4">
                 {!renderedTextHeader && (
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-neutral-400 border-b border-white/10 pb-2 mb-4">
-                    <BookOpen size={12} className="text-white/60" /> Study Material
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
+                    <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
                   </div>
                 )}
                 {(() => {
                   renderedTextHeader = true;
                   return null;
                 })()}
-                <div className="rounded-lg border border-white/10 bg-white/5 p-5 md:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeSanitize]}
-                    components={studyMarkdownComponents}
-                  >
-                    {normalized}
-                  </ReactMarkdown>
+                <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                  <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeSanitize]}
+                      components={studyMarkdownComponents}
+                    >
+                      {normalized}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </section>
             );
@@ -778,7 +1049,7 @@ const OnDemandPlayerPage: React.FC = () => {
                 <img
                   src={url}
                   alt="Lesson visual"
-                  className="w-full rounded-lg border border-white/10 shadow-[0_0_32px_-20px_rgba(255,255,255,0.12)] transition-all duration-300 ease-out hover:scale-[1.01]"
+                  className="w-full rounded-2xl border border-[#e8e1d8] shadow-[0_20px_60px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out hover:scale-[1.01]"
                 />
               </div>
             );
@@ -790,7 +1061,7 @@ const OnDemandPlayerPage: React.FC = () => {
             return (
               <div
                 key={`${block.id ?? "video"}-${index}`}
-                className="mb-10 aspect-video w-full rounded-lg overflow-hidden border border-white/10 bg-black shadow-[0_0_40px_-20px_rgba(255,255,255,0.12)] transition-all duration-300 ease-out hover:scale-[1.01]"
+                className="mb-10 aspect-video w-full rounded-2xl overflow-hidden border border-[#e8e1d8] bg-black shadow-[0_20px_60px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out hover:scale-[1.01]"
               >
                 <iframe
                   src={embed}
@@ -809,7 +1080,7 @@ const OnDemandPlayerPage: React.FC = () => {
             return (
               <div
                 key={`${block.id ?? "ppt"}-${index}`}
-                className="mb-10 aspect-video w-full rounded-lg overflow-hidden border border-white/10 bg-black shadow-[0_0_40px_-20px_rgba(255,255,255,0.12)] transition-all duration-300 ease-out hover:scale-[1.01]"
+                className="mb-10 aspect-video w-full rounded-2xl overflow-hidden border border-[#e8e1d8] bg-black shadow-[0_20px_60px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out hover:scale-[1.01]"
               >
                 <iframe src={embed} title="Lesson slides" className="w-full h-full" />
               </div>
@@ -825,14 +1096,16 @@ const OnDemandPlayerPage: React.FC = () => {
 
       return {
         node: (
-          <section className="mb-10">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-neutral-400 border-b border-white/10 pb-2 mb-4">
-              <BookOpen size={12} className="text-white/60" /> Study Material
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
+              <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 p-5 md:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <p className="text-sm text-neutral-300">
-                This lesson content is still being prepared. Please check another topic or come back later.
-              </p>
+            <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+              <div className="p-6 sm:p-8">
+                <p className="text-sm text-[#4a4845]">
+                  This lesson content is still being prepared. Please check another topic or come back later.
+                </p>
+              </div>
             </div>
           </section>
         ),
@@ -844,18 +1117,20 @@ const OnDemandPlayerPage: React.FC = () => {
     if (normalized) {
       return {
         node: (
-          <section className="mb-10">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-neutral-400 border-b border-white/10 pb-2 mb-4">
-              <BookOpen size={12} className="text-white/60" /> Study Material
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
+              <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
             </div>
-            <div className="rounded-lg border border-white/10 bg-white/5 p-5 md:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeSanitize]}
-                components={studyMarkdownComponents}
-              >
-                {normalized}
-              </ReactMarkdown>
+            <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+              <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSanitize]}
+                  components={studyMarkdownComponents}
+                >
+                  {normalized}
+                </ReactMarkdown>
+              </div>
             </div>
           </section>
         ),
@@ -866,14 +1141,16 @@ const OnDemandPlayerPage: React.FC = () => {
     const fallback = normalizeStudyMarkdown(DEFAULT_STUDY_FALLBACK);
     return {
       node: (
-        <section className="mb-10">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-neutral-400 border-b border-white/10 pb-2 mb-4">
-            <BookOpen size={12} className="text-white/60" /> Study Material
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
+            <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
           </div>
-          <div className="rounded-lg border border-white/10 bg-white/5 p-5 md:p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={studyMarkdownComponents}>
-              {fallback}
-            </ReactMarkdown>
+          <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+            <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={studyMarkdownComponents}>
+                {fallback}
+              </ReactMarkdown>
+            </div>
           </div>
         </section>
       ),
@@ -882,57 +1159,59 @@ const OnDemandPlayerPage: React.FC = () => {
   };
 
   return (
-    <div className="ondemand-premium min-h-screen lg:h-screen bg-[#050505] text-white antialiased relative overflow-hidden font-sans">
+    <div className="ondemand-premium h-screen bg-[#000000] text-[#f8f1e6] antialiased relative overflow-hidden font-sans">
       <style>{`
         .ondemand-premium *:focus-visible {
-          outline: 2px solid rgba(255, 255, 255, 0.25);
+          outline: 2px solid rgba(248, 241, 230, 0.35);
           outline-offset: 2px;
         }
       `}</style>
-      <header className="sticky top-0 z-40 bg-[rgba(20,20,22,0.6)] backdrop-blur-md border-b border-white/10 h-16 shadow-[0_10px_30px_-20px_rgba(0,0,0,0.8)]">
-        <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-10 h-16 flex flex-col lg:flex-row gap-4 items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+      <header className="sticky top-0 z-40 bg-[#050505] border-b border-[#4a4845]/60 h-16">
+        <div className="px-4 md:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3 md:gap-4 flex-wrap">
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex items-center justify-center rounded-full border border-white/20 text-white/80 p-2"
+                aria-label="Open course navigation"
+              >
+                <Menu size={18} />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setLocation("/student-dashboard")}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white/80 hover:text-white transition-all duration-300 ease-out"
+              className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
             >
-              <ArrowLeft size={16} /> Back to dashboard
+              <ArrowLeft size={16} /> Back
             </button>
-            <div className="hidden sm:block h-4 w-px bg-[#4a4845]/60" />
-            {activeLesson?.moduleName && (
-              <span className="px-3 py-1 rounded-md border border-white/10 bg-white/5 text-white text-[11px] font-semibold uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                {activeLesson.moduleName}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col text-right">
-              <span className="text-[11px] uppercase tracking-[0.35em] text-white/50">Course progress</span>
-              <span className="text-sm font-semibold text-white">{safeProgress}% completed</span>
-              <div className="mt-2 h-1 w-36 rounded-md bg-white/5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]">
-                <div
-                  className="h-1 rounded-md bg-white shadow-[0_0_12px_rgba(255,255,255,0.35)]"
-                  style={{ width: `${safeProgress}%` }}
-                />
-              </div>
+            <div>
+              <p className="text-xs text-[#f8f1e6]/60">
+                {activeLesson?.moduleName ?? (activeLesson ? `Module ${activeLesson.moduleNo}` : "Module")}
+              </p>
+              <h1 className="text-xl md:text-2xl font-black leading-tight">
+                {activeLesson?.topicName ?? "Loading..."}
+              </h1>
             </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
+            <span>Progress {safeProgress}%</span>
           </div>
         </div>
       </header>
 
-      <main className="w-full mx-auto px-0 py-6 lg:py-8 pb-20 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-0 border-t border-white/10 lg:h-[calc(100vh-64px)] lg:overflow-hidden">
+      <main className="flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
         {isMobile && (
-          <div className="flex items-center justify-between rounded-lg bg-[rgba(20,20,22,0.7)] backdrop-blur-md border border-white/10 px-4 py-3 shadow-[0_12px_30px_-20px_rgba(0,0,0,0.8)]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#4a4845]/60 bg-[#050505]">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[#f8f1e6]/60">Current topic</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[#f8f1e6]/60">Current topic</p>
               <p className="text-sm font-semibold text-white">{activeLesson?.topicName ?? "Loading..."}</p>
             </div>
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="px-3 py-1.5 rounded-sm border border-white/20 text-white text-xs font-semibold hover:bg-white/5 transition-all duration-300 ease-out hover:scale-[1.01]"
+              className="px-3 py-1.5 rounded-full border border-[#4a4845]/60 text-[#f8f1e6] text-xs font-semibold hover:bg-white/5 transition"
             >
               Course outline
             </button>
@@ -944,53 +1223,45 @@ const OnDemandPlayerPage: React.FC = () => {
             type="button"
             aria-label="Close sidebar"
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 z-40"
+            className="fixed inset-0 bg-black/60 z-30 lg:hidden"
           />
         )}
 
         <aside
-          className={`bg-[rgba(20,20,22,0.6)] backdrop-blur-md rounded-lg border border-white/10 p-5 lg:p-6 h-fit lg:sticky lg:top-20 z-50 transition-transform duration-300 ease-out shadow-[0_24px_60px_-45px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)] ${
+          className={`bg-[#000000] transition-all duration-300 ease-in-out flex flex-col overflow-hidden ${
             isMobile
-              ? `fixed top-0 left-0 h-full w-80 max-w-[90vw] overflow-y-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`
-              : "lg:h-full lg:overflow-y-auto"
+              ? `fixed top-0 left-0 h-full w-72 max-w-[85vw] transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"} border-r border-[#4a4845]/70 shadow-2xl z-40`
+              : "w-80 border-r border-[#4a4845] shrink-0"
           }`}
         >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.3em] text-[#f8f1e6]/60">Course Outline</p>
-              <p className="text-sm font-semibold text-white">{activeLesson?.moduleName ?? "All topics"}</p>
-            </div>
+          <div className="h-14 flex items-center justify-between px-3 border-b border-[#4a4845]/50 bg-white/5">
+            <h2 className="font-bold text-sm text-[#f8f1e6] truncate">Course Content</h2>
             {isMobile && (
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-sm border border-white/10 hover:bg-white/10 transition-all duration-300 ease-out"
+                className="p-2 rounded-sm border border-white/10 hover:bg-white/10 transition"
               >
                 <X size={16} />
               </button>
             )}
           </div>
 
-          <div className="rounded-md border border-white/10 bg-white/5 p-4 mb-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <div className="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-white/50 mb-3">
-              <span>Progress</span>
-              <span className="font-semibold text-white">{safeProgress}%</span>
+          <div className="p-4 border-b border-[#4a4845]/20">
+            <div className="flex justify-between items-center text-xs text-[#f8f1e6] mb-1">
+              <span className="font-bold">Progress</span>
+              <span className="text-[#f8f1e6]/60">{safeProgress}%</span>
             </div>
-            <div className="h-1 rounded-md bg-white/5 shadow-[inset_0_1px_2px_rgba(0,0,0,0.7)]">
-              <div
-                className="h-1 rounded-md bg-white shadow-[0_0_12px_rgba(255,255,255,0.35)]"
-                style={{ width: `${safeProgress}%` }}
-              />
+            <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
+              <div className="h-full bg-[#bf2f1f] transition-all duration-500" style={{ width: `${safeProgress}%` }} />
             </div>
-            <p className="text-[11px] text-[#f8f1e6]/50 mt-3">Track completion status as you go.</p>
           </div>
 
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4">
             {modules.map((module) => (
-              <div key={module.id} className="rounded-lg border border-white/10 overflow-hidden bg-white/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-white bg-white/5 border-b border-white/10 transition-all duration-300 ease-out hover:bg-white/10"
+              <div key={module.id}>
+                <div
+                  className="flex items-center justify-between cursor-pointer p-2 hover:bg-white/5 rounded group"
                   onClick={() => {
                     setExpandedModules((prev) => {
                       const next = new Set(prev);
@@ -1003,272 +1274,387 @@ const OnDemandPlayerPage: React.FC = () => {
                     });
                   }}
                 >
-                  <span>{module.title}</span>
-                  {expandedModules.has(module.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-                {expandedModules.has(module.id) && (
-                  <div className="px-3 py-2 space-y-1">
-                    {module.lessons.map((lesson) => {
-                      const progress = lessonProgressMap.get(lesson.topicId);
-                      const completed = progress?.status === "completed";
-                      const isActive = lesson.slug === activeLesson?.slug;
-                      return (
-                        <button
-                          key={lesson.topicId}
-                          type="button"
-                          onClick={() => {
-                            setLocation(`/ondemand/${courseKey}/learn/${lesson.slug}`);
-                            if (isMobile) setSidebarOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-all duration-300 ease-out border-l-2 rounded-md ${
-                            isActive
-                              ? "bg-gradient-to-r from-white/10 to-transparent border-white text-white shadow-[0_0_24px_-16px_rgba(255,255,255,0.6)]"
-                              : "border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-white/5"
+                  <div className="text-[10px] uppercase tracking-wider text-white font-bold whitespace-normal break-words">
+                    {module.title}
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-white/70 transition-transform duration-200 ${expandedModules.has(module.id) ? "rotate-180" : ""}`}
+                  />
+                </div>
+
+                <div
+                  className={`space-y-1 transition-all duration-300 ${
+                    expandedModules.has(module.id) ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
+                  }`}
+                >
+                  {module.submodules.map((sub) => {
+                    const videoId = sub.topicId ?? sub.id;
+                    const completed =
+                      sub.type === "video"
+                        ? lessonProgressMap.get(videoId)?.status === "completed"
+                        : Boolean(sub.quizPassed);
+                    const isActive =
+                      sub.type === "video"
+                        ? videoId === activeLesson?.topicId
+                        : isQuizMode &&
+                          selectedSection?.moduleNo === sub.moduleNo &&
+                          selectedSection?.topicPairIndex === sub.topicPairIndex;
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => {
+                          handleSubmoduleSelect(sub);
+                          if (isMobile) setSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 p-2 rounded-md text-xs transition text-left border ${
+                          isActive
+                            ? "bg-[#bf2f1f] border-[#bf2f1f] text-white"
+                            : "hover:bg-white/5 border-transparent text-[#f8f1e6]/70"
+                        }`}
+                      >
+                        <span
+                          className={`flex-shrink-0 h-5 w-5 flex items-center justify-center border rounded-sm ${
+                            completed
+                              ? "bg-[#bf2f1f]/15 border-[#bf2f1f] text-[#bf2f1f]"
+                              : "border-[#4a4845]/50 text-[#f8f1e6]/40"
                           }`}
                         >
-                          <span
-                            className={`flex-shrink-0 h-5 w-5 flex items-center justify-center border rounded-sm ${
-                              completed
-                                ? "bg-emerald-500/10 border-emerald-400 text-emerald-300"
-                                : "border-white/10 text-white/40"
-                            }`}
-                          >
-                            <CheckCircle size={14} />
-                          </span>
-                          <span className="flex-1 line-clamp-2">{lesson.topicName}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                          {sub.type === "quiz" ? <FileText size={12} /> : <Play size={12} />}
+                        </span>
+                        <span className="truncate flex-1">{sub.title}</span>
+                        {sub.type === "quiz" && (
+                          <span className="text-[10px] text-[#f8f1e6]/50">Quiz</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
         </aside>
 
-        <section
-          ref={contentScrollRef}
-          className="space-y-6 lg:border-l border-white/10 lg:h-full lg:overflow-y-auto px-6 md:px-8 py-6"
-        >
-          <div className="rounded-lg border border-white/10 bg-[rgba(20,20,22,0.6)] backdrop-blur-md px-6 py-6 shadow-[0_24px_60px_-45px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)]">
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.4em] text-neutral-400">
-                  {activeLesson?.moduleName && <span>{activeLesson.moduleName}</span>}
-                </div>
-                <h1 className="text-2xl md:text-4xl font-semibold text-white/90 tracking-tight leading-tight">
-                  {activeLesson?.topicName ?? "Loading topic..."}
-                </h1>
-                <p className="text-sm text-neutral-400">
-                  Dive into the material, take notes, and mark complete when you feel confident.
-                </p>
+        <section ref={contentScrollRef} className="flex-1 overflow-y-auto">
+          {isQuizMode ? (
+            <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative min-h-[70vh]">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+                {quizPhase === "intro" && (
+                  <div className="text-center space-y-6 animate-fade-in">
+                    <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
+                      <Lock size={48} />
+                    </div>
+                    <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">Quick Check</h2>
+                    <p className="text-lg text-[#4a4845] font-medium">
+                      This quiz is optional and boosts your progress.
+                      <br />
+                      <span className="text-[#bf2f1f] font-bold">Retry anytime.</span>
+                    </p>
+                    <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
+                      </li>
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
+                      </li>
+                      <li className="flex gap-2">
+                        <ArrowDown size={16} className="text-[#bf2f1f]" /> Pass at 70% to earn credit
+                      </li>
+                    </ul>
+                    <button
+                      onClick={() => setQuizPhase("active")}
+                      className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
+                    >
+                      Start Quiz
+                    </button>
+                  </div>
+                )}
+
+                {quizPhase === "active" && (
+                  <div className="animate-fade-in">
+                    <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
+                      <span className="font-bold text-[#4a4845]">
+                        Question {Object.keys(answers).length + 1} / {quizQuestions.length}
+                      </span>
+                      <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
+                        {Math.floor(quizTimer / 60).toString().padStart(2, "0")}:
+                        {(quizTimer % 60).toString().padStart(2, "0")}
+                      </span>
+                    </div>
+
+                    <div className="space-y-8">
+                      {quizQuestions.map((q, idx) => (
+                        <div key={q.questionId} className="space-y-4">
+                          <h3 className="text-xl font-bold">
+                            {idx + 1}. {q.prompt}
+                          </h3>
+                          <div className="grid gap-3">
+                            {q.options.map((opt) => (
+                              <button
+                                key={opt.optionId}
+                                onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
+                                className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${
+                                  answers[q.questionId] === opt.optionId
+                                    ? "bg-[#000000] text-white border-[#000000]"
+                                    : "bg-white border-[#4a4845]/20 hover:border-[#000000]"
+                                }`}
+                              >
+                                {opt.text}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      disabled={quizQuestions.some((q) => !answers[q.questionId])}
+                      onClick={handleSubmitQuiz}
+                      className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                    >
+                      Submit Assessment
+                    </button>
+                  </div>
+                )}
+
+                {quizPhase === "result" && quizResult && (
+                  <div className="text-center animate-fade-in space-y-6">
+                    <div
+                      className={`inline-flex p-6 rounded-full border-4 mb-4 ${
+                        quizResult.passed ? "bg-green-100 border-green-500 text-green-600" : "bg-red-100 border-red-500 text-red-600"
+                      }`}
+                    >
+                      {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
+                    </div>
+                    <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Quiz Passed" : "Try Again"}</h2>
+                    <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
+                    <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
+                    <button
+                      onClick={() => {
+                        setIsQuizMode(false);
+                        setQuizPhase("intro");
+                        setQuizQuestions([]);
+                        setAnswers({});
+                        setSelectedSection(null);
+                        setQuizAttemptId(null);
+                        setQuizResult(null);
+                      }}
+                      className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
+                    >
+                      Back to course
+                    </button>
+                  </div>
+                )}
               </div>
-              <button
-                type="button"
-                disabled={isLessonCompleted}
-                onClick={() => void handleMarkComplete()}
-                className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] rounded-md border transition-all duration-300 ease-out ${
-                  isLessonCompleted
-                    ? "border-white/10 text-white/60 bg-white/5"
-                    : "border-red-500/50 text-white bg-gradient-to-b from-red-600 to-red-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:scale-[1.01]"
-                }`}
-              >
-                <CheckCircle size={14} />
-                {isLessonCompleted ? "Completed" : "Mark as Complete"}
-              </button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className={`relative bg-black flex justify-center items-center ${isMobile ? "h-[40vh]" : "h-[65vh]"}`}>
+                <div className="relative aspect-video group bg-black shadow-2xl max-w-full max-h-full w-full h-full">
+                  {activeLesson?.videoUrl ? (
+                    <iframe
+                      className="w-full h-full"
+                      src={normalizeVideoUrl(activeLesson.videoUrl)}
+                      title="Lesson video"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
+                      No video for this lesson.
+                    </div>
+                  )}
+                </div>
+              </div>
 
-          <div className="rounded-lg border border-white/10 bg-[rgba(20,20,22,0.6)] backdrop-blur-md px-6 py-6 shadow-[0_24px_60px_-45px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)]">
-            {activeLesson?.videoUrl ? (
-              <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-white/10 shadow-[0_0_40px_-15px_rgba(255,255,255,0.15)] transition-all duration-300 ease-out hover:scale-[1.01]">
-                <iframe
-                  src={normalizeVideoUrl(activeLesson.videoUrl)}
-                  title="Lesson video"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <div className="aspect-video w-full rounded-lg bg-black/40 border border-dashed border-white/10 flex items-center justify-center text-neutral-400">
-                No video for this lesson.
-              </div>
-            )}
-          </div>
+              <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
+                <div className="w-full px-4 sm:px-6 lg:px-10 py-8 space-y-8">
+                  <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] p-6 sm:p-8">
+                    <div className="flex flex-wrap items-start justify-between gap-6">
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.4em] text-[#4a4845]">
+                          {activeLesson?.moduleName && <span>{activeLesson.moduleName}</span>}
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black text-[#1c242c] tracking-tight leading-tight">
+                          {activeLesson?.topicName ?? "Loading topic..."}
+                        </h2>
+                        <p className="text-sm text-[#4a4845]">
+                          Dive into the material, take notes, and mark complete when you feel confident.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isLessonCompleted}
+                        onClick={() => void handleMarkComplete()}
+                        className={`inline-flex items-center gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] rounded-md border transition ${
+                          isLessonCompleted
+                            ? "border-[#e8e1d8] text-[#4a4845] bg-white/60"
+                            : "border-[#bf2f1f] text-white bg-[#bf2f1f] hover:bg-[#a62619] shadow-[0_12px_30px_-20px_rgba(191,47,31,0.6)]"
+                        }`}
+                      >
+                        <CheckCircle size={14} />
+                        {isLessonCompleted ? "Completed" : "Mark as Complete"}
+                      </button>
+                    </div>
+                  </div>
 
-          <div className="rounded-lg border border-white/10 bg-[rgba(20,20,22,0.55)] backdrop-blur-md px-6 py-8 space-y-8 shadow-[0_24px_60px_-45px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.05)]">
-            {renderStudyMaterial().node}
+                  {renderStudyMaterial().node}
 
-            {hasSimulationBody && activeLesson?.simulation && (
-              <div>
-                <SimulationExercise simulation={activeLesson.simulation} theme="dark" />
-              </div>
-            )}
-            {!hasSimulationBody && activeLesson?.simulation && (
-              <div className="rounded-md border border-white/10 bg-white/5 p-4 text-sm text-neutral-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                Simulation content is not available for this lesson yet.
-              </div>
-            )}
+                  {hasSimulationBody && activeLesson?.simulation && (
+                    <div className="space-y-4">
+                      <SimulationExercise simulation={activeLesson.simulation} />
+                    </div>
+                  )}
+                  {!hasSimulationBody && activeLesson?.simulation && (
+                    <div className="rounded-xl border border-[#e8e1d8] bg-white/80 p-4 text-sm text-[#4a4845] shadow-sm">
+                      Simulation content is not available for this lesson yet.
+                    </div>
+                  )}
 
-            {activePptEmbedUrl && (
-              <div className="aspect-video w-full rounded-lg overflow-hidden border border-white/10 bg-black shadow-[0_0_40px_-20px_rgba(255,255,255,0.1)]">
-                <iframe src={activePptEmbedUrl} title="Lesson slides" className="w-full h-full" />
+                  {activePptEmbedUrl && (
+                    <div className="space-y-3">
+                      <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                          <FileText size={16} className="text-[#bf2f1f]" />
+                          <span>Slides Viewer</span>
+                        </div>
+                        <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                          <iframe src={activePptEmbedUrl} title="Lesson slides" className="w-full h-full border-0" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </section>
       </main>
 
-      {chatOpen && (
+      {chatOpen && !isQuizMode && (
         <div
-          className="fixed z-50 bg-[rgba(20,20,22,0.85)] backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)]"
+          className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
           style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
         >
           <div
-            className="flex items-center justify-between px-4 py-3 bg-white/10 text-white cursor-move border-b border-white/10"
+            className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
           >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <MessageSquare size={16} /> AI Tutor
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setChatOpen(false)} className="p-1 rounded-sm hover:bg-white/10 transition-all duration-300 ease-out">
-                <X size={14} />
-              </button>
+            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
             </div>
           </div>
-          <div className="flex flex-col h-[calc(100%-52px)]">
-            <div ref={chatListRef} className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-white/80">
-              {chatHistoryLoading && <div className="text-xs text-[#f8f1e6]/50">Loading chat history...</div>}
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.isBot ? "justify-start" : "justify-end"}`}>
-                  <div
-                    className={`max-w-[80%] px-4 py-2 rounded-md border shadow-[0_10px_30px_-24px_rgba(0,0,0,0.8)] ${
-                      msg.isBot
-                        ? "bg-white/5 text-white/80 border-white/10"
-                        : "bg-gradient-to-b from-red-600/80 to-red-700/80 text-white border-red-500/40"
-                    }`}
+          <div
+            ref={chatListRef}
+            className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
+          >
+            {chatHistoryLoading && <div className="text-xs text-[#f8f1e6]/50">Loading chat history...</div>}
+            {chatMessages.map((msg) => (
+              <div key={msg.id} className="space-y-2">
+                <div
+                  className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""}`}
+                >
+                  <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
+                  <div className="whitespace-pre-line">{msg.text}</div>
+                </div>
+              </div>
+            ))}
+
+            {visibleStarterSuggestions.length > 0 && (
+              <div className="flex flex-col gap-2 items-start">
+                {visibleStarterSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    disabled={chatLoading}
+                    onClick={() => void handleSendChat({ suggestion })}
+                    className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
+                      ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                      : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                      }`}
                   >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
+                    {suggestion.promptText}
+                  </button>
+                ))}
+              </div>
+            )}
 
-              {visibleStarterSuggestions.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {visibleStarterSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion.id}
-                      type="button"
-                      className="px-3 py-1.5 rounded-sm text-xs border transition-all duration-300 ease-out border-white/20 text-white/80 hover:border-white/40 hover:text-white hover:scale-[1.01]"
-                      disabled={chatLoading}
-                      onClick={() => void handleSendChat({ suggestion })}
-                    >
-                      {suggestion.promptText}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {chatLoading && <div className="text-xs text-[#f8f1e6]/60">Thinking...</div>}
-            </div>
-            <div className="border-t border-white/10 p-3 flex items-center gap-2 bg-white/5">
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask the tutor..."
-                className="flex-1 rounded-sm border border-white/20 bg-transparent px-4 py-2 text-sm text-white focus:outline-none focus:border-white/40 transition-all duration-300 ease-out"
-                disabled={chatLoading}
-              />
-              <button
-                type="button"
-                onClick={() => void handleSendChat()}
-                disabled={chatLoading || !chatInput.trim()}
-                className="p-2 rounded-sm bg-gradient-to-b from-red-600 to-red-700 border border-red-500/50 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:scale-[1.01] transition-all duration-300 ease-out disabled:opacity-50"
-              >
-                <Send size={16} />
-              </button>
-            </div>
+            {chatLoading && (
+              <div className="text-xs text-[#f8f1e6]/60">Tutor is thinking...</div>
+            )}
           </div>
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/10"
-            onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/10"
-            onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")}
-          />
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/10 hover:bg-white/20 rounded-br-lg"
-            onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")}
-          />
+          <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
+            <input
+              className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
+              placeholder="Ask AI..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSendChat();
+                }
+              }}
+              disabled={chatLoading}
+            />
+            <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
+              <Send size={16} className="text-[#bf2f1f]" />
+            </button>
+          </div>
+          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
         </div>
       )}
 
-      {notesOpen && (
+      {notesOpen && !isQuizMode && (
         <div
-          className="fixed z-50 bg-[rgba(20,20,22,0.85)] backdrop-blur-md border border-white/10 rounded-lg overflow-hidden shadow-[0_24px_60px_-40px_rgba(0,0,0,0.85)]"
+          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
           style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
         >
           <div
-            className="flex items-center justify-between px-4 py-3 bg-white/10 text-white cursor-move border-b border-white/10"
+            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
             onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
           >
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <FileText size={16} /> My Notes
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setNotesOpen(false)} className="p-1 rounded-sm hover:bg-white/10 transition-all duration-300 ease-out">
-                <X size={14} />
-              </button>
+            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
+            <div className="flex items-center gap-1 text-[#f8f1e6]">
+              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
             </div>
           </div>
-          <textarea
-            className="w-full h-[calc(100%-44px)] p-3 text-sm text-white/80 resize-none focus:outline-none bg-transparent font-mono"
-            placeholder="Type notes here..."
-          />
-          <div
-            className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/10"
-            onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")}
-          />
-          <div
-            className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/10"
-            onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")}
-          />
-          <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/10 hover:bg-white/20 rounded-br-lg"
-            onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")}
-          />
+          <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
+          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
+          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
+          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
         </div>
       )}
 
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={() => setChatOpen((prev) => !prev)}
-          className={`w-11 h-11 rounded-md border border-white/10 flex items-center justify-center transition-all duration-300 ease-out shadow-[0_12px_30px_-20px_rgba(0,0,0,0.8)] ${
-            chatOpen
-              ? "bg-gradient-to-b from-red-600 to-red-700 text-white"
-              : "bg-white/10 text-white hover:bg-white/15 hover:scale-[1.01]"
-          }`}
-          title="AI Tutor"
-        >
-          <MessageSquare size={20} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setNotesOpen((prev) => !prev)}
-          className={`w-11 h-11 rounded-md border border-white/10 flex items-center justify-center transition-all duration-300 ease-out shadow-[0_12px_30px_-20px_rgba(0,0,0,0.8)] ${
-            notesOpen
-              ? "bg-white/10 text-white"
-              : "bg-white/5 text-white hover:bg-white/10 hover:scale-[1.01]"
-          }`}
-          title="Notes"
-        >
-          <FileText size={20} />
-        </button>
-      </div>
+      {!isQuizMode && (
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setChatOpen((prev) => !prev)}
+            className={`p-4 rounded-full border-2 border-white shadow-2xl transition-all ${
+              chatOpen ? "bg-[#bf2f1f] text-white scale-105" : "bg-[#bf2f1f] text-white hover:scale-105"
+            }`}
+            title="AI Tutor"
+          >
+            {chatOpen ? <X size={22} /> : <MessageSquare size={22} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setNotesOpen((prev) => !prev)}
+            className={`p-3 rounded-full border-2 border-[#000000] shadow-2xl transition-all ${
+              notesOpen ? "bg-[#000000] text-[#f8f1e6]" : "bg-[#f8f1e6] text-[#000000] hover:scale-105"
+            }`}
+            title="Notes"
+          >
+            <FileText size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
