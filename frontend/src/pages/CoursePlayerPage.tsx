@@ -1984,16 +1984,7 @@ const CoursePlayerPage: React.FC = () => {
                   ? `Intro (of ${realModules.length})`
                   : `Module ${currentModuleDisplay} of ${realModules.length}`}
               </span>
-              {isComplete ? (
-                <button
-                  onClick={() => setLocation(`/course/${courseKey}/congrats`)}
-                  className="px-2 py-1 rounded-md bg-[#bf2f1f] text-white text-[11px] font-bold hover:bg-[#a02a19] transition"
-                >
-                  Certificate
-                </button>
-              ) : (
-                <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
-              )}
+              <span className="text-[#f8f1e6]/60">{Math.round(courseProgress)}%</span>
             </div>
             <div className="h-1.5 bg-[#4a4845]/30 rounded-full overflow-hidden">
               <div className="h-full bg-[#bf2f1f] transition-all duration-500" style={{ width: `${courseProgress}%` }}></div>

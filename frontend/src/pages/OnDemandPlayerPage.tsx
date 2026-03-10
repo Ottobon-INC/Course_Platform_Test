@@ -1197,6 +1197,15 @@ const OnDemandPlayerPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
             <span>Progress {safeProgress}%</span>
+            {courseKey && safeProgress >= 100 && (
+              <button
+                type="button"
+                onClick={() => setLocation(`/ondemand/${courseKey}/congrats`)}
+                className="ml-2 px-3 py-1 rounded-full border border-[#f8f1e6]/40 text-[#f8f1e6] text-[10px] font-semibold uppercase tracking-[0.25em] hover:bg-white/10 transition"
+              >
+                Get Certificate
+              </button>
+            )}
           </div>
         </div>
       </header>

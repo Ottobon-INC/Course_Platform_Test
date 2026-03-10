@@ -52,9 +52,9 @@ function Router() {
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
       <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
       <Route path="/ondemand/:id/learn/:lesson" component={OnDemandPlayerPage} />
-      <Route path="/course/:id/congrats/certificate" component={CourseCertificatePage} />
-      <Route path="/course/:id/congrats/feedback" component={CongratsFeedbackPage} />
-      <Route path="/course/:id/congrats" component={CongratsPage} />
+      <Route path="/ondemand/:id/congrats/certificate" component={CourseCertificatePage} />
+      <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
+      <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
       <Route path="/student-dashboard" component={StudentDashboardPage} />
       <Route path="/auth/callback" component={AuthCallbackPage} />

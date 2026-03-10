@@ -165,7 +165,7 @@ const CongratsPage = () => {
     localStorage.setItem("courseFeedbackText", feedback);
     localStorage.setItem("courseCertificateName", learnerName);
     localStorage.setItem("courseCertificateTitle", course?.title ?? "AI in Web Development Masterclass");
-    setLocation(`/course/${courseKey}/congrats/feedback`);
+    setLocation(`/ondemand/${courseKey}/congrats/feedback`);
   };
 
   const courseTitle = course?.title ?? "Advanced Web Development Masterclass";

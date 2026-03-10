@@ -8,7 +8,7 @@ const CongratsFeedbackPage = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setLocation(`/course/${courseKey}/congrats/certificate`);
+      setLocation(`/ondemand/${courseKey}/congrats/certificate`);
     }, 2000);
     return () => clearTimeout(timer);
   }, [courseKey, setLocation]);

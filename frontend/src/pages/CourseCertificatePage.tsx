@@ -80,7 +80,7 @@ const CourseCertificatePage = () => {
       <div className="px-4 py-12 sm:px-6">
         <button
           type="button"
-          onClick={() => setLocation(`/course/${courseKey}`)}
+          onClick={() => setLocation(`/ondemand/${courseKey}/learn/start`)}
           className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm text-[#FBE9D0]/80 transition hover:border-white/40 hover:text-white"
         >
           <ArrowLeft size={18} />
