@@ -47,7 +47,7 @@ const OnDemandPage: React.FC = () => {
             duration: "8 Weeks",
             description: "Master the art of building AI-first applications from scratch. Learn to integrate LLMs, build robust backends, and create stunning frontends.",
             image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
-            url: "https://learn.ottobon.in/ondemand/ai-native-fullstack-developer/learn/5b130d97-fcdd-49b6-acd3-7e9edc03a1d8"
+            url: "/ondemand/ai-native-fullstack-developer/learn/intro"
         },
         {
             title: "Python for Data Analysis",
