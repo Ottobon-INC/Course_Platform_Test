@@ -76,9 +76,9 @@ frontend/
 - `/course/:id/learn/:lesson` - CoursePlayerPage
 - `/ondemand/:id/learn/:lesson` - OnDemandPlayerPage
 - `/course/:id/assessment` - AssessmentPage (legacy)
-- `/course/:id/congrats` - CongratsPage
-- `/course/:id/congrats/feedback` - CongratsFeedbackPage
-- `/course/:id/congrats/certificate` - CourseCertificatePage
+- `/ondemand/:id/congrats` - CongratsPage
+- `/ondemand/:id/congrats/feedback` - CongratsFeedbackPage
+- `/ondemand/:id/congrats/certificate` - CourseCertificatePage
 - `*` - NotFound
 
 Notes:
@@ -108,6 +108,11 @@ Notes:
 - Loads all topics from `GET /lessons/courses/:courseKey/topics` and keeps navigation unlocked.
 - Uses a dedicated scroll container that resets to top on lesson change.
 - Renders the simulation block with `SimulationExercise` (theme support allows dark styling for On-Demand while Cohort remains light).
+- Shows a "View Congrats" CTA once on-demand progress reaches 100%.
+
+## 5b. On-demand completion flow
+- `CongratsPage` submits feedback to `POST /api/certificates/:courseKey/feedback?programType=ondemand`.
+- `CourseCertificatePage` reads `GET /api/certificates/:courseKey?programType=ondemand` and overlays the learner name + course title onto the certificate image.
 
 ## 6. API helpers
 - `buildApiUrl` in `src/lib/api.ts` uses `VITE_API_BASE_URL`.

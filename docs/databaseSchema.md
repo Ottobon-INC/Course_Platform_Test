@@ -14,6 +14,7 @@ Source of truth: `backend/prisma/schema.prisma`. Physical tables are snake_case;
 | Tutor memory | `cp_rag_chat_sessions`, `cp_rag_chat_messages` | Persistent chat history and summaries |
 | Personalization | `topic_personalization`, `learner_persona_profiles`, `topic_prompt_suggestions`, `module_prompt_usage` | Study personas, tutor personas, prompt trees, quotas |
 | Progress and assessments | `topic_progress`, `quiz_questions`, `quiz_options`, `quiz_attempts`, `module_progress` | Lesson completion and module unlock state |
+| Certificates | `course_certificates` | Certificate issuance metadata and learner feedback |
 | Commerce and enrollment | `enrollments`, `cart_items`, `cart_lines` | Enrollment writes and cart storage |
 | Async Job Queue | `background_jobs` | Persistent job queue for long-running AI tasks |
 
@@ -117,6 +118,10 @@ classDiagram
 ### learner_persona_profiles
 - LLM-derived tutor persona per learner/course (non_it_migrant, rote_memorizer, english_hesitant, last_minute_panic, pseudo_coder).
 - Used by the backend to select persona-specific content assets.
+
+### course_certificates
+- Stores issued certificates per learner/course/program type (unique by `user_id`, `course_id`, `program_type`).
+- Captures display name, course title snapshot, optional feedback rating/text, and issued timestamp.
 
 ## 4. Schema tips
 - Run `npx prisma format` after editing `schema.prisma`.

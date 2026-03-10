@@ -19,7 +19,7 @@ Version: January 2026 monorepo snapshot (frontend + backend + shared assets)
 ## 1. Project overview
 The Course Platform delivers an Ottolearn-branded learning experience for browsing, enrolling, and completing AI-focused courses. A React SPA drives the marketing pages, course detail funnel, and the learning environment (player, quizzes, tutor, certificate). A TypeScript Express API sits behind `/api` (mirrored at `/`), handling OAuth, enrollment writes, module content, quizzes, tutor prompts, CMS pages, and tutor applications.
 
-Canonical course slug in the seed data is `ai-in-web-development` (course name: `AI Native Full Stack Developer`).
+Canonical course slug in the seed data is `ai-native-fullstack-developer` (legacy alias `ai-in-web-development` supported).
 
 ## 2. Feature map
 - Multi-course catalog seeded in `backend/prisma/seed.ts` (primary focus is the AI Native Full Stack Developer course).
@@ -88,9 +88,9 @@ Key environment variables (see backend/.env.example and frontend/.env.example):
 | `/course/:id/path` | LearningPathPage |
 | `/course/:id/learn/:lesson` | CoursePlayerPage |
 | `/course/:id/assessment` | AssessmentPage (legacy) |
-| `/course/:id/congrats` | CongratsPage |
-| `/course/:id/congrats/feedback` | CongratsFeedbackPage |
-| `/course/:id/congrats/certificate` | CourseCertificatePage |
+| `/ondemand/:id/congrats` | CongratsPage |
+| `/ondemand/:id/congrats/feedback` | CongratsFeedbackPage |
+| `/ondemand/:id/congrats/certificate` | CourseCertificatePage |
 | `*` | NotFound |
 
 Notes:
@@ -123,6 +123,7 @@ Notes:
 | activityRouter | Telemetry ingestion + tutor monitoring |
 | tutorsRouter | Tutor login, dashboards, copilot |
 | personaProfilesRouter | Tutor persona analysis |
+| certificatesRouter | On-demand certificate feedback + issuance |
 
 ### Master/derived JSON resolution
 Derived layout JSON is stored in `topics.text_content`:
@@ -156,6 +157,7 @@ Master content lives in `topic_content_assets`:
 - `learner_persona_profiles` stores tutor personas used for content resolution and tutor prompts.
 - `cohort_batch_projects` stores project briefs per cohort batch.
 - `course_chunks` stores RAG embeddings (pgvector) keyed by `course_id` string.
+- `course_certificates` stores issued certificates and feedback metadata for on-demand completion.
 
 See `docs/databaseSchema.md` for detailed diagrams.
 
@@ -178,6 +180,11 @@ See `docs/databaseSchema.md` for detailed diagrams.
 1. Prompt suggestions come from `/lessons/courses/:courseKey/prompts`.
 2. `/assistant/session` hydrates chat history.
 3. `/assistant/query` runs the RAG pipeline and applies typed prompt quotas.
+
+### 9.5 On-demand completion + certificate
+1. On-demand completion routes to `/ondemand/:courseKey/congrats`.
+2. Feedback is stored via `POST /api/certificates/:courseKey/feedback?programType=ondemand`.
+3. Certificate page fetches `GET /api/certificates/:courseKey?programType=ondemand` to render the name + course overlay.
 
 ## 10. Runtime constants
 - RAG top-K contexts: 5.

@@ -23,3 +23,8 @@ Docs:
 - Verified registration identity linkage: `POST /registrations` normalizes email and resolves/writes `registrations.user_id` using auth-user match or `users.email` lookup.
 - Verified course details CTA progression for cohort flow: `Register Now` -> `Apply for Cohort` -> `Application is under review` -> `Start Learning`.
 
+## Addendum - 2026-03-10 (No Previous Lines Removed)
+- On-demand completion flow now lives under `/ondemand/:id/congrats/*` with server-backed certificate data.
+- Added `course_certificates` table for certificate issuance + feedback metadata.
+- Added `GET /api/certificates/:courseKey` and `POST /api/certificates/:courseKey/feedback` endpoints.
+

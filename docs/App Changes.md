@@ -2,6 +2,12 @@
 
 Living changelog for the Course Platform. Each section captures what changed, why, and the primary files involved.
 
+## 2026-03-10 - On-demand congrats + certificate storage
+- **On-demand congrats flow** now lives under `/ondemand/:id/congrats/*` instead of `/course/:id/congrats/*`.
+- **Certificate storage** added via `course_certificates` table (server-backed name/title/feedback).
+- **Certificate APIs** added: `GET /api/certificates/:courseKey` and `POST /api/certificates/:courseKey/feedback`.
+- **Frontend** now overlays learner + course text on the certificate image.
+
 ## 2026-02-12 - Async AI Architecture & RAG Fixes
 - **Async Job Queue**: Replaced blocking AI calls with Postgres-based job queue `background_jobs` + worker process.
 - **Real-time SSE**: Implemented Server-Sent Events (`/stream/:jobId`) for instant job result streaming, removing polling latency.

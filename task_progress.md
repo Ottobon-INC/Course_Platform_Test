@@ -13,6 +13,12 @@ Running log of notable tasks and changes completed on the backend and frontend s
 - Added content-pane scroll reset on lesson changes using a dedicated scroll container ref.
 - Added a `theme` prop to `SimulationExercise` so On-Demand can render dark styling while Cohort stays light.
 
+## 2026-03-10 - On-demand completion + certificates
+- Added `course_certificates` table to store issued certificates and feedback.
+- Added `/api/certificates/:courseKey` (GET) and `/api/certificates/:courseKey/feedback` (POST).
+- Wired on-demand congrats routes under `/ondemand/:id/congrats/*`.
+- Certificate page now overlays learner name and course title on the certificate image.
+
 ## 2026-01-09 - Topic content assets + derived layouts
 - Added `topic_content_assets` to store persona-specific content payloads (text, image, video, ppt).
 - `topics.text_content` now supports derived block JSON with `contentKey` references.
