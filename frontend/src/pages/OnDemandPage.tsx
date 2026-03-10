@@ -43,6 +43,13 @@ const OnDemandPage: React.FC = () => {
 
     const courses = [
         {
+            title: "AI Native Full Stack Developer",
+            duration: "8 Weeks",
+            description: "Master the art of building AI-first applications from scratch. Learn to integrate LLMs, build robust backends, and create stunning frontends.",
+            image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
+            url: "https://learn.ottobon.in/ondemand/ai-native-fullstack-developer/learn/5b130d97-fcdd-49b6-acd3-7e9edc03a1d8"
+        },
+        {
             title: "Python for Data Analysis",
             duration: "2 Weeks",
             description: "Master essential data manipulation and visualization techniques using Pandas, NumPy, and Matplotlib.",
@@ -152,6 +159,7 @@ const OnDemandPage: React.FC = () => {
                                     <option value="1 Week">1 Week</option>
                                     <option value="10 Days">10 Days</option>
                                     <option value="2 Weeks">2 Weeks</option>
+                                    <option value="8 Weeks">8 Weeks</option>
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#244855]">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +188,7 @@ const OnDemandPage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {filteredCourses.length > 0 ? (
-                            filteredCourses.map((course, i) => (
+                            filteredCourses.map((course: any, i) => (
                                 <div key={i} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
 
                                     {/* Top Half: Image Background with Title & Description */}
@@ -213,15 +221,20 @@ const OnDemandPage: React.FC = () => {
                                     {/* Bottom Half: Action */}
                                     <div className="p-6 flex flex-col flex-grow bg-white">
                                         <div className="mt-auto flex items-center gap-4">
-                                            <button className="w-fit px-6 py-2.5 bg-[#E64833] hover:bg-[#D53F2B] text-white text-xs font-bold rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => course.url ? window.location.href = course.url : null}
+                                                className="w-fit px-6 py-2.5 bg-[#E64833] hover:bg-[#D53F2B] text-white text-xs font-bold rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                                            >
                                                 Start Learning
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
                                             </button>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                                                Coming Soon
-                                            </span>
+                                            {!course.url && (
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 px-2 py-1 rounded border border-slate-100">
+                                                    Coming Soon
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
