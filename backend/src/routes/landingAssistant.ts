@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { generateLandingPageAnswer } from "../rag/openAiClient";
 import { getLandingResouceContext } from "../services/landingKnowledge";
 import { enqueueJob, getJobById } from "../services/jobQueueService";
+import { publishJobStatus } from "../services/jobStreamService";
 import { handleJobStream } from "./sseStream";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -36,6 +37,7 @@ landingAssistantRouter.post(
                 turnCount,
             },
         });
+        publishJobStatus(jobId, "queued", "Assistant request queued");
 
         // Return 202 immediately
         res.status(202).json({

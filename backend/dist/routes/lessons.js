@@ -4,14 +4,12 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
 import { requireAuth } from "../middleware/requireAuth";
 import { verifyAccessToken } from "../services/sessionService";
-const LEGACY_COURSE_SLUGS = {
-    "ai-in-web-development": "f26180b2-5dda-495a-a014-ae02e63f172f",
-};
+import { ensurePersonaProfile } from "../services/personaProfileService";
+import { resolveCourseId } from "../services/courseResolutionService";
 const progressPayloadSchema = z.object({
     progress: z.number().int().min(0).max(100),
     status: z.enum(["not_started", "in_progress", "completed"]),
 });
-const studyPersonaSchema = z.enum(["normal", "sports", "cooking", "adventure"]);
 const promptQuerySchema = z.object({
     topicId: z.string().uuid().optional(),
     parentSuggestionId: z.string().uuid().optional(),
@@ -192,47 +190,6 @@ const mapPromptSuggestion = (suggestion) => ({
     promptText: suggestion.promptText,
     answer: suggestion.answer,
 });
-async function resolveCourseId(courseKey) {
-    const trimmedKey = courseKey?.trim();
-    if (!trimmedKey) {
-        return null;
-    }
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(trimmedKey)) {
-        return trimmedKey;
-    }
-    let decodedKey;
-    try {
-        decodedKey = decodeURIComponent(trimmedKey).trim();
-    }
-    catch {
-        decodedKey = trimmedKey;
-    }
-    const normalizedSlug = decodedKey.toLowerCase();
-    const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
-    if (aliasMatch) {
-        return aliasMatch;
-    }
-    const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
-    const searchNames = Array.from(new Set([decodedKey, normalizedName]
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0)));
-    if (searchNames.length === 0) {
-        return null;
-    }
-    const course = await prisma.course.findFirst({
-        where: {
-            OR: searchNames.map((name) => ({
-                courseName: {
-                    equals: name,
-                    mode: "insensitive",
-                },
-            })),
-        },
-        select: { courseId: true },
-    });
-    return course?.courseId ?? null;
-}
 lessonsRouter.get("/modules/:moduleNo/topics", asyncHandler(async (req, res) => {
     const moduleNo = Number.parseInt(req.params.moduleNo, 10);
     if (Number.isNaN(moduleNo)) {
@@ -253,9 +210,6 @@ lessonsRouter.get("/modules/:moduleNo/topics", asyncHandler(async (req, res) => 
             pptUrl: true,
             videoUrl: true,
             textContent: true,
-            textContentSports: true,
-            textContentCooking: true,
-            textContentAdventure: true,
             isPreview: true,
             contentType: true,
             simulation: {
@@ -320,15 +274,7 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
     }
     const userId = getOptionalAuthUserId(req);
     const personaProfile = userId
-        ? await prisma.learnerPersonaProfile.findUnique({
-            where: {
-                userId_courseId: {
-                    userId,
-                    courseId: resolvedCourseId,
-                },
-            },
-            select: { personaKey: true },
-        })
+        ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
         : null;
     const personaKey = personaProfile?.personaKey ?? null;
     const topics = await prisma.topic.findMany({
@@ -344,9 +290,6 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
             pptUrl: true,
             videoUrl: true,
             textContent: true,
-            textContentSports: true,
-            textContentCooking: true,
-            textContentAdventure: true,
             isPreview: true,
             contentType: true,
             simulation: {
@@ -398,69 +341,6 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
             return mapTopicForResponse(topic, resolved);
         }),
     });
-}));
-lessonsRouter.get("/courses/:courseKey/personalization", requireAuth, asyncHandler(async (req, res) => {
-    const { courseKey } = req.params;
-    const auth = req.auth;
-    if (!auth?.userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-    }
-    const resolvedCourseId = await resolveCourseId(courseKey);
-    if (!resolvedCourseId) {
-        res.status(404).json({ message: "Course not found" });
-        return;
-    }
-    const record = await prisma.topicPersonalization.findUnique({
-        where: {
-            userId_courseId: {
-                userId: auth.userId,
-                courseId: resolvedCourseId,
-            },
-        },
-        select: {
-            persona: true,
-        },
-    });
-    res.status(200).json({
-        persona: record?.persona ?? "normal",
-        hasPreference: Boolean(record),
-    });
-}));
-lessonsRouter.post("/courses/:courseKey/personalization", requireAuth, asyncHandler(async (req, res) => {
-    const { courseKey } = req.params;
-    const auth = req.auth;
-    if (!auth?.userId) {
-        res.status(401).json({ message: "Unauthorized" });
-        return;
-    }
-    const resolvedCourseId = await resolveCourseId(courseKey);
-    if (!resolvedCourseId) {
-        res.status(404).json({ message: "Course not found" });
-        return;
-    }
-    const body = z
-        .object({
-        persona: studyPersonaSchema,
-    })
-        .parse(req.body ?? {});
-    await prisma.topicPersonalization.upsert({
-        where: {
-            userId_courseId: {
-                userId: auth.userId,
-                courseId: resolvedCourseId,
-            },
-        },
-        create: {
-            userId: auth.userId,
-            courseId: resolvedCourseId,
-            persona: body.persona,
-        },
-        update: {
-            persona: body.persona,
-        },
-    });
-    res.status(204).end();
 }));
 lessonsRouter.get("/courses/:courseKey/prompts", requireAuth, asyncHandler(async (req, res) => {
     const { courseKey } = req.params;

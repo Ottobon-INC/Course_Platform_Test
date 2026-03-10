@@ -28,6 +28,14 @@ export type ChatSessionResult = {
     messages: Array<{ messageId: string; role: string; content: string; createdAt: Date }>;
 };
 
+export type AssistantStreamHooks = {
+    onStatus?: (
+        stage: "retrieving_context" | "generating_answer" | "finalizing",
+        message?: string,
+    ) => void;
+    onToken?: (token: string) => void;
+};
+
 const mapChatTurns = (messages: Array<{ role: string; content: string }>): ChatTurn[] =>
     messages
         .filter((message) => message.role === "user" || message.role === "assistant")
@@ -173,7 +181,7 @@ export async function processUserQuery(params: {
     suggestionId?: string;
     topicId?: string;
     moduleNo?: number;
-}): Promise<AssistantQueryResult> {
+}, hooks?: AssistantStreamHooks): Promise<AssistantQueryResult> {
     const { userId, courseTitle } = params;
     const question = params.question?.trim() || "";
     const suggestionIdRaw = params.suggestionId?.trim() || "";
@@ -320,12 +328,15 @@ export async function processUserQuery(params: {
             conversation,
             summary,
             personaPrompt,
+            onToken: hooks?.onToken,
+            onStatus: hooks?.onStatus,
         });
 
         if (isTypedPrompt && moduleNo !== null && moduleNo !== undefined) {
             await incrementModulePromptUsage(userId, resolvedCourseId, moduleNo);
         }
 
+        hooks?.onStatus?.("finalizing", "Saving your tutor response...");
         await prisma.ragChatMessage.createMany({
             data: [
                 {

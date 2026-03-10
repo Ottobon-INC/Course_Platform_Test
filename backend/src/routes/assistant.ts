@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { processUserQuery, getChatSessionHistory } from "../services/assistantService";
 import { enqueueJob, getJobById } from "../services/jobQueueService";
 import { handleJobStream } from "./sseStream";
+import { publishJobStatus } from "../services/jobStreamService";
 import { resolveCourseId } from "../services/courseResolutionService";
 import { getModulePromptUsageCount, PROMPT_LIMIT_PER_MODULE } from "../services/promptUsageService";
 import { assertWithinRagRateLimit, RateLimitError } from "../rag/rateLimiter";
@@ -158,6 +159,7 @@ assistantRouter.post(
         moduleNo,
       },
     });
+    publishJobStatus(jobId, "queued", "Tutor request queued");
 
     // ── Return 202 immediately ──
     res.status(202).json({

@@ -249,6 +249,16 @@ const pickRandomSubset = <T,>(items: T[], count: number): T[] => {
 };
 
 const PASSING_PERCENT_THRESHOLD = 70;
+const CHAT_STREAM_TICK_MS = 30;
+const CHAT_STREAM_CHARS_PER_TICK = 2;
+const CHAT_LOADING_MESSAGES = [
+  "Reviewing course context...",
+  "Collecting relevant lesson insights...",
+  "Preparing a focused tutor response...",
+  "Verifying the answer against this topic...",
+  "Finalizing the explanation...",
+];
+const CHAT_LOADING_MESSAGE_ROTATE_MS = 1600;
 
 const slugify = (text: string) =>
   text
@@ -519,6 +529,7 @@ const CoursePlayerPage: React.FC = () => {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatLoadingMessage, setChatLoadingMessage] = useState(CHAT_LOADING_MESSAGES[0]);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
   const [starterSuggestions, setStarterSuggestions] = useState<PromptSuggestion[]>([]);
@@ -1557,6 +1568,23 @@ const CoursePlayerPage: React.FC = () => {
         setPendingSuggestion(suggestion);
       }
       setChatLoading(true);
+      let loadingMessageIndex = 0;
+      let loadingMessageInterval: ReturnType<typeof setInterval> | null = null;
+      const stopLoadingMessageLoop = () => {
+        if (loadingMessageInterval) {
+          clearInterval(loadingMessageInterval);
+          loadingMessageInterval = null;
+        }
+      };
+      const startLoadingMessageLoop = () => {
+        loadingMessageIndex = Math.floor(Math.random() * CHAT_LOADING_MESSAGES.length);
+        setChatLoadingMessage(CHAT_LOADING_MESSAGES[loadingMessageIndex]);
+        loadingMessageInterval = setInterval(() => {
+          loadingMessageIndex = (loadingMessageIndex + 1) % CHAT_LOADING_MESSAGES.length;
+          setChatLoadingMessage(CHAT_LOADING_MESSAGES[loadingMessageIndex]);
+        }, CHAT_LOADING_MESSAGE_ROTATE_MS);
+      };
+      startLoadingMessageLoop();
       setInlineFollowUps((prev) => {
         const next = { ...prev };
         if (suggestion) {
@@ -1601,23 +1629,109 @@ const CoursePlayerPage: React.FC = () => {
           throw new Error(msg);
         }
 
-        let answer: string;
+        let answer = "I could not find an answer for that right now.";
         let sessionId: string | undefined;
         let nextSuggestions: Array<{ id: string; promptText: string; answer: string | null }> = [];
+        const botId = makeId();
+        botMessageId = botId;
+        setStarterAnchorMessageId(botId);
+        setChatMessages((prev) => [...prev, { id: botId, text: "", isBot: true, suggestionContext: suggestion }]);
 
         if (res.status === 202 && payload?.jobId) {
-          // ── Async path: SSE stream for instant delivery ──
+          // ── Async path: true incremental stream ──
           if (typeof payload?.sessionId === "string") {
             setChatSessionId(payload.sessionId);
           }
+          let streamedAnswer = "";
+          let pendingChunkQueue = "";
+          let streamEnded = false;
+          let firstVisibleChunkRendered = false;
+          let playbackInterval: ReturnType<typeof setInterval> | null = null;
+          let resolvePlayback: (() => void) | null = null;
+          const playbackDone = new Promise<void>((resolve) => {
+            resolvePlayback = resolve;
+          });
+          const stopPlayback = () => {
+            if (playbackInterval) {
+              clearInterval(playbackInterval);
+              playbackInterval = null;
+            }
+            if (resolvePlayback) {
+              resolvePlayback();
+              resolvePlayback = null;
+            }
+          };
+          const applyQueuedChunk = () => {
+            if (!pendingChunkQueue) {
+              if (streamEnded) {
+                stopPlayback();
+              }
+              return;
+            }
+            const nextSlice = pendingChunkQueue.slice(0, CHAT_STREAM_CHARS_PER_TICK);
+            pendingChunkQueue = pendingChunkQueue.slice(CHAT_STREAM_CHARS_PER_TICK);
+            streamedAnswer += nextSlice;
+            if (!firstVisibleChunkRendered && streamedAnswer.trim().length > 0) {
+              firstVisibleChunkRendered = true;
+              stopLoadingMessageLoop();
+            }
+            setChatMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === botId
+                  ? { ...msg, text: streamedAnswer }
+                  : msg,
+              ),
+            );
+            if (!pendingChunkQueue && streamEnded) {
+              stopPlayback();
+            }
+          };
+          const ensurePlaybackLoop = () => {
+            if (playbackInterval) {
+              return;
+            }
+            playbackInterval = setInterval(applyQueuedChunk, CHAT_STREAM_TICK_MS);
+          };
+
           const jobId = payload.jobId as string;
-          const result = await streamJobResult(
-            buildApiUrl(`/assistant/stream/${jobId}`),
-            { Authorization: `Bearer ${session.accessToken}` },
-          );
-          answer = (result?.answer as string) ?? "I could not find an answer for that right now.";
-          sessionId = typeof result?.sessionId === "string" ? result.sessionId : undefined;
-          nextSuggestions = Array.isArray(result?.nextSuggestions) ? result.nextSuggestions : [];
+          try {
+            const result = await streamJobResult(
+              buildApiUrl(`/assistant/stream/${jobId}`),
+              { Authorization: `Bearer ${session.accessToken}` },
+              {
+                onStatus: () => {
+                  // Intentionally avoid exposing backend queue text in UI.
+                  // The curated rotating loading messages stay active until
+                  // the first response chunk is rendered.
+                },
+                onChunk: (chunkText) => {
+                  pendingChunkQueue += chunkText;
+                  ensurePlaybackLoop();
+                },
+              },
+            );
+            const resolvedAnswer = typeof result?.answer === "string" ? result.answer : "";
+            if (streamedAnswer.trim().length === 0 && resolvedAnswer.trim().length > 0) {
+              // Fallback: if backend delivers only final `completed` payload,
+              // still render with paced playback instead of instant pop-in.
+              pendingChunkQueue += resolvedAnswer;
+              ensurePlaybackLoop();
+            }
+            streamEnded = true;
+            ensurePlaybackLoop();
+            applyQueuedChunk();
+            await playbackDone;
+
+            answer = streamedAnswer.trim().length > 0
+                ? streamedAnswer
+                : resolvedAnswer.trim().length > 0
+                  ? resolvedAnswer
+                  : answer;
+            sessionId = typeof result?.sessionId === "string" ? result.sessionId : undefined;
+            nextSuggestions = Array.isArray(result?.nextSuggestions) ? result.nextSuggestions : [];
+          } finally {
+            stopPlayback();
+          }
         } else {
           // ── Sync path: suggestion-based queries return 200 with answer inline ──
           answer = payload?.answer ?? "I could not find an answer for that right now.";
@@ -1625,35 +1739,44 @@ const CoursePlayerPage: React.FC = () => {
           nextSuggestions = Array.isArray(payload?.nextSuggestions) ? payload.nextSuggestions : [];
         }
 
-        const botId = makeId();
-        botMessageId = botId;
-        setStarterAnchorMessageId(botId);
-        setChatMessages((prev) => [...prev, { id: botId, text: answer, isBot: true, suggestionContext: suggestion }]);
+        stopLoadingMessageLoop();
+
+        setChatMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === botId
+              ? { ...msg, text: answer, error: false }
+              : msg,
+          ),
+        );
         if (sessionId) {
           setChatSessionId(sessionId);
         }
-        if (suggestion) {
-          setInlineFollowUps((prev) => ({
-            ...prev,
-            [botId]: nextSuggestions,
-          }));
-        } else {
-          setInlineFollowUps((prev) => ({
-            ...prev,
-            [botId]: nextSuggestions,
-          }));
-        }
+        setInlineFollowUps((prev) => ({
+          ...prev,
+          [botId]: nextSuggestions,
+        }));
         emitTelemetry(
           "tutor.response_received",
           { suggestionId: suggestion?.id, followUps: nextSuggestions.length },
           { moduleNo: moduleNoForChat, topicId: activeLesson?.topicId ?? null },
         );
       } catch (error) {
+        stopLoadingMessageLoop();
         const raw = error instanceof Error ? error.message : "Tutor unavailable";
         const friendly = raw.toLowerCase().includes("internal server error")
           ? "Tutor is unavailable right now. Please try again soon."
           : raw;
-        setChatMessages((prev) => [...prev, { id: makeId(), text: friendly, isBot: true, error: true }]);
+        if (botMessageId) {
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessageId
+                ? { ...msg, text: friendly, error: true }
+                : msg,
+            ),
+          );
+        } else {
+          setChatMessages((prev) => [...prev, { id: makeId(), text: friendly, isBot: true, error: true }]);
+        }
         if (suggestion) {
           setInlineFollowUps((prev) => {
             const updated = { ...prev };
@@ -1664,6 +1787,7 @@ const CoursePlayerPage: React.FC = () => {
       } finally {
         setPendingSuggestion(null);
         setChatLoading(false);
+        setChatLoadingMessage(CHAT_LOADING_MESSAGES[0]);
         if (botMessageId) {
           setShouldRefreshStarterBatch(true);
         }
@@ -2338,7 +2462,9 @@ const CoursePlayerPage: React.FC = () => {
             {chatMessages.map((msg) => {
               const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
               const showInlineChip =
-                !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length);
+                !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length) && !chatLoading;
+              const showThinkingIndicator =
+                msg.isBot && chatLoading && !msg.error && msg.text.trim().length === 0;
 
               return (
                 <div
@@ -2357,9 +2483,27 @@ const CoursePlayerPage: React.FC = () => {
                       }`}
                   >
                     <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
-                    <div className="whitespace-pre-line">{msg.text}</div>
+                    {showThinkingIndicator ? (
+                      <div className="mt-1 rounded-lg border border-[#bf2f1f]/30 bg-gradient-to-br from-[#1a0b09] via-[#100809] to-[#070707] p-2.5 space-y-2">
+                        <div className="flex items-center gap-2 text-xs text-[#f8f1e6]/90">
+                          <span className="relative flex h-3 w-3">
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff5a3c]/50 animate-ping" />
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff5a3c]" />
+                          </span>
+                          <span>{chatLoadingMessage}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-line">{msg.text}</div>
+                    )}
                   </div>
-                  {starterAnchorMessageId === msg.id && (
+                  {starterAnchorMessageId === msg.id && !chatLoading && (
                     <div className="pl-3 border-l border-white/10 space-y-2">
                       <p className="text-xs text-[#f8f1e6]/70">
                         Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
@@ -2401,7 +2545,7 @@ const CoursePlayerPage: React.FC = () => {
                       </span>
                     </div>
                   )}
-                  {followUpsForMessage.length > 0 && (
+                  {followUpsForMessage.length > 0 && !chatLoading && (
                     <div className="pl-2 border-l border-white/10 space-y-1">
                       <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
                       <div className="flex flex-wrap gap-2">
@@ -2425,9 +2569,6 @@ const CoursePlayerPage: React.FC = () => {
                 </div>
               );
             })}
-            {chatLoading && (
-              <div className="text-xs text-[#f8f1e6]/60">Tutor is thinking...</div>
-            )}
           </div>
           <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
             <input
