@@ -2,22 +2,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
-  Play,
-  ArrowRight,
   Users,
   GraduationCap,
   CalendarClock,
-  Ticket,
-  PlayCircle,
-  Clock,
   Layers,
   LogOut,
-  Search,
   Bell,
   Zap,
   Sun,
   Moon,
   Coffee,
+  Trophy,
+  CalendarDays,
+  TrendingUp,
+  Award,
+  Star,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { readStoredSession, ensureSessionFresh, logoutAndRedirect } from '@/utils/session';
@@ -192,182 +191,115 @@ const Sidebar: React.FC<{
   );
 };
 
-const ResumeHero: React.FC<{
-  course: OnDemandCourse | null;
-  onContinue: () => void;
-  onBrowse: () => void;
-  lastActiveLabel: string;
-}> = ({ course, onContinue, onBrowse, lastActiveLabel }) => (
-  <section>
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="bg-retro-teal/90 backdrop-blur-xl rounded-2xl p-6 lg:p-10 text-retro-bg flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5"
-    >
-      <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-retro-salmon/20 rounded-full blur-[100px] animate-pulse pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-64 h-64 bg-retro-cyan/10 rounded-full blur-[80px] pointer-events-none" />
-
-      <div className="relative z-10 space-y-5 max-w-2xl">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="px-3 py-1 bg-retro-salmon text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-inset ring-slate-900/10 flex items-center gap-1.5">
-            <Play size={10} fill="currentColor" /> {course ? "Resume" : "Get Started"}
-          </span>
-          <span className="px-3 py-1 bg-white/10 text-white/80 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] ring-1 ring-inset ring-slate-900/10 flex items-center gap-1.5">
-            <GraduationCap size={12} /> {course ? "On-Demand Course" : "Course Library"}
-          </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-white/40 flex items-center gap-1.5 ml-auto md:ml-0">
-            <Clock size={12} /> {lastActiveLabel}
-          </span>
-        </div>
-
-        <div>
-          <h2 className="text-3xl md:text-4xl font-black leading-tight tracking-tight mb-2">
-            {course ? course.title : "No active course to resume yet"}
-          </h2>
-          <p className="text-base opacity-75 font-medium flex items-center gap-2">
-            <Layers size={16} className="text-retro-salmon" />
-            {course?.lastAccessedModule
-              ? `Currently on: "${course.lastAccessedModule}"`
-              : "Browse the catalog to start learning."}
-          </p>
-        </div>
-
-        <div className="pt-2">
-          {course ? (
-            <button
-              className="flex items-center gap-3 bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-base group"
-              onClick={onContinue}
-              type="button"
-            >
-              <PlayCircle size={22} className="group-hover:text-retro-salmon transition-colors" />
-              Continue
-            </button>
-          ) : (
-            <button
-              className="flex items-center gap-3 bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-base group"
-              onClick={onBrowse}
-              type="button"
-            >
-              <PlayCircle size={22} className="group-hover:text-retro-salmon transition-colors" />
-              Browse courses
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="relative z-10 bg-white/5 backdrop-blur-2xl rounded-2xl p-6 ring-1 ring-inset ring-slate-900/10 w-full md:w-64 flex flex-col items-center justify-center text-center shadow-inner">
-        {course ? (
-          <>
-            <div className="relative w-32 h-32 mb-4">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle className="text-white/5" strokeWidth="10" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
-                <circle
-                  className="text-retro-salmon transition-all duration-1000 ease-out"
-                  strokeWidth="10"
-                  strokeDasharray={2 * Math.PI * 40}
-                  strokeDashoffset={2 * Math.PI * 40 * (1 - course.progress / 100)}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r="40"
-                  cx="50"
-                  cy="50"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-black tracking-tighter">{course.progress}%</span>
-              </div>
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-salmon">Syllabus Completion</p>
-          </>
-        ) : (
-          <div className="text-sm text-white/70 font-semibold">Start your first module to see progress.</div>
-        )}
-      </div>
-    </motion.div>
-  </section>
-);
-
-const QuickStats: React.FC<{
-  sessionsThisWeek: number;
-  lastActiveLabel: string;
-  cohortCount: number;
-  onDemandCount: number;
-  workshopCount: number;
-}> = ({ sessionsThisWeek, lastActiveLabel, cohortCount, onDemandCount, workshopCount }) => {
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const item = {
-    hidden: { opacity: 0, scale: 0.95 },
-    show: { opacity: 1, scale: 1 }
-  };
-
+const MasteredHero: React.FC<{
+  userName: string;
+  courseTitle: string;
+  progress: number;
+  onAction: () => void;
+}> = ({ userName, courseTitle, progress, onAction }) => {
+  const isMastered = progress >= 100;
   return (
-    <motion.section
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="grid grid-cols-1 md:grid-cols-3 gap-4"
-    >
-      {[
-        { label: "This Week", value: `${sessionsThisWeek} session${sessionsThisWeek === 1 ? "" : "s"}`, sub: lastActiveLabel },
-        { label: "Enrollments", value: `${cohortCount + onDemandCount} active`, sub: `${cohortCount} cohort - ${onDemandCount} on-demand` },
-        { label: "Workshops", value: `${workshopCount} sessions`, sub: "Registration from your dashboard" }
-      ].map((stat, i) => (
-        <motion.div
-          key={i}
-          variants={item}
-          whileHover={{ y: -5, transition: { duration: 0.2 } }}
-          className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col justify-between hover:bg-white/95 transition-colors"
-        >
-          <p className="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">{stat.label}</p>
-          <p className="text-2xl font-black text-slate-900 tracking-tight">{stat.value}</p>
-          <p className="text-xs text-slate-500 mt-1">{stat.sub}</p>
-        </motion.div>
-      ))}
-    </motion.section>
+    <section>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-white rounded-2xl p-6 lg:p-10 ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6"
+      >
+        <div className="flex items-start gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center ring-1 ring-inset ring-amber-200">
+            <Trophy size={28} />
+          </div>
+          <div className="space-y-3">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+              {isMastered
+                ? `Congratulations, ${userName}! You've Mastered ${courseTitle}! 🔥`
+                : `You're progressing, ${userName}! Keep building ${courseTitle}.`}
+            </h2>
+            <p className="text-sm md:text-base text-slate-600 max-w-2xl">
+              {isMastered
+                ? `You completed the learning path with ${progress}% progress. Celebrate the milestone and keep building momentum.`
+                : `You're ${progress}% through this path. Stay consistent and keep the streak alive.`}
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={onAction}
+                className="bg-gradient-to-r from-[#FF8F00] to-[#FFA726] text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-orange-600/40 shadow-sm hover:brightness-95 transition"
+              >
+                {isMastered ? "Download Certificate & Explore Path" : "Continue Learning Path"}
+              </button>
+              <button
+                type="button"
+                className="text-sm text-slate-600 hover:text-slate-900 underline underline-offset-4"
+              >
+                Leave feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </section>
   );
 };
 
-const NextActionCard: React.FC<{
-  title: string;
-  description: string;
-  cta: string;
-  onAction: () => void;
-}> = ({ title, description, cta, onAction }) => (
-  <motion.section
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    className="bg-white rounded-2xl p-6 ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
-  >
-    <div className="flex gap-4">
-      <div className="w-12 h-12 bg-retro-salmon rounded-2xl flex items-center justify-center flex-shrink-0 ring-1 ring-inset ring-slate-900/10 group-hover:rotate-12 transition-transform">
-        <Play size={20} className="text-white fill-current" />
-      </div>
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-teal/50 mb-1">Next Recommended Action</p>
-        <h3 className="text-xl font-black text-retro-teal mb-0.5">{title}</h3>
-        <p className="text-sm text-retro-teal/70 font-medium">{description}</p>
-      </div>
-    </div>
-    <button
-      type="button"
-      onClick={onAction}
-      className="bg-slate-800 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-slate-900/50 hover:bg-slate-900 transition-colors shadow-sm text-xs uppercase"
-    >
-      {cta}
-    </button>
-  </motion.section>
-);
+const StatsTiles: React.FC<{
+  sessionsThisWeek: number;
+  courseTitle: string;
+  progress: number;
+  certificateCount: number;
+}> = ({ sessionsThisWeek, courseTitle, progress, certificateCount }) => {
+  const isCompleted = progress >= 100;
+  const tiles = [
+    {
+      icon: CalendarDays,
+      title: `Upcoming Sessions: ${sessionsThisWeek}`,
+      detail: sessionsThisWeek > 0 ? "Your next live session is on the calendar." : "No live events scheduled this week.",
+    },
+    {
+      icon: TrendingUp,
+      title: `Learning Path Progress: ${progress}%`,
+      detail: courseTitle ? `Course: ${courseTitle} (${isCompleted ? "Completed" : "In progress"})` : "Course progress updating.",
+      progress,
+    },
+    {
+      icon: Award,
+      title: `Certificates Earned: ${certificateCount}`,
+      detail: certificateCount > 0 ? "Ready to download." : "Complete a course to earn one.",
+    },
+  ];
+
+  return (
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {tiles.map((tile) => (
+        <div
+          key={tile.title}
+          className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-slate-900/5 text-slate-700 flex items-center justify-center">
+              <tile.icon size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-900">{tile.title}</p>
+              <p className="text-xs text-slate-500 mt-1">{tile.detail}</p>
+            </div>
+          </div>
+          {tile.progress !== undefined && (
+            <div className="mt-4">
+              <div className="h-2 rounded-full bg-slate-900/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#FF8F00] to-[#FFA726]"
+                  style={{ width: `${tile.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+};
 
 const DashboardContent: React.FC<{
   data: UserEnrollments;
@@ -390,99 +322,81 @@ const DashboardContent: React.FC<{
     const hasOnDemand = data.onDemand.length > 0;
     const hasWorkshops = data.workshops.length > 0;
 
+    const resolveCohortStyle = (status: CohortStatus) => {
+      if (status === CohortStatus.COMPLETED) {
+        return {
+          badgeClass: "bg-emerald-100 text-emerald-700",
+          icon: Trophy,
+        };
+      }
+      if (status === CohortStatus.UPCOMING) {
+        return {
+          badgeClass: "bg-blue-100 text-blue-700",
+          icon: CalendarDays,
+        };
+      }
+      return {
+        badgeClass: "bg-orange-100 text-orange-700",
+        icon: Layers,
+      };
+    };
+
     return (
-      <div className="space-y-16 mt-10">
-        {/* Section 1: Cohort Programs */}
+      <div className="space-y-16 mt-12">
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-retro-sage/20 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-retro-teal/10 rounded-2xl text-retro-teal shadow-inner"><Users size={20} /></div>
-              <h3 className="text-xl font-black text-retro-teal tracking-tight uppercase tracking-widest">My Active Cohorts</h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-slate-900/5 rounded-xl text-slate-700">
+              <Users size={18} />
             </div>
-            {hasCohorts && (
-              <button
-                className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-colors uppercase tracking-widest bg-white/70 px-4 py-2 rounded-xl ring-1 ring-inset ring-slate-900/10"
-                type="button"
-                onClick={() => onNavigateCohortCatalog()}
-              >
-                Explore Cohorts
-              </button>
-            )}
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">My Active Cohorts</h3>
           </div>
-
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: {
-                  staggerChildren: 0.1
-                }
-              }
-            }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {hasCohorts ? (
-              data.cohorts.map(cohort => (
-                <motion.div
-                  variants={{
-                    hidden: { opacity: 0, y: 10 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  key={cohort.id}
-                  className="bg-white rounded-2xl p-8 ring-1 ring-inset ring-slate-900/10 transition-colors group flex flex-col justify-between overflow-hidden relative"
-                >
-                  {/* Enhanced Background Glows */}
-                  <div className="absolute top-0 right-0 w-48 h-48 bg-retro-teal/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-retro-salmon/15 transition-all duration-500 scale-125" />
-                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-retro-salmon/5 rounded-full blur-2xl -ml-16 -mb-16 group-hover:bg-retro-teal/10 transition-all duration-500" />
-
-                  {/* Subtle Abstract Pattern */}
-                  <div className="absolute inset-0 z-0 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity pointer-events-none"
-                    style={{ backgroundImage: 'radial-gradient(1.5px 1.5px at 10px 10px, #244855 100%, transparent 100%)', backgroundSize: '15px 15px' }}
-                  />
-
-                  <div className="relative z-10">
-                    <div className="flex justify-between items-center mb-6">
-                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] ${cohort.status === CohortStatus.ONGOING ? 'bg-green-100/90 text-green-800' : 'bg-blue-100/90 text-blue-800'
-                        }`}>
+              data.cohorts.map((cohort) => {
+                const { badgeClass, icon: Icon } = resolveCohortStyle(cohort.status);
+                const progressValue = Math.max(0, Math.min(100, cohort.progress ?? 0));
+                const nextSession = cohort.nextSessionDate?.split(" - ")[0] ?? "Session time TBA";
+                return (
+                  <div
+                    key={cohort.id}
+                    className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col gap-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-full ${badgeClass}`}>
                         {cohort.status}
                       </span>
-                      <div className="text-[10px] font-black text-retro-teal/60 uppercase tracking-widest flex items-center gap-1.5 px-3 py-1 bg-white/40 rounded-full border border-white/50">
-                        <Clock size={12} className="text-retro-salmon" /> {cohort.nextSessionDate?.split(' - ')[0] ?? "TBD"}
+                      <div className="h-10 w-10 rounded-xl bg-slate-900/5 text-slate-700 flex items-center justify-center">
+                        <Icon size={18} />
                       </div>
                     </div>
-
-                    <h4 className="text-2xl font-black text-retro-teal mb-8 line-clamp-2 group-hover:text-retro-salmon transition-colors leading-tight min-h-[4rem]">
-                      {cohort.title}
-                    </h4>
-                  </div>
-
-                  <div className="relative z-10 space-y-4 pt-4 border-t border-retro-teal/5">
-                    <div className="flex justify-between items-end">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-retro-teal/30 mb-0.5">Your Progress</span>
-                        <p className="text-2xl font-black text-retro-teal tracking-tighter">{cohort.progress}<span className="text-xs text-retro-teal/40 ml-0.5">%</span></p>
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900">{cohort.title}</h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {cohort.status === CohortStatus.UPCOMING ? `Next session: ${nextSession}` : "Keep your momentum strong."}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Progress</span>
+                        <span className="font-bold text-slate-900">{progressValue}%</span>
                       </div>
-                      <button
-                        className="bg-retro-teal text-white p-3 rounded-2xl hover:bg-retro-salmon transition-colors ring-1 ring-inset ring-slate-900/10 group-hover:scale-110 active:scale-95 group-hover:rotate-6 relative overflow-hidden"
-                        type="button"
-                        onClick={() =>
-                          cohort.courseSlug ? onNavigateCourseDetails(cohort.courseSlug) : onNavigateCohortCatalog()
-                        }
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-                        <ArrowRight size={20} />
-                      </button>
+                      <div className="h-2 rounded-full bg-slate-900/10 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#FF8F00] to-[#FFA726]"
+                          style={{ width: `${progressValue}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 bg-retro-teal/5 rounded-full overflow-hidden relative">
-                      <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.4)_50%,transparent_75%)] bg-[length:20px_20px] animate-[slide_1s_linear_infinite]" />
-                      <div className="h-full bg-gradient-to-r from-retro-teal via-retro-salmon to-retro-teal bg-[length:200%_auto] animate-[gradient_3s_linear_infinite] rounded-full transition-all duration-1000 ease-out" style={{ width: `${cohort.progress}%` }} />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => (cohort.courseSlug ? onNavigateCourseDetails(cohort.courseSlug) : onNavigateCohortCatalog())}
+                      className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-slate-900"
+                    >
+                      View cohort details
+                    </button>
                   </div>
-                </motion.div>
-              ))
+                );
+              })
             ) : (
               <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
                 <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
@@ -491,94 +405,72 @@ const DashboardContent: React.FC<{
                 <button
                   type="button"
                   onClick={onNavigateCohortCatalog}
-                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
+                  className="bg-gradient-to-r from-[#FF8F00] to-[#FFA726] text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-orange-600/40 shadow-sm hover:brightness-95 transition text-xs uppercase"
                 >
-                  Join Your First Cohort
+                  Browse Cohorts
                 </button>
               </div>
             )}
-          </motion.div>
+          </div>
         </section>
 
-        {/* Section 2: On Demand Courses */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-retro-sage/10 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-retro-teal/10 rounded-xl text-retro-teal"><GraduationCap size={20} /></div>
-              <h3 className="text-xl font-black text-retro-teal tracking-tight uppercase tracking-widest">On Demand Courses</h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-slate-900/5 rounded-xl text-slate-700">
+              <GraduationCap size={18} />
             </div>
-            {hasOnDemand && (
-              <button
-                className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-colors uppercase tracking-widest"
-                type="button"
-                onClick={() => {
-                  if (data.onDemand[0]?.courseSlug) {
-                    onNavigateCourseDetails(data.onDemand[0]?.courseSlug);
-                  } else {
-                    onNavigateOnDemandCatalog();
-                  }
-                }}
-              >
-                Browse Library
-              </button>
-            )}
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">My On-Demand Courses</h3>
           </div>
-
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: {
-                  staggerChildren: 0.1
-                }
-              }
-            }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {hasOnDemand ? (
-              data.onDemand.map(course => (
-                <motion.div
-                  variants={{
-                    hidden: { opacity: 0, y: 10 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  key={course.id}
-                  className="bg-white rounded-2xl p-8 ring-1 ring-inset ring-slate-900/10 transition-colors group flex flex-col justify-between"
-                >
-                  <div className="mb-8">
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-retro-salmon mb-4">On-Demand Path</h5>
-                    <h4 className="text-xl font-black text-retro-teal mb-5 line-clamp-2 leading-tight group-hover:text-retro-salmon transition-colors min-h-[3rem]">
-                      {course.title}
-                    </h4>
-                    <div className="bg-black/5 p-4 rounded-2xl border border-white/20 backdrop-blur-sm">
-                      <p className="text-[9px] text-retro-teal/40 font-black uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                        <Layers size={10} /> Progress
-                      </p>
-                      <p className="text-[11px] font-bold text-retro-teal/80 line-clamp-1">
-                        {course.lastAccessedModule ? course.lastAccessedModule : "Ready to start"}
-                      </p>
+              data.onDemand.map((course) => {
+                const rating = typeof (course as { rating?: number }).rating === "number" ? (course as { rating: number }).rating : null;
+                return (
+                  <div
+                    key={course.id}
+                    className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col gap-4"
+                  >
+                    <div className="h-32 rounded-xl bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-end p-4">
+                      <span className="text-xs font-semibold uppercase tracking-widest">On-Demand</span>
                     </div>
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="text-lg font-black text-slate-900">{course.title}</h4>
+                        {rating !== null ? (
+                          <div className="flex items-center gap-1 text-amber-500">
+                            {Array.from({ length: 5 }).map((_, idx) => (
+                              <Star key={idx} size={12} fill="currentColor" />
+                            ))}
+                            <span className="text-xs text-slate-500">{rating.toFixed(1)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-500">No rating yet</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500">{course.lastAccessedModule ? `Last module: ${course.lastAccessedModule}` : "Start your first lesson anytime."}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Progress</span>
+                        <span className="font-bold text-slate-900">{course.progress}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-900/10 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#FF8F00] to-[#FFA726]"
+                          style={{ width: `${course.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateCourse(course.courseSlug ?? course.id, course.lastLessonSlug)}
+                      className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-slate-900"
+                    >
+                      Resume course
+                    </button>
                   </div>
-                  <div className="space-y-5 pt-5 border-t border-retro-teal/5">
-                    <div className="h-2 bg-retro-teal/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-retro-teal group-hover:bg-retro-salmon transition-all duration-700 ease-out" style={{ width: `${course.progress}%` }} />
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-retro-teal/50 uppercase tracking-widest">{course.progress}% Done</span>
-                      <button
-                        className="bg-retro-teal/10 hover:bg-retro-teal text-retro-teal hover:text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] flex items-center gap-2 transition-all active:scale-95"
-                        type="button"
-                        onClick={() => onNavigateCourse(course.courseSlug ?? course.id, course.lastLessonSlug)}
-                      >
-                        <PlayCircle size={14} /> Resume
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
+                );
+              })
             ) : (
               <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
                 <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
@@ -587,91 +479,64 @@ const DashboardContent: React.FC<{
                 <button
                   type="button"
                   onClick={onNavigateOnDemandCatalog}
-                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
+                  className="bg-gradient-to-r from-[#FF8F00] to-[#FFA726] text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-orange-600/40 shadow-sm hover:brightness-95 transition text-xs uppercase"
                 >
-                  Start Learning Today
+                  Browse Courses
                 </button>
               </div>
             )}
-          </motion.div>
+          </div>
         </section>
 
-        {/* Section 3: Workshops */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-retro-sage/10 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-retro-salmon/10 rounded-xl text-retro-salmon"><CalendarClock size={20} /></div>
-              <h3 className="text-xl font-black text-retro-teal tracking-tight uppercase tracking-widest">My Workshops</h3>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-slate-900/5 rounded-xl text-slate-700">
+              <CalendarClock size={18} />
             </div>
-            {hasWorkshops && (
-              <button
-                className="text-xs font-bold text-retro-teal/70 hover:text-retro-salmon transition-colors uppercase tracking-widest"
-                type="button"
-                onClick={() => onNavigateWorkshops()}
-              >
-                Explore Workshops
-              </button>
-            )}
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Workshops</h3>
           </div>
-
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: {
-                  staggerChildren: 0.1
-                }
-              }
-            }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {hasWorkshops ? (
-              data.workshops.map(workshop => (
-                <motion.div
-                  variants={{
-                    hidden: { opacity: 0, y: 10 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  key={workshop.id}
-                  className="bg-white p-8 rounded-2xl ring-1 ring-inset ring-slate-900/10 shadow-sm shadow-slate-900/5 transition-colors group relative overflow-hidden flex flex-col justify-between"
-                >
-                  {workshop.isJoined && (
-                    <div className="absolute top-0 right-0 px-4 py-1.5 bg-retro-teal text-[9px] font-black text-white uppercase tracking-widest rounded-bl-2xl ring-1 ring-inset ring-slate-900/10 z-10">
-                      Registered
-                    </div>
-                  )}
-                  <div className="mb-10 relative z-10">
-                    <p className="text-xl font-black text-retro-teal mb-5 line-clamp-2 leading-tight group-hover:text-retro-salmon transition-colors min-h-[3rem]">{workshop.title}</p>
-                    <div className="flex flex-wrap gap-3">
-                      <div className="flex items-center gap-2 bg-retro-teal/5 px-3 py-1.5 rounded-xl border border-retro-teal/5">
-                        <CalendarClock size={12} className="text-retro-salmon" />
-                        <span className="text-[10px] font-black text-retro-teal/70 uppercase tracking-wider">{workshop.date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 bg-retro-teal/5 px-3 py-1.5 rounded-xl border border-retro-teal/5">
-                        <Clock size={12} className="text-retro-salmon" />
-                        <span className="text-[10px] font-black text-retro-teal/70 uppercase tracking-wider">{workshop.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    className={`w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-colors relative z-10 ring-1 ring-inset ${workshop.isJoined
-                      ? 'bg-slate-800 text-white ring-slate-900/50 hover:bg-slate-900 shadow-sm'
-                      : 'bg-red-500 text-white ring-red-600/50 hover:bg-red-600 shadow-sm'
-                      }`}
-                    type="button"
-                    onClick={() => {
-                      if (!workshop.isJoined) {
-                        onNavigateRegistration();
-                      }
-                    }}
+              data.workshops.map((workshop) => {
+                const isLive = /live/i.test(workshop.title) || /live/i.test(workshop.date);
+                return (
+                  <div
+                    key={workshop.id}
+                    className="bg-white rounded-2xl ring-1 ring-inset ring-slate-900/10 p-6 flex flex-col gap-4"
                   >
-                    <Ticket size={16} /> {workshop.isJoined ? 'Joined Session' : 'Register Now'}
-                  </button>
-                </motion.div>
-              ))
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-slate-600 text-xs font-semibold uppercase tracking-widest">
+                        <CalendarClock size={14} />
+                        Workshop
+                      </div>
+                      {isLive && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-red-100 text-red-600 px-2 py-1 rounded-full flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                          Live
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900">{workshop.title}</h4>
+                      <p className="text-sm text-slate-600 mt-1">{workshop.date}</p>
+                      <p className="text-xs text-slate-500 mt-1">{workshop.time}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!workshop.isJoined) {
+                          onNavigateRegistration();
+                        }
+                      }}
+                      className={`mt-2 text-xs font-bold uppercase tracking-widest ${
+                        workshop.isJoined ? "text-emerald-600" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      {workshop.isJoined ? "Registered" : "Register now"}
+                    </button>
+                  </div>
+                );
+              })
             ) : (
               <div className="rounded-2xl border-2 border-dotted border-slate-900/15 bg-slate-900/[0.02] p-8 lg:p-12 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto text-center col-span-full">
                 <div className="text-lg font-medium text-slate-600 max-w-lg text-center leading-relaxed">
@@ -680,21 +545,12 @@ const DashboardContent: React.FC<{
                 <button
                   type="button"
                   onClick={onNavigateWorkshops}
-                  className="bg-red-500 text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-red-600/50 hover:bg-red-600 transition-colors shadow-sm text-xs uppercase"
+                  className="bg-gradient-to-r from-[#FF8F00] to-[#FFA726] text-white font-bold tracking-wide rounded-xl px-6 py-3 ring-1 ring-inset ring-orange-600/40 shadow-sm hover:brightness-95 transition text-xs uppercase"
                 >
-                  View All Workshops
+                  View Workshops
                 </button>
               </div>
             )}
-          </motion.div>
-
-          <div className="flex justify-center pt-4">
-            <div className="flex items-center gap-3 bg-white/40 px-6 py-2 rounded-full border border-retro-sage/5">
-              <span className="w-2 h-2 bg-retro-salmon rounded-full animate-pulse shadow-[0_0_8px_rgba(230,72,51,0.5)]"></span>
-              <p className="text-[10px] font-bold text-retro-teal/60 italic tracking-wide">
-                Join instructions and calendar invites are sent automatically upon registration.
-              </p>
-            </div>
           </div>
         </section>
       </div>
@@ -799,10 +655,10 @@ const App: React.FC = () => {
   }, [dashboard, data.onDemand]);
 
   const displayName = dashboard?.user.fullName ?? readStoredSession()?.fullName ?? 'Learner';
+  const heroCourseTitle = heroCourse?.title ?? data.onDemand[0]?.title ?? "your learning path";
+  const heroProgress = heroCourse?.progress ?? 0;
+  const certificateCount = data.completed.length;
   const sessionsThisWeek = dashboard?.stats.sessionsThisWeek ?? 0;
-  const lastActiveLabel = dashboard?.stats.lastActiveAt
-    ? `Last active: ${new Date(dashboard.stats.lastActiveAt).toLocaleString()}`
-    : isLoading ? 'Last active: loading...' : 'Last active: not yet';
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -974,10 +830,10 @@ const App: React.FC = () => {
               {greeting.icon}
               <span className="text-xs font-black uppercase tracking-[0.3em] text-retro-salmon">{greeting.text}</span>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-black text-retro-teal mb-3 tracking-tighter">
+            <h1 className="text-4xl lg:text-6xl font-black text-slate-900 mb-3 tracking-tight">
               Welcome back, {displayName}!
             </h1>
-            <p className="text-retro-teal/70 font-bold text-base max-w-xl leading-relaxed">
+            <p className="text-slate-600 font-medium text-base max-w-2xl leading-relaxed">
               {isLoading
                 ? 'Preparing your learning journey...'
                 : `You currently have ${sessionsThisWeek} activity sessions planned for this week. Explore your path below.`}
@@ -986,28 +842,19 @@ const App: React.FC = () => {
 
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="space-y-6 mb-10">
-              <NextActionCard
-                title={nextAction.title}
-                description={nextAction.description}
-                cta={nextAction.cta}
+              <MasteredHero
+                userName={displayName}
+                courseTitle={heroCourseTitle}
+                progress={heroProgress}
                 onAction={nextAction.action}
               />
-              <QuickStats
+              <StatsTiles
                 sessionsThisWeek={sessionsThisWeek}
-                lastActiveLabel={lastActiveLabel}
-                cohortCount={data.cohorts.length}
-                onDemandCount={data.onDemand.length}
-                workshopCount={data.workshops.length}
+                courseTitle={heroCourseTitle}
+                progress={heroProgress}
+                certificateCount={certificateCount}
               />
             </div>
-            {heroCourse && (
-              <ResumeHero
-                course={heroCourse}
-                onContinue={() => navigateToCourse(heroCourse?.courseSlug, heroCourse?.lastLessonSlug)}
-                onBrowse={navigateToOnDemandCatalog}
-                lastActiveLabel={lastActiveLabel}
-              />
-            )}
             <DashboardContent
               data={filteredData}
               onNavigateCourse={navigateToCourse}
