@@ -1,4 +1,4 @@
-﻿import { useLocation } from 'wouter'
+import { useLocation } from 'wouter'
 
 interface CourseSelectionProps {
     onSelect: (type: 'cohort' | 'ondemand' | 'workshop') => void

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRoute, useLocation } from 'wouter'
 import '@/styles/registration.css'
 import ProgressBar from '@/components/registration/ProgressBar'

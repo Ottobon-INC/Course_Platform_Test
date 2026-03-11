@@ -1,4 +1,4 @@
-﻿import { SuccessStepProps } from '@/types/registration'
+import { SuccessStepProps } from '@/types/registration'
 
 const SuccessStep = ({ studentData }: SuccessStepProps) => {
     return (
@@ -111,24 +111,24 @@ const SuccessStep = ({ studentData }: SuccessStepProps) => {
                 {/* Registration Summary */}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8 text-left">
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Registration Summary</h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                            <span className="text-gray-500 text-sm">Course</span>
-                            <span className="font-bold text-gray-900">{studentData.specificCourse}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-2">
+                        <div className="flex flex-col border-b border-gray-100 pb-2">
+                            <span className="text-gray-400 text-[10px] font-black uppercase tracking-wider">Course</span>
+                            <span className="font-bold text-gray-800">{studentData.specificCourse}</span>
                         </div>
-                        <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                            <span className="text-gray-500 text-sm">Program Type</span>
-                            <span className="font-bold text-gray-900 capitalize">{studentData.programType}</span>
+                        <div className="flex flex-col border-b border-gray-100 pb-2">
+                            <span className="text-gray-400 text-[10px] font-black uppercase tracking-wider">Program Type</span>
+                            <span className="font-bold text-gray-800 capitalize tracking-wide">{studentData.programType}</span>
                         </div>
                         {studentData.programType === 'workshop' && studentData.plan && (
-                            <div className="flex justify-between items-center border-b border-gray-200 pb-2">
-                                <span className="text-gray-500 text-sm">Selected Plan</span>
-                                <span className="font-bold text-indigo-600">₹{studentData.plan}</span>
+                            <div className="flex flex-col border-b border-gray-100 pb-2">
+                                <span className="text-gray-400 text-[10px] font-black uppercase tracking-wider">Selected Plan</span>
+                                <span className="font-bold text-orange-600">₹{studentData.plan}</span>
                             </div>
                         )}
-                        <div className="flex justify-between items-center pt-1">
-                            <span className="text-gray-500 text-sm">Registered Email</span>
-                            <span className="font-medium text-gray-700">{studentData.email}</span>
+                        <div className="flex flex-col border-b border-gray-100 pb-2">
+                            <span className="text-gray-400 text-[10px] font-black uppercase tracking-wider">Registered Email</span>
+                            <span className="font-medium text-gray-600 truncate">{studentData.email}</span>
                         </div>
                     </div>
                 </div>

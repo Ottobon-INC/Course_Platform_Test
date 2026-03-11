@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { readStoredSession } from "@/utils/session";
 
 // Feature flags for future course availability
@@ -246,7 +246,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
 
     return (
         <div className="animate-fadeIn">
-            <div className="card max-w-2xl mx-auto">
+            <div className="card max-w-4xl mx-auto">
                 <div className="mb-8">
                     {onBack && (
                         <button
@@ -276,9 +276,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     {/* Selected Course Display */}
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
+                    <div className="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-2">
                         <label className="block text-sm font-medium text-indigo-900 mb-1">
                             Selected Course
                         </label>
@@ -286,6 +286,13 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                             {formData.specificCourse || "No course selected"}
                         </div>
                     </div>
+
+                    {/* Section: Personal Details */}
+                    <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
+                        <h3 className="text-lg font-bold text-gray-800">Personal Details</h3>
+                        <p className="text-xs text-gray-400">Basic contact information</p>
+                    </div>
+
                     {/* Full Name */}
                     <div>
                         <label htmlFor="fullName" className="label">
@@ -356,8 +363,14 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         )}
                     </div>
 
+                    {/* Section: Academic Background */}
+                    <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
+                        <h3 className="text-lg font-bold text-gray-800">Academic Background</h3>
+                        <p className="text-xs text-gray-400">Information about your education</p>
+                    </div>
+
                     {/* College Name */}
-                    <div>
+                    <div className="md:col-span-2">
                         <label htmlFor="collegeName" className="label">
                             College Name <span className="text-red-500">*</span>
                         </label>
@@ -475,7 +488,13 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         )}
                     </div>
 
-
+                    {/* Section: Course Preferences */}
+                    {(programType === 'cohort' || programType === 'workshop') && (
+                        <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
+                            <h3 className="text-lg font-bold text-gray-800">Course Preferences</h3>
+                            <p className="text-xs text-gray-400">Tell us how you'd like to participate</p>
+                        </div>
+                    )}
 
                     {/* Cohort Specific Fields */}
                     {programType === 'cohort' && (
@@ -625,7 +644,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
 
                     {/* General Error Message */}
                     {errors.submit && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
+                        <div className="md:col-span-2 bg-red-50 border border-red-200 rounded-xl p-4 mt-2">
                             <p className="text-red-700 text-sm">
                                 {errors.submit}
                             </p>
@@ -633,7 +652,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                     )}
 
                     {/* Submit Button */}
-                    <div className="pt-4">
+                    <div className="md:col-span-2 pt-4">
                         <button
                             type="submit"
                             className="btn-primary w-full"
