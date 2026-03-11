@@ -1,6 +1,7 @@
 import express from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { enqueueJob, getJobById } from "../services/jobQueueService";
+import { publishJobStatus } from "../services/jobStreamService";
 import { handleJobStream } from "./sseStream";
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Anonymous user ID used when no auth is present */
@@ -25,6 +26,7 @@ landingAssistantRouter.post("/query", asyncHandler(async (req, res) => {
             turnCount,
         },
     });
+    publishJobStatus(jobId, "queued", "Assistant request queued");
     // Return 202 immediately
     res.status(202).json({
         jobId,

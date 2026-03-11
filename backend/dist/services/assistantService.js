@@ -127,7 +127,7 @@ async function maybeUpdateChatSummary(sessionId) {
         console.error("Chat summary update failed", error);
     }
 }
-export async function processUserQuery(params) {
+export async function processUserQuery(params, hooks) {
     const { userId, courseTitle } = params;
     const question = params.question?.trim() || "";
     const suggestionIdRaw = params.suggestionId?.trim() || "";
@@ -256,10 +256,13 @@ export async function processUserQuery(params) {
             conversation,
             summary,
             personaPrompt,
+            onToken: hooks?.onToken,
+            onStatus: hooks?.onStatus,
         });
         if (isTypedPrompt && moduleNo !== null && moduleNo !== undefined) {
             await incrementModulePromptUsage(userId, resolvedCourseId, moduleNo);
         }
+        hooks?.onStatus?.("finalizing", "Saving your tutor response...");
         await prisma.ragChatMessage.createMany({
             data: [
                 {

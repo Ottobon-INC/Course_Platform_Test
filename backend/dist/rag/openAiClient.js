@@ -31,10 +31,42 @@ async function runChatCompletion(options) {
     }
     return message;
 }
+async function runChatCompletionStream(options) {
+    const stream = await client.chat.completions.create({
+        model: env.llmModel,
+        temperature: options.temperature ?? 0.2,
+        messages: [
+            { role: "system", content: options.systemPrompt },
+            { role: "user", content: options.userPrompt },
+        ],
+        max_tokens: options.maxTokens ?? 500,
+        stream: true,
+    });
+    let answer = "";
+    for await (const chunk of stream) {
+        const delta = chunk.choices?.[0]?.delta?.content;
+        if (!delta)
+            continue;
+        answer += delta;
+        options.onToken(delta);
+    }
+    const message = answer.trim();
+    if (!message) {
+        throw new Error("OpenAI did not return a chat completion");
+    }
+    return message;
+}
 export async function generateAnswerFromContext(prompt) {
     return runChatCompletion({
         systemPrompt: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
         userPrompt: prompt,
+    });
+}
+export async function generateAnswerFromContextStream(prompt, onToken) {
+    return runChatCompletionStream({
+        systemPrompt: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
+        userPrompt: prompt,
+        onToken,
     });
 }
 export async function rewriteFollowUpQuestion(options) {
