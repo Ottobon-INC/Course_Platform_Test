@@ -149,7 +149,7 @@ function RegistrationPage() {
 
     return (
         <div className="registration-page min-h-screen bg-gradient-to-br from-pink-50 via-pink-100 to-rose-50">
-            <div className="container mx-auto px-4 py-8 max-w-4xl">
+            <div className={`container mx-auto px-4 py-8 ${currentStep === 0 ? 'max-w-6xl' : 'max-w-4xl'}`}>
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl md:text-5xl font-bold text-black mb-3">
