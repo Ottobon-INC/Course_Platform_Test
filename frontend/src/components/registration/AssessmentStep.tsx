@@ -110,15 +110,17 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
             const start = startTimeRef.current
             let durationSeconds = Math.floor((now - start) / 1000)
             if (isNaN(durationSeconds) || durationSeconds < 0) durationSeconds = 0
+            const isCollegeStudent = studentData.isCollegeStudent ?? true
 
             const payload = {
                 offeringId: studentData.offeringId,
                 fullName: studentData.fullName,
                 email: studentData.email,
                 phoneNumber: studentData.phoneNumber,
-                collegeName: studentData.collegeName,
-                yearOfPassing: studentData.yearOfPassing,
-                branch: studentData.branch,
+                isCollegeStudent,
+                collegeName: isCollegeStudent ? studentData.collegeName : null,
+                yearOfPassing: isCollegeStudent ? studentData.yearOfPassing : null,
+                branch: isCollegeStudent ? studentData.branch : null,
                 selectedSlot: studentData.selectedSlot || null,
                 sessionTime: studentData.sessionTime || null,
                 mode: studentData.mode || null,

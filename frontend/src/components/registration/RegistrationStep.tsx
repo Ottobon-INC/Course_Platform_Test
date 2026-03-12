@@ -1,9 +1,5 @@
 import { useState, useEffect } from "react";
 import { readStoredSession } from "@/utils/session";
-
-// Feature flags for future course availability
-const ON_DEMAND_AVAILABLE = false; // set to true when on-demand courses are ready
-const WORKSHOP_AVAILABLE = true; // set to true when workshop courses are ready
 import { submitRegistration } from "@/lib/registrationApi";
 import { supabase } from "@/lib/registrationSupabase";
 import {
@@ -12,17 +8,33 @@ import {
     FormErrors,
 } from "@/types/registration";
 
+// Feature flags for future course availability
+const ON_DEMAND_AVAILABLE = false; // set to true when on-demand courses are ready
+const WORKSHOP_AVAILABLE = true; // set to true when workshop courses are ready
+
+const PROFILE_OPTIONS = [
+    { value: "college_student", label: "College Student" },
+    { value: "school_student", label: "School Student" },
+    { value: "professional", label: "Professional" },
+    { value: "general", label: "General" },
+] as const;
+
 const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, onBack }: RegistrationStepProps) => {
-    // Get stored session to pre-fill email/name
     const session = readStoredSession();
+    const initialProfileCategory =
+        programType === "workshop" ? "general" : "college_student";
 
     const [formData, setFormData] = useState<RegistrationFormData>({
         fullName: session?.fullName || "",
         email: session?.email || "",
         phoneNumber: "",
+        profileCategory: initialProfileCategory,
+        isCollegeStudent: initialProfileCategory === "college_student",
         collegeName: "",
         yearOfPassing: "",
+        otherYearOfPassing: "",
         branch: "",
+        otherBranch: "",
         selectedSlot: "",
         sessionTime: "",
         mode: "",
@@ -32,13 +44,31 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
         plan: "",
     });
 
-    // Update formData if programType or selectedCourse prop changes
     useEffect(() => {
-        setFormData(prev => ({
-            ...prev,
-            programType,
-            specificCourse: selectedCourse || prev.specificCourse
-        }));
+        setFormData((prev) => {
+            const defaultProfile =
+                programType === "workshop" ? "general" : "college_student";
+            const profileCategory =
+                prev.programType === programType ? prev.profileCategory : defaultProfile;
+            const isCollegeStudent = profileCategory === "college_student";
+
+            return {
+                ...prev,
+                programType,
+                specificCourse: selectedCourse || prev.specificCourse,
+                profileCategory,
+                isCollegeStudent,
+                ...(!isCollegeStudent
+                    ? {
+                        collegeName: "",
+                        yearOfPassing: "",
+                        otherYearOfPassing: "",
+                        branch: "",
+                        otherBranch: "",
+                    }
+                    : {}),
+            };
+        });
     }, [programType, selectedCourse]);
 
     const [errors, setErrors] = useState<FormErrors>({});
@@ -46,9 +76,8 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
-    // Fetch slots on mount (only relevant for cohort)
     useEffect(() => {
-        if (programType !== 'cohort') return;
+        if (programType !== "cohort") return;
 
         const fetchSlots = async () => {
             if (!supabase) return;
@@ -67,6 +96,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
         };
         fetchSlots();
     }, [programType]);
+
+    const shouldCollectAcademicDetails =
+        programType !== "workshop" || formData.profileCategory === "college_student";
 
     const validateEmail = (email: string): boolean => {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,20 +133,32 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                 "Please enter a valid phone number (at least 10 digits)";
         }
 
-        if (!formData.collegeName.trim()) {
-            newErrors.collegeName = "College name is required";
+        if (programType === "workshop" && !formData.profileCategory) {
+            newErrors.profileCategory = "Please choose one option";
         }
 
-        if (!formData.yearOfPassing) {
-            newErrors.yearOfPassing = "Year of passing is required";
+        if (shouldCollectAcademicDetails) {
+            if (!formData.collegeName.trim()) {
+                newErrors.collegeName = "College name is required";
+            }
+
+            if (!formData.yearOfPassing) {
+                newErrors.yearOfPassing = "Year of passing is required";
+            } else if (
+                formData.yearOfPassing === "Other" &&
+                !formData.otherYearOfPassing.trim()
+            ) {
+                newErrors.otherYearOfPassing = "Please enter your year of passing";
+            }
+
+            if (!formData.branch.trim()) {
+                newErrors.branch = "Branch is required";
+            } else if (formData.branch === "Other" && !formData.otherBranch.trim()) {
+                newErrors.otherBranch = "Please enter your specialization";
+            }
         }
 
-        if (!formData.branch.trim()) {
-            newErrors.branch = "Branch is required";
-        }
-
-        // Conditional Validation based on Program Type
-        if (programType === 'cohort') {
+        if (programType === "cohort") {
             if (!formData.selectedSlot) {
                 newErrors.selectedSlot = "Please select a slot";
             }
@@ -130,11 +174,11 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
-        } else if (programType === 'ondemand' && ON_DEMAND_AVAILABLE) {
+        } else if (programType === "ondemand" && ON_DEMAND_AVAILABLE) {
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
-        } else if (programType === 'workshop' && WORKSHOP_AVAILABLE) {
+        } else if (programType === "workshop" && WORKSHOP_AVAILABLE) {
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
@@ -147,10 +191,86 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleProfileSelect = (
+        nextProfile: RegistrationFormData["profileCategory"],
+    ) => {
+        const isCollegeStudent = nextProfile === "college_student";
+        setFormData((prev) => ({
+            ...prev,
+            profileCategory: nextProfile,
+            isCollegeStudent,
+            ...(!isCollegeStudent
+                ? {
+                    collegeName: "",
+                    yearOfPassing: "",
+                    otherYearOfPassing: "",
+                    branch: "",
+                    otherBranch: "",
+                }
+                : {}),
+        }));
+
+        setTouched((prev) => ({
+            ...prev,
+            profileCategory: true,
+            ...(!isCollegeStudent
+                ? {
+                    collegeName: false,
+                    yearOfPassing: false,
+                    otherYearOfPassing: false,
+                    branch: false,
+                    otherBranch: false,
+                }
+                : {}),
+        }));
+
+        setErrors((prev) => {
+            const next = { ...prev };
+            delete next.profileCategory;
+            if (!isCollegeStudent) {
+                delete next.collegeName;
+                delete next.yearOfPassing;
+                delete next.otherYearOfPassing;
+                delete next.branch;
+                delete next.otherBranch;
+            }
+            return next;
+        });
+    };
+
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
     ): void => {
         const { name, value } = e.target;
+
+        if (name === "branch") {
+            setFormData((prev) => ({
+                ...prev,
+                branch: value,
+                otherBranch: value === "Other" ? prev.otherBranch : "",
+            }));
+            setErrors((prev) => {
+                const next = { ...prev, branch: "" };
+                if (value !== "Other") delete next.otherBranch;
+                return next;
+            });
+            return;
+        }
+
+        if (name === "yearOfPassing") {
+            setFormData((prev) => ({
+                ...prev,
+                yearOfPassing: value,
+                otherYearOfPassing: value === "Other" ? prev.otherYearOfPassing : "",
+            }));
+            setErrors((prev) => {
+                const next = { ...prev, yearOfPassing: "" };
+                if (value !== "Other") delete next.otherYearOfPassing;
+                return next;
+            });
+            return;
+        }
+
         setFormData((prev) => ({
             ...prev,
             [name]: value,
@@ -183,14 +303,19 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
             fullName: true,
             email: true,
             phoneNumber: true,
-            collegeName: true,
-            yearOfPassing: true,
-            branch: true,
+            profileCategory: programType === "workshop",
+            collegeName: shouldCollectAcademicDetails,
+            yearOfPassing: shouldCollectAcademicDetails,
+            otherYearOfPassing:
+                shouldCollectAcademicDetails && formData.yearOfPassing === "Other",
+            branch: shouldCollectAcademicDetails,
+            otherBranch:
+                shouldCollectAcademicDetails && formData.branch === "Other",
             specificCourse: true,
-            selectedSlot: programType === 'cohort',
-            sessionTime: programType === 'cohort',
-            mode: programType === 'cohort',
-            plan: programType === 'workshop',
+            selectedSlot: programType === "cohort",
+            sessionTime: programType === "cohort",
+            mode: programType === "cohort",
+            plan: programType === "workshop",
         });
 
         if (!validateForm()) {
@@ -205,25 +330,52 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                 return;
             }
 
+            const isCollegeStudent =
+                programType === "workshop"
+                    ? formData.profileCategory === "college_student"
+                    : true;
+            const resolvedBranch = shouldCollectAcademicDetails
+                ? formData.branch === "Other"
+                    ? formData.otherBranch.trim()
+                    : formData.branch
+                : null;
+            const resolvedYearOfPassing = shouldCollectAcademicDetails
+                ? formData.yearOfPassing === "Other"
+                    ? formData.otherYearOfPassing.trim()
+                    : formData.yearOfPassing
+                : null;
+
             const payload = {
                 offeringId,
                 fullName: formData.fullName,
                 email: formData.email,
                 phoneNumber: formData.phoneNumber,
-                collegeName: formData.collegeName,
-                yearOfPassing: formData.yearOfPassing,
-                branch: formData.branch,
-                selectedSlot: programType === 'cohort' ? formData.selectedSlot : null,
-                sessionTime: programType === 'cohort' ? formData.sessionTime : null,
-                mode: programType === 'cohort' ? formData.mode : null,
+                isCollegeStudent,
+                collegeName: shouldCollectAcademicDetails ? formData.collegeName : null,
+                yearOfPassing: resolvedYearOfPassing,
+                branch: resolvedBranch,
+                selectedSlot: programType === "cohort" ? formData.selectedSlot : null,
+                sessionTime: programType === "cohort" ? formData.sessionTime : null,
+                mode: programType === "cohort" ? formData.mode : null,
                 referredBy: formData.referredBy || null,
-                plan: programType === 'workshop' ? formData.plan : null,
+                plan: programType === "workshop" ? formData.plan : null,
             };
 
             const response = await submitRegistration(payload);
-            const registrationId = response?.registration?.registrationId ?? `local-${Date.now()}`;
+            const registrationId =
+                response?.registration?.registrationId ?? `local-${Date.now()}`;
 
-            onSubmit({ ...formData, id: registrationId, offeringId });
+            onSubmit({
+                ...formData,
+                id: registrationId,
+                offeringId,
+                isCollegeStudent,
+                yearOfPassing: resolvedYearOfPassing ?? "",
+                otherYearOfPassing:
+                    formData.yearOfPassing === "Other" ? formData.otherYearOfPassing : "",
+                branch: resolvedBranch ?? "",
+                otherBranch: formData.branch === "Other" ? formData.otherBranch : "",
+            });
         } catch (error) {
             console.error("Error submitting registration:", error);
             setErrors({
@@ -236,13 +388,14 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
 
     const getProgramTitle = () => {
         switch (programType) {
-            case 'ondemand': return 'On-Demand Learning Registration';
-            case 'workshop': return 'Workshop Registration';
-            default: return 'Cohort Registration';
+            case "ondemand":
+                return "On-Demand Learning Registration";
+            case "workshop":
+                return "Workshop Registration";
+            default:
+                return "Cohort Registration";
         }
     };
-
-
 
     return (
         <div className="animate-fadeIn">
@@ -256,8 +409,18 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                             }}
                             className="text-gray-500 hover:text-indigo-600 flex items-center gap-1 text-sm font-medium mb-4 transition-colors"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 19l-7-7 7-7"
+                                />
                             </svg>
                             Change Course
                         </button>
@@ -265,19 +428,20 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                         {getProgramTitle()}
                     </h2>
-                    {programType === 'cohort' && (
+                    {programType === "cohort" && (
                         <p className="text-gray-900 font-semibold mb-2">
                             Cohort is available for both online and offline
                         </p>
                     )}
                     <p className="text-gray-600">
-                        Please provide your information to begin the enrollment
-                        process
+                        Please provide your information to begin the enrollment process
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    {/* Selected Course Display */}
+                <form
+                    onSubmit={handleSubmit}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"
+                >
                     <div className="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-2">
                         <label className="block text-sm font-medium text-indigo-900 mb-1">
                             Selected Course
@@ -287,13 +451,11 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         </div>
                     </div>
 
-                    {/* Section: Personal Details */}
                     <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
                         <h3 className="text-lg font-bold text-gray-800">Personal Details</h3>
                         <p className="text-xs text-gray-400">Basic contact information</p>
                     </div>
 
-                    {/* Full Name */}
                     <div>
                         <label htmlFor="fullName" className="label">
                             Full Name <span className="text-red-500">*</span>
@@ -305,9 +467,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                             value={formData.fullName}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-field ${touched.fullName && errors.fullName
-                                ? "border-red-500"
-                                : ""
+                            className={`input-field ${touched.fullName && errors.fullName ? "border-red-500" : ""
                                 }`}
                             placeholder="Enter your full name"
                         />
@@ -316,11 +476,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         )}
                     </div>
 
-                    {/* Email */}
                     <div>
                         <label htmlFor="email" className="label">
-                            Email Address{" "}
-                            <span className="text-red-500">*</span>
+                            Email Address <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="email"
@@ -329,9 +487,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-field ${touched.email && errors.email
-                                ? "border-red-500"
-                                : ""
+                            className={`input-field ${touched.email && errors.email ? "border-red-500" : ""
                                 }`}
                             placeholder="your.email@example.com"
                         />
@@ -340,7 +496,6 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         )}
                     </div>
 
-                    {/* Phone Number */}
                     <div>
                         <label htmlFor="phoneNumber" className="label">
                             Phone Number <span className="text-red-500">*</span>
@@ -352,9 +507,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                             value={formData.phoneNumber}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-field ${touched.phoneNumber && errors.phoneNumber
-                                ? "border-red-500"
-                                : ""
+                            className={`input-field ${touched.phoneNumber && errors.phoneNumber ? "border-red-500" : ""
                                 }`}
                             placeholder="+1 (555) 123-4567"
                         />
@@ -363,143 +516,197 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         )}
                     </div>
 
-                    {/* Section: Academic Background */}
-                    <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
-                        <h3 className="text-lg font-bold text-gray-800">Academic Background</h3>
-                        <p className="text-xs text-gray-400">Information about your education</p>
-                    </div>
-
-                    {/* College Name */}
-                    <div className="md:col-span-2">
-                        <label htmlFor="collegeName" className="label">
-                            College Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            id="collegeName"
-                            name="collegeName"
-                            value={formData.collegeName}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            className={`input-field ${touched.collegeName && errors.collegeName
-                                ? "border-red-500"
-                                : ""
-                                }`}
-                            placeholder="Enter your college name"
-                        />
-                        {touched.collegeName && errors.collegeName && (
-                            <p className="error-text">{errors.collegeName}</p>
-                        )}
-                    </div>
-
-                    {/* Year of Passing */}
-                    <div>
-                        <label htmlFor="yearOfPassing" className="label">
-                            Year of Passing{" "}
-                            <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="yearOfPassing"
-                            name="yearOfPassing"
-                            value={formData.yearOfPassing}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            className={`input-field ${touched.yearOfPassing && errors.yearOfPassing
-                                ? "border-red-500"
-                                : ""
-                                }`}
-                        >
-                            <option value="">Select year</option>
-                            <option value="2024">2024</option>
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                        </select>
-                        {touched.yearOfPassing && errors.yearOfPassing && (
-                            <p className="error-text">{errors.yearOfPassing}</p>
-                        )}
-                    </div>
-
-                    {/* Majors/Specialization */}
-                    <div>
-                        <label htmlFor="branch" className="label">
-                            Majors/Specialization{" "}
-                            <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            id="branch"
-                            name="branch"
-                            value={formData.branch}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            className={`input-field ${touched.branch && errors.branch
-                                ? "border-red-500"
-                                : ""
-                                }`}
-                        >
-                            <option value="">Select your major</option>
-                            <option value="Computer Science Engineering (CSE)">
-                                Computer Science Engineering (CSE)
-                            </option>
-                            <option value="Artificial Intelligence & Machine Learning (AIML)">
-                                Artificial Intelligence & Machine Learning
-                                (AIML)
-                            </option>
-                            <option value="Data Science">Data Science</option>
-                            <option value="Information Technology (IT)">
-                                Information Technology (IT)
-                            </option>
-                            <option value="Electronics and Communication Engineering (ECE)">
-                                Electronics and Communication Engineering (ECE)
-                            </option>
-                            <option value="Electrical Engineering (EE)">
-                                Electrical Engineering (EE)
-                            </option>
-                            <option value="Mechanical Engineering">
-                                Mechanical Engineering
-                            </option>
-                            <option value="Civil Engineering">
-                                Civil Engineering
-                            </option>
-                            <option value="Chemical Engineering">
-                                Chemical Engineering
-                            </option>
-                            <option value="Biotechnology">Biotechnology</option>
-                            <option value="Aerospace Engineering">
-                                Aerospace Engineering
-                            </option>
-                            <option value="Automobile Engineering">
-                                Automobile Engineering
-                            </option>
-                            <option value="Industrial Engineering">
-                                Industrial Engineering
-                            </option>
-                            <option value="Robotics Engineering">
-                                Robotics Engineering
-                            </option>
-                            <option value="Cyber Security">
-                                Cyber Security
-                            </option>
-                            <option value="Other">Other</option>
-                        </select>
-                        {touched.branch && errors.branch && (
-                            <p className="error-text">{errors.branch}</p>
-                        )}
-                    </div>
-
-                    {/* Section: Course Preferences */}
-                    {(programType === 'cohort' || programType === 'workshop') && (
-                        <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
-                            <h3 className="text-lg font-bold text-gray-800">Course Preferences</h3>
-                            <p className="text-xs text-gray-400">Tell us how you'd like to participate</p>
+                    {programType === "workshop" && (
+                        <div className="md:col-span-2 rounded-xl border border-indigo-200 bg-indigo-50/40 p-5">
+                            <label className="label mb-3 block">
+                                What describes you best? <span className="text-red-500">*</span>
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                {PROFILE_OPTIONS.map((option) => {
+                                    const selected = formData.profileCategory === option.value;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => handleProfileSelect(option.value)}
+                                            className={`rounded-2xl px-5 py-3 text-base font-semibold border transition-all ${selected
+                                                ? "bg-indigo-600 text-white border-indigo-600 shadow-[0_8px_24px_rgba(79,70,229,0.35)]"
+                                                : "bg-white text-indigo-900 border-indigo-200 hover:border-indigo-400"
+                                                }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {touched.profileCategory && errors.profileCategory && (
+                                <p className="error-text mt-2">{errors.profileCategory}</p>
+                            )}
                         </div>
                     )}
 
-                    {/* Cohort Specific Fields */}
-                    {programType === 'cohort' && (
+                    {shouldCollectAcademicDetails && (
                         <>
-                            {/* Select Slot to Start Course */}
+                            <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
+                                <h3 className="text-lg font-bold text-gray-800">Academic Background</h3>
+                                <p className="text-xs text-gray-400">Information about your education</p>
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label htmlFor="collegeName" className="label">
+                                    College Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    id="collegeName"
+                                    name="collegeName"
+                                    value={formData.collegeName}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className={`input-field ${touched.collegeName && errors.collegeName ? "border-red-500" : ""
+                                        }`}
+                                    placeholder="Enter your college name"
+                                />
+                                {touched.collegeName && errors.collegeName && (
+                                    <p className="error-text">{errors.collegeName}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label htmlFor="yearOfPassing" className="label">
+                                    Year of Passing <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="yearOfPassing"
+                                    name="yearOfPassing"
+                                    value={formData.yearOfPassing}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className={`input-field ${touched.yearOfPassing && errors.yearOfPassing ? "border-red-500" : ""
+                                        }`}
+                                >
+                                    <option value="">Select year</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                    <option value="2027">2027</option>
+                                    <option value="2028">2028</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                {touched.yearOfPassing && errors.yearOfPassing && (
+                                    <p className="error-text">{errors.yearOfPassing}</p>
+                                )}
+                            </div>
+
+                            {formData.yearOfPassing === "Other" && (
+                                <div className="md:col-span-2">
+                                    <label htmlFor="otherYearOfPassing" className="label">
+                                        Please specify your year of passing{" "}
+                                        <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="otherYearOfPassing"
+                                        name="otherYearOfPassing"
+                                        value={formData.otherYearOfPassing}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        className={`input-field ${touched.otherYearOfPassing && errors.otherYearOfPassing
+                                            ? "border-red-500"
+                                            : ""
+                                            }`}
+                                        placeholder="Enter your year of passing"
+                                    />
+                                    {touched.otherYearOfPassing && errors.otherYearOfPassing && (
+                                        <p className="error-text">{errors.otherYearOfPassing}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div>
+                                <label htmlFor="branch" className="label">
+                                    Majors/Specialization <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="branch"
+                                    name="branch"
+                                    value={formData.branch}
+                                    onChange={handleChange}
+                                    onBlur={handleBlur}
+                                    className={`input-field ${touched.branch && errors.branch ? "border-red-500" : ""
+                                        }`}
+                                >
+                                    <option value="">Select your major</option>
+                                    <option value="Computer Science Engineering (CSE)">
+                                        Computer Science Engineering (CSE)
+                                    </option>
+                                    <option value="Artificial Intelligence & Machine Learning (AIML)">
+                                        Artificial Intelligence & Machine Learning (AIML)
+                                    </option>
+                                    <option value="Data Science">Data Science</option>
+                                    <option value="Information Technology (IT)">
+                                        Information Technology (IT)
+                                    </option>
+                                    <option value="Electronics and Communication Engineering (ECE)">
+                                        Electronics and Communication Engineering (ECE)
+                                    </option>
+                                    <option value="Electrical Engineering (EE)">
+                                        Electrical Engineering (EE)
+                                    </option>
+                                    <option value="Mechanical Engineering">Mechanical Engineering</option>
+                                    <option value="Civil Engineering">Civil Engineering</option>
+                                    <option value="Chemical Engineering">Chemical Engineering</option>
+                                    <option value="Biotechnology">Biotechnology</option>
+                                    <option value="Aerospace Engineering">Aerospace Engineering</option>
+                                    <option value="Automobile Engineering">Automobile Engineering</option>
+                                    <option value="Industrial Engineering">Industrial Engineering</option>
+                                    <option value="Robotics Engineering">Robotics Engineering</option>
+                                    <option value="Cyber Security">Cyber Security</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                {touched.branch && errors.branch && (
+                                    <p className="error-text">{errors.branch}</p>
+                                )}
+                            </div>
+
+                            {formData.branch === "Other" && (
+                                <div className="md:col-span-2">
+                                    <label htmlFor="otherBranch" className="label">
+                                        Please specify your specialization{" "}
+                                        <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="otherBranch"
+                                        name="otherBranch"
+                                        value={formData.otherBranch}
+                                        onChange={handleChange}
+                                        onBlur={handleBlur}
+                                        className={`input-field ${touched.otherBranch && errors.otherBranch
+                                            ? "border-red-500"
+                                            : ""
+                                            }`}
+                                        placeholder="Enter your specialization"
+                                    />
+                                    {touched.otherBranch && errors.otherBranch && (
+                                        <p className="error-text">{errors.otherBranch}</p>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {(programType === "cohort" || programType === "workshop") && (
+                        <div className="md:col-span-2 border-b border-gray-100 pb-2 mt-4">
+                            <h3 className="text-lg font-bold text-gray-800">Course Preferences</h3>
+                            <p className="text-xs text-gray-400">
+                                Tell us how you'd like to participate
+                            </p>
+                        </div>
+                    )}
+
+                    {programType === "cohort" && (
+                        <>
                             <div>
                                 <label htmlFor="selectedSlot" className="label">
                                     Select Slot to Start Course{" "}
@@ -525,12 +732,8 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                         ))
                                     ) : (
                                         <>
-                                            <option value="19th January">
-                                                19th January
-                                            </option>
-                                            <option value="2nd February">
-                                                2nd February
-                                            </option>
+                                            <option value="19th January">19th January</option>
+                                            <option value="2nd February">2nd February</option>
                                         </>
                                     )}
                                 </select>
@@ -539,7 +742,6 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                 )}
                             </div>
 
-                            {/* Session Time */}
                             <div>
                                 <label htmlFor="sessionTime" className="label">
                                     Preferred Session Time <span className="text-red-500">*</span>
@@ -568,7 +770,6 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                 )}
                             </div>
 
-                            {/* Mode */}
                             <div>
                                 <label htmlFor="mode" className="label">
                                     Preferred Mode <span className="text-red-500">*</span>
@@ -579,9 +780,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                     value={formData.mode}
                                     onChange={handleChange}
                                     onBlur={handleBlur}
-                                    className={`input-field ${touched.mode && errors.mode
-                                        ? "border-red-500"
-                                        : ""
+                                    className={`input-field ${touched.mode && errors.mode ? "border-red-500" : ""
                                         }`}
                                 >
                                     <option value="">Select mode</option>
@@ -595,8 +794,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         </>
                     )}
 
-                    {/* Workshop Specific Fields */}
-                    {programType === 'workshop' && (
+                    {programType === "workshop" && (
                         <div>
                             <label htmlFor="plan" className="label">
                                 Select Your Plan <span className="text-red-500">*</span>
@@ -607,9 +805,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                                 value={formData.plan}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                className={`input-field ${touched.plan && errors.plan
-                                    ? "border-red-500"
-                                    : ""
+                                className={`input-field ${touched.plan && errors.plan ? "border-red-500" : ""
                                     }`}
                             >
                                 <option value="">Select a price plan</option>
@@ -622,7 +818,6 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         </div>
                     )}
 
-                    {/* Referred By (Optional) */}
                     <div>
                         <label htmlFor="referredBy" className="label">
                             Referred By{" "}
@@ -642,16 +837,12 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                         />
                     </div>
 
-                    {/* General Error Message */}
                     {errors.submit && (
                         <div className="md:col-span-2 bg-red-50 border border-red-200 rounded-xl p-4 mt-2">
-                            <p className="text-red-700 text-sm">
-                                {errors.submit}
-                            </p>
+                            <p className="text-red-700 text-sm">{errors.submit}</p>
                         </div>
                     )}
 
-                    {/* Submit Button */}
                     <div className="md:col-span-2 pt-4">
                         <button
                             type="submit"
@@ -708,5 +899,3 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
 };
 
 export default RegistrationStep;
-
-
