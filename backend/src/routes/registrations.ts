@@ -98,6 +98,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       fullName,
       email,
       phoneNumber,
+      isCollegeStudent,
       collegeName,
       yearOfPassing,
       branch,
@@ -113,15 +114,19 @@ registrationsRouter.post("/", async (req, res, next) => {
     } = req.body ?? {};
     const authUserId = getOptionalAuthUserId(req);
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
+    const resolvedIsCollegeStudent =
+      typeof isCollegeStudent === "boolean" ? isCollegeStudent : true;
 
     const missingFields: string[] = [];
     if (!offeringId) missingFields.push("offeringId");
     if (!fullName) missingFields.push("fullName");
     if (!normalizedEmail) missingFields.push("email");
     if (!phoneNumber) missingFields.push("phoneNumber");
-    if (!collegeName) missingFields.push("collegeName");
-    if (!yearOfPassing) missingFields.push("yearOfPassing");
-    if (!branch) missingFields.push("branch");
+    if (resolvedIsCollegeStudent) {
+      if (!collegeName) missingFields.push("collegeName");
+      if (!yearOfPassing) missingFields.push("yearOfPassing");
+      if (!branch) missingFields.push("branch");
+    }
 
     if (missingFields.length > 0) {
       return res.status(400).json({ error: "Missing required fields", fields: missingFields });
@@ -179,9 +184,10 @@ registrationsRouter.post("/", async (req, res, next) => {
       fullName,
       email: normalizedEmail,
       phoneNumber,
-      collegeName,
-      yearOfPassing,
-      branch,
+      isCollegeStudent: resolvedIsCollegeStudent,
+      collegeName: resolvedIsCollegeStudent ? collegeName : null,
+      yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
+      branch: resolvedIsCollegeStudent ? branch : null,
       referredBy: referredBy || null,
       selectedSlot: selectedSlot || null,
       sessionTime: sessionTime || null,

@@ -5,9 +5,13 @@ export interface StudentData {
     fullName: string
     email: string
     phoneNumber: string
+    profileCategory?: 'college_student' | 'school_student' | 'professional' | 'general'
+    isCollegeStudent: boolean
     collegeName: string
     yearOfPassing: string
+    otherYearOfPassing?: string
     branch: string
+    otherBranch?: string
     selectedSlot?: string // Made optional
     sessionTime?: string  // Made optional
     mode?: string         // Made optional
@@ -22,9 +26,13 @@ export interface RegistrationFormData {
     fullName: string
     email: string
     phoneNumber: string
+    profileCategory: 'college_student' | 'school_student' | 'professional' | 'general'
+    isCollegeStudent: boolean
     collegeName: string
     yearOfPassing: string
+    otherYearOfPassing: string
     branch: string
+    otherBranch: string
     selectedSlot: string
     sessionTime: string
     mode: string

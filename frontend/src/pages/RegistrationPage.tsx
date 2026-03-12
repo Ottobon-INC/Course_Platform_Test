@@ -12,6 +12,26 @@ import { fetchOfferings } from '@/lib/registrationApi'
 
 const STORAGE_KEY = 'ottolearn_reg_draft'
 
+const defaultRegistrationData: StudentData = {
+    offeringId: '',
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    profileCategory: 'general',
+    isCollegeStudent: true,
+    collegeName: '',
+    yearOfPassing: '',
+    otherYearOfPassing: '',
+    branch: '',
+    otherBranch: '',
+    selectedSlot: '',
+    sessionTime: '',
+    mode: '',
+    programType: 'cohort',
+    specificCourse: '',
+    plan: ''
+}
+
 function RegistrationPage() {
     const [, setLocation] = useLocation()
 
@@ -27,26 +47,31 @@ function RegistrationPage() {
         const saved = localStorage.getItem(STORAGE_KEY)
         if (saved) {
             try {
-                return JSON.parse(saved)
+                const parsed = JSON.parse(saved)
+                const resolvedProfileCategory =
+                    parsed?.profileCategory === 'college_student' ||
+                        parsed?.profileCategory === 'school_student' ||
+                        parsed?.profileCategory === 'professional' ||
+                        parsed?.profileCategory === 'general'
+                        ? parsed.profileCategory
+                        : parsed?.programType === 'workshop'
+                            ? 'general'
+                            : 'college_student'
+                const resolvedIsCollegeStudent =
+                    typeof parsed?.isCollegeStudent === 'boolean'
+                        ? parsed.isCollegeStudent
+                        : resolvedProfileCategory === 'college_student'
+                return {
+                    ...defaultRegistrationData,
+                    ...parsed,
+                    profileCategory: resolvedProfileCategory,
+                    isCollegeStudent: resolvedIsCollegeStudent
+                }
             } catch (e) {
                 console.error("Failed to parse saved registration data", e)
             }
         }
-        return {
-            offeringId: '',
-            fullName: '',
-            email: '',
-            phoneNumber: '',
-            collegeName: '',
-            yearOfPassing: '',
-            branch: '',
-            selectedSlot: '',
-            sessionTime: '',
-            mode: '',
-            programType: 'cohort',
-            specificCourse: '',
-            plan: ''
-        }
+        return defaultRegistrationData
     })
 
     const [assessmentAnswers, setAssessmentAnswers] = useState<Answer>({})
