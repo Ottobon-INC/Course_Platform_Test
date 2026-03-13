@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence, Variants } from 'framer-motion';
 import {
-    ChevronRight, ChevronLeft, Search, Terminal, Users, LifeBuoy,
-    Play, Lock, ArrowRight, Check, X
+    ChevronRight, ChevronLeft, ArrowRight, X
 } from 'lucide-react';
-import TypewriterInput from '@/components/ui/TypewriterInput';
 
 // Imports for Slide 2 (Cohort Promo)
 import humanLoopImg from '@/assets/human-loop.png';
@@ -13,6 +11,14 @@ import assessmentImg from '@/assets/assessment.png';
 import personaLearningImg from '@/assets/persona-learning.png';
 import peerInsightImg from '@/assets/peer-insight.png';
 import cohortEngagementImg from '@/assets/cohort-engagement.png';
+
+export interface HeroVariant {
+    id: 'A' | 'B' | 'C';
+    prefix: string;
+    highlight: string;
+    sub: string;
+}
+
 
 // --- Syllabus Data for Slide 2 ---
 const syllabusSections = [
@@ -98,7 +104,7 @@ const syllabusSections = [
 
 // --- Slide 1 Components (Original Hero) ---
 
-const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void }> = ({ onEnroll, onSearch }) => {
+const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => void; variant?: HeroVariant }> = ({ onEnroll, variant }) => {
     const ref = useRef<HTMLDivElement>(null);
 
     const containerVariants: Variants = {
@@ -122,7 +128,7 @@ const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => vo
     };
 
     return (
-        <div ref={ref} className="w-full h-full min-h-screen flex items-center justify-center bg-gradient-to-br from-retro-bg via-white to-retro-sage/20 py-20 pt-28">
+        <div ref={ref} className="w-full h-full flex items-center justify-center bg-gradient-to-br from-retro-bg via-white to-retro-sage/20 overflow-hidden">
             {/* Background Parallax Image */}
             <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
@@ -142,10 +148,9 @@ const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => vo
                             className="text-5xl md:text-7xl font-bold text-retro-teal tracking-tight leading-[1.1]"
                             variants={itemVariants}
                         >
-                            The First Course    <br />
+                            {variant ? variant.prefix : "Watched 100 Tutorials."} <br />
                             <span className="text-retro-salmon inline-block relative">
-
-                                you will ever need <br />to take off.
+                                {variant ? variant.highlight : "Still Can’t Build?"}
                                 <motion.svg
                                     initial={{ pathLength: 0 }}
                                     animate={{ pathLength: 1 }}
@@ -163,11 +168,46 @@ const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => vo
                         variants={itemVariants}
                         className="text-lg md:text-xl text-retro-teal/80 max-w-xl leading-relaxed"
                     >
-                        Most courses let you skip to the end. We don't. Prove your skills at every step to unlock the next module.
+                        {variant ? variant.sub : "Stop consuming content. Build one real production-grade project — the right way — with structure and mentorship."}
                     </motion.p>
 
-                    <motion.div variants={itemVariants} className="w-full flex justify-center md:justify-start">
-                        <TypewriterInput suggestions={["AI Native FullStack Developer", "Machine Learning Basics", "Full Stack Development"]} onSearch={onSearch} />
+                    <motion.div variants={itemVariants} className="flex flex-col items-center md:items-start gap-6 pt-2">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <motion.button
+                                onClick={onEnroll}
+                                whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
+                                whileTap={{ scale: 0.97 }}
+                                className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2"
+                            >
+                                Login / Signup <ArrowRight size={20} />
+                            </motion.button>
+                            <button
+                                onClick={() => {
+                                    const el = document.getElementById('how');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                }}
+                                className="group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md"
+                            >
+                                See How It Works
+                                <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
+                            </button>
+                        </div>
+
+                        {/* Trust Signals */}
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 text-sm text-retro-teal/60 font-medium">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-retro-salmon"></div>
+                                Beginner friendly
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-retro-salmon"></div>
+                                Real-world architecture
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-retro-salmon"></div>
+                                Portfolio-ready outcome
+                            </div>
+                        </div>
                     </motion.div>
                 </motion.div>
 
@@ -223,15 +263,7 @@ const HeroSlide: React.FC<{ onEnroll: () => void; onSearch: (term: string) => vo
                 </motion.div>
             </div>
 
-            <motion.div
-                className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-retro-teal/50"
-                animate={{ y: [0, 10, 0] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-            >
-                <div className="flex flex-col items-center gap-2">
-                    <div className="w-px h-12 bg-gradient-to-b from-retro-sage to-transparent"></div>
-                </div>
-            </motion.div>
+
         </div>
     );
 };
@@ -256,7 +288,7 @@ const PromoSlide: React.FC<{
     };
 
     return (
-        <div className="w-full h-full min-h-screen flex items-center justify-center bg-[#FBE9D0]/30 py-20 pt-28">
+        <div className="w-full h-full flex items-center justify-center bg-[#FBE9D0]/30 overflow-hidden">
             <div className="w-full pl-6 md:pl-20 pr-6 grid md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-8">
                     {/* Badge */}
@@ -298,7 +330,7 @@ const PromoSlide: React.FC<{
                         </motion.h2>
                     </motion.div>
 
-                    {/* Description */}
+                    {/* Description — benefit-driven, outcome-focused */}
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -306,7 +338,7 @@ const PromoSlide: React.FC<{
                         transition={{ delay: 0.2 }}
                         className="text-lg md:text-xl text-retro-teal/70 max-w-lg leading-relaxed font-medium"
                     >
-                        The definitive roadmap for developers building the next generation of intelligent software. Master LLM Orchestration, RAG Pipelines, and Agentic Systems.
+                        Go from zero to deploying AI-powered apps in 8 weeks — with mentor code-reviews, verified assessments, and a portfolio companies actually look at.
                     </motion.p>
 
                     {/* Availability Card */}
@@ -346,55 +378,44 @@ const PromoSlide: React.FC<{
 
                         <div className="flex items-center gap-2 text-[10px] font-bold text-retro-teal/40 uppercase tracking-widest">
                             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-                            hurry up seats are filling fast
+                            Seats are filling fast
                         </div>
                     </motion.div>
 
-                    {/* Form/Buttons */}
+                    {/* CTAs — single dominant action + ghost secondary */}
                     <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay: 0.4 }}
-    className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6 pt-4"
->
-    {/* 1. Grab Your Spot Button */}
-    <a
-        href="/registration/cohort/ai-native-fullstack-developer"
-        className="w-full sm:w-auto"
-        onMouseEnter={() => onHoverPauseChange(true)}
-        onMouseLeave={() => onHoverPauseChange(false)}
-    >
-        <button className="w-full bg-retro-teal text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-teal/20 hover:bg-[#1a3540] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 uppercase tracking-wide text-center">
-            grab your spot
-        </button>
-    </a>
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.4 }}
+                        className="flex flex-col gap-4 pt-4 max-w-md w-full"
+                    >
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            {/* Primary CTA */}
+                            <motion.button
+                                onClick={onEnroll}
+                                whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
+                                whileTap={{ scale: 0.97 }}
+                                onMouseEnter={() => onHoverPauseChange(true)}
+                                onMouseLeave={() => onHoverPauseChange(false)}
+                                className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                            >
+                                Login / Signup <ArrowRight size={20} />
+                            </motion.button>
 
+                            {/* Ghost secondary CTA */}
+                            <button
+                                onClick={openSyllabus}
+                                onMouseEnter={() => onHoverPauseChange(true)}
+                                onMouseLeave={() => onHoverPauseChange(false)}
+                                className="group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md w-full sm:w-auto"
+                            >
+                                View Full Syllabus
+                                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                            </button>
+                        </div>
 
-    {/* 3. View Full Syllabus Button */}
-    <button
-        onClick={openSyllabus}
-        className="group inline-flex w-full justify-center sm:w-auto items-center gap-3 rounded-xl border-2 border-retro-teal/40 bg-white px-6 py-4 font-semibold text-retro-teal shadow-sm transition-all hover:border-retro-teal hover:shadow-md"
-        onMouseEnter={() => onHoverPauseChange(true)}
-        onMouseLeave={() => onHoverPauseChange(false)}
-    >
-        View Full Syllabus
-        <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-    </button>
-
- {/* 2. Integrated Enroll Button */}
-    <motion.button
-        onClick={onEnroll}
-        whileHover={{ scale: 1.05, boxShadow: "0px 10px 20px rgba(230, 72, 51, 0.2)" }}
-        whileTap={{ scale: 0.95 }}
-        className="bg-retro-salmon hover:bg-retro-brown text-white px-8 py-4 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
-        onMouseEnter={() => onHoverPauseChange(true)}
-        onMouseLeave={() => onHoverPauseChange(false)}
-    >
-        Enroll <ChevronRight size={20} />
-    </motion.button>
-
-</motion.div>
+                    </motion.div>
                 </div>
 
                 {/* Right side - 3D Cube Feature */}
@@ -474,9 +495,10 @@ const PromoSlide: React.FC<{
 interface HeroCarouselProps {
     onEnroll: () => void;
     onSearch: (term: string) => void;
+    heroVariant?: HeroVariant;
 }
 
-const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch }) => {
+const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch, heroVariant }) => {
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
     const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -489,7 +511,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch }) => {
         }
         const interval = setInterval(() => {
             setCurrentSlide((prev) => (prev + 1) % totalSlides);
-        }, 5000);
+        }, 8000);
         return () => clearInterval(interval);
     }, [isAutoplayPaused, isHoverPaused, totalSlides]);
 
@@ -503,7 +525,8 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch }) => {
 
     return (
         <div
-            className="relative w-full min-h-screen overflow-hidden bg-retro-bg"
+            className="relative w-full overflow-hidden bg-retro-bg"
+            style={{ height: 'calc(100vh - 64px)', marginTop: '64px' }}
         >
             <AnimatePresence mode="wait">
                 <motion.div
@@ -514,7 +537,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch }) => {
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                     className="w-full h-full"
                 >
-                    {currentSlide === 0 && <HeroSlide onEnroll={onEnroll} onSearch={onSearch} />}
+                    {currentSlide === 0 && <HeroSlide onEnroll={onEnroll} onSearch={onSearch} variant={heroVariant} />}
                     {currentSlide === 1 && (
                         <PromoSlide
                             onEnroll={onEnroll}
@@ -540,7 +563,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch }) => {
             </button>
 
             {/* Pagination Dots */}
-            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40 flex gap-3">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex gap-3">
                 {[...Array(totalSlides)].map((_, index) => (
                     <button
                         key={index}
