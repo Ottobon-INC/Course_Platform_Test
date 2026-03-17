@@ -10,6 +10,7 @@ import {
   Lock,
   Menu,
   MessageSquare,
+  Pause,
   Play,
   Send,
   X,
@@ -183,6 +184,19 @@ const normalizeStudyMarkdown = (raw?: string | null): string => {
   return transformed.join("\n");
 };
 
+const stripMarkdownToText = (input: string): string => {
+  if (!input) return "";
+  return input
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[#>*_~\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 const studyMarkdownComponents: Components = {
   h1: (props) => (
     <h1 className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
@@ -329,6 +343,7 @@ const OnDemandPlayerPage: React.FC = () => {
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [ttsStatus, setTtsStatus] = useState<"idle" | "playing" | "paused" | "unavailable">("idle");
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatRect, setChatRect] = useState({ x: 0, y: 0, width: 360, height: 460, initialized: false });
@@ -358,6 +373,13 @@ const OnDemandPlayerPage: React.FC = () => {
 
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const contentScrollRef = useRef<HTMLElement | null>(null);
+  const ttsUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsScrollRafRef = useRef<number | null>(null);
+  const studyContentRef = useRef<HTMLDivElement | null>(null);
+  const ttsSegmentsRef = useRef<HTMLElement[]>([]);
+  const ttsOffsetsRef = useRef<number[]>([]);
+  const ttsActiveIndexRef = useRef<number | null>(null);
+  const [ttsText, setTtsText] = useState("");
   const dragInfo = useRef<{
     startX: number;
     startY: number;
@@ -993,13 +1015,226 @@ const OnDemandPlayerPage: React.FC = () => {
   const combinedProgress = totalUnits === 0 ? 0 : Math.round(((lessonCompletedCount + quizPassedCount) / totalUnits) * 100);
   const safeProgress = Math.max(0, Math.min(100, combinedProgress));
 
-  const parsedBlocks = parseContentBlocks(activeLesson?.textContent ?? null);
+  const parsedBlocks = useMemo(() => parseContentBlocks(activeLesson?.textContent ?? null), [activeLesson?.textContent]);
   const activePptEmbedUrl = useMemo(() => buildOfficeViewerUrl(activeLesson?.pptUrl), [activeLesson?.pptUrl]);
+  const ttsMarkdownComponents = useMemo<Components>(
+    () => ({
+      ...studyMarkdownComponents,
+      h1: (props) => (
+        <h1 data-tts-segment className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
+      ),
+      h2: (props) => (
+        <h2
+          data-tts-segment
+          className="text-2xl font-bold text-[#bf2f1f] mt-8 mb-4 border-l-4 border-[#bf2f1f] pl-3"
+          {...props}
+        />
+      ),
+      h3: (props) => (
+        <h3 data-tts-segment className="text-xl font-semibold text-[#1e3a47] mt-6 mb-3 uppercase tracking-wide" {...props} />
+      ),
+      p: (props) => (
+        <p data-tts-segment className="text-base sm:text-lg leading-7 text-[#2c3e50] mb-4" {...props} />
+      ),
+      li: (props) => <li data-tts-segment className="leading-relaxed" {...props} />,
+      blockquote: (props) => (
+        <blockquote
+          data-tts-segment
+          className="border-l-4 border-[#bf2f1f]/60 bg-white/80 rounded-r-2xl px-4 py-3 text-[#4a4845] italic shadow-sm"
+          {...props}
+        />
+      ),
+    }),
+    [],
+  );
   const hasSimulationBody =
     Boolean(activeLesson?.simulation) &&
     typeof activeLesson?.simulation?.body === "object" &&
     activeLesson?.simulation?.body !== null &&
     Array.isArray((activeLesson?.simulation?.body as { steps?: unknown }).steps);
+
+  const buildTtsSegments = useCallback(() => {
+    const container = studyContentRef.current;
+    if (!container) {
+      ttsSegmentsRef.current = [];
+      ttsOffsetsRef.current = [];
+      setTtsText("");
+      return "";
+    }
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>("[data-tts-segment]"));
+    const segments: { el: HTMLElement; text: string }[] = [];
+    nodes.forEach((node) => {
+      const raw = node.innerText ?? "";
+      const text = raw.replace(/\s+/g, " ").trim();
+      if (!text) return;
+      segments.push({ el: node, text });
+    });
+
+    const offsets: number[] = [];
+    let cursor = 0;
+    segments.forEach((seg, index) => {
+      offsets[index] = cursor;
+      cursor += seg.text.length + 2;
+    });
+
+    ttsSegmentsRef.current = segments.map((seg) => seg.el);
+    ttsOffsetsRef.current = offsets;
+    const text = segments.map((seg) => seg.text).join("\n\n");
+    setTtsText(text);
+    return text;
+  }, []);
+
+  const stopTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (synth) {
+      synth.cancel();
+    }
+    if (ttsScrollRafRef.current !== null) {
+      window.cancelAnimationFrame(ttsScrollRafRef.current);
+      ttsScrollRafRef.current = null;
+    }
+    if (ttsActiveIndexRef.current !== null) {
+      const prev = ttsSegmentsRef.current[ttsActiveIndexRef.current];
+      prev?.classList.remove("tts-active");
+      ttsActiveIndexRef.current = null;
+    }
+    ttsUtteranceRef.current = null;
+    setTtsStatus("idle");
+  }, []);
+
+  const activateTtsSegment = useCallback((index: number) => {
+    const nodes = ttsSegmentsRef.current;
+    if (!nodes.length) return;
+    const clamped = Math.max(0, Math.min(nodes.length - 1, index));
+    if (ttsActiveIndexRef.current !== null && ttsActiveIndexRef.current !== clamped) {
+      const prev = nodes[ttsActiveIndexRef.current];
+      prev?.classList.remove("tts-active");
+    }
+    const next = nodes[clamped];
+    if (next) {
+      next.classList.add("tts-active");
+      next.scrollIntoView({ behavior: "smooth", block: "center" });
+      ttsActiveIndexRef.current = clamped;
+    }
+  }, []);
+
+  const startTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+      setTtsStatus("unavailable");
+      return;
+    }
+    const spokenText = ttsText || buildTtsSegments();
+    if (!spokenText) {
+      setTtsStatus("idle");
+      return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.onboundary = (event) => {
+      if (typeof event.charIndex !== "number" || !spokenText) {
+        return;
+      }
+      const offsets = ttsOffsetsRef.current;
+      if (!offsets.length) return;
+      let idx = 0;
+      for (let i = offsets.length - 1; i >= 0; i -= 1) {
+        if (event.charIndex >= offsets[i]) {
+          idx = i;
+          break;
+        }
+      }
+      activateTtsSegment(idx);
+    };
+    utterance.onend = () => {
+      ttsUtteranceRef.current = null;
+      setTtsStatus("idle");
+    };
+    utterance.onerror = () => {
+      ttsUtteranceRef.current = null;
+      setTtsStatus("idle");
+    };
+    ttsUtteranceRef.current = utterance;
+    synth.speak(utterance);
+    activateTtsSegment(0);
+    setTtsStatus("playing");
+  }, [activateTtsSegment, buildTtsSegments, ttsText]);
+
+  const toggleTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+      setTtsStatus("unavailable");
+      return;
+    }
+    if (ttsStatus === "playing") {
+      synth.pause();
+      setTtsStatus("paused");
+      return;
+    }
+    if (ttsStatus === "paused") {
+      synth.resume();
+      setTtsStatus("playing");
+      return;
+    }
+    startTts();
+  }, [startTts, ttsStatus]);
+
+  useEffect(() => {
+    stopTts();
+    return () => {
+      stopTts();
+    };
+  }, [activeLesson?.topicId, activeLesson?.textContent, stopTts]);
+
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      buildTtsSegments();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [buildTtsSegments, activeLesson?.topicId, parsedBlocks]);
+
+  useEffect(() => {
+    if (isQuizMode) {
+      stopTts();
+    }
+  }, [isQuizMode, stopTts]);
+
+  useEffect(() => {
+    if (ttsStatus === "playing") {
+      activateTtsSegment(0);
+    }
+  }, [activateTtsSegment, ttsStatus]);
+
+  const renderStudyHeader = useCallback(
+    () => (
+      <div className="sticky top-24 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e1d8] pb-2 bg-[#f8f1e6]/95 backdrop-blur">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845]">
+          <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
+        </div>
+        <button
+          type="button"
+          onClick={toggleTts}
+          disabled={!ttsText || ttsStatus === "unavailable"}
+          className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
+            ttsStatus === "playing"
+              ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
+              : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
+          } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
+          aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+          title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+        >
+          {ttsStatus === "playing" ? <Pause size={12} /> : <Play size={12} />}
+          {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
+        </button>
+      </div>
+    ),
+    [toggleTts, ttsStatus, ttsText],
+  );
 
   const renderStudyMaterial = (): { node: React.ReactNode; hasRealContent: boolean } => {
     if (!activeLesson) return { node: null, hasRealContent: false };
@@ -1014,9 +1249,7 @@ const OnDemandPlayerPage: React.FC = () => {
             return (
               <section key={`${block.id ?? "text"}-${index}`} className="mb-10 space-y-4">
                 {!renderedTextHeader && (
-                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
-                    <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
-                  </div>
+                  renderStudyHeader()
                 )}
                 {(() => {
                   renderedTextHeader = true;
@@ -1027,7 +1260,7 @@ const OnDemandPlayerPage: React.FC = () => {
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeSanitize]}
-                      components={studyMarkdownComponents}
+                      components={ttsMarkdownComponents}
                     >
                       {normalized}
                     </ReactMarkdown>
@@ -1097,9 +1330,7 @@ const OnDemandPlayerPage: React.FC = () => {
       return {
         node: (
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
-              <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
-            </div>
+            {renderStudyHeader()}
             <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
               <div className="p-6 sm:p-8">
                 <p className="text-sm text-[#4a4845]">
@@ -1118,15 +1349,13 @@ const OnDemandPlayerPage: React.FC = () => {
       return {
         node: (
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
-              <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
-            </div>
+            {renderStudyHeader()}
             <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
               <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSanitize]}
-                  components={studyMarkdownComponents}
+                  components={ttsMarkdownComponents}
                 >
                   {normalized}
                 </ReactMarkdown>
@@ -1142,12 +1371,10 @@ const OnDemandPlayerPage: React.FC = () => {
     return {
       node: (
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.35em] text-[#4a4845] border-b border-[#e8e1d8] pb-2">
-            <BookOpen size={12} className="text-[#bf2f1f]" /> Study Material
-          </div>
+          {renderStudyHeader()}
           <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
             <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={studyMarkdownComponents}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]} components={ttsMarkdownComponents}>
                 {fallback}
               </ReactMarkdown>
             </div>
@@ -1165,6 +1392,7 @@ const OnDemandPlayerPage: React.FC = () => {
           outline: 2px solid rgba(248, 241, 230, 0.35);
           outline-offset: 2px;
         }
+        .tts-active { background: #fff6b3; box-shadow: 0 0 0 2px rgba(191,47,31,0.25) inset; border-radius: 6px; }
       `}</style>
       <header className="sticky top-0 z-40 bg-[#050505] border-b border-[#4a4845]/60 h-16">
         <div className="px-4 md:px-6 h-16 flex items-center justify-between">
@@ -1509,7 +1737,9 @@ const OnDemandPlayerPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {renderStudyMaterial().node}
+                  <div ref={studyContentRef}>
+                    {renderStudyMaterial().node}
+                  </div>
 
                   {hasSimulationBody && activeLesson?.simulation && (
                     <div className="space-y-4">

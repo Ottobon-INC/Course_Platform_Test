@@ -426,6 +426,19 @@ const normalizeStudyMarkdown = (raw?: string | null): string => {
   return result || "";
 };
 
+const stripMarkdownToText = (input: string): string => {
+  if (!input) return "";
+  return input
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[#>*_~\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 const studyMarkdownComponents: Components = {
   h1: (props) => (
     <h1 className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
@@ -477,10 +490,18 @@ const CoursePlayerPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isReadingMode, setIsReadingMode] = useState(false);
+  const [ttsStatus, setTtsStatus] = useState<"idle" | "playing" | "paused" | "unavailable">("idle");
   const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<number | null>(null);
   const lastProgressSnapshotRef = useRef<number | null>(null);
+  const ttsUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsScrollRafRef = useRef<number | null>(null);
+  const studyContentRef = useRef<HTMLDivElement | null>(null);
+  const ttsSegmentsRef = useRef<HTMLElement[]>([]);
+  const ttsOffsetsRef = useRef<number[]>([]);
+  const ttsActiveIndexRef = useRef<number | null>(null);
+  const [ttsText, setTtsText] = useState("");
   const suppressResumeCacheWriteRef = useRef(false);
   const [passedQuizzes, setPassedQuizzes] = useState<Set<string>>(new Set());
 
@@ -1953,6 +1974,36 @@ const CoursePlayerPage: React.FC = () => {
     return index >= 0 ? index : null;
   }, [contentBlocks?.blocks]);
   const hasStudyContent = hasBlockLayout ? Boolean(contentBlocks?.blocks?.length) : Boolean(formattedStudyText);
+  const ttsMarkdownComponents = useMemo<Components>(
+    () => ({
+      ...studyMarkdownComponents,
+      h1: (props) => (
+        <h1 data-tts-segment className="text-3xl font-black text-[#1c242c] mb-6 tracking-tight" {...props} />
+      ),
+      h2: (props) => (
+        <h2
+          data-tts-segment
+          className="text-2xl font-bold text-[#bf2f1f] mt-8 mb-4 border-l-4 border-[#bf2f1f] pl-3"
+          {...props}
+        />
+      ),
+      h3: (props) => (
+        <h3 data-tts-segment className="text-xl font-semibold text-[#1e3a47] mt-6 mb-3 uppercase tracking-wide" {...props} />
+      ),
+      p: (props) => (
+        <p data-tts-segment className="text-base sm:text-lg leading-7 text-[#2c3e50] mb-4" {...props} />
+      ),
+      li: (props) => <li data-tts-segment className="leading-relaxed" {...props} />,
+      blockquote: (props) => (
+        <blockquote
+          data-tts-segment
+          className="border-l-4 border-[#bf2f1f]/60 bg-white/80 rounded-r-2xl px-4 py-3 text-[#4a4845] italic shadow-sm"
+          {...props}
+        />
+      ),
+    }),
+    [],
+  );
   const blockVideoMaxHeightClass = isCompactLayout ? "max-h-[40vh]" : "max-h-[65vh]";
   const scrollMainToTop = useCallback((behavior: ScrollBehavior = "smooth") => {
     const container = contentScrollRef.current;
@@ -1971,6 +2022,159 @@ const CoursePlayerPage: React.FC = () => {
       return next;
     });
   }, [scrollMainToTop]);
+
+  const buildTtsSegments = useCallback(() => {
+    const container = studyContentRef.current;
+    if (!container) {
+      ttsSegmentsRef.current = [];
+      ttsOffsetsRef.current = [];
+      setTtsText("");
+      return "";
+    }
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>("[data-tts-segment]"));
+    const segments: { el: HTMLElement; text: string }[] = [];
+    nodes.forEach((node) => {
+      const raw = node.innerText ?? "";
+      const text = raw.replace(/\s+/g, " ").trim();
+      if (!text) {
+        return;
+      }
+      segments.push({ el: node, text });
+    });
+
+    const offsets: number[] = [];
+    let cursor = 0;
+    segments.forEach((seg, index) => {
+      offsets[index] = cursor;
+      cursor += seg.text.length + 2;
+    });
+
+    ttsSegmentsRef.current = segments.map((seg) => seg.el);
+    ttsOffsetsRef.current = offsets;
+    const text = segments.map((seg) => seg.text).join("\n\n");
+    setTtsText(text);
+    return text;
+  }, []);
+
+  const stopTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (synth) {
+      synth.cancel();
+    }
+    if (ttsScrollRafRef.current !== null) {
+      window.cancelAnimationFrame(ttsScrollRafRef.current);
+      ttsScrollRafRef.current = null;
+    }
+    if (ttsActiveIndexRef.current !== null) {
+      const prev = ttsSegmentsRef.current[ttsActiveIndexRef.current];
+      prev?.classList.remove("tts-active");
+      ttsActiveIndexRef.current = null;
+    }
+    ttsUtteranceRef.current = null;
+    setTtsStatus("idle");
+  }, []);
+
+  const activateTtsSegment = useCallback((index: number) => {
+    const nodes = ttsSegmentsRef.current;
+    if (!nodes.length) return;
+    const clamped = Math.max(0, Math.min(nodes.length - 1, index));
+    if (ttsActiveIndexRef.current !== null && ttsActiveIndexRef.current !== clamped) {
+      const prev = nodes[ttsActiveIndexRef.current];
+      prev?.classList.remove("tts-active");
+    }
+    const next = nodes[clamped];
+    if (next) {
+      next.classList.add("tts-active");
+      next.scrollIntoView({ behavior: "smooth", block: "center" });
+      ttsActiveIndexRef.current = clamped;
+    }
+  }, []);
+
+  const startTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+      setTtsStatus("unavailable");
+      return;
+    }
+    const spokenText = ttsText || buildTtsSegments();
+    if (!spokenText) {
+      setTtsStatus("idle");
+      return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.onboundary = (event) => {
+      if (typeof event.charIndex !== "number" || !spokenText) {
+        return;
+      }
+      const offsets = ttsOffsetsRef.current;
+      if (!offsets.length) return;
+      let idx = 0;
+      for (let i = offsets.length - 1; i >= 0; i -= 1) {
+        if (event.charIndex >= offsets[i]) {
+          idx = i;
+          break;
+        }
+      }
+      activateTtsSegment(idx);
+    };
+    utterance.onend = () => {
+      ttsUtteranceRef.current = null;
+      setTtsStatus("idle");
+    };
+    utterance.onerror = () => {
+      ttsUtteranceRef.current = null;
+      setTtsStatus("idle");
+    };
+    ttsUtteranceRef.current = utterance;
+    synth.speak(utterance);
+    activateTtsSegment(0);
+    setTtsStatus("playing");
+  }, [activateTtsSegment, buildTtsSegments, ttsText]);
+
+  const toggleTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
+      setTtsStatus("unavailable");
+      return;
+    }
+    if (ttsStatus === "playing") {
+      synth.pause();
+      setTtsStatus("paused");
+      return;
+    }
+    if (ttsStatus === "paused") {
+      synth.resume();
+      setTtsStatus("playing");
+      return;
+    }
+    startTts();
+  }, [startTts, ttsStatus]);
+
+  useEffect(() => {
+    stopTts();
+    return () => {
+      stopTts();
+    };
+  }, [activeLesson?.topicId, activeLesson?.textContent, stopTts]);
+
+  useEffect(() => {
+    const raf = window.requestAnimationFrame(() => {
+      buildTtsSegments();
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [buildTtsSegments, activeLesson?.topicId, hasBlockLayout, formattedStudyText]);
+
+  useEffect(() => {
+    if (ttsStatus === "playing") {
+      activateTtsSegment(0);
+    }
+  }, [activateTtsSegment, ttsStatus]);
   const renderStudyHeader = useCallback(
     () => (
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b-2 border-[#4a4845]/20 pb-4">
@@ -2077,7 +2281,7 @@ const CoursePlayerPage: React.FC = () => {
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSanitize]}
-                  components={studyMarkdownComponents}
+                  components={variant === "main" ? ttsMarkdownComponents : studyMarkdownComponents}
                 >
                   {content}
                 </ReactMarkdown>
@@ -2206,6 +2410,7 @@ const CoursePlayerPage: React.FC = () => {
           input[type=range] { -webkit-appearance: none; background: transparent; }
           input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #bf2f1f; margin-top: -6px; cursor: pointer; border: 2px solid #f8f1e6; }
           input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #4a4845; border-radius: 2px; }
+          .tts-active { background: #fff6b3; box-shadow: 0 0 0 2px rgba(191,47,31,0.25) inset; border-radius: 6px; }
       `}</style>
 
       {/* Sidebar */}
@@ -2389,7 +2594,26 @@ const CoursePlayerPage: React.FC = () => {
               <div className={`w-full ${studySectionPadding} space-y-8`}>
                 {!hasBlockLayout && renderStudyHeader()}
 
-                <div className="space-y-4 text-left">
+                <div className="space-y-4 text-left" ref={studyContentRef}>
+                  {hasStudyContent && (
+                    <div className="sticky top-24 z-10 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={toggleTts}
+                        disabled={!ttsText || ttsStatus === "unavailable"}
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
+                          ttsStatus === "playing"
+                            ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
+                            : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
+                        } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
+                        aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                        title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                      >
+                        {ttsStatus === "playing" ? <Pause size={14} /> : <Play size={14} />}
+                        {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
+                      </button>
+                    </div>
+                  )}
                   {hasBlockLayout && contentBlocks ? (
                     <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
                   ) : formattedStudyText ? (
@@ -2398,7 +2622,7 @@ const CoursePlayerPage: React.FC = () => {
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           rehypePlugins={[rehypeSanitize]}
-                          components={studyMarkdownComponents}
+                          components={ttsMarkdownComponents}
                         >
                           {formattedStudyText}
                         </ReactMarkdown>
