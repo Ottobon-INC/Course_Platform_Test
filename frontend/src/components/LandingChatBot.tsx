@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, X, Bot, Loader2 } from "lucide-react";
+import { MessageCircle, Send, X, Bot } from "lucide-react";
 import { buildApiUrl } from "@/lib/api";
 import { streamJobResult } from "@/lib/streamJob";
 
@@ -22,6 +22,8 @@ interface Message {
     isBot: boolean;
     timestamp: Date;
     suggestions?: string[];
+    actionUrl?: string;
+    error?: boolean;
 }
 
 const INITIAL_SUGGESTIONS = [
@@ -37,6 +39,51 @@ interface LandingChatBotProps {
 const SESSION_KEY = "otto_landing_chat_history";
 const GUEST_LIMIT = 5;
 const USER_LIMIT = 10;
+const CHAT_STREAM_TICK_MS = 60;
+const CHAT_STREAM_CHARS_PER_TICK = 1;
+const CHAT_LOADING_MESSAGE_ROTATE_MS = 1600;
+const CHAT_MIN_WAIT_MS = 2200;
+const CHAT_LOADING_MESSAGES = [
+    "Reviewing your question...",
+    "Collecting relevant course details...",
+    "Preparing a focused response...",
+    "Aligning recommendations...",
+    "Finalizing the answer...",
+];
+
+const makeId = () =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+
+const extractVisibleAnswerText = (raw: string): string => {
+    const markerStartIndex = raw.indexOf("<<");
+    if (markerStartIndex >= 0) {
+        return raw.slice(0, markerStartIndex).trimEnd();
+    }
+    return raw;
+};
+
+const parseAssistantDecorators = (raw: string) => {
+    let botText = raw || "";
+    let actionUrl: string | undefined;
+    let suggestions: string[] = [];
+
+    const actionMatch = botText.match(/<<ACTION:(.*?)>>/);
+    if (actionMatch) {
+        actionUrl = actionMatch[1].trim();
+        botText = botText.replace(actionMatch[0], "").trim();
+    }
+
+    if (botText.includes("<<SUGGESTIONS>>")) {
+        const parts = botText.split("<<SUGGESTIONS>>");
+        botText = parts[0].trim();
+        const rawSuggestions = parts[1] || "";
+        suggestions = rawSuggestions.split("|").map((s: string) => s.trim()).filter(Boolean);
+    }
+
+    return { botText, actionUrl, suggestions };
+};
 
 export default function LandingChatBot({ userName }: LandingChatBotProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -59,7 +106,9 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
         return [];
     });
     const [inputValue, setInputValue] = useState("");
-    const [isTyping, setIsTyping] = useState(false);
+    const [chatLoading, setChatLoading] = useState(false);
+    const [chatLoadingMessage, setChatLoadingMessage] = useState(CHAT_LOADING_MESSAGES[0]);
+    const [loadingBotId, setLoadingBotId] = useState<string | null>(null);
 
     // Refs for scrolling and input focus
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,7 +154,7 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages, isTyping, isOpen]);
+    }, [messages, chatLoading, isOpen]);
 
     // Focus input after bot responds
     useEffect(() => {
@@ -113,17 +162,17 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
         const userCount = messages.filter(m => !m.isBot).length;
         const limit = userName ? USER_LIMIT : GUEST_LIMIT;
 
-        if (!isTyping && isOpen && inputRef.current && userCount < limit) {
+        if (!chatLoading && isOpen && inputRef.current && userCount < limit) {
             const timeout = setTimeout(() => {
                 inputRef.current?.focus();
             }, 100);
             return () => clearTimeout(timeout);
         }
-    }, [isTyping, isOpen, messages, userName]);
+    }, [chatLoading, isOpen, messages, userName]);
 
     const handleSendMessage = async (text?: string) => {
-        const messageText = text || inputValue.trim();
-        if (!messageText || isTyping) return;
+        const messageText = text?.trim() || inputValue.trim();
+        if (!messageText || chatLoading) return;
 
         // Check Limits
         const userCount = messages.filter(m => !m.isBot).length;
@@ -136,17 +185,47 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
         }
 
         const userMsg: Message = {
-            id: `user-${Date.now()}`,
+            id: `user-${makeId()}`,
             text: messageText,
             isBot: false,
             timestamp: new Date(),
         };
+        const botId = `bot-${makeId()}`;
 
-        setMessages((prev) => [...prev, userMsg]);
+        setMessages((prev) => [
+            ...prev,
+            userMsg,
+            {
+                id: botId,
+                text: "",
+                isBot: true,
+                timestamp: new Date(),
+            },
+        ]);
         setInputValue("");
-        setIsTyping(true);
+        setChatLoading(true);
+        setLoadingBotId(botId);
+
+        let loadingMessageIndex = 0;
+        let loadingMessageInterval: ReturnType<typeof setInterval> | null = null;
+        const stopLoadingMessageLoop = () => {
+            if (loadingMessageInterval) {
+                clearInterval(loadingMessageInterval);
+                loadingMessageInterval = null;
+            }
+        };
+        const startLoadingMessageLoop = () => {
+            loadingMessageIndex = Math.floor(Math.random() * CHAT_LOADING_MESSAGES.length);
+            setChatLoadingMessage(CHAT_LOADING_MESSAGES[loadingMessageIndex]);
+            loadingMessageInterval = setInterval(() => {
+                loadingMessageIndex = (loadingMessageIndex + 1) % CHAT_LOADING_MESSAGES.length;
+                setChatLoadingMessage(CHAT_LOADING_MESSAGES[loadingMessageIndex]);
+            }, CHAT_LOADING_MESSAGE_ROTATE_MS);
+        };
+        startLoadingMessageLoop();
 
         try {
+            const requestStartedAt = Date.now();
             const response = await fetch(buildApiUrl("/api/landing-assistant/query"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -156,73 +235,185 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                 }),
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => null);
 
             if (!response.ok) {
-                throw new Error(data.message || "Failed to get answer");
+                throw new Error(data?.message || "Failed to get answer");
             }
 
-            // ── Resolve the AI answer (async SSE or legacy sync) ──
-            let result: Record<string, unknown>;
+            // ── Resolve the AI answer with incremental rendering ──
+            let answerRaw = "I couldn't find the answer right now.";
             if (response.status === 202 && data.jobId) {
-                // Async path — stream the result via SSE
-                result = await streamJobResult(
-                    buildApiUrl(`/api/landing-assistant/stream/${data.jobId}`)
-                );
-            } else {
-                // Sync fallback (backward compatible)
-                result = data as Record<string, unknown>;
-            }
+                // Async path: true streamed playback
+                let streamedRawAnswer = "";
+                let pendingChunkQueue = "";
+                let streamEnded = false;
+                let firstVisibleChunkRendered = false;
+                let playbackInterval: ReturnType<typeof setInterval> | null = null;
+                let resolvePlayback: (() => void) | null = null;
+                const playbackDone = new Promise<void>((resolve) => {
+                    resolvePlayback = resolve;
+                });
+                const stopPlayback = () => {
+                    if (playbackInterval) {
+                        clearInterval(playbackInterval);
+                        playbackInterval = null;
+                    }
+                    if (resolvePlayback) {
+                        resolvePlayback();
+                        resolvePlayback = null;
+                    }
+                };
+                const applyQueuedChunk = () => {
+                    if (!pendingChunkQueue) {
+                        if (streamEnded) {
+                            stopPlayback();
+                        }
+                        return;
+                    }
+                    const nextSlice = pendingChunkQueue.slice(0, CHAT_STREAM_CHARS_PER_TICK);
+                    pendingChunkQueue = pendingChunkQueue.slice(CHAT_STREAM_CHARS_PER_TICK);
+                    streamedRawAnswer += nextSlice;
+                    const visibleAnswer = extractVisibleAnswerText(streamedRawAnswer);
+                    if (!firstVisibleChunkRendered && visibleAnswer.trim().length > 0) {
+                        firstVisibleChunkRendered = true;
+                        stopLoadingMessageLoop();
+                    }
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.id === botId
+                                ? { ...msg, text: visibleAnswer }
+                                : msg,
+                        ),
+                    );
+                    if (!pendingChunkQueue && streamEnded) {
+                        stopPlayback();
+                    }
+                };
+                const ensurePlaybackLoop = () => {
+                    if (playbackInterval) {
+                        return;
+                    }
+                    playbackInterval = setInterval(applyQueuedChunk, CHAT_STREAM_TICK_MS);
+                };
 
-            // Parse response for suggestions and actions
-            let botText = (result.answer as string) || "";
-            let suggestions: string[] = [];
-            let actionUrl: string | undefined;
-
-            // Extract Action URL
-            if (botText.includes("<<ACTION:")) {
-                const actionMatch = botText.match(/<<ACTION:(.*?)>>/);
-                if (actionMatch) {
-                    actionUrl = actionMatch[1].trim();
-                    botText = botText.replace(actionMatch[0], "").trim();
+                try {
+                    const result = await streamJobResult(
+                        buildApiUrl(`/api/landing-assistant/stream/${data.jobId}`),
+                        undefined,
+                        {
+                            onStatus: () => {
+                                // Keep custom rotating UI statuses instead of queue text.
+                            },
+                            onChunk: (chunkText) => {
+                                pendingChunkQueue += chunkText;
+                                ensurePlaybackLoop();
+                            },
+                        },
+                    );
+                    const resolvedAnswer = typeof result.answer === "string" ? result.answer : "";
+                    if (streamedRawAnswer.trim().length === 0 && resolvedAnswer.trim().length > 0) {
+                        pendingChunkQueue += resolvedAnswer;
+                        ensurePlaybackLoop();
+                    }
+                    streamEnded = true;
+                    ensurePlaybackLoop();
+                    applyQueuedChunk();
+                    await playbackDone;
+                    answerRaw = streamedRawAnswer.trim().length > 0
+                        ? streamedRawAnswer
+                        : resolvedAnswer.trim().length > 0
+                            ? resolvedAnswer
+                            : answerRaw;
+                } finally {
+                    stopPlayback();
                 }
+            } else {
+                // Sync fallback: still render with paced typewriter playback
+                const result = data as Record<string, unknown>;
+                const rawAnswer = typeof result.answer === "string" ? result.answer : "";
+                const elapsedMs = Date.now() - requestStartedAt;
+                const remainingWaitMs = Math.max(0, CHAT_MIN_WAIT_MS - elapsedMs);
+                if (remainingWaitMs > 0) {
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, remainingWaitMs);
+                    });
+                }
+
+                let typedAnswer = "";
+                let queued = rawAnswer;
+                let firstVisibleChunkRendered = false;
+                await new Promise<void>((resolve) => {
+                    const timer = setInterval(() => {
+                        if (!queued) {
+                            clearInterval(timer);
+                            resolve();
+                            return;
+                        }
+                        const nextSlice = queued.slice(0, CHAT_STREAM_CHARS_PER_TICK);
+                        queued = queued.slice(CHAT_STREAM_CHARS_PER_TICK);
+                        typedAnswer += nextSlice;
+                        const visibleAnswer = extractVisibleAnswerText(typedAnswer);
+                        if (!firstVisibleChunkRendered && visibleAnswer.trim().length > 0) {
+                            firstVisibleChunkRendered = true;
+                            stopLoadingMessageLoop();
+                        }
+                        setMessages((prev) =>
+                            prev.map((msg) =>
+                                msg.id === botId
+                                    ? { ...msg, text: visibleAnswer }
+                                    : msg,
+                            ),
+                        );
+                    }, CHAT_STREAM_TICK_MS);
+                });
+                answerRaw = typedAnswer.trim().length > 0 ? typedAnswer : rawAnswer || answerRaw;
             }
 
-            if (botText.includes("<<SUGGESTIONS>>")) {
-                const parts = botText.split("<<SUGGESTIONS>>");
-                botText = parts[0].trim();
-                const rawSuggestions = parts[1] || "";
-                suggestions = rawSuggestions.split("|").map((s: string) => s.trim()).filter(Boolean);
-            } else if (messages.length >= 8) {
+            stopLoadingMessageLoop();
+
+            const parsed = parseAssistantDecorators(answerRaw);
+            let { botText, actionUrl, suggestions } = parsed;
+
+            if (suggestions.length === 0 && messages.length >= 8) {
                 // Fallback for later turns (Tier 2 Throttling) - ONLY if no specific action was found
                 if (!actionUrl) {
                     suggestions = ["View All Courses", "Pricing", "Apply as Tutor"];
                 }
             }
 
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: `bot-${Date.now()}`,
-                    text: botText,
-                    isBot: true,
-                    timestamp: new Date(),
-                    suggestions: suggestions.length > 0 ? suggestions : undefined,
-                    actionUrl // Save the action URL
-                },
-            ]);
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === botId
+                        ? {
+                            ...msg,
+                            text: botText,
+                            suggestions: suggestions.length > 0 ? suggestions : undefined,
+                            actionUrl,
+                            error: false,
+                        }
+                        : msg,
+                ),
+            );
         } catch (error) {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: `error-${Date.now()}`,
-                    text: error instanceof Error ? error.message : "I'm having trouble connecting to the server.",
-                    isBot: true,
-                    timestamp: new Date(),
-                },
-            ]);
+            stopLoadingMessageLoop();
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === botId
+                        ? {
+                            ...msg,
+                            text: error instanceof Error ? error.message : "I'm having trouble connecting to the server.",
+                            error: true,
+                            suggestions: undefined,
+                            actionUrl: undefined,
+                        }
+                        : msg,
+                ),
+            );
         } finally {
-            setIsTyping(false);
+            setChatLoading(false);
+            setLoadingBotId(null);
+            setChatLoadingMessage(CHAT_LOADING_MESSAGES[0]);
         }
     };
 
@@ -278,70 +469,85 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                             className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
                             ref={scrollRef}
                         >
-                            {messages.map((m) => (
-                                <div
-                                    key={m.id}
-                                    className={`flex flex-col ${m.isBot ? "items-start" : "items-end"}`}
-                                >
+                            {messages.map((m) => {
+                                const showThinkingIndicator =
+                                    m.isBot && chatLoading && m.id === loadingBotId && !m.error && m.text.trim().length === 0;
+
+                                return (
                                     <div
-                                        className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm shadow-sm ${m.isBot
-                                            ? "bg-[#FBE9D0] text-[#244855] rounded-tl-none"
-                                            : "bg-[#244855] text-white rounded-tr-none"
-                                            }`}
+                                        key={m.id}
+                                        className={`flex flex-col ${m.isBot ? "items-start" : "items-end"}`}
                                     >
-                                        <p className="whitespace-pre-wrap leading-relaxed">
-                                            {m.text}
-                                        </p>
-                                        <span className="text-[10px] opacity-70 mt-1 block">
-                                            {m.timestamp.toLocaleTimeString([], {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                        </span>
-                                    </div>
-
-                                    {/* Primary Redirect Action */}
-                                    {/* We cast to any because TS doesn't know about actionUrl on Message yet, 
-                                        but we are treating the local state as flexible or need to update interface */}
-                                    {(m as any).actionUrl && (
-                                        <div className="mt-2 w-[85%]">
-                                            <Button
-                                                onClick={() => window.location.href = (m as any).actionUrl}
-                                                className={`w-full ${THEME.secondary} hover:bg-[#c43e2b] text-white shadow-md transition-all`}
-                                                size="sm"
-                                            >
-                                                View {
-                                                    (m as any).actionUrl.includes("cohort") ? "Cohorts" :
-                                                        (m as any).actionUrl.includes("workshop") ? "Workshops" :
-                                                            (m as any).actionUrl.includes("on-demand") ? "On-Demand Courses" : "Page"
-                                                }
-                                            </Button>
+                                        <div
+                                            className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm shadow-sm ${m.isBot
+                                                ? "bg-[#FBE9D0] text-[#244855] rounded-tl-none border border-[#90AEAD]/35"
+                                                : "bg-[#244855] text-white rounded-tr-none"
+                                                } ${m.error ? "border border-[#E64833]/60 text-[#7a1f12]" : ""}`}
+                                        >
+                                            {showThinkingIndicator ? (
+                                                <div className="space-y-2.5">
+                                                    <div className="text-sm font-medium text-[#244855]">
+                                                        {chatLoadingMessage}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="h-2 w-2 rounded-full bg-[#E64833] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(230,72,51,0.45)]" />
+                                                        <span className="h-2 w-2 rounded-full bg-[#E64833] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(230,72,51,0.45)]" />
+                                                        <span className="h-2 w-2 rounded-full bg-[#E64833] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(230,72,51,0.45)]" />
+                                                        <span className="h-2 w-2 rounded-full bg-[#E64833] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(230,72,51,0.45)]" />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="whitespace-pre-wrap leading-relaxed">
+                                                    {m.text}
+                                                </p>
+                                            )}
+                                            <span className="text-[10px] opacity-70 mt-1 block">
+                                                {m.timestamp.toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
                                         </div>
-                                    )}
 
-                                    {m.suggestions && !isLimitReached && (
-                                        <div className="mt-2 flex flex-wrap gap-2 max-w-[85%]">
-                                            {m.suggestions.map((s, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => handleSendMessage(s)}
-                                                    className="text-xs bg-white border border-[#244855]/20 text-[#244855] px-3 py-1.5 rounded-full hover:bg-[#244855] hover:text-white transition-colors text-left"
+                                        {/* Primary Redirect Action */}
+                                        {m.actionUrl && (
+                                            <div className="mt-2 w-[85%]">
+                                                <Button
+                                                    onClick={() => {
+                                                        window.location.href = m.actionUrl;
+                                                    }}
+                                                    className={`w-full ${THEME.secondary} hover:bg-[#c43e2b] text-white shadow-md transition-all`}
+                                                    size="sm"
                                                 >
-                                                    {s}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                            {isTyping && (
-                                <div className="flex justify-start">
-                                    <div className="bg-[#FBE9D0] px-4 py-3 rounded-2xl rounded-tl-none text-[#244855] flex items-center gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        <span className="text-sm">Typing...</span>
+                                                    View {
+                                                        m.actionUrl.includes("cohort") ? "Cohorts" :
+                                                            m.actionUrl.includes("workshop") ? "Workshops" :
+                                                                m.actionUrl.includes("on-demand") ? "On-Demand Courses" : "Page"
+                                                    }
+                                                </Button>
+                                            </div>
+                                        )}
+
+                                        {m.suggestions && !isLimitReached && !chatLoading && (
+                                            <div className="mt-2 flex flex-wrap gap-2 max-w-[85%]">
+                                                {m.suggestions.map((s, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => handleSendMessage(s)}
+                                                        disabled={chatLoading}
+                                                        className={`text-xs px-3 py-1.5 rounded-full transition-colors text-left ${chatLoading
+                                                            ? "bg-white/70 border border-[#244855]/10 text-[#244855]/40 cursor-not-allowed"
+                                                            : "bg-white border border-[#244855]/20 text-[#244855] hover:bg-[#244855] hover:text-white"
+                                                            }`}
+                                                    >
+                                                        {s}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })}
 
                             {/* Limit Reached Notice */}
                             {isLimitReached && (
@@ -388,11 +594,11 @@ export default function LandingChatBot({ userName }: LandingChatBotProps) {
                                     }
                                     className="bg-white border-gray-300 focus-visible:ring-[#244855]"
                                     autoFocus
-                                    disabled={isLimitReached}
+                                    disabled={isLimitReached || chatLoading}
                                 />
                                 <Button
                                     onClick={() => void handleSendMessage()}
-                                    disabled={!inputValue.trim() || isTyping || isLimitReached}
+                                    disabled={!inputValue.trim() || chatLoading || isLimitReached}
                                     size="icon"
                                     className={THEME.primary}
                                 >
