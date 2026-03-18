@@ -75,6 +75,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
   const hadSessionRef = useRef(false);
   const logoutTriggeredRef = useRef(false);
   const shouldHideNavbar =
+    location === "/" ||
     location === "/course" ||
     location.startsWith("/course/") ||
     location.startsWith("/ondemand/") ||
