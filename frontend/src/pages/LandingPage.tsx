@@ -47,7 +47,7 @@ const courseImageMap: Record<string, string> = {
   'ai data labeling':
     'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop',
   'ai in marketing':
-    'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=800&auto=format&fit=crop',
+    'https://images.unsplash.unsplash.com/photo-1529333166437-7750a6dd5a70?q=80&w=800&auto=format&fit=crop',
   'ai agent development':
     'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=800&auto=format&fit=crop',
   'ai tools for web development':
@@ -1429,7 +1429,7 @@ const Pricing: React.FC<{ onEnroll: () => void }> = ({ onEnroll }) => {
 
             <motion.button
               onClick={() => onEnroll()}
-              animate={{ scale: [1, 1.02, 1] }}
+              animate={{ scale: [1, 1.03, 1] }}
               transition={{ repeat: Infinity, duration: 2 }}
               className="w-full py-4 rounded-xl bg-retro-cyan text-white font-bold hover:bg-retro-salmon transition-colors shadow-lg mb-3"
             >
@@ -1472,6 +1472,7 @@ const faqs = [
   { question: "Is there a community or forum for help?", answer: "Absolutely. We have a dedicated community and an in-platform discussion forum where you can interact with peers, share projects, and get help from mentors." },
   { question: "Can I pay using UPI or local Indian payment methods?", answer: "Yes, we support all major Indian payment methods including UPI (Google Pay, PhonePe, Paytm), Net Banking, and Cards through our secure gateway." },
 ];
+
 
 const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -1965,6 +1966,7 @@ function LandingPage() {
       <Transformation />
       <WhoIsItFor />
       {/* <CareerPath /> — removed: repeats Transformation's message */}
+      <Methodology />
       {/* <QuantifiedProof /> — removed: stats already in CurriculumStructure header */}
       <ValueProp />
       <AiStructure />

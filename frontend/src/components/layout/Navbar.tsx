@@ -103,6 +103,13 @@ const Navbar: React.FC<NavbarProps> = ({
                         </button>
 
                         <button
+                            onClick={() => setLocation('/blogs')}
+                            className={`transition-colors ${window.location.pathname.startsWith('/blogs') ? 'text-retro-salmon font-bold' : 'hover:text-retro-salmon'}`}
+                        >
+                            Blogs
+                        </button>
+
+                        <button
                             onClick={() => setLocation('/more-info')}
                             className={`transition-colors ${window.location.pathname.startsWith('/more-info') ? 'text-retro-salmon font-bold' : 'hover:text-retro-salmon'}`}
                         >
@@ -224,6 +231,15 @@ const Navbar: React.FC<NavbarProps> = ({
                                         className="w-full text-left font-semibold text-retro-teal hover:text-retro-salmon transition"
                                     >
                                         Methodology
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setLocation('/blogs');
+                                            setMobileMenuOpen(false);
+                                        }}
+                                        className="w-full text-left font-semibold text-retro-teal hover:text-retro-salmon transition"
+                                    >
+                                        Blogs
                                     </button>
                                     <button
                                         onClick={() => {

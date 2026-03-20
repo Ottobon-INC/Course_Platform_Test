@@ -1,0 +1,475 @@
+{
+  "tables": [
+    {
+      "table_name": "workshops"
+    },
+    {
+      "table_name": "workshop_sessions"
+    },
+    {
+      "table_name": "_prisma_migrations"
+    },
+    {
+      "table_name": "articles"
+    },
+    {
+      "table_name": "background_jobs"
+    },
+    {
+      "table_name": "scraping_logs_jobs"
+    },
+    {
+      "table_name": "cron_locks_jobs"
+    },
+    {
+      "table_name": "blog_posts_jobs"
+    },
+    {
+      "table_name": "learning_resources_jobs"
+    },
+    {
+      "table_name": "registrations"
+    },
+    {
+      "table_name": "jobs_jobs"
+    },
+    {
+      "table_name": "chat_sessions_jobs"
+    },
+    {
+      "table_name": "course_certificates"
+    },
+    {
+      "table_name": "users_jobs"
+    },
+    {
+      "table_name": "course_chunks"
+    },
+    {
+      "table_name": "rifa_admins"
+    },
+    {
+      "table_name": "rifa_inquiries"
+    },
+    {
+      "table_name": "sakhi_faq"
+    },
+    {
+      "table_name": "cp_blogs"
+    },
+    {
+      "table_name": "sakhi_blogs"
+    },
+    {
+      "table_name": "module_progress"
+    },
+    {
+      "table_name": "jobs_blogs"
+    },
+    {
+      "table_name": "page_content"
+    },
+    {
+      "table_name": "sakhi_bot_knowledge"
+    },
+    {
+      "table_name": "sakhi_clinics_chatbotauditlogs"
+    },
+    {
+      "table_name": "sakhi_conversations"
+    },
+    {
+      "table_name": "sakhi_conversations_new"
+    },
+    {
+      "table_name": "sakhi_encrypted_chats"
+    },
+    {
+      "table_name": "sakhi_medical_dictionary"
+    },
+    {
+      "table_name": "sakhi_new_questions"
+    },
+    {
+      "table_name": "sakhi_scraped_blogs"
+    },
+    {
+      "table_name": "sakhi_scraped_doctors"
+    },
+    {
+      "table_name": "sakhi_success_stories"
+    },
+    {
+      "table_name": "sakhi_users_answer"
+    },
+    {
+      "table_name": "topic_prompt_suggestions_staging"
+    },
+    {
+      "table_name": "tutor_applications"
+    },
+    {
+      "table_name": "course_submissions"
+    },
+    {
+      "table_name": "ct_routing_queue"
+    },
+    {
+      "table_name": "ct_conversation_threads"
+    },
+    {
+      "table_name": "course_offerings"
+    },
+    {
+      "table_name": "assessment_questions"
+    },
+    {
+      "table_name": "users"
+    },
+    {
+      "table_name": "cart_items"
+    },
+    {
+      "table_name": "courses"
+    },
+    {
+      "table_name": "cart_lines"
+    },
+    {
+      "table_name": "cohorts"
+    },
+    {
+      "table_name": "cohort_batch_projects"
+    },
+    {
+      "table_name": "cohort_members"
+    },
+    {
+      "table_name": "cold_call_messages"
+    },
+    {
+      "table_name": "cold_call_prompts"
+    },
+    {
+      "table_name": "topics"
+    },
+    {
+      "table_name": "cold_call_stars"
+    },
+    {
+      "table_name": "course_tutors"
+    },
+    {
+      "table_name": "tutors"
+    },
+    {
+      "table_name": "cp_rag_chat_sessions"
+    },
+    {
+      "table_name": "cp_rag_chat_messages"
+    },
+    {
+      "table_name": "ct_audit_logs"
+    },
+    {
+      "table_name": "ct_conversation_messages"
+    },
+    {
+      "table_name": "ct_sentiment_evaluations"
+    },
+    {
+      "table_name": "enrollments"
+    },
+    {
+      "table_name": "sakhi_users"
+    },
+    {
+      "table_name": "sakhi_parent_profiles"
+    },
+    {
+      "table_name": "learner_activity_events"
+    },
+    {
+      "table_name": "learner_message_logs"
+    },
+    {
+      "table_name": "learner_persona_profiles"
+    },
+    {
+      "table_name": "module_prompt_usage"
+    },
+    {
+      "table_name": "quiz_attempts"
+    },
+    {
+      "table_name": "quiz_questions"
+    },
+    {
+      "table_name": "quiz_options"
+    },
+    {
+      "table_name": "sakhi_chat_states"
+    },
+    {
+      "table_name": "sakhi_clinic_appointments"
+    },
+    {
+      "table_name": "sakhi_clinic_alerts"
+    },
+    {
+      "table_name": "sakhi_clinic_users"
+    },
+    {
+      "table_name": "sakhi_clinic_appointment_logs"
+    },
+    {
+      "table_name": "sakhi_clinic_leads"
+    },
+    {
+      "table_name": "sakhi_clinic_patients"
+    },
+    {
+      "table_name": "sakhi_clinic_doctor_sessions"
+    },
+    {
+      "table_name": "sakhi_knowledge_flywheel"
+    },
+    {
+      "table_name": "sakhi_life_stages"
+    },
+    {
+      "table_name": "sakhi_knowledge_hub"
+    },
+    {
+      "table_name": "sakhi_perspectives"
+    },
+    {
+      "table_name": "sakhi_sections"
+    },
+    {
+      "table_name": "sakhi_section_chunks"
+    },
+    {
+      "table_name": "sakhi_tool_usage"
+    },
+    {
+      "table_name": "sakhi_user_journeys"
+    },
+    {
+      "table_name": "sakhi_user_sessions"
+    },
+    {
+      "table_name": "simulation_exercises"
+    },
+    {
+      "table_name": "topic_content_assets"
+    },
+    {
+      "table_name": "topic_personalization"
+    },
+    {
+      "table_name": "topic_progress"
+    },
+    {
+      "table_name": "topic_prompt_suggestions"
+    },
+    {
+      "table_name": "tutor_faq"
+    },
+    {
+      "table_name": "user_sessions"
+    },
+    {
+      "table_name": "video_watch_log"
+    },
+    {
+      "table_name": "announcements_talentops"
+    },
+    {
+      "table_name": "attendance_talentops"
+    },
+    {
+      "table_name": "departments_talentops"
+    },
+    {
+      "table_name": "expenses_talentops"
+    },
+    {
+      "table_name": "job_descriptions_talentops"
+    },
+    {
+      "table_name": "leaves_talentops"
+    },
+    {
+      "table_name": "notifications_talentops"
+    },
+    {
+      "table_name": "payroll_talentops"
+    },
+    {
+      "table_name": "payslips_talentops"
+    },
+    {
+      "table_name": "performance_reviews_talentops"
+    },
+    {
+      "table_name": "policies_talentops"
+    },
+    {
+      "table_name": "profiles_talentops"
+    },
+    {
+      "table_name": "projects_talentops"
+    },
+    {
+      "table_name": "tasks_talentops"
+    },
+    {
+      "table_name": "teams_talentops"
+    },
+    {
+      "table_name": "timesheets_talentops"
+    },
+    {
+      "table_name": "videos"
+    }
+  ],
+  "cp_blogs_columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "domain",
+      "data_type": "text"
+    },
+    {
+      "column_name": "title",
+      "data_type": "text"
+    },
+    {
+      "column_name": "description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "summary",
+      "data_type": "text"
+    },
+    {
+      "column_name": "hashtags",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "image_url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "content_images",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "callout_stats",
+      "data_type": "ARRAY"
+    }
+  ],
+  "sakhi_blogs_columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "domain",
+      "data_type": "text"
+    },
+    {
+      "column_name": "title",
+      "data_type": "text"
+    },
+    {
+      "column_name": "description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "summary",
+      "data_type": "text"
+    },
+    {
+      "column_name": "hashtags",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "image_url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "content_images",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "callout_stats",
+      "data_type": "ARRAY"
+    }
+  ],
+  "jobs_blogs_columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid"
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone"
+    },
+    {
+      "column_name": "url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "domain",
+      "data_type": "text"
+    },
+    {
+      "column_name": "title",
+      "data_type": "text"
+    },
+    {
+      "column_name": "description",
+      "data_type": "text"
+    },
+    {
+      "column_name": "summary",
+      "data_type": "text"
+    },
+    {
+      "column_name": "hashtags",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "image_url",
+      "data_type": "text"
+    },
+    {
+      "column_name": "content_images",
+      "data_type": "ARRAY"
+    },
+    {
+      "column_name": "callout_stats",
+      "data_type": "ARRAY"
+    }
+  ]
+}

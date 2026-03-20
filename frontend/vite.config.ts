@@ -28,6 +28,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    allowedHosts: ["erminia-orthogonal-tremendously.ngrok-free.dev"],
     fs: {
       strict: true,
       deny: ["**/.*"],

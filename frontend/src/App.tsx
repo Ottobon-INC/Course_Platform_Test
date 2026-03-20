@@ -29,6 +29,8 @@ import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
 import MoreInfoPage from "@/pages/MoreInfoPage";
+import BlogsPage from "@/pages/BlogsPage";
+import BlogDetailPage from "@/pages/BlogDetailPage";
 
 function Router() {
   return (
@@ -60,6 +62,9 @@ function Router() {
       <Route path="/auth/callback" component={AuthCallbackPage} />
 
 
+      <Route path="/blogs" component={BlogsPage} />
+      <Route path="/blogs/:id" component={BlogDetailPage} />
+
       {/* Default route goes to dashboard */}
       <Route path="/" component={LandingPage} />
 
@@ -80,6 +85,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
     location.startsWith("/course/") ||
     location.startsWith("/ondemand/") ||
     location.startsWith("/registration") ||
+    location.startsWith("/blogs") ||
     location === "/student-dashboard";
 
   useEffect(() => {
