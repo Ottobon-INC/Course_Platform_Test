@@ -505,6 +505,7 @@ const CoursePlayerPage: React.FC = () => {
   const ttsWordSpanRef = useRef<HTMLSpanElement | null>(null);
   const [ttsText, setTtsText] = useState("");
   const suppressResumeCacheWriteRef = useRef(false);
+  const resumeWriteEnabledRef = useRef(false);
   const [passedQuizzes, setPassedQuizzes] = useState<Set<string>>(new Set());
 
   // Video playback state
@@ -1104,14 +1105,12 @@ const CoursePlayerPage: React.FC = () => {
     const normalizedParam = normalizeSlugValue(lessonSlugParam);
     const normalizedActive = normalizeSlugValue(activeSlug);
     const isPlaceholderParam = normalizedParam.length > 0 && RESUME_PLACEHOLDER_SLUGS.has(normalizedParam);
-    const introSlugNormalized = normalizeSlugValue(lessons[0]?.slug ?? "");
-    const isIntroSlugParam = normalizedParam.length > 0 && normalizedParam === introSlugNormalized;
 
     const findByNormalizedSlug = (value: string) =>
       lessons.find((lesson) => normalizeSlugValue(lesson.slug) === value) ?? null;
 
     const explicitLesson =
-      normalizedParam.length > 0 && !isPlaceholderParam && !isIntroSlugParam
+      normalizedParam.length > 0 && !isPlaceholderParam
         ? findByNormalizedSlug(normalizedParam)
         : null;
 
@@ -1129,6 +1128,10 @@ const CoursePlayerPage: React.FC = () => {
     };
 
     let targetLesson = explicitLesson;
+
+    if (explicitLesson) {
+      resumeWriteEnabledRef.current = true;
+    }
 
     if (!targetLesson) {
       const cached = readResumeCache(userScope, courseKey);
@@ -1169,7 +1172,9 @@ const CoursePlayerPage: React.FC = () => {
 
     const normalizedTarget = normalizeSlugValue(targetLesson.slug);
     if (normalizedActive !== normalizedTarget) {
-      suppressResumeCacheWriteRef.current = true;
+      if (!explicitLesson) {
+        suppressResumeCacheWriteRef.current = true;
+      }
       setActiveSlug(targetLesson.slug);
     }
     if (normalizedParam !== normalizedTarget) {
@@ -1196,6 +1201,9 @@ const CoursePlayerPage: React.FC = () => {
       suppressResumeCacheWriteRef.current = false;
       return;
     }
+    if (!resumeWriteEnabledRef.current) {
+      return;
+    }
     if (typeof activeLesson.moduleNo !== "number" || typeof activeLesson.topicNumber !== "number") {
       return;
     }
@@ -1213,6 +1221,7 @@ const CoursePlayerPage: React.FC = () => {
       moduleNo: activeLesson.moduleNo,
       topicNumber: activeLesson.topicNumber,
     });
+    resumeWriteEnabledRef.current = false;
   }, [
     sessionHydrated,
     topicsLoaded,
@@ -1510,6 +1519,7 @@ const CoursePlayerPage: React.FC = () => {
     } else if (sub.slug) {
       setIsQuizMode(false);
       setQuizPhase("intro");
+      resumeWriteEnabledRef.current = true;
       setActiveSlug(sub.slug);
       setLocation(`/course/${courseKey}/learn/${sub.slug}`);
       setProgress(0);
