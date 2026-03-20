@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Twitter, Linkedin, Facebook, Link as LinkIcon, ArrowRight, Share2, Award, Clock, BookOpen, User } from 'lucide-react';
+import { ArrowLeft, Linkedin, Facebook, Link as LinkIcon, ArrowRight, Award, BookOpen, Instagram, Check } from 'lucide-react';
 import { buildApiUrl } from '@/lib/api';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -24,6 +24,8 @@ const BlogDetailPage: React.FC = () => {
   const [, setLocation] = useLocation();
   const [blog, setBlog] = useState<Blog | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [linkedInCopied, setLinkedInCopied] = useState(false);
 
   useEffect(() => {
     const fetchBlog = async () => {
@@ -92,12 +94,140 @@ const BlogDetailPage: React.FC = () => {
             Back
           </button>
           
-          <div className="flex items-center gap-5 text-retro-teal/40">
+          <div className="flex items-center gap-5 text-retro-teal/40 relative">
             <span className="text-sm font-bold tracking-widest uppercase">Share</span>
-            <Twitter size={18} className="cursor-pointer hover:text-[#1DA1F2] transition-all hover:scale-110" />
-            <Facebook size={18} className="cursor-pointer hover:text-[#1877F2] transition-all hover:scale-110" />
-            <Linkedin size={18} className="cursor-pointer hover:text-[#0A66C2] transition-all hover:scale-110" />
-            <LinkIcon size={18} className="cursor-pointer hover:text-retro-salmon transition-all hover:scale-110" />
+
+            {/* Twitter / X */}
+            <button
+              title="Share on X (Twitter)"
+              onClick={() => {
+                // Twitter limit: 280 chars total.
+                // t.co URL shortener uses exactly 23 chars + 1 space = 24 reserved.
+                // Static suffix "\n\nRead on Ottolearn 👇 " = 24 chars.
+                // Remaining budget for title + summary snippet.
+                const TWITTER_LIMIT = 280;
+                const URL_CHARS = 24;          // t.co always = 23 + 1 space
+                const SUFFIX = '\n\nRead on Ottolearn 👇 ';
+                const budget = TWITTER_LIMIT - URL_CHARS - SUFFIX.length; // ~232 chars
+
+                const title = blog.title || '';
+                const rawSummary = blog.summary || blog.description || '';
+
+                let tweetText = '';
+                if (title.length <= budget) {
+                  // Use remaining space for a clipped summary
+                  const summaryBudget = budget - title.length - 2; // -2 for \n\n
+                  if (summaryBudget > 20 && rawSummary) {
+                    const clippedSummary = rawSummary.length > summaryBudget
+                      ? rawSummary.slice(0, summaryBudget - 1) + '…'
+                      : rawSummary;
+                    tweetText = `${title}\n\n${clippedSummary}${SUFFIX}`;
+                  } else {
+                    tweetText = `${title}${SUFFIX}`;
+                  }
+                } else {
+                  // Title itself is too long — clip it
+                  tweetText = `${title.slice(0, budget - 1)}…${SUFFIX}`;
+                }
+
+                const url = encodeURIComponent(window.location.href);
+                window.open(
+                  `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${url}`,
+                  '_blank'
+                );
+              }}
+              className="hover:text-black transition-all hover:scale-110 cursor-pointer"
+            >
+              {/* Official X (Twitter) logo SVG */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.754l7.737-8.835L1.6 2.25h6.637l4.258 5.625 5.75-5.625Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+            </button>
+
+            {/* Facebook */}
+            <button
+              title="Share on Facebook"
+              onClick={() => {
+                const url = encodeURIComponent(window.location.href);
+                const quote = encodeURIComponent(`${blog.title} — Read on Ottolearn`);
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${quote}`, '_blank');
+              }}
+              className="hover:text-[#1877F2] transition-all hover:scale-110 cursor-pointer"
+            >
+              <Facebook size={18} />
+            </button>
+
+            {/* LinkedIn */}
+            <button
+              title="Share on LinkedIn"
+              onClick={() => {
+                // Use LinkedIn's feed composer URL which supports pre-filling text directly.
+                // Format: linkedin.com/feed/?shareActive=true&text=ENCODED_TEXT
+                // This opens the LinkedIn post composer with text AND URL already filled in.
+                const postText = `📖 ${blog.title}\n\n${blog.summary || blog.description || ''}\n\nRead the full article 👉 ${window.location.href}\n\n#Ottolearn #Learning #Education`;
+                const encodedText = encodeURIComponent(postText);
+                window.open(
+                  `https://www.linkedin.com/feed/?shareActive=true&text=${encodedText}`,
+                  '_blank'
+                );
+              }}
+              className="hover:text-[#0A66C2] transition-all hover:scale-110 cursor-pointer"
+            >
+              <Linkedin size={18} />
+            </button>
+
+            {/* Instagram — Copy to clipboard */}
+            <button
+              title="Copy link for Instagram"
+              onClick={() => {
+                const text = `${blog.title}\n\nRead on Ottolearn 👉 ${window.location.href}`;
+                navigator.clipboard.writeText(text).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                });
+              }}
+              className="hover:text-[#E1306C] transition-all hover:scale-110 cursor-pointer"
+            >
+              <Instagram size={18} />
+            </button>
+
+            {/* Copy Link */}
+            <button
+              title="Copy page link"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2500);
+                });
+              }}
+              className="hover:text-retro-salmon transition-all hover:scale-110 cursor-pointer"
+            >
+              <LinkIcon size={18} />
+            </button>
+
+            {/* Copied! toast — for Instagram & Copy Link */}
+            <AnimatePresence>
+              {copied && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                  className="absolute -bottom-10 right-0 bg-retro-teal text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg whitespace-nowrap z-50"
+                >
+                  <Check size={12} /> Copied to clipboard!
+                </motion.div>
+              )}
+              {linkedInCopied && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                  className="absolute -bottom-10 right-0 bg-[#0A66C2] text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 shadow-lg whitespace-nowrap z-50"
+                >
+                  <Check size={12} /> Post text copied! Paste it in LinkedIn 📋
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
