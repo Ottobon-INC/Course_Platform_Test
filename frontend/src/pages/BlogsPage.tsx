@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { ArrowRight, MessageSquare, BookOpen, Clock, Calendar } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { CoursePromoCard } from '@/components/blog/CoursePromoCard';
 import { buildApiUrl } from '@/lib/api';
 
 interface Blog {
@@ -84,71 +85,78 @@ const BlogsPage: React.FC = () => {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto">
                 {blogs.map((blog, index) => (
-                  <motion.div
-                    key={blog.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index % 3 * 0.1 }}
-                    whileHover={{ y: -8 }}
-                    onClick={() => setLocation(`/blogs/${blog.id}`)}
-                    className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-retro-sage/10 group flex flex-col h-full cursor-pointer"
-                  >
-                    <div className="h-56 overflow-hidden relative">
-                      <img 
-                        src={blog.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop'} 
-                        alt={blog.title} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute top-5 left-5 flex flex-wrap gap-2">
-                         {blog.hashtags?.slice(0, 3).map((tag, i) => (
-                           <span key={i} className="bg-white/95 backdrop-blur-sm text-retro-teal text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                             #{tag}
-                           </span>
-                         ))}
-                      </div>
-                    </div>
-                    
-                    <div className="p-8 flex flex-col flex-1">
-                      <div className="flex items-center gap-4 text-xs text-retro-teal/40 mb-4 font-bold uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar size={12} className="text-retro-salmon" />
-                          {blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'Recent'}
-                        </span>
-                        <span className="w-1 h-1 bg-retro-sage rounded-full" />
-                        <span className="flex items-center gap-1.5">
-                          <Clock size={12} className="text-retro-salmon" />
-                          5 min read
-                        </span>
+                  <React.Fragment key={blog.id}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: index % 3 * 0.1 }}
+                      whileHover={{ y: -8 }}
+                      onClick={() => setLocation(`/blogs/${blog.id}`)}
+                      className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-retro-sage/10 group flex flex-col h-full cursor-pointer"
+                    >
+                      <div className="h-56 overflow-hidden relative">
+                        <img 
+                          src={blog.image_url || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop'} 
+                          alt={blog.title} 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                        <div className="absolute top-5 left-5 flex flex-wrap gap-2">
+                           {blog.hashtags?.slice(0, 3).map((tag, i) => (
+                             <span key={i} className="bg-white/95 backdrop-blur-sm text-retro-teal text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                               #{tag}
+                             </span>
+                           ))}
+                        </div>
                       </div>
                       
-                      <h3 className="text-2xl font-bold text-retro-teal mb-4 line-clamp-2 leading-snug group-hover:text-retro-salmon transition-colors">
-                        {blog.title}
-                      </h3>
-                      
-                      <p className="text-retro-teal/60 mb-8 line-clamp-3 text-base leading-relaxed flex-1">
-                        {blog.summary || blog.description}
-                      </p>
-                      
-                      <div className="flex items-center justify-between pt-6 border-t border-retro-sage/10">
-                         <div className="flex items-center gap-2">
-                           <div className="w-8 h-8 bg-retro-sage rounded-full flex items-center justify-center text-white font-bold text-xs">
-                             OL
+                      <div className="p-8 flex flex-col flex-1">
+                        <div className="flex items-center gap-4 text-xs text-retro-teal/40 mb-4 font-bold uppercase tracking-widest">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-retro-salmon" />
+                            {blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'Recent'}
+                          </span>
+                          <span className="w-1 h-1 bg-retro-sage rounded-full" />
+                          <span className="flex items-center gap-1.5">
+                            <Clock size={12} className="text-retro-salmon" />
+                            5 min read
+                          </span>
+                        </div>
+                        
+                        <h3 className="text-2xl font-bold text-retro-teal mb-4 line-clamp-2 leading-snug group-hover:text-retro-salmon transition-colors">
+                          {blog.title}
+                        </h3>
+                        
+                        <p className="text-retro-teal/60 mb-8 line-clamp-3 text-base leading-relaxed flex-1">
+                          {blog.summary || blog.description}
+                        </p>
+                        
+                        <div className="flex items-center justify-between pt-6 border-t border-retro-sage/10">
+                           <div className="flex items-center gap-2">
+                             <div className="w-8 h-8 bg-retro-sage rounded-full flex items-center justify-center text-white font-bold text-xs">
+                               OL
+                             </div>
+                             <span className="text-xs font-bold text-retro-teal">Ottolearn Staff</span>
                            </div>
-                           <span className="text-xs font-bold text-retro-teal">Ottolearn Staff</span>
-                         </div>
-                         <button 
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             setLocation(`/blogs/${blog.id}`);
-                           }}
-                           className="text-retro-salmon font-bold text-sm flex items-center gap-1.5 group-hover:gap-2.5 transition-all"
-                         >
-                           Read Article <ArrowRight size={18} />
-                         </button>
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setLocation(`/blogs/${blog.id}`);
+                             }}
+                             className="text-retro-salmon font-bold text-sm flex items-center gap-1.5 group-hover:gap-2.5 transition-all"
+                           >
+                             Read Article <ArrowRight size={18} />
+                           </button>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                    
+                    {/* Add Ad Unit after every 4th item (indices 3, 7, 11...) */}
+                     {index > 0 && (index + 1) % 4 === 0 && (
+                       <CoursePromoCard index={index + 1} relatedTags={blog.hashtags} />
+                     )}
+                     
+                  </React.Fragment>
                 ))}
               </div>
             )}
