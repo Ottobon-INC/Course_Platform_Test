@@ -5,6 +5,7 @@ import { ArrowLeft, Twitter, Linkedin, Facebook, Link as LinkIcon, ArrowRight, S
 import { buildApiUrl } from '@/lib/api';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { SlideInPromo } from '@/components/blog/SlideInPromo';
 
 interface Blog {
   id: string;
@@ -213,6 +214,7 @@ const BlogDetailPage: React.FC = () => {
         </div>
 
       </div>
+      <SlideInPromo relatedTags={blog.hashtags || []} />
       <Footer />
     </div>
   );
