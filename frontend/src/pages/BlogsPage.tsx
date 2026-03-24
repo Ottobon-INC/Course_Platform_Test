@@ -26,7 +26,7 @@ const BlogsPage: React.FC = () => {
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
-        const response = await fetch(buildApiUrl('/blogs'));
+        const response = await fetch(buildApiUrl('/api/blogs'));
         if (response.ok) {
           const data = await response.json();
           setBlogs(data);

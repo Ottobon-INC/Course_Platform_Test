@@ -30,7 +30,7 @@ const BlogDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchBlog = async () => {
       try {
-        const response = await fetch(buildApiUrl(`/blogs/${params?.id}`));
+        const response = await fetch(buildApiUrl(`/api/blogs/${params?.id}`));
         if (response.ok) {
           const data = await response.json();
           setBlog(data);
