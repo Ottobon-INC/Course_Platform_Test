@@ -684,6 +684,7 @@ model CpBlog {
   title         String?
   description   String?
   summary       String?
+  slug          String?   @unique
   hashtags      String[]
   imageUrl      String?   @map("image_url")
   contentImages String[]  @map("content_images")
