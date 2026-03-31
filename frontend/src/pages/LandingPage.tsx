@@ -5,7 +5,7 @@ import {
   PlayCircle, Lock, Brain, GitBranch, Award, FileCode, ShieldCheck, Clock,
   Star, Bot, Unlock, ArrowDown, Sparkles, Check, Quote, Linkedin, Twitter,
   Plus, Minus, ArrowRight, BookOpen, LogOut, Menu, X, MessageSquare, CheckCircle,
-  Rocket
+  Rocket, Timer, Briefcase, GraduationCap, Building2, UserCheck, KanbanSquare
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
@@ -1762,6 +1762,407 @@ const SectionNav: React.FC = () => {
 
 
 
+// ─────────────────────────────────────────────
+// SECTION 1: Learning Flow System
+// ─────────────────────────────────────────────
+const learningSteps = [
+  {
+    step: 1,
+    icon: <BookOpen size={24} className="text-white" />,
+    title: 'Learn Concept',
+    desc: 'Structured video + reading with in-context AI support.',
+    color: 'bg-retro-teal',
+    border: 'border-retro-teal/30',
+    badge: null,
+  },
+  {
+    step: 2,
+    icon: <Brain size={24} className="text-white" />,
+    title: 'Micro Assessment',
+    desc: 'Short AI-graded check to confirm you absorbed the core idea.',
+    color: 'bg-retro-brown',
+    border: 'border-retro-brown/30',
+    badge: null,
+  },
+  {
+    step: 3,
+    icon: <Timer size={24} className="text-white" />,
+    title: 'Cold Call Question',
+    desc: 'Random oral-style prompt. Timed. No hints. No re-reads.',
+    color: 'bg-retro-salmon',
+    border: 'border-retro-salmon/30',
+    badge: 'timed',
+  },
+  {
+    step: 4,
+    icon: <Lock size={24} className="text-white" />,
+    title: 'Module Quiz',
+    desc: 'Locked until steps 1–3 are cleared. Proves full mastery.',
+    color: 'bg-retro-sage',
+    border: 'border-retro-sage/30',
+    badge: 'locked',
+  },
+  {
+    step: 5,
+    icon: <Briefcase size={24} className="text-white" />,
+    title: 'Project Application',
+    desc: 'Apply what you learned in a real feature of your capstone project.',
+    color: 'bg-retro-teal',
+    border: 'border-retro-teal/30',
+    badge: null,
+  },
+];
+
+const ColdCallTimer: React.FC = () => {
+  const [seconds, setSeconds] = useState(30);
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: false, margin: '-50px' });
+
+  useEffect(() => {
+    if (!isInView) { setSeconds(30); return; }
+    const id = setInterval(() => {
+      setSeconds(s => {
+        if (s <= 1) { clearInterval(id); return 0; }
+        return s - 1;
+      });
+    }, 80);
+    return () => clearInterval(id);
+  }, [isInView]);
+
+  const pct = (seconds / 30) * 100;
+  const color = seconds > 15 ? '#E6AF2E' : seconds > 8 ? '#E64833' : '#dc2626';
+
+  return (
+    <div ref={ref} className="mt-3 flex items-center gap-2">
+      <div className="relative w-8 h-8 shrink-0">
+        <svg width="32" height="32" viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="13" fill="none" stroke="#e2e8f0" strokeWidth="3" />
+          <circle
+            cx="16" cy="16" r="13" fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeDasharray={`${2 * Math.PI * 13}`}
+            strokeDashoffset={`${2 * Math.PI * 13 * (1 - pct / 100)}`}
+            strokeLinecap="round"
+            transform="rotate(-90 16 16)"
+            style={{ transition: 'stroke-dashoffset 0.08s linear, stroke 0.3s' }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold" style={{ color }}>{seconds}</span>
+      </div>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-retro-salmon">seconds left</span>
+    </div>
+  );
+};
+
+const LearningFlowSystem: React.FC = () => {
+  return (
+    <section id="learning-flow" className="py-20 md:py-28 bg-white">
+      <div className="container mx-auto px-6 max-w-7xl">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-14"
+        >
+          <span className="inline-block bg-retro-salmon/10 text-retro-salmon px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+            Continuous Evaluation
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-4 leading-tight">
+            You Don't Move Forward Until You Master It.
+          </h2>
+          <p className="text-retro-teal/60 text-lg max-w-2xl mx-auto">
+            Every concept is tested at five check-points before the next module unlocks.
+          </p>
+        </motion.div>
+
+        {/* Horizontal Step Cards */}
+        <div className="relative">
+          {/* Connector rail */}
+          <div className="hidden lg:block absolute top-[52px] left-[10%] right-[10%] h-0.5 bg-retro-sage/20 z-0" />
+          <motion.div
+            className="hidden lg:block absolute top-[52px] left-[10%] h-0.5 bg-gradient-to-r from-retro-salmon to-retro-teal z-0"
+            initial={{ width: 0 }}
+            whileInView={{ width: '80%' }}
+            viewport={{ once: true }}
+            transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+          />
+
+          <div className="flex flex-col lg:flex-row gap-5 lg:gap-4 relative z-10">
+            {learningSteps.map((s, i) => (
+              <motion.div
+                key={s.step}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.12, duration: 0.5 }}
+                whileHover={{ y: -6, boxShadow: '0 20px 40px rgba(36,72,85,0.12)' }}
+                className={`flex-1 bg-retro-bg rounded-2xl p-6 border ${s.border} shadow-md cursor-default transition-all duration-300 relative overflow-hidden group`}
+              >
+                {/* Step number badge top-right */}
+                <span className="absolute top-3 right-4 text-[11px] font-black text-retro-teal/20 font-mono">0{s.step}</span>
+
+                {/* Icon */}
+                <div className={`w-12 h-12 ${s.color} rounded-xl flex items-center justify-center mb-4 shadow-md group-hover:scale-105 transition-transform`}>
+                  {s.icon}
+                </div>
+
+                <h3 className="text-lg font-bold text-retro-teal mb-2">{s.title}</h3>
+                <p className="text-retro-teal/60 text-sm leading-relaxed">{s.desc}</p>
+
+                {/* Badges */}
+                {s.badge === 'timed' && <ColdCallTimer />}
+                {s.badge === 'locked' && (
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <Lock size={12} className="text-retro-sage" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-retro-sage">locked until steps 1–3 clear</span>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Key message strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.6 }}
+          className="mt-12 text-center"
+        >
+          <p className="text-retro-teal/50 text-sm font-medium tracking-wide">
+            Five gates. One direction. Forward.
+          </p>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SECTION 2: Cohort Simulation
+// ─────────────────────────────────────────────
+const kanbanCols = [
+  { label: 'To Do', color: 'bg-retro-bg border-retro-sage/30', dot: 'bg-retro-sage', tasks: ['Auth module', 'DB schema'] },
+  { label: 'In Progress', color: 'bg-retro-salmon/5 border-retro-salmon/20', dot: 'bg-retro-salmon', tasks: ['API routes', 'UI wireframe'] },
+  { label: 'Done', color: 'bg-retro-teal/5 border-retro-teal/20', dot: 'bg-retro-teal', tasks: ['Project setup', 'Git repo'] },
+];
+
+const teamMembers = [
+  { initials: 'AK', color: 'bg-retro-teal text-white' },
+  { initials: 'SR', color: 'bg-retro-brown text-white' },
+  { initials: 'PM', color: 'bg-retro-salmon text-white' },
+  { initials: 'VG', color: 'bg-retro-sage text-retro-teal' },
+  { initials: 'NL', color: 'bg-retro-cyan text-white' },
+];
+
+const chatMessages = [
+  { who: 'Mentor', text: 'Great commit, PM. SR — review the API PR before standup.', mentor: true },
+  { who: 'SR', text: 'On it! Leaving comments now 👍', mentor: false },
+];
+
+const CohortSimulation: React.FC = () => {
+  return (
+    <section id="cohort" className="py-20 md:py-28 bg-retro-bg">
+      <div className="container mx-auto px-6 max-w-7xl">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+          {/* ── LEFT: Visual Mock ── */}
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="bg-white rounded-3xl shadow-2xl border border-retro-sage/20 overflow-hidden"
+          >
+            {/* Window chrome */}
+            <div className="bg-retro-teal px-5 py-3 flex items-center justify-between">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-retro-salmon" />
+                <div className="w-2.5 h-2.5 rounded-full bg-retro-yellow" />
+                <div className="w-2.5 h-2.5 rounded-full bg-retro-sage" />
+              </div>
+              <span className="text-white/60 text-[11px] font-mono">Team Sprint — Week 4</span>
+              <div className="flex -space-x-2">
+                {teamMembers.map((m, i) => (
+                  <div key={i} className={`w-6 h-6 rounded-full border-2 border-retro-teal text-[9px] font-bold flex items-center justify-center ${m.color}`}>{m.initials}</div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-5">
+              {/* Kanban */}
+              <div className="flex gap-3 mb-5">
+                {kanbanCols.map((col, ci) => (
+                  <div key={ci} className={`flex-1 rounded-xl border p-3 ${col.color}`}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className={`w-2 h-2 rounded-full ${col.dot}`} />
+                      <p className="text-[11px] font-bold text-retro-teal uppercase tracking-wide">{col.label}</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      {col.tasks.map((task, ti) => (
+                        <div key={ti} className="bg-white rounded-lg px-2.5 py-1.5 text-[11px] text-retro-teal font-medium shadow-sm border border-retro-sage/10">{task}</div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chat */}
+              <div className="bg-retro-bg rounded-xl border border-retro-sage/20 p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <MessageSquare size={13} className="text-retro-teal/50" />
+                  <span className="text-[11px] font-bold text-retro-teal/50 uppercase tracking-wide">Team Chat</span>
+                </div>
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`flex items-start gap-2 mb-2 ${m.mentor ? '' : 'flex-row-reverse'}`}>
+                    <div className={`w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0 ${m.mentor ? 'bg-retro-salmon text-white' : 'bg-retro-teal text-white'}`}>
+                      {m.who[0]}
+                    </div>
+                    <div className={`rounded-xl px-3 py-1.5 text-[11px] text-retro-teal max-w-[80%] ${m.mentor ? 'bg-retro-salmon/10 rounded-tl-none' : 'bg-white rounded-tr-none border border-retro-sage/20'}`}>
+                      <span className="font-bold text-[10px] block mb-0.5 opacity-60">{m.who}</span>
+                      {m.text}
+                    </div>
+                  </div>
+                ))}
+                {/* Typing indicator */}
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="w-6 h-6 rounded-full bg-retro-sage text-retro-teal text-[9px] font-bold flex items-center justify-center">V</div>
+                  <div className="bg-white rounded-xl px-3 py-1.5 border border-retro-sage/20 flex items-center gap-1">
+                    {[0, 1, 2].map(j => (
+                      <motion.div key={j} className="w-1.5 h-1.5 rounded-full bg-retro-teal/40"
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: j * 0.15 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── RIGHT: Content ── */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+          >
+            <span className="inline-block bg-retro-teal/10 text-retro-teal px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-5">
+              IT Simulation Training
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-retro-teal leading-tight mb-6">
+              Train Like You Already<br />
+              <span className="text-retro-salmon">Work in a Company.</span>
+            </h2>
+
+            <ul className="space-y-4 mb-8">
+              {[
+                { icon: <Users size={18} className="text-retro-teal" />, text: '25-member cohort — structured like a real engineering team' },
+                { icon: <KanbanSquare size={18} className="text-retro-brown" />, text: 'Team-based projects with sprint-style delivery' },
+                { icon: <GraduationCap size={18} className="text-retro-salmon" />, text: 'Senior mentor assigned to each team for code reviews' },
+                { icon: <Briefcase size={18} className="text-retro-sage" />, text: 'Real-world workflows: standups, PRs, code reviews, deployments' },
+              ].map((item, i) => (
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                  className="flex items-start gap-3 text-retro-teal/80 text-base"
+                >
+                  <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm border border-retro-sage/20 shrink-0 mt-0.5">
+                    {item.icon}
+                  </div>
+                  {item.text}
+                </motion.li>
+              ))}
+            </ul>
+
+            <div className="bg-retro-teal text-white p-6 rounded-2xl shadow-xl">
+              <p className="text-xl md:text-2xl font-bold leading-snug">
+                "By the time you graduate,<br />
+                you've already worked in a team."
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────
+// SECTION 3: Hiring Strip
+// ─────────────────────────────────────────────
+const HiringStrip: React.FC = () => {
+  return (
+    <section id="hire" className="py-14 bg-retro-teal relative overflow-hidden">
+      {/* Subtle bg orbs */}
+      <div className="absolute top-0 left-1/4 w-64 h-64 bg-retro-cyan rounded-full blur-[80px] opacity-10 pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-retro-salmon rounded-full blur-[80px] opacity-10 pointer-events-none" />
+
+      <div className="container mx-auto px-6 max-w-6xl relative z-10">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-10">
+
+          {/* Left text */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-center lg:text-left"
+          >
+            <span className="text-retro-salmon text-xs font-bold uppercase tracking-widest mb-2 block">For Companies</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+              Hire Developers Without Training.
+            </h2>
+          </motion.div>
+
+          {/* Middle: 3 pillars */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 }}
+            className="flex flex-col sm:flex-row gap-5"
+          >
+            {[
+              { icon: <UserCheck size={20} className="text-retro-cyan" />, label: 'Pre-trained talent' },
+              { icon: <Briefcase size={20} className="text-retro-salmon" />, label: 'Real project experience' },
+              { icon: <CheckCircle size={20} className="text-retro-sage" />, label: 'No onboarding needed' },
+            ].map((p, i) => (
+              <div key={i} className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-3">
+                {p.icon}
+                <span className="text-white/90 text-sm font-semibold whitespace-nowrap">{p.label}</span>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.25 }}
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              className="bg-retro-salmon text-white px-8 py-4 rounded-full font-bold text-base shadow-lg shadow-retro-salmon/30 hover:bg-white hover:text-retro-teal transition-all duration-300 flex items-center gap-2 whitespace-nowrap"
+            >
+              Hire from Us <ArrowRight size={18} />
+            </motion.button>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 
 function LandingPage() {
   const [, setLocation] = useLocation();
@@ -1965,6 +2366,9 @@ function LandingPage() {
       {/* <TurningPoint /> — removed: overlaps with EmotionalHook */}
       <Transformation />
       <WhoIsItFor />
+      <LearningFlowSystem />
+      <CohortSimulation />
+      <HiringStrip />
       {/* <CareerPath /> — removed: repeats Transformation's message */}
       <Methodology />
       {/* <QuantifiedProof /> — removed: stats already in CurriculumStructure header */}
