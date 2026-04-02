@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Navbar from '@/components/layout/Navbar';
 import HeroCarousel, { HeroVariant } from '@/components/landing/HeroCarousel';
 import LandingChatBot from '@/components/LandingChatBot';
+import { TransformationSection } from '@/components/landing/TransformationSection';
 import { trackEvent } from '@/lib/analytics';
 import { User } from '@/types/user';
 
@@ -355,75 +356,6 @@ const TurningPoint: React.FC = () => {
                 </motion.div>
               </AnimatePresence>
             </div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-};
-
-const Transformation: React.FC = () => {
-  return (
-    <section id="transformation" className="py-20 md:py-32 bg-retro-bg">
-      <div className="container mx-auto px-6 max-w-6xl">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-retro-teal mb-6">Imagine 6 Months From Now…</h2>
-          <p className="text-xl text-retro-teal/70">That version of you starts here.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-          {/* Before Card */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -5 }}
-            className="bg-white p-8 rounded-3xl border border-retro-salmon/20 shadow-lg relative overflow-hidden group"
-          >
-            <div className="absolute top-0 left-0 w-2 h-full bg-retro-salmon/50"></div>
-            <h3 className="text-2xl font-bold text-retro-salmon mb-6 flex items-center gap-3">
-              <X className="w-8 h-8" />
-              The Endless Loop
-            </h3>
-            <ul className="space-y-4 text-retro-teal/60">
-              {[
-                "Binging tutorials without building",
-                "Resume ignored by recruiters",
-                "Feeling lost in technical interviews"
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-retro-salmon/50 mt-2.5 shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-
-          {/* After Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -10 }}
-            className="bg-retro-teal text-white p-8 rounded-3xl border border-retro-sage/20 shadow-2xl relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-2 h-full bg-retro-cyan"></div>
-            <h3 className="text-2xl font-bold text-retro-cyan mb-6 flex items-center gap-3">
-              <Check className="w-8 h-8" />
-              The Job-Ready Dev
-            </h3>
-            <ul className="space-y-4 text-white/80">
-              {[
-                "Building & deploying complex apps",
-                "Github portfolio that proves skills",
-                "Speaking confidently about architecture"
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-retro-cyan mt-0.5 shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
           </motion.div>
         </div>
       </div>
@@ -2364,7 +2296,7 @@ function LandingPage() {
       />
       <EmotionalHook />
       {/* <TurningPoint /> — removed: overlaps with EmotionalHook */}
-      <Transformation />
+      <TransformationSection />
       <WhoIsItFor />
       <LearningFlowSystem />
       <CohortSimulation />
