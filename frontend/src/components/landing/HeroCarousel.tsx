@@ -57,7 +57,7 @@ const HeroSlide: React.FC<{
                 >
                     <motion.div>
                         <motion.h1
-                            className="text-5xl md:text-7xl font-bold text-retro-teal tracking-tight leading-[1.1] break-words"
+                            className="text-4xl sm:text-5xl md:text-7xl font-bold text-retro-teal tracking-tight leading-[1.1] break-words"
                             variants={itemVariants}
                         >
                             {variant ? variant.prefix : heroSection.variant.prefix} <br />
@@ -189,7 +189,7 @@ const PromoSlide: React.FC<{
                                 ]
                             }}
                             transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                            className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-retro-teal break-words"
+                            className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] text-retro-teal break-words"
                         >
                             {slide2.title} <br />
                             <span className="text-retro-salmon">{slide2.titleHighlight}</span> {slide2.titleSuffix}

@@ -112,8 +112,7 @@ export const WhoIsItForSection: React.FC<WhoIsItForProps> = ({
 
         {/* Cards Container */}
         <div
-          className="flex overflow-x-auto md:overflow-visible snap-x snap-mandatory md:flex-row gap-4 md:gap-6 items-stretch justify-start md:justify-center min-h-[400px] w-full mb-8 pb-8 md:pb-0 scroll-smooth pr-6 md:pr-0"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex flex-col md:flex-row gap-6 md:gap-4 items-stretch justify-center w-full mb-8 pb-8 md:pb-0"
         >
           {cards.map((card, idx) => {
             const style = STYLE_MAP[idx] ?? STYLE_MAP[0];
@@ -140,25 +139,19 @@ export const WhoIsItForSection: React.FC<WhoIsItForProps> = ({
                   layout: { type: "spring", stiffness: 300, damping: 25 },
                   opacity: { duration: 0.3 }
                 }}
-                style={{
-                  transformStyle: "preserve-3d",
-                  perspective: "1000px"
-                }}
                 className={`
-                  snap-center shrink-0 w-[85vw] md:w-auto md:min-w-0
-                  relative cursor-pointer flex flex-col justify-start md:justify-between overflow-hidden rounded-3xl border
-                  transition-colors duration-300 ease-out z-10
+                  relative cursor-pointer flex flex-col justify-between overflow-hidden rounded-3xl border
+                  transition-all duration-300 ease-out z-10
                   ${isActive ? style.glow : 'shadow-md md:shadow-lg hover:shadow-xl'}
                   ${style.bgColor}
                   ${isActive ? style.accent : 'border-retro-sage/20 hover:border-retro-sage/50'}
+                  w-full md:w-auto
                 `}
                 animate={{
-                  flex: isFocused ? "1 1 50%" : "1 1 25%",
-                  scale: isDiminished ? 0.95 : isActive ? 1.02 : 1,
-                  opacity: isDiminished ? 0.5 : 1,
+                  flex: isFocused ? "2 1 0%" : "1 1 0%",
+                  scale: isDiminished ? 0.98 : isActive ? 1.02 : 1,
+                  opacity: isDiminished ? 0.7 : 1,
                   y: isFocused ? -8 : 0,
-                  rotateX: isHovered && !isActive ? 2 : 0,
-                  rotateY: isHovered && !isActive ? -2 : 0,
                   zIndex: isFocused ? 20 : 10
                 }}
               >
