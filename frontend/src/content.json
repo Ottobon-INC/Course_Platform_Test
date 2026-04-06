@@ -1,0 +1,484 @@
+{
+  "heroSection": {
+    "variant": {
+      "prefix": "Watched 99 Tutorials.",
+      "highlight": "Still Can't Build?",
+      "sub": "Stop consuming content. Build one real production-grade project — the right way — with structure and mentorship."
+    },
+    "slide1": {
+      "primaryCta": "Login / Signup",
+      "secondaryCta": "See How It Works",
+      "trustSignals": [
+        "Beginner friendly",
+        "Real-world architecture",
+        "Portfolio-ready outcome"
+      ]
+    },
+    "slide2": {
+      "badge": "Trending Cohort",
+      "title": "AI Native",
+      "titleHighlight": "FullStack",
+      "titleSuffix": "Developer",
+      "description": "Go from zero to deploying AI-powered apps in 8 weeks — with mentor code-reviews, verified assessments, and a portfolio companies actually look at.",
+      "cohortLabel": "Cohort Availability",
+      "spotsLeft": "18 Spots Left",
+      "seatsFillingText": "Seats are filling fast",
+      "primaryCta": "Login / Signup",
+      "secondaryCta": "View Full Syllabus",
+      "syllabusModal": {
+        "badge": "Cohort syllabus",
+        "title": "AI Native FullStack Developer",
+        "description": "A 5-module, mentor-led journey that combines product thinking, AI-native delivery, and telemetry-driven coaching. Each module ends with a cold-call style checkpoint and tutor review."
+      }
+    },
+    "syllabus": [
+      {
+        "title": "Module 1 · Foundations",
+        "summary": "Learn how modern web development works in the AI era by mastering the core stack, essential tools, and your development environment.",
+        "topics": [
+          "1.1 Introduction to Web Development in the AI Era",
+          "1.2 Essential Web Technologies Overview",
+          "1.3 AI Tools for Web Development",
+          "1.4 Setting Up Your AI-Enhanced Development Environment"
+        ]
+      },
+      {
+        "title": "Module 2 · Ideation & Planning",
+        "summary": "Use AI to validate ideas, research user needs, and translate them into structured project plans and requirements.",
+        "topics": [
+          "2.1 Brainstorming Web Application Ideas with AI",
+          "2.2 AI-Assisted Market Research and Persona Mapping",
+          "2.3 Project Planning and Scope Definition",
+          "2.4 Technical Requirements Gathering"
+        ]
+      },
+      {
+        "title": "Module 3 · Design & Architecture",
+        "summary": "Craft UX flows, UI systems, and technical architecture with AI copilots before moving into high-fidelity prototypes.",
+        "topics": [
+          "3.1 User Experience (UX) Design with AI",
+          "3.2 User Interface (UI) Design Using AI",
+          "3.3 Technical Architecture Planning",
+          "3.4 Prototyping with AI"
+        ]
+      },
+      {
+        "title": "Module 4 · Implementation",
+        "summary": "Build the full stack with AI assistance—from interactive frontends to production-ready backends.",
+        "topics": [
+          "4.1 Frontend Development with AI",
+          "4.2 Backend Development Using AI Tools"
+        ]
+      },
+      {
+        "title": "Module 5 · Testing & Hardening",
+        "summary": "Adopt AI-driven strategies for testing, debugging, optimization, and security reviews.",
+        "topics": [
+          "5.1 Testing Strategies with AI Assistance",
+          "5.2 Debugging and Problem Solving with AI",
+          "5.3 Code Quality and Optimization",
+          "5.4 Security and Best Practices"
+        ]
+      },
+      {
+        "title": "Module 6 · Deployment & Operations",
+        "summary": "Prepare, launch, and monitor your application using AI-powered deployment and observability workflows.",
+        "topics": [
+          "6.1 Deployment Preparation",
+          "6.2 AI-Powered Deployment Platforms",
+          "6.3 Monitoring and Maintenance",
+          "6.4 Post-Launch Optimization"
+        ]
+      },
+      {
+        "title": "Module 7 · AI Feature Integration",
+        "summary": "Bring intelligence into your app with LLM APIs, conversational interfaces, retrieval systems, and personalization.",
+        "topics": [
+          "7.1 Introduction to LLM APIs (OpenAI, Gemini, Anthropic)",
+          "7.2 Building Conversational Interfaces",
+          "7.3 Implementing Retrieval-Augmented Generation",
+          "7.4 Dynamic Content Generation & Personalization Engines"
+        ]
+      },
+      {
+        "title": "Module 8 · AI Orchestration & Scaling",
+        "summary": "Design production-grade AI pipelines with LangChain/LlamaIndex, advanced memory, streaming, and observability.",
+        "topics": [
+          "8.1 Deep Dive into LangChain & LlamaIndex",
+          "8.2 Advanced Memory Management",
+          "8.3 Streaming & Event-Driven AI",
+          "8.4 Observability & Tracing"
+        ]
+      }
+    ]
+  },
+  "emotionalHook": {
+    "badge": "If This Feels Familiar…",
+    "lines": [
+      "You've watched course after course.",
+      "You understand concepts.",
+      "But when it's time to build…"
+    ],
+    "freezeWord": "you freeze.",
+    "card": {
+      "preHeading": "You start questioning if you're \"good enough.\"",
+      "heading": "It's not you.",
+      "subHeading": "It's the lack of structure."
+    }
+  },
+  "transformationSection": {
+    "heading": "Imagine 6 Months From Now...",
+    "subheading": "That version of you starts here.",
+    "toggleBefore": "After",
+    "toggleAfter": "Before",
+    "beforeSide": {
+      "title": "The Endless Loop",
+      "items": [
+        "Watching tutorials without building",
+        "Resume ignored",
+        "Struggling in interviews"
+      ]
+    },
+    "afterSide": {
+      "title": "The Job-Ready Developer",
+      "items": [
+        "Build & deploy real apps",
+        "Strong GitHub portfolio",
+        "Confident technical discussions"
+      ]
+    },
+    "dragHint": "Drag to transform",
+    "timeline": {
+      "heading": "Your Transformation Journey",
+      "subheading": "Follow the path from uncertainty to job-readiness.",
+      "steps": [
+        {
+          "month": "Month 1",
+          "title": "Learn",
+          "desc": "Watching tutorials"
+        },
+        {
+          "month": "Month 2",
+          "title": "Struggle",
+          "desc": "Small projects"
+        },
+        {
+          "month": "Month 3",
+          "title": "Practice",
+          "desc": "Understanding concepts"
+        },
+        {
+          "month": "Month 4",
+          "title": "Build",
+          "desc": "Building real apps"
+        },
+        {
+          "month": "Month 5",
+          "title": "Confidence",
+          "desc": "Team collaboration"
+        },
+        {
+          "month": "Month 6",
+          "title": "Success",
+          "desc": "Job-ready developer"
+        }
+      ]
+    }
+  },
+  "whoIsItFor": {
+    "badge": "Which one are you?",
+    "heading": "Who Is This For?",
+    "subheading": "Designed for those who want to build, not just watch.",
+    "cards": [
+      {
+        "id": 1,
+        "title": "The Self-Explorers",
+        "short": "Capable of self-exploration and personalized approach.",
+        "desc": "For those seeking a personalized approach towards learning and have the capability for self-exploration.",
+        "message": "You are an Explorer. We'll give you the compass and let you map the territory."
+      },
+      {
+        "id": 2,
+        "title": "Quick Absorbers",
+        "short": "Learn fast? Let's apply that speed to real projects.",
+        "desc": "If you can understand everything just by reading or using tools like ChatGPT, we help you apply that speed to real projects.",
+        "message": "You are an Absorber. We'll focus on high-velocity application over basic theory."
+      },
+      {
+        "id": 3,
+        "title": "Aspiring Builders",
+        "short": "Tired of 'tutorial hell'. Ready to prove competence.",
+        "desc": "For those who are tired of 'tutorial hell' and want to prove their competence through production-grade work.",
+        "message": "You are a Builder. We'll focus on real-world, production-grade projects."
+      }
+    ]
+  },
+  "learningFlowSystem": {
+    "badge": "Continuous Evaluation",
+    "heading": "You Don't Move Forward Until You Master It.",
+    "subheading": "Every concept is tested at five check-points before the next module unlocks.",
+    "tagline": "Five gates. One direction. Forward.",
+    "lockedLabel": "locked until steps 1–3 clear",
+    "steps": [
+      {
+        "step": 1,
+        "title": "Learn Concept",
+        "desc": "Structured video + reading with in-context AI support.",
+        "badge": null
+      },
+      {
+        "step": 2,
+        "title": "Micro Assessment",
+        "desc": "Short AI-graded check to confirm you absorbed the core idea.",
+        "badge": null
+      },
+      {
+        "step": 3,
+        "title": "Cold Call Question",
+        "desc": "Random oral-style prompt. Timed. No hints. No re-reads.",
+        "badge": "timed"
+      },
+      {
+        "step": 4,
+        "title": "Module Quiz",
+        "desc": "Locked until steps 1–3 are cleared. Proves full mastery.",
+        "badge": "locked"
+      },
+      {
+        "step": 5,
+        "title": "Project Application",
+        "desc": "Apply what you learned in a real feature of your capstone project.",
+        "badge": null
+      }
+    ]
+  },
+  "cohortSimulation": {
+    "badge": "IT Simulation Training",
+    "heading": "Train Like You Already",
+    "headingHighlight": "Work in a Company.",
+    "bullets": [
+      "25-member cohort — structured like a real engineering team",
+      "Team-based projects with sprint-style delivery",
+      "Senior mentor assigned to each team for code reviews",
+      "Real-world workflows: standups, PRs, code reviews, deployments"
+    ],
+    "quote": "\"By the time you graduate,\nyou've already worked in a team.\"",
+    "sprintLabel": "Team Sprint — Week 4",
+    "teamChatLabel": "Team Chat",
+    "kanban": [
+      {
+        "label": "To Do",
+        "tasks": [
+          "Auth module",
+          "DB schema"
+        ]
+      },
+      {
+        "label": "In Progress",
+        "tasks": [
+          "API routes",
+          "UI wireframe"
+        ]
+      },
+      {
+        "label": "Done",
+        "tasks": [
+          "Project setup",
+          "Git repo"
+        ]
+      }
+    ],
+    "chatMessages": [
+      {
+        "who": "Mentor",
+        "text": "Great commit, PM. SR — review the API PR before standup.",
+        "mentor": true
+      },
+      {
+        "who": "SR",
+        "text": "On it! Leaving comments now 👍",
+        "mentor": false
+      }
+    ]
+  },
+  "hiringStrip": {
+    "badge": "For Companies",
+    "heading": "Hire Developers Without Training.",
+    "pillars": [
+      "Pre-trained talent",
+      "Real project experience",
+      "No onboarding needed"
+    ],
+    "cta": "Hire from Us"
+  },
+  "methodology": {
+    "heading": "WHAT SETS OTTOLEARN APART?",
+    "subheading": "Our flexible, AI-powered programs are designed to bring the elite engineering classroom to you, and are built around three key characteristics:",
+    "columns": [
+      {
+        "title": "Real-World Projects",
+        "desc": "Build features. Debug real code. Deploy live."
+      },
+      {
+        "title": "Active Learning",
+        "desc": "A new coding challenge every 3–5 minutes."
+      },
+      {
+        "title": "Social & Mentorship",
+        "desc": "Peer reviews. Mentor guidance. Real collaboration."
+      }
+    ],
+    "cta": "LEARN MORE ABOUT THE OTTOLEARN MODEL"
+  },
+  "valueProp": {
+    "heading": "Why Ottolearn?",
+    "subheading": "Integrated with our \"Training Wheels\" framework for guided mastery.",
+    "bentoCards": [
+      {
+        "title": "Practical Assignments",
+        "desc": "Solve coding challenges directly in the browser."
+      },
+      {
+        "title": "Community-Led",
+        "desc": "Join 10,000+ peers.",
+        "onlineNow": "142 online now"
+      },
+      {
+        "title": "24/7 AI Support",
+        "desc": "Unblock yourself instantly.",
+        "chatBotName": "Tutor Bot",
+        "chatBotMessage": "Try adding a closing bracket } on line 42."
+      }
+    ],
+    "trainingWheels": {
+      "heading": "The \"Training Wheels\" Framework",
+      "desc": "We provide deep feedback loops at every stage. Like training wheels, we provide the balance and support you need until you're ready to cycle through the complex projects independently."
+    }
+  },
+  "aiStructure": {
+    "scrollFillText": "We Certify Competence, Not Just Attendance.",
+    "sidebar": {
+      "heading": "The Learning Flow",
+      "steps": [
+        {
+          "label": "Video Module",
+          "locked": false
+        },
+        {
+          "label": "AI Assessment",
+          "locked": false
+        },
+        {
+          "label": "Next Module",
+          "locked": true
+        }
+      ],
+      "lockNote": "\"You must pass step 2 to unlock step 3.\""
+    },
+    "features": [
+      {
+        "badge": null,
+        "title": "Contextual AI Chatbot",
+        "desc": "Ask anything, mid-lesson. Our AI knows exactly where you are."
+      },
+      {
+        "badge": "Structured Growth",
+        "title": "The Smart Lock System",
+        "desc": "Pass the assessment. Unlock the next module. No shortcuts."
+      }
+    ],
+    "chatBot": {
+      "name": "Ottolearn Assistant",
+      "statusLabel": "Online",
+      "userMessage": "Can you explain the useEffect hook again?",
+      "botReply": "Certainly! Based on the video at 2:30, `useEffect` handles side effects. It runs *after* the render."
+    }
+  },
+  "faq": {
+    "heading": "Frequently Asked Questions",
+    "items": [
+      {
+        "question": "How does the Lock System work?",
+        "answer": "The Lock System ensures you master a concept before moving forward. You must score at least 80% on the module assessment to unlock the next video."
+      },
+      {
+        "question": "Is the certificate valid for jobs?",
+        "answer": "Yes! Our certificates are industry-recognized and can be used to showcase your skills when applying for jobs and internships."
+      },
+      {
+        "question": "Are there any courses for free?",
+        "answer": "Yes, we offer a free trial where you can explore the first module of every course to experience the platform yourself before deciding."
+      },
+      {
+        "question": "What happens if I fail an assessment?",
+        "answer": "No worries! You can retake the assessment after a brief cooling-off period. We provide specific feedback on where you need to improve so you can master the content."
+      },
+      {
+        "question": "Are there any prerequisites for these courses?",
+        "answer": "Most foundational courses start from scratch. For advanced tracks, we recommend completing the basic modules first or having a basic understanding of the core technologies."
+      },
+      {
+        "question": "Do I get lifelong access to the course content?",
+        "answer": "Once you purchase a course or have an active Pro subscription, you have access to that content. Pro members get access to all courses while their subscription is active."
+      },
+      {
+        "question": "Is there a community or forum for help?",
+        "answer": "Absolutely. We have a dedicated community and an in-platform discussion forum where you can interact with peers, share projects, and get help from mentors."
+      },
+      {
+        "question": "Can I pay using UPI or local Indian payment methods?",
+        "answer": "Yes, we support all major Indian payment methods including UPI (Google Pay, PhonePe, Paytm), Net Banking, and Cards through our secure gateway."
+      }
+    ]
+  },
+  "callToAction": {
+    "badge": "Join the Revolution",
+    "heading": "Ready to transform",
+    "headingHighlight": "your skills?",
+    "subheading": "Start your free trial. Build your first project this week.",
+    "primaryCta": "Login / Signup"
+  },
+  "footer": {
+    "brand": "Ottolearn",
+    "copyright": "© 2026 Ottolearn. All rights reserved.",
+    "links": [
+      {
+        "label": "Privacy",
+        "href": "#"
+      },
+      {
+        "label": "Terms",
+        "href": "#"
+      },
+      {
+        "label": "Contact",
+        "href": "#"
+      }
+    ]
+  },
+  "mobileStickyCta": {
+    "freeLabel": "Free Access",
+    "line": "Start learning today",
+    "button": "Login / Signup"
+  },
+  "sectionNav": {
+    "items": [
+      {
+        "id": "problem",
+        "label": "Inertia"
+      },
+      {
+        "id": "why",
+        "label": "Why"
+      },
+      {
+        "id": "platform",
+        "label": "Platform"
+      },
+      {
+        "id": "faq",
+        "label": "FAQ"
+      }
+    ]
+  }
+}
