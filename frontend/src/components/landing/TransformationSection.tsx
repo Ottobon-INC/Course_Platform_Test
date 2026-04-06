@@ -156,29 +156,29 @@ export const TransformationSection: React.FC<TransformationProps> = ({
           <div
             ref={sliderRef}
             onPointerDown={handlePointerDown}
-            className="w-full max-w-4xl mx-auto h-[450px] relative rounded-3xl overflow-hidden shadow-2xl cursor-ew-resize border-4 border-white select-none touch-none bg-white"
+            className="w-full max-w-4xl mx-auto h-[400px] md:h-[450px] relative rounded-3xl overflow-hidden shadow-2xl cursor-ew-resize border-4 border-white select-none touch-none bg-white"
           >
             {/* AFTER SIDE */}
-            <div className="absolute inset-0 bg-retro-teal flex flex-col justify-center p-12 text-center md:text-left md:items-end">
+            <div className="absolute inset-0 bg-retro-teal flex flex-col justify-center p-6 md:p-12 text-center md:text-left md:items-end">
               <div className="w-full md:w-[45%]">
                 <motion.div
-                  className="w-12 h-12 rounded-xl bg-retro-cyan/20 flex items-center justify-center mb-6 mx-auto md:mx-0"
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-retro-cyan/20 flex items-center justify-center mb-4 md:mb-6 mx-auto md:mx-0"
                   whileHover={{ rotateY: 180 }}
                   transition={{ duration: 0.6 }}
                 >
-                  <CheckCircle className="w-6 h-6 text-retro-cyan" />
+                  <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-retro-cyan" />
                 </motion.div>
-                <h3 className="text-3xl font-bold text-retro-cyan mb-6 break-words">{safeAfterSide.title}</h3>
-                <ul className="space-y-6">
+                <h3 className="text-2xl md:text-3xl font-bold text-retro-cyan mb-4 md:mb-6 break-words">{safeAfterSide.title}</h3>
+                <ul className="space-y-4 md:space-y-6">
                   {safeAfterSide.items.map((item, i) => (
                     <motion.li
                       key={i}
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="flex items-center gap-3 text-white/80 text-lg break-words"
+                      className="flex items-center gap-2 md:gap-3 text-white/80 text-sm md:text-lg break-words text-left md:text-right md:justify-end"
                     >
-                      <CheckCircle className="w-5 h-5 text-retro-cyan shrink-0" />
+                      <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-retro-cyan shrink-0 order-first md:order-last" />
                       {item}
                     </motion.li>
                   ))}
@@ -189,28 +189,28 @@ export const TransformationSection: React.FC<TransformationProps> = ({
             {/* BEFORE SIDE (Clipped) */}
             <motion.div
               style={{ clipPath: `inset(0 ${100 - sliderPos}% 0 0)` }}
-              className="absolute inset-0 bg-white flex flex-col justify-center p-12 text-center md:text-left z-10"
+              className="absolute inset-0 bg-white flex flex-col justify-center p-6 md:p-12 text-center md:text-left z-10"
             >
               <div className="w-full md:w-[45%]">
                 <motion.div
-                  className="w-12 h-12 rounded-xl bg-retro-salmon/10 flex items-center justify-center mb-6 mx-auto md:mx-0"
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-retro-salmon/10 flex items-center justify-center mb-4 md:mb-6 mx-auto md:mx-0"
                   animate={{ rotate: [-2, 2, -2] }}
                   transition={{ duration: 0.5, repeat: Infinity }}
                 >
-                  <X className="w-6 h-6 text-retro-salmon" />
+                  <X className="w-5 h-5 md:w-6 md:h-6 text-retro-salmon" />
                 </motion.div>
-                <h3 className="text-3xl font-bold text-retro-salmon mb-6 break-words">{safeBeforeSide.title}</h3>
-                <ul className="space-y-6">
+                <h3 className="text-2xl md:text-3xl font-bold text-retro-salmon mb-4 md:mb-6 break-words">{safeBeforeSide.title}</h3>
+                <ul className="space-y-4 md:space-y-6">
                   {safeBeforeSide.items.map((item, i) => (
                     <motion.li
                       key={i}
                       initial={{ opacity: 0, x: -20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className="flex items-center gap-3 text-retro-teal/70 text-lg break-words"
+                      className="flex items-center gap-2 md:gap-3 text-retro-teal/70 text-sm md:text-lg break-words text-left"
                     >
-                      <span className="w-5 h-5 rounded-full border border-retro-salmon/50 flex flex-shrink-0 items-center justify-center">
-                         <span className="w-2 h-2 rounded-full bg-retro-salmon/50"></span>
+                      <span className="w-4 h-4 md:w-5 md:h-5 rounded-full border border-retro-salmon/50 flex flex-shrink-0 items-center justify-center">
+                         <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-retro-salmon/50"></span>
                       </span>
                       {item}
                     </motion.li>

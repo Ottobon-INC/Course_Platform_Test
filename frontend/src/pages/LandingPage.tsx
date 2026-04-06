@@ -598,7 +598,7 @@ const CallToAction: React.FC<{ onEnroll: () => void; onViewCurriculum: () => voi
         </motion.div>
 
         <motion.h2
-          className="text-5xl md:text-7xl font-bold mb-8 tracking-tight text-white"
+          className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 tracking-tight text-white"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -881,7 +881,7 @@ const LearningFlowSystem: React.FC = () => {
             transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
           />
 
-          <div className="flex flex-col lg:flex-row gap-5 lg:gap-4 relative z-10">
+          <div className="flex flex-col md:flex-row gap-5 lg:gap-4 relative z-10">
             {learningSteps.map((s, i) => (
               <motion.div
                 key={s.step}
@@ -982,7 +982,7 @@ const CohortSimulation: React.FC = () => {
 
             <div className="p-5">
               {/* Kanban */}
-              <div className="flex gap-3 mb-5">
+              <div className="flex flex-col sm:flex-row gap-3 mb-5">
                 {kanbanCols.map((col, ci) => (
                   <div key={ci} className={`flex-1 rounded-xl border p-3 ${col.color}`}>
                     <div className="flex items-center gap-1.5 mb-2">
