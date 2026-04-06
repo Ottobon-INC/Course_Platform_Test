@@ -1,0 +1,6 @@
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\find_today.py
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\tmp_files.txt
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\today_files.txt
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\frontend\tmp_clean.py
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\frontend\src\components\landing\TransformationSection.tsx
+c:/ottobon/Ottobon-Projects/Course_Platform_Test\frontend\src\pages\LandingPage.tsx
