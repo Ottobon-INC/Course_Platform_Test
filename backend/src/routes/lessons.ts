@@ -5,7 +5,6 @@ import { prisma } from "../services/prisma";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { verifyAccessToken } from "../services/sessionService";
 import { ensurePersonaProfile } from "../services/personaProfileService";
-import { checkCohortAccessForUser } from "../services/cohortAccess";
 
 import { resolveCourseId } from "../services/courseResolutionService";
 
@@ -250,89 +249,6 @@ const mapPromptSuggestion = (suggestion: { suggestionId: string; promptText: str
   answer: suggestion.answer,
 });
 
-async function loadCourseTopicsPayload(courseKey: string, userId: string | null) {
-  const resolvedCourseId = await resolveCourseId(courseKey);
-  if (!resolvedCourseId) {
-    return null;
-  }
-
-  const personaProfile = userId
-    ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
-    : null;
-  const personaKey = personaProfile?.personaKey ?? null;
-
-  const topics = await prisma.topic.findMany({
-    where: { courseId: resolvedCourseId },
-    orderBy: [{ moduleNo: "asc" }, { topicNumber: "asc" }],
-    select: {
-      topicId: true,
-      courseId: true,
-      moduleNo: true,
-      moduleName: true,
-      topicNumber: true,
-      topicName: true,
-      pptUrl: true,
-      videoUrl: true,
-      textContent: true,
-      isPreview: true,
-      contentType: true,
-      simulation: {
-        select: {
-          title: true,
-          body: true,
-        },
-      },
-    },
-  });
-
-  const contentKeyByTopic = new Map<string, Set<string>>();
-  const allContentKeys = new Set<string>();
-
-  topics.forEach((topic) => {
-    const layout = parseContentLayout(topic.textContent ?? null);
-    if (!layout) {
-      return;
-    }
-    const keys = layout.blocks
-      .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
-      .filter((key) => key.length > 0);
-    if (keys.length === 0) {
-      return;
-    }
-    const keySet = new Set(keys);
-    contentKeyByTopic.set(topic.topicId, keySet);
-    keys.forEach((key) => allContentKeys.add(key));
-  });
-
-  const personaFilters = personaKey ? [{ personaKey }, { personaKey: null }] : [{ personaKey: null }];
-  const assets =
-    contentKeyByTopic.size > 0
-      ? await prisma.topicContentAsset.findMany({
-        where: {
-          topicId: { in: Array.from(contentKeyByTopic.keys()) },
-          contentKey: { in: Array.from(allContentKeys) },
-          OR: personaFilters,
-        },
-        select: {
-          topicId: true,
-          contentKey: true,
-          contentType: true,
-          personaKey: true,
-          payload: true,
-        },
-      })
-      : [];
-  const assetIndex = buildAssetIndex(assets);
-
-  return {
-    courseId: resolvedCourseId,
-    topics: topics.map((topic) => {
-      const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, personaKey, assetIndex);
-      return mapTopicForResponse(topic, resolved);
-    }),
-  };
-}
-
 
 
 lessonsRouter.get(
@@ -425,48 +341,86 @@ lessonsRouter.get(
       return;
     }
 
-    const payload = await loadCourseTopicsPayload(courseKey, getOptionalAuthUserId(req));
-    if (!payload) {
+    const resolvedCourseId = await resolveCourseId(courseKey);
+    if (!resolvedCourseId) {
       res.status(404).json({ message: "Course not found" });
       return;
     }
 
-    res.status(200).json({
-      topics: payload.topics,
+    const userId = getOptionalAuthUserId(req);
+    const personaProfile = userId
+      ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
+      : null;
+    const personaKey = personaProfile?.personaKey ?? null;
+
+    const topics = await prisma.topic.findMany({
+      where: { courseId: resolvedCourseId },
+      orderBy: [{ moduleNo: "asc" }, { topicNumber: "asc" }],
+      select: {
+        topicId: true,
+        courseId: true,
+        moduleNo: true,
+        moduleName: true,
+        topicNumber: true,
+        topicName: true,
+        pptUrl: true,
+        videoUrl: true,
+        textContent: true,
+        isPreview: true,
+        contentType: true,
+        simulation: {
+          select: {
+            title: true,
+            body: true,
+          },
+        },
+      },
     });
-  }),
-);
 
-lessonsRouter.get(
-  "/courses/:courseKey/cohort-topics",
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    const { courseKey } = req.params;
-    const auth = (req as AuthenticatedRequest).auth;
-    if (!auth?.userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
+    const contentKeyByTopic = new Map<string, Set<string>>();
+    const allContentKeys = new Set<string>();
 
-    if (!courseKey || typeof courseKey !== "string") {
-      res.status(400).json({ message: "course identifier is required" });
-      return;
-    }
+    topics.forEach((topic) => {
+      const layout = parseContentLayout(topic.textContent ?? null);
+      if (!layout) {
+        return;
+      }
+      const keys = layout.blocks
+        .map((block) => (typeof block.contentKey === "string" ? block.contentKey.trim() : ""))
+        .filter((key) => key.length > 0);
+      if (keys.length === 0) {
+        return;
+      }
+      const keySet = new Set(keys);
+      contentKeyByTopic.set(topic.topicId, keySet);
+      keys.forEach((key) => allContentKeys.add(key));
+    });
 
-    const payload = await loadCourseTopicsPayload(courseKey, auth.userId);
-    if (!payload) {
-      res.status(404).json({ message: "Course not found" });
-      return;
-    }
-
-    const access = await checkCohortAccessForUser(auth.userId, payload.courseId);
-    if (!access.allowed) {
-      res.status(access.status).json({ message: access.message });
-      return;
-    }
+    const personaFilters = personaKey ? [{ personaKey }, { personaKey: null }] : [{ personaKey: null }];
+    const assets =
+      contentKeyByTopic.size > 0
+        ? await prisma.topicContentAsset.findMany({
+          where: {
+            topicId: { in: Array.from(contentKeyByTopic.keys()) },
+            contentKey: { in: Array.from(allContentKeys) },
+            OR: personaFilters,
+          },
+          select: {
+            topicId: true,
+            contentKey: true,
+            contentType: true,
+            personaKey: true,
+            payload: true,
+          },
+        })
+        : [];
+    const assetIndex = buildAssetIndex(assets);
 
     res.status(200).json({
-      topics: payload.topics,
+      topics: topics.map((topic) => {
+        const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, personaKey, assetIndex);
+        return mapTopicForResponse(topic, resolved);
+      }),
     });
   }),
 );

@@ -9,7 +9,6 @@ blogsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     try {
-      // Use raw query to bypass Prisma client generation issues for new tables
       const blogs = await prisma.$queryRaw`
         SELECT * FROM cp_blogs 
         ORDER BY created_at DESC
@@ -22,23 +21,40 @@ blogsRouter.get(
   })
 );
 
-// Fetch a single blog by ID
+// Fetch a single blog by SLUG (primary) or UUID (fallback for backward compat)
 blogsRouter.get(
-  "/:id",
+  "/:identifier",
   asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const { identifier } = req.params;
+
     try {
-      const blog: any[] = await prisma.$queryRaw`
-        SELECT * FROM cp_blogs 
-        WHERE id = ${id}::uuid
-        LIMIT 1
-      `;
-      
+      let blog: any[] = [];
+
+      // Check if identifier looks like a UUID (uuid v4 pattern)
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      if (uuidRegex.test(identifier)) {
+        // Legacy UUID-based lookup
+        blog = await prisma.$queryRaw`
+          SELECT * FROM cp_blogs 
+          WHERE id = ${identifier}::uuid
+          LIMIT 1
+        `;
+      } else {
+        // New slug-based lookup
+        blog = await prisma.$queryRaw`
+          SELECT * FROM cp_blogs 
+          WHERE slug = ${identifier}
+          LIMIT 1
+        `;
+      }
+
       if (!blog || blog.length === 0) {
         res.status(404).json({ message: "Blog not found" });
         return;
       }
-      
+
       res.status(200).json(blog[0]);
     } catch (error) {
       console.error("Error fetching blog:", error);

@@ -500,7 +500,7 @@ const faqs = contentData.faq.items;
 
 
 const FAQ: React.FC = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
     <section id="faq" className="py-16 md:py-24 bg-retro-bg">

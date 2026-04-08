@@ -1,5 +1,5 @@
 ﻿
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
   Users,
@@ -570,44 +570,25 @@ const App: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [authResolved, setAuthResolved] = useState(false);
-  const [hasValidAccess, setHasValidAccess] = useState(false);
-  const redirectTriggeredRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
-    const redirectToLanding = () => {
-      if (!redirectTriggeredRef.current) {
-        redirectTriggeredRef.current = true;
-        logoutAndRedirect('/');
-      }
-    };
 
     const loadDashboard = async () => {
       const stored = readStoredSession();
       if (!stored) {
         if (isMounted) {
-          setHasValidAccess(false);
-          setAuthResolved(true);
           setIsLoading(false);
         }
-        redirectToLanding();
         return;
       }
 
       const freshSession = await ensureSessionFresh(stored, { notifyOnFailure: false });
       if (!freshSession) {
         if (isMounted) {
-          setHasValidAccess(false);
-          setAuthResolved(true);
           setIsLoading(false);
         }
-        redirectToLanding();
         return;
-      }
-
-      if (isMounted) {
-        setHasValidAccess(true);
       }
 
       try {
@@ -647,7 +628,6 @@ const App: React.FC = () => {
         console.error('Failed to load dashboard summary', error);
       } finally {
         if (isMounted) {
-          setAuthResolved(true);
           setIsLoading(false);
         }
       }
@@ -819,10 +799,6 @@ const App: React.FC = () => {
     navigateToRegistration,
     navigateToOnDemandCatalog,
   ]);
-
-  if (!authResolved || !hasValidAccess) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-retro-bg selection:bg-retro-salmon/30 selection:text-retro-teal pb-20 relative overflow-hidden">

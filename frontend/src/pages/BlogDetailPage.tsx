@@ -9,6 +9,7 @@ import { SlideInPromo } from '@/components/blog/SlideInPromo';
 
 interface Blog {
   id: string;
+  slug: string;
   title: string;
   description: string;
   summary: string;
@@ -19,6 +20,107 @@ interface Blog {
   created_at: string;
 }
 
+// ─── SEO helper: inject / update <head> meta tags dynamically ──────────────
+function useBlogSEO(blog: Blog | null) {
+  useEffect(() => {
+    if (!blog) return;
+
+    const BASE_URL = 'https://learn.ottobon.in';
+    const blogSlug = blog.slug || blog.id;
+    const canonicalUrl = `${BASE_URL}/blogs/${blogSlug}`;
+    const title = `${blog.title} | Ottolearn`;
+    const description = blog.summary || blog.description || 'Read this insightful article on Ottolearn — AI-powered education platform.';
+    const image = blog.image_url || `${BASE_URL}/og-default.png`;
+
+    // ── Helper to set/create a <meta> tag ────────────────────────────────
+    const setMeta = (selector: string, value: string, attr = 'content') => {
+      let el = document.querySelector<HTMLMetaElement>(selector);
+      if (!el) {
+        el = document.createElement('meta');
+        // parse the attribute from the selector to set it on the newly created element
+        const match = selector.match(/\[([^\]=]+)="([^"]+)"\]/);
+        if (match) el.setAttribute(match[1], match[2]);
+        document.head.appendChild(el);
+      }
+      el.setAttribute(attr, value);
+    };
+
+    // ── Helper to set/create a <link> tag ────────────────────────────────
+    const setLink = (rel: string, href: string) => {
+      let el = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+      if (!el) {
+        el = document.createElement('link');
+        el.setAttribute('rel', rel);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('href', href);
+    };
+
+    // 1. Page title
+    document.title = title;
+
+    // 2. Standard SEO meta
+    setMeta('meta[name="description"]', description);
+    setMeta('meta[name="robots"]', 'index, follow');
+
+    // 3. Canonical URL
+    setLink('canonical', canonicalUrl);
+
+    // 4. Open Graph (Facebook, WhatsApp, LinkedIn previews)
+    setMeta('meta[property="og:type"]', 'article');
+    setMeta('meta[property="og:title"]', title);
+    setMeta('meta[property="og:description"]', description);
+    setMeta('meta[property="og:url"]', canonicalUrl);
+    setMeta('meta[property="og:image"]', image);
+    setMeta('meta[property="og:site_name"]', 'Ottolearn');
+    setMeta('meta[property="og:locale"]', 'en_IN');
+
+    // 5. Twitter Card
+    setMeta('meta[name="twitter:card"]', 'summary_large_image');
+    setMeta('meta[name="twitter:title"]', title);
+    setMeta('meta[name="twitter:description"]', description);
+    setMeta('meta[name="twitter:image"]', image);
+    setMeta('meta[name="twitter:site"]', '@Ottolearn');
+
+    // 6. Article-specific structured data for Google (JSON-LD)
+    const existingJsonLd = document.querySelector('#blog-jsonld');
+    if (existingJsonLd) existingJsonLd.remove();
+
+    const jsonLd = document.createElement('script');
+    jsonLd.id = 'blog-jsonld';
+    jsonLd.type = 'application/ld+json';
+    jsonLd.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: blog.title,
+      description: description,
+      image: image,
+      url: canonicalUrl,
+      datePublished: blog.created_at || new Date().toISOString(),
+      publisher: {
+        '@type': 'Organization',
+        name: 'Ottolearn',
+        url: BASE_URL,
+        logo: {
+          '@type': 'ImageObject',
+          url: `${BASE_URL}/logo.png`,
+        },
+      },
+      keywords: blog.hashtags?.join(', ') || '',
+    });
+    document.head.appendChild(jsonLd);
+
+    // Cleanup on unmount — reset to generic site defaults
+    return () => {
+      document.title = 'Ottolearn — AI-Native Learning Platform';
+      const jsonLdEl = document.querySelector('#blog-jsonld');
+      if (jsonLdEl) jsonLdEl.remove();
+    };
+  }, [blog]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const BlogDetailPage: React.FC = () => {
   const [, params] = useRoute('/blogs/:id');
   const [, setLocation] = useLocation();
@@ -27,10 +129,14 @@ const BlogDetailPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [linkedInCopied, setLinkedInCopied] = useState(false);
 
+  // Inject SEO tags whenever blog data loads
+  useBlogSEO(blog);
+
   useEffect(() => {
     const fetchBlog = async () => {
       try {
-        const response = await fetch(buildApiUrl(`/api/blogs/${params?.id}`));
+        // params.id can now be a slug OR a legacy UUID — the backend handles both
+        const response = await fetch(buildApiUrl(`/blogs/${params?.id}`));
         if (response.ok) {
           const data = await response.json();
           setBlog(data);
@@ -101,33 +207,27 @@ const BlogDetailPage: React.FC = () => {
             <button
               title="Share on X (Twitter)"
               onClick={() => {
-                // Twitter limit: 280 chars total.
-                // t.co URL shortener uses exactly 23 chars + 1 space = 24 reserved.
-                // Static suffix "\n\nRead on Ottolearn 👇 " = 24 chars.
-                // Remaining budget for title + summary snippet.
                 const TWITTER_LIMIT = 280;
-                const URL_CHARS = 24;          // t.co always = 23 + 1 space
+                const URL_CHARS = 24;
                 const SUFFIX = '\n\nRead on Ottolearn 👇 ';
-                const budget = TWITTER_LIMIT - URL_CHARS - SUFFIX.length; // ~232 chars
+                const budget = TWITTER_LIMIT - URL_CHARS - SUFFIX.length;
 
-                const title = blog.title || '';
+                const titleText = blog.title || '';
                 const rawSummary = blog.summary || blog.description || '';
 
                 let tweetText = '';
-                if (title.length <= budget) {
-                  // Use remaining space for a clipped summary
-                  const summaryBudget = budget - title.length - 2; // -2 for \n\n
+                if (titleText.length <= budget) {
+                  const summaryBudget = budget - titleText.length - 2;
                   if (summaryBudget > 20 && rawSummary) {
                     const clippedSummary = rawSummary.length > summaryBudget
                       ? rawSummary.slice(0, summaryBudget - 1) + '…'
                       : rawSummary;
-                    tweetText = `${title}\n\n${clippedSummary}${SUFFIX}`;
+                    tweetText = `${titleText}\n\n${clippedSummary}${SUFFIX}`;
                   } else {
-                    tweetText = `${title}${SUFFIX}`;
+                    tweetText = `${titleText}${SUFFIX}`;
                   }
                 } else {
-                  // Title itself is too long — clip it
-                  tweetText = `${title.slice(0, budget - 1)}…${SUFFIX}`;
+                  tweetText = `${titleText.slice(0, budget - 1)}…${SUFFIX}`;
                 }
 
                 const url = encodeURIComponent(window.location.href);
@@ -138,7 +238,6 @@ const BlogDetailPage: React.FC = () => {
               }}
               className="hover:text-black transition-all hover:scale-110 cursor-pointer"
             >
-              {/* Official X (Twitter) logo SVG */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.754l7.737-8.835L1.6 2.25h6.637l4.258 5.625 5.75-5.625Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
               </svg>
@@ -161,9 +260,6 @@ const BlogDetailPage: React.FC = () => {
             <button
               title="Share on LinkedIn"
               onClick={() => {
-                // Use LinkedIn's feed composer URL which supports pre-filling text directly.
-                // Format: linkedin.com/feed/?shareActive=true&text=ENCODED_TEXT
-                // This opens the LinkedIn post composer with text AND URL already filled in.
                 const postText = `📖 ${blog.title}\n\n${blog.summary || blog.description || ''}\n\nRead the full article 👉 ${window.location.href}\n\n#Ottolearn #Learning #Education`;
                 const encodedText = encodeURIComponent(postText);
                 window.open(
@@ -205,7 +301,7 @@ const BlogDetailPage: React.FC = () => {
               <LinkIcon size={18} />
             </button>
 
-            {/* Copied! toast — for Instagram & Copy Link */}
+            {/* Copied! toast */}
             <AnimatePresence>
               {copied && (
                 <motion.div
@@ -269,7 +365,7 @@ const BlogDetailPage: React.FC = () => {
           {blog.summary || blog.description}
         </motion.p>
 
-        {/* Featured Image - Hero Style from image */}
+        {/* Featured Image */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -300,17 +396,16 @@ const BlogDetailPage: React.FC = () => {
           ))}
         </motion.div>
 
-        {/* Article Content Area (Visual separator from image) */}
+        {/* Article Content Area */}
         <div className="h-px bg-retro-sage/20 w-full mb-16"></div>
 
-        {/* Read Original Section - Matches image exactly */}
+        {/* Read Original Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="bg-white border border-retro-sage/20 rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-10 shadow-xl shadow-retro-sage/10 relative overflow-hidden group mb-24"
         >
-          {/* Subtle background flair */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-retro-salmon/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
           
           <div className="relative z-10 text-center md:text-left">
@@ -329,7 +424,7 @@ const BlogDetailPage: React.FC = () => {
           </button>
         </motion.div>
 
-        {/* Curation Badge - Matches image exactly */}
+        {/* Curation Badge */}
         <div className="flex flex-col items-center justify-center gap-4 animate-in fade-in duration-1000 delay-700">
           <div className="flex items-center gap-2">
             <Award size={16} className="text-retro-salmon" />

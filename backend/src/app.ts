@@ -24,6 +24,7 @@ import { landingAssistantRouter } from "./routes/landingAssistant";
 import { dashboardRouter } from "./routes/dashboard";
 import { certificatesRouter } from "./routes/certificates";
 import { blogsRouter } from "./routes/blogs";
+import { sitemapRouter } from "./routes/sitemap";
 
 export function createApp(): Express {
   const app = express();
@@ -75,6 +76,15 @@ export function createApp(): Express {
   app.use("/dashboard", dashboardRouter);
   app.use("/certificates", certificatesRouter);
   app.use("/blogs", blogsRouter);
+
+  // SEO — Sitemap & Robots (served directly, no /api prefix needed)
+  app.use("/sitemap.xml", sitemapRouter);
+  app.get("/robots.txt", (_req, res) => {
+    res.header("Content-Type", "text/plain");
+    res.send(
+      `User-agent: *\nAllow: /\nDisallow: /auth/\nDisallow: /student-dashboard\nDisallow: /admin/\n\nSitemap: https://learn.ottobon.in/sitemap.xml`
+    );
+  });
 
   // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
   const apiRouter = express.Router();

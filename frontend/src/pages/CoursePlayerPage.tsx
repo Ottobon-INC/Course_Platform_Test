@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
 import { streamJobResult } from "@/lib/streamJob";
-import { ensureSessionFresh, readStoredSession, subscribeToSession } from "@/utils/session";
+import { subscribeToSession } from "@/utils/session";
 import { recordTelemetryEvent, updateTelemetryAccessToken } from "@/utils/telemetry";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
@@ -478,9 +478,6 @@ const CoursePlayerPage: React.FC = () => {
   const { toast } = useToast();
   const [session, setSession] = useState<StoredSession | null>(null);
   const [sessionHydrated, setSessionHydrated] = useState(false);
-  const [cohortAccessChecked, setCohortAccessChecked] = useState(false);
-  const [cohortAccessAllowed, setCohortAccessAllowed] = useState(false);
-  const accessRedirectedRef = useRef(false);
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [topicsLoaded, setTopicsLoaded] = useState(false);
@@ -832,30 +829,16 @@ const CoursePlayerPage: React.FC = () => {
       setTopicsLoaded(true);
       return;
     }
-    if (!cohortAccessChecked || !cohortAccessAllowed) {
-      setLessons([]);
-      setTopicsLoaded(cohortAccessChecked);
-      return;
-    }
     setTopicsLoaded(false);
     try {
       const headers: HeadersInit = {};
       if (session?.accessToken) {
         headers.Authorization = `Bearer ${session.accessToken}`;
       }
-      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/cohort-topics`), {
+      const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/topics`), {
         credentials: "include",
         headers,
       });
-      if (res.status === 401) {
-        sessionStorage.setItem("postLoginRedirect", window.location.pathname + window.location.search);
-        setLocation("/");
-        return;
-      }
-      if (res.status === 403) {
-        setLocation(`/course/${courseKey}`);
-        return;
-      }
       if (!res.ok) throw new Error("Failed to load topics");
       const data = await res.json();
       const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
@@ -884,7 +867,7 @@ const CoursePlayerPage: React.FC = () => {
     } finally {
       setTopicsLoaded(true);
     }
-  }, [cohortAccessAllowed, cohortAccessChecked, courseKey, session?.accessToken, setLocation, toast]);
+  }, [courseKey, session?.accessToken, toast]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {
@@ -1262,140 +1245,6 @@ const CoursePlayerPage: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const validateCohortAccess = async () => {
-      if (!courseKey || !sessionHydrated) {
-        return;
-      }
-
-      const redirectPath = window.location.pathname + window.location.search;
-
-      if (!session?.accessToken) {
-        if (!accessRedirectedRef.current) {
-          accessRedirectedRef.current = true;
-          sessionStorage.setItem("postLoginRedirect", redirectPath);
-          toast({
-            variant: "destructive",
-            title: "Login required",
-            description: "Please sign in to open this cohort course.",
-          });
-          setLocation("/");
-        }
-        if (!cancelled) {
-          setCohortAccessAllowed(false);
-          setCohortAccessChecked(true);
-        }
-        return;
-      }
-
-      try {
-        const stored = readStoredSession();
-        const freshSession = await ensureSessionFresh(stored, { notifyOnFailure: false });
-        if (cancelled) {
-          return;
-        }
-
-        if (!freshSession?.accessToken) {
-          if (!accessRedirectedRef.current) {
-            accessRedirectedRef.current = true;
-            sessionStorage.setItem("postLoginRedirect", redirectPath);
-            toast({
-              variant: "destructive",
-              title: "Session expired",
-              description: "Please sign in again to continue learning.",
-            });
-            setLocation("/");
-          }
-          setCohortAccessAllowed(false);
-          setCohortAccessChecked(true);
-          return;
-        }
-
-        const response = await fetch(buildApiUrl(`/api/courses/${courseKey}/enroll?checkOnly=true`), {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            Authorization: `Bearer ${freshSession.accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ checkOnly: true }),
-        });
-
-        if (cancelled) {
-          return;
-        }
-
-        if (response.status === 204) {
-          setCohortAccessAllowed(true);
-          setCohortAccessChecked(true);
-          return;
-        }
-
-        let message = "Unable to validate course access.";
-        try {
-          const payload = await response.json();
-          message = typeof payload?.message === "string" ? payload.message : message;
-        } catch {
-          // Ignore response parsing issues and keep fallback message.
-        }
-
-        setCohortAccessAllowed(false);
-        setCohortAccessChecked(true);
-
-        if (response.status === 401) {
-          if (!accessRedirectedRef.current) {
-            accessRedirectedRef.current = true;
-            sessionStorage.setItem("postLoginRedirect", redirectPath);
-            toast({
-              variant: "destructive",
-              title: "Login required",
-              description: "Please sign in to open this cohort course.",
-            });
-            setLocation("/");
-          }
-          return;
-        }
-
-        if (response.status === 403) {
-          toast({
-            variant: "destructive",
-            title: "Access denied",
-            description: message,
-          });
-          setLocation(`/course/${courseKey}`);
-          return;
-        }
-
-        toast({
-          variant: "destructive",
-          title: "Unable to open course",
-          description: message,
-        });
-        setLocation(`/course/${courseKey}`);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-        setCohortAccessAllowed(false);
-        setCohortAccessChecked(true);
-        toast({
-          variant: "destructive",
-          title: "Access validation failed",
-          description: error instanceof Error ? error.message : "Please try again.",
-        });
-        setLocation(`/course/${courseKey}`);
-      }
-    };
-
-    void validateCohortAccess();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [courseKey, session?.accessToken, sessionHydrated, setLocation, toast]);
 
   useEffect(() => {
     updateTelemetryAccessToken(session?.accessToken ?? null);
@@ -2546,21 +2395,6 @@ const CoursePlayerPage: React.FC = () => {
     } border-r border-[#4a4845]/70 shadow-2xl z-40`
     : `${sidebarBaseClasses} shrink-0 relative z-30 ${isFullScreen ? "absolute h-full z-40" : ""} ${!isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"
     } ${sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"}`;
-
-  if (!sessionHydrated || !cohortAccessChecked) {
-    return (
-      <div className="min-h-screen bg-[#000000] text-[#f8f1e6] flex items-center justify-center px-6">
-        <div className="text-center space-y-3">
-          <p className="text-sm uppercase tracking-[0.3em] text-[#bf2f1f]">Access Check</p>
-          <h1 className="text-2xl font-bold">Validating cohort access...</h1>
-        </div>
-      </div>
-    );
-  }
-
-  if (!cohortAccessAllowed) {
-    return null;
-  }
 
   return (
     <div

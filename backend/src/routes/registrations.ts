@@ -20,38 +20,47 @@ function getOptionalAuthUserId(req: express.Request): string | null {
   }
 }
 
+registrationsRouter.get("/active-program-types", async (req, res, next) => {
+  try {
+    const activeOfferings = await prisma.courseOffering.findMany({
+      where: { isActive: true },
+      select: { programType: true },
+      distinct: ["programType"],
+    });
+
+    const activeTypes = activeOfferings.map((o) => o.programType);
+    return res.json({ activeTypes });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 registrationsRouter.get("/offerings", async (req, res, next) => {
   try {
     const courseSlug = typeof req.query.courseSlug === "string" ? req.query.courseSlug : undefined;
     const courseId = typeof req.query.courseId === "string" ? req.query.courseId : undefined;
     const programType = typeof req.query.programType === "string" ? req.query.programType : undefined;
 
-    if (!courseSlug && !courseId) {
-      return res.status(400).json({ error: "courseSlug or courseId is required" });
-    }
-
-    const course = courseId
-      ? await prisma.course.findUnique({ where: { courseId } })
-      : await prisma.course.findUnique({ where: { slug: courseSlug! } });
-
-    if (!course) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-
-    if (programType && !PROGRAM_TYPES.has(programType)) {
-      return res.status(400).json({ error: "Invalid programType" });
+    let course = null;
+    if (courseSlug) {
+      course = await prisma.course.findUnique({ where: { slug: courseSlug } });
+    } else if (courseId) {
+      course = await prisma.course.findUnique({ where: { courseId } });
     }
 
     const offerings = await prisma.courseOffering.findMany({
       where: {
-        courseId: course.courseId,
+        ...(course ? { courseId: course.courseId } : {}),
         isActive: true,
         ...(programType ? { programType: programType as any } : {}),
+      },
+      include: {
+        course: true
       },
       orderBy: { createdAt: "asc" },
     });
 
-    return res.json({ course, offerings });
+    return res.json({ offerings });
   } catch (error) {
     return next(error);
   }

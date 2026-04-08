@@ -13,6 +13,8 @@ type OfferingCard = {
     id: string
     title: string
     description: string
+    priceCents: number
+    assessmentRequired: boolean
     disabled?: boolean
 }
 
@@ -26,13 +28,16 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
         const load = async () => {
             setLoading(true)
             try {
-                const data = await fetchOfferings({ courseSlug })
+                // Fetch by programType instead of a specific courseSlug to show ALL available offerings
+                const data = await fetchOfferings({ programType })
                 const filtered = (data.offerings || [])
-                    .filter((o: any) => o.programType === programType && o.isActive)
+                    .filter((o: any) => o.isActive)
                     .map((o: any) => ({
                         id: o.offeringId,
                         title: o.title,
-                        description: o.description || 'Program offering',
+                        description: o.description || o.course?.courseName || 'Program offering',
+                        priceCents: o.priceCents,
+                        assessmentRequired: o.assessmentRequired ?? true
                     }))
                 setOfferings(filtered)
             } catch (error) {
@@ -43,12 +48,17 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
             }
         }
         load()
-    }, [courseSlug, programType])
+    }, [programType])
 
     const handleContinue = () => {
         const selected = offerings.find(o => o.id === selectedCourse)
         if (selected) {
-            onSelect({ offeringId: selected.id, title: selected.title })
+            onSelect({ 
+                offeringId: selected.id, 
+                title: selected.title, 
+                assessmentRequired: selected.assessmentRequired,
+                priceCents: selected.priceCents
+            })
             const slug = selected.title.toLowerCase().replace(/ /g, '-')
             setLocation(`/registration/${programType}/${slug}`)
         }

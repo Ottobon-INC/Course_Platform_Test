@@ -13,11 +13,17 @@ export type CourseOffering = {
   assessmentRequired: boolean;
 };
 
+export async function fetchActiveProgramTypes(): Promise<{ activeTypes: string[] }> {
+    const res = await fetch(buildApiUrl('/api/registrations/active-program-types'))
+    if (!res.ok) throw new Error('Failed to fetch active program types')
+    return res.json()
+}
+
 export async function fetchOfferings(params: {
   courseSlug?: string;
   courseId?: string;
   programType?: "cohort" | "ondemand" | "workshop";
-}): Promise<{ course: any; offerings: CourseOffering[] }> {
+}): Promise<{ offerings: CourseOffering[] }> {
   const query = new URLSearchParams();
   if (params.courseSlug) query.set("courseSlug", params.courseSlug);
   if (params.courseId) query.set("courseId", params.courseId);

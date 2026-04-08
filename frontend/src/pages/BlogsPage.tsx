@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
-import { ArrowRight, MessageSquare, BookOpen, Clock, Calendar } from 'lucide-react';
+import { ArrowRight, MessageSquare, Clock, Calendar } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { CoursePromoCard } from '@/components/blog/CoursePromoCard';
@@ -9,6 +9,7 @@ import { buildApiUrl } from '@/lib/api';
 
 interface Blog {
   id: string;
+  slug: string;
   title: string;
   description: string;
   summary: string;
@@ -18,7 +19,53 @@ interface Blog {
   created_at: string;
 }
 
+// ─── SEO helper: inject / update <head> meta tags dynamically ──────────────
+function useBlogListingSEO() {
+  useEffect(() => {
+    const title = 'Insights & Stories | Ottolearn Blogs';
+    const description = 'Exploring the frontiers of AI, education, and the future of work. Read expert insights, tech career guidance, and more on the Ottolearn blog.';
+    const canonicalUrl = 'https://learn.ottobon.in/blogs';
+
+    const setMeta = (selector: string, value: string, attr = 'content') => {
+      let el = document.querySelector<HTMLMetaElement>(selector);
+      if (!el) {
+        el = document.createElement('meta');
+        const match = selector.match(/\[([^\]=]+)="([^"]+)"\]/);
+        if (match) el.setAttribute(match[1], match[2]);
+        document.head.appendChild(el);
+      }
+      el.setAttribute(attr, value);
+    };
+
+    const setLink = (rel: string, href: string) => {
+      let el = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+      if (!el) {
+        el = document.createElement('link');
+        el.setAttribute('rel', rel);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('href', href);
+    };
+
+    document.title = title;
+    setMeta('meta[name="description"]', description);
+    setLink('canonical', canonicalUrl);
+    setMeta('meta[property="og:title"]', title);
+    setMeta('meta[property="og:description"]', description);
+    setMeta('meta[property="og:url"]', canonicalUrl);
+    setMeta('meta[property="og:type"]', 'website');
+    setMeta('meta[name="twitter:title"]', title);
+    setMeta('meta[name="twitter:description"]', description);
+
+    return () => {
+      document.title = 'Ottolearn — AI-Native Learning Platform | Courses, Blogs & More';
+    };
+  }, []);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const BlogsPage: React.FC = () => {
+  useBlogListingSEO();
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
@@ -40,6 +87,8 @@ const BlogsPage: React.FC = () => {
     fetchBlogs();
   }, []);
 
+  const getBlogPath = (blog: Blog) => `/blogs/${blog.slug || blog.id}`;
+
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col">
       <Navbar onApplyTutor={() => setLocation('/become-a-tutor')} />
@@ -59,7 +108,7 @@ const BlogsPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">Insights & Stories</h1>
+              <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">Insights &amp; Stories</h1>
               <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
                 Exploring the frontiers of AI, education, and the future of work.
               </p>
@@ -92,7 +141,7 @@ const BlogsPage: React.FC = () => {
                       viewport={{ once: true }}
                       transition={{ delay: index % 3 * 0.1 }}
                       whileHover={{ y: -8 }}
-                      onClick={() => setLocation(`/blogs/${blog.id}`)}
+                      onClick={() => setLocation(getBlogPath(blog))}
                       className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-retro-sage/10 group flex flex-col h-full cursor-pointer"
                     >
                       <div className="h-56 overflow-hidden relative">
@@ -141,7 +190,7 @@ const BlogsPage: React.FC = () => {
                            <button 
                              onClick={(e) => {
                                e.stopPropagation();
-                               setLocation(`/blogs/${blog.id}`);
+                               setLocation(getBlogPath(blog));
                              }}
                              className="text-retro-salmon font-bold text-sm flex items-center gap-1.5 group-hover:gap-2.5 transition-all"
                            >
