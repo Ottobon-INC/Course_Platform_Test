@@ -1051,22 +1051,13 @@ const CoursePlayerPage: React.FC = () => {
           passed: true,
         };
       }
-
-      const sectionForModule = sections.filter((s) => s.moduleNo === moduleNo).sort((a, b) => a.topicPairIndex - b.topicPairIndex);
-      const moduleUnlocked =
-        moduleNo === 0
-          ? true
-          : sectionForModule.some((s) => s.unlocked) || moduleNo === 1;
+      const sectionForModule = sections
+        .filter((s) => s.moduleNo === moduleNo)
+        .sort((a, b) => a.topicPairIndex - b.topicPairIndex);
       const modulePassed = sectionForModule.length === 0 || sectionForModule.every((s) => s.passed);
-      const moduleLockedDueToCooldown = sectionForModule.some((s) => s.lockedDueToCooldown);
-      const moduleLockedDueToQuiz = sectionForModule.some((s) => s.lockedDueToQuiz);
-      const moduleCooldownUnlockAt =
-        sectionForModule.find((s) => s.cooldownUnlockAt)?.cooldownUnlockAt ?? null;
 
       sortedLessons.forEach((lesson, idx) => {
         const pairIdx = Math.ceil((idx + 1) / 2);
-        const section = sectionForModule.find((s) => s.topicPairIndex === pairIdx);
-        const unlocked = moduleUnlocked && (section?.unlocked ?? true);
         submodules.push({
           id: lesson.topicId,
           title: lesson.topicName,
@@ -1075,10 +1066,7 @@ const CoursePlayerPage: React.FC = () => {
           moduleNo: lesson.moduleNo,
           topicNumber: lesson.topicNumber,
           topicPairIndex: pairIdx,
-          unlocked,
-          lockedDueToCooldown: moduleLockedDueToCooldown,
-          lockedDueToQuiz: moduleLockedDueToQuiz,
-          cooldownUnlockAt: moduleCooldownUnlockAt,
+          unlocked: true,
         });
         if ((idx + 1) % 2 === 0) {
           submodules.push({
@@ -1087,10 +1075,7 @@ const CoursePlayerPage: React.FC = () => {
             type: "quiz",
             moduleNo,
             topicPairIndex: pairIdx,
-            unlocked,
-            lockedDueToCooldown: moduleLockedDueToCooldown,
-            lockedDueToQuiz: moduleLockedDueToQuiz,
-            cooldownUnlockAt: moduleCooldownUnlockAt,
+            unlocked: true,
           });
         }
       });
@@ -1099,7 +1084,7 @@ const CoursePlayerPage: React.FC = () => {
         id: moduleNo,
         title: sortedLessons[0]?.moduleName ?? `Module ${moduleNo}`,
         submodules,
-        unlocked: moduleUnlocked,
+        unlocked: true,
         passed: modulePassed,
       };
     });
@@ -1574,21 +1559,6 @@ const CoursePlayerPage: React.FC = () => {
     };
   }, []);
 
-  const formatUnlockDate = useCallback((iso?: string | null) => {
-    if (!iso) return null;
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) {
-      return null;
-    }
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(date);
-  }, []);
-
   const handleMouseDown = (e: React.MouseEvent, type: string, widget: "study" | "chat" | "notes") => {
     e.preventDefault();
     const rect = widget === "study" ? studyWidgetRect : widget === "chat" ? chatRect : notesRect;
@@ -1618,51 +1588,20 @@ const CoursePlayerPage: React.FC = () => {
       if (isPlaying) setIsControlsVisible(false);
     }, 3000);
   };
-
   const handleSubmoduleSelect = (sub: SubModule) => {
-    if (!sub.unlocked) {
-      emitTelemetry("lesson.locked_click", {
-        moduleNo: sub.moduleNo,
-        reason: sub.lockedDueToCooldown ? "cooldown" : sub.lockedDueToQuiz ? "quiz" : "sequence",
-        topicPairIndex: sub.topicPairIndex,
-      });
-    } else {
-      if (sub.type === "quiz") {
-        emitTelemetry(
-          "lesson.quiz_select",
-          { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex },
-          { moduleNo: sub.moduleNo, topicId: null },
-        );
-      } else if (sub.slug) {
-        const targetLesson = lessons.find((lesson) => lesson.slug === sub.slug);
-        emitTelemetry(
-          "lesson.navigate",
-          { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex, slug: sub.slug },
-          { moduleNo: sub.moduleNo, topicId: targetLesson?.topicId ?? null, courseId: targetLesson?.courseId ?? null },
-        );
-      }
-    }
-    if (!sub.unlocked) {
-      if (sub.lockedDueToCooldown) {
-        const unlockLabel = formatUnlockDate(sub.cooldownUnlockAt);
-        toast({
-          title: "Module unlock pending",
-          description: unlockLabel
-            ? `Module ${sub.moduleNo} unlocks on ${unlockLabel}. Use this window to finish the simulation exercise in your current module.`
-            : "This module will unlock after the current study window closes. Focus on the simulation exercise to get ready.",
-        });
-      } else if (sub.lockedDueToQuiz) {
-        toast({
-          title: "Pass the quiz to proceed",
-          description: "Complete and pass the current module quiz to unlock the next set of lessons.",
-        });
-      } else {
-        toast({
-          title: "Locked lesson",
-          description: "Finish the previous lessons before opening this module.",
-        });
-      }
-      return;
+    if (sub.type === "quiz") {
+      emitTelemetry(
+        "lesson.quiz_select",
+        { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex },
+        { moduleNo: sub.moduleNo, topicId: null },
+      );
+    } else if (sub.slug) {
+      const targetLesson = lessons.find((lesson) => lesson.slug === sub.slug);
+      emitTelemetry(
+        "lesson.navigate",
+        { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex, slug: sub.slug },
+        { moduleNo: sub.moduleNo, topicId: targetLesson?.topicId ?? null, courseId: targetLesson?.courseId ?? null },
+      );
     }
     if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
     if (sub.type === "quiz") {
@@ -1742,18 +1681,6 @@ const CoursePlayerPage: React.FC = () => {
         },
         { moduleNo: selectedSection?.moduleNo ?? activeLesson?.moduleNo ?? null },
       );
-      const progressModules: {
-        moduleNo: number;
-        unlocked?: boolean;
-        lockedDueToCooldown?: boolean;
-        unlockAvailableAt?: string | null;
-        cooldownUntil?: string | null;
-      }[] = Array.isArray(data?.progress) ? data.progress : [];
-      const currentModuleNo = selectedSection?.moduleNo ?? null;
-      const nextModuleNo = currentModuleNo ? currentModuleNo + 1 : null;
-      const nextModuleProgress = nextModuleNo
-        ? progressModules.find((module) => module?.moduleNo === nextModuleNo)
-        : null;
       setQuizResult({
         correctCount: base.correctCount ?? 0,
         totalQuestions: base.totalQuestions ?? quizQuestions.length,
@@ -1763,22 +1690,7 @@ const CoursePlayerPage: React.FC = () => {
       });
       setQuizPhase("result");
       if (base?.passed) {
-        let toastTitle = "Quiz passed";
-        let toastDescription: string | undefined;
-        if (nextModuleProgress && nextModuleNo) {
-          if (nextModuleProgress.lockedDueToCooldown) {
-            const unlockIso = nextModuleProgress.unlockAvailableAt ?? nextModuleProgress.cooldownUntil;
-            const unlockLabel = formatUnlockDate(unlockIso);
-            toastTitle = "Keep building momentum";
-            toastDescription = unlockLabel
-              ? `Module ${nextModuleNo} unlocks on ${unlockLabel}. Use this time to master the simulation exercise in Module ${currentModuleNo}.`
-              : `Module ${nextModuleNo} will unlock soon. Focus on the simulation exercise in Module ${currentModuleNo} until then.`;
-          } else if (nextModuleProgress.unlocked) {
-            toastTitle = `Module ${nextModuleNo} unlocked`;
-            toastDescription = "Jump in whenever you're ready.";
-          }
-        }
-        toast({ title: toastTitle, description: toastDescription });
+        toast({ title: "Quiz passed" });
         void fetchSections();
       } else {
         toast({ title: "Quiz submitted" });
