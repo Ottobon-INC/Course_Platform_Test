@@ -1,6 +1,6 @@
 import { Switch, Route, useLocation } from "wouter";
 import { buildApiUrl } from "@/lib/api";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -31,6 +31,62 @@ import MethodologyPage from "@/pages/MethodologyPage";
 import MoreInfoPage from "@/pages/MoreInfoPage";
 import BlogsPage from "@/pages/BlogsPage";
 import BlogDetailPage from "@/pages/BlogDetailPage";
+import ProfileSetupPage from "@/profile-setup/pages/ProfileSetup";
+import ProfileReviewPage from "@/profile-setup/pages/ProfileReview";
+import GoalMatchPage from "@/profile-setup/pages/GoalMatch";
+import RecommendationPathPage from "@/profile-setup/pages/RecommendationPath";
+import { hasCompletedProfileFlow } from "@/profile-setup/utils/flowState";
+
+function hasFrontendSession(): boolean {
+  const session = readStoredSession();
+  return Boolean(session?.accessToken);
+}
+
+function ProfileFlowEntry({ component: Component }: { component: ComponentType<any> }) {
+  const [, setLocation] = useLocation();
+  const isAuthed = hasFrontendSession();
+  const isComplete = hasCompletedProfileFlow();
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setLocation("/");
+      return;
+    }
+
+    if (isComplete) {
+      setLocation("/student-dashboard");
+    }
+  }, [isAuthed, isComplete, setLocation]);
+
+  if (!isAuthed || isComplete) {
+    return null;
+  }
+
+  return <Component />;
+}
+
+function StudentDashboardEntry() {
+  const [, setLocation] = useLocation();
+  const isAuthed = hasFrontendSession();
+  const isComplete = hasCompletedProfileFlow();
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setLocation("/");
+      return;
+    }
+
+    if (!isComplete) {
+      setLocation("/profile-setup");
+    }
+  }, [isAuthed, isComplete, setLocation]);
+
+  if (!isAuthed || !isComplete) {
+    return null;
+  }
+
+  return <StudentDashboardPage />;
+}
 
 function Router() {
   return (
@@ -58,8 +114,12 @@ function Router() {
       <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
-      <Route path="/student-dashboard" component={StudentDashboardPage} />
-      <Route path="/auth/callback" component={AuthCallbackPage} />
+      <Route path="/profile-setup" component={() => <ProfileFlowEntry component={ProfileSetupPage} />} />
+      <Route path="/profile-review" component={() => <ProfileFlowEntry component={ProfileReviewPage} />} />
+      <Route path="/goal-match" component={() => <ProfileFlowEntry component={GoalMatchPage} />} />
+      <Route path="/recommendation" component={() => <ProfileFlowEntry component={RecommendationPathPage} />} />
+      <Route path="/student-dashboard" component={StudentDashboardEntry} />
+      <Route path="/oauth/callback" component={AuthCallbackPage} />
 
 
       <Route path="/blogs" component={BlogsPage} />
@@ -85,6 +145,10 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
     location.startsWith("/course/") ||
     location.startsWith("/ondemand/") ||
     location.startsWith("/registration") ||
+    location.startsWith("/profile-setup") ||
+    location.startsWith("/profile-review") ||
+    location.startsWith("/goal-match") ||
+    location.startsWith("/recommendation") ||
     location.startsWith("/blogs") ||
     location === "/student-dashboard";
 
@@ -93,7 +157,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
       return;
     }
 
-    const isAuthCallback = () => window.location.pathname === "/auth/callback";
+    const isAuthCallback = () => window.location.pathname === "/oauth/callback";
 
     const unsubscribe = subscribeToSession((session) => {
       if (session?.accessToken) {

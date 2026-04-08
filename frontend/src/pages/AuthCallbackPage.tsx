@@ -3,8 +3,10 @@ import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { resetSessionHeartbeat, writeStoredSession } from "@/utils/session";
+import { hasCompletedProfileFlow } from "@/profile-setup/utils/flowState";
 
-const COURSE_PLAYER_DEFAULT_PATH = "/course/ai-native-fullstack-developer/learn/start";
+const PROFILE_SETUP_DEFAULT_PATH = "/profile-setup";
+const STUDENT_DASHBOARD_DEFAULT_PATH = "/student-dashboard";
 
 function parseCallbackParams(): Record<string, string | null> {
   const url = new URL(window.location.href);
@@ -98,10 +100,15 @@ export default function AuthCallbackPage() {
       description: `Signed in as ${user.fullName}`,
     });
 
-    const destination =
+    const requestedDestination =
       (redirectPath && redirectPath.startsWith("/") ? redirectPath : undefined) ??
       (storedRedirect && storedRedirect.startsWith("/") ? storedRedirect : undefined) ??
-      COURSE_PLAYER_DEFAULT_PATH;
+      (hasCompletedProfileFlow() ? STUDENT_DASHBOARD_DEFAULT_PATH : PROFILE_SETUP_DEFAULT_PATH);
+
+    const destination =
+      !hasCompletedProfileFlow() && requestedDestination === STUDENT_DASHBOARD_DEFAULT_PATH
+        ? PROFILE_SETUP_DEFAULT_PATH
+        : requestedDestination;
 
     setLocation(destination);
   }, [setLocation, toast]);

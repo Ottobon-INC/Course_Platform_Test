@@ -75,7 +75,7 @@ authRouter.get(
     const state = typeof req.query.state === "string" ? req.query.state : undefined;
 
   const redirectToFrontend = (params: Record<string, string | undefined>) => {
-    const callbackUrl = new URL("/auth/callback", env.frontendAppUrl);
+    const callbackUrl = new URL("/oauth/callback", env.frontendAppUrl);
     Object.entries(params).forEach(([key, value]) => {
       if (value) {
         callbackUrl.searchParams.set(key, value);

@@ -3,6 +3,40 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+const backendTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:4000";
+const proxiedRoutePrefixes = [
+  "/api",
+  "/auth",
+  "/assistant",
+  "/cart",
+  "/courses",
+  "/lessons",
+  "/pages",
+  "/quiz",
+  "/health",
+  "/users",
+  "/cold-call",
+  "/activity",
+  "/persona-profiles",
+  "/cohort-projects",
+  "/registrations",
+  "/landing-assistant",
+  "/dashboard",
+  "/certificates",
+  "/blogs",
+  "/admin",
+];
+
+const proxy = Object.fromEntries(
+  proxiedRoutePrefixes.map((prefix) => [
+    prefix,
+    {
+      target: backendTarget,
+      changeOrigin: true,
+    },
+  ]),
+);
+
 export default defineConfig({
   plugins: [
     react(),
@@ -29,6 +63,7 @@ export default defineConfig({
   },
   server: {
     allowedHosts: ["erminia-orthogonal-tremendously.ngrok-free.dev"],
+    proxy,
     fs: {
       strict: true,
       deny: ["**/.*"],
