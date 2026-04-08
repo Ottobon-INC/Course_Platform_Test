@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
+import { useNavigate } from 'react-router-dom';
 
 export function Home() {
+  const { data: summary, isLoading } = useDashboardSummary();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([
     { id: 1, text: 'Complete Quiz', checked: true },
     { id: 2, text: 'Submit Project', checked: true },
@@ -11,13 +15,29 @@ export function Home() {
     setTasks(tasks.map(t => t.id === id ? { ...t, checked: !t.checked } : t));
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary"></div>
+      </div>
+    );
+  }
+
+  const resumeCourse = summary?.resumeCourse;
+  const activeCourses = [...(summary?.cohorts || []), ...(summary?.onDemand || [])].slice(0, 2);
+  const nextWorkshops = summary?.workshops || [];
+
   return (
     <div className="animate-fade-in">
       <div className="grid grid-cols-12 gap-6 mb-8">
         <div className="col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex justify-between relative overflow-hidden">
           <div className="z-10 relative">
-            <h2 className="text-2xl font-bold mb-2">Today's Focus</h2>
-            <p className="text-gray-text mb-6">The biggest card in coonees today</p>
+            <h2 className="text-2xl font-bold mb-2">
+              {resumeCourse ? `Resume: ${resumeCourse.title}` : "Today's Focus"}
+            </h2>
+            <p className="text-gray-text mb-6">
+              {resumeCourse ? `Continue where you left off in ${resumeCourse.lastAccessedModule}` : "The biggest card in coonees today"}
+            </p>
             <div className="flex flex-col gap-3 mb-6">
               {tasks.map(task => (
                 <label key={task.id} className="flex items-center gap-3 cursor-pointer group">
@@ -33,9 +53,14 @@ export function Home() {
                 </label>
               ))}
             </div>
-            <button className="bg-orange-primary text-white border-none py-3 px-6 rounded-lg font-bold cursor-pointer transition-all shadow-md hover:-translate-y-1 hover:shadow-lg">
-              Start Next Task
-            </button>
+            {resumeCourse && (
+              <button 
+                onClick={() => navigate(`/course/${resumeCourse.courseSlug}/learn/${resumeCourse.lastLessonSlug || ''}`)}
+                className="bg-orange-primary text-white border-none py-3 px-6 rounded-lg font-bold cursor-pointer transition-all shadow-md hover:-translate-y-1 hover:shadow-lg"
+              >
+                Continue Learning
+              </button>
+            )}
           </div>
           <img src="/assets/illustration.png" alt="Study Desk" className="w-[180px] h-[180px] object-contain self-end absolute right-4 bottom-4 z-0" />
         </div>
@@ -108,37 +133,37 @@ export function Home() {
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft flex flex-col">
-              <div className="flex gap-2 mb-4">
-                <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">Cohort</span>
-                <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">Advanced</span>
-              </div>
-              <h4 className="text-[1.1rem] font-bold mb-2">Advanced React & Node.js</h4>
-              <p className="text-sm text-gray-text font-medium mb-6">Progress: 87%</p>
-              <div className="mt-auto flex justify-between items-center">
-                <div className="flex gap-2">
-                  <i className="fab fa-react text-[#61DAFB] text-xl"></i>
-                  <i className="fab fa-node-js text-[#68A063] text-xl"></i>
+            {activeCourses.map((course, idx) => (
+              <div key={course.id} className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft flex flex-col">
+                <div className="flex gap-2 mb-4">
+                  <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">
+                    {'status' in course ? 'Cohort' : 'On-Demand'}
+                  </span>
+                  <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">
+                    {'status' in course ? course.status : 'Active'}
+                  </span>
                 </div>
-                <button className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow">Resume</button>
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft flex flex-col">
-              <div className="flex gap-2 mb-4">
-                <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">Workshop</span>
-                <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">Cloud</span>
-              </div>
-              <h4 className="text-[1.1rem] font-bold mb-2">Cloud Solutions Architect</h4>
-              <p className="text-sm text-gray-text font-medium mb-6">Progress: 75%</p>
-              <div className="mt-auto flex justify-between items-center">
-                <div className="flex gap-2">
-                  <i className="fas fa-cloud text-blue-500 text-xl"></i>
-                  <i className="fab fa-aws text-[#FF9900] text-xl"></i>
+                <h4 className="text-[1.1rem] font-bold mb-2">{course.title}</h4>
+                <p className="text-sm text-gray-text font-medium mb-6">Progress: {course.progress}%</p>
+                <div className="mt-auto flex justify-between items-center">
+                  <div className="flex gap-2">
+                    <i className="fab fa-react text-[#61DAFB] text-xl"></i>
+                    <i className="fab fa-node-js text-[#68A063] text-xl"></i>
+                  </div>
+                  <button 
+                    onClick={() => navigate(`/course/${course.courseSlug}/learn/${('lastLessonSlug' in course ? course.lastLessonSlug : '') || ''}`)}
+                    className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow"
+                  >
+                    Resume
+                  </button>
                 </div>
-                <button className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow">Resume</button>
               </div>
-            </div>
+            ))}
+            {activeCourses.length === 0 && (
+              <div className="col-span-2 py-8 text-center bg-white rounded-2xl border border-dashed border-border-soft">
+                <p className="text-gray-text font-medium">No active courses yet. Start your learning journey!</p>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,8 @@
 import { useLocation } from 'react-router-dom';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
 
 export function Navbar() {
+  const { data: summary } = useDashboardSummary();
   const location = useLocation();
   const isDashboardHome = location.pathname === '/' || location.pathname === '/student-dashboard';
   const hideSearch = location.pathname === '/' || location.pathname === '/my-courses' || location.pathname === '/leaderboard' || location.pathname === '/messages' || location.pathname === '/feedback' || location.pathname === '/settings' || location.pathname === '/analysis' || location.pathname === '/certificates';
@@ -34,8 +36,9 @@ export function Navbar() {
           <i className="fas fa-calendar-alt"></i>
         </button>
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer border border-border-soft transition-transform hover:-translate-y-[2px]">
-          <img src="/assets/avatar.png" className="w-[28px] h-[28px] rounded-full" alt="Alex" />
-          <span className="font-semibold text-[0.95rem]">Alex Johnson</span>
+          <span className="font-semibold text-[0.95rem]">
+            {summary?.user?.fullName || localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student'}
+          </span>
           <i className="fas fa-chevron-down text-[0.7rem] text-gray-text"></i>
         </div>
       </div>

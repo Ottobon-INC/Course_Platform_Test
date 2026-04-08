@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
 
 export function Sidebar() {
+  const { data: summary } = useDashboardSummary();
   const navItems = [
     { icon: 'fa-home', label: 'Dashboard', path: '/student-dashboard' },
     { icon: 'fa-book-open', label: 'My Courses', path: '/my-courses' },
@@ -20,8 +22,10 @@ export function Sidebar() {
   return (
     <aside className="w-[250px] bg-dark-teal text-white h-screen fixed left-0 top-0 flex flex-col pt-8 pb-6 px-0 overflow-y-auto z-50">
       <div className="flex flex-col items-center mb-8 px-4 text-center">
-        <img src="/assets/avatar.png" alt="Alex Johnson" className="w-[80px] h-[80px] rounded-full border-4 border-[rgba(255,255,255,0.1)] mb-3 shadow-md" />
-        <h3 className="text-xl font-bold font-sans">Alex Johnson</h3>
+        <p className="text-orange-primary font-bold text-xl mb-2">Welcome!</p>
+        <h3 className="text-xl font-bold font-sans">
+          {summary?.user?.fullName || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student')}
+        </h3>
         <p className="text-sm text-gray-300 mt-1">Full Stack Developer Student</p>
       </div>
 

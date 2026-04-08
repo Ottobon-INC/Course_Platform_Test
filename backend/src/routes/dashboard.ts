@@ -99,7 +99,11 @@ const computeSessionsThisWeek = (cohorts: Array<{ startsAt?: Date | null }>): nu
 
 export const dashboardRouter = express.Router();
 
-dashboardRouter.get("/summary", requireAuth, async (req, res) => {
+dashboardRouter.get("/summary", async (req, res, next) => {
+  const fs = require('fs');
+  fs.appendFileSync('dashboard_debug.log', `${new Date().toISOString()} - Request received for /summary\n`);
+  next();
+}, requireAuth, async (req, res) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     if (!auth) {
@@ -149,6 +153,14 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         },
       }),
     ]);
+
+    console.log(`[DashboardSummary] User ID: ${auth.userId}`);
+    console.log(`[DashboardSummary] Enrollments: ${enrollments.length}, Cohort memberships: ${cohortMemberships.length}`);
+    
+    // Write to a local file for the AI to debug
+    const fs = require('fs');
+    const logMsg = `${new Date().toISOString()} - User: ${auth.userId}, Enrolls: ${enrollments.length}, Cohorts: ${cohortMemberships.length}\n`;
+    fs.appendFileSync('dashboard_debug.log', logMsg);
 
     const cohortCourseIds = new Set(
       cohortMemberships.map((membership) => membership.cohort.courseId),

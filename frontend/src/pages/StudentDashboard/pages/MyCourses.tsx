@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MyCoursesData, INITIAL_COURSES_DATA } from '../constants/mockData';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
+import { useNavigate } from 'react-router-dom';
 
 export function MyCourses() {
+  const { data: summary, isLoading } = useDashboardSummary();
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('All');
   const [sortOption, setSortOption] = useState<{ id: string, label: string }>({ id: 'all', label: 'All Courses' });
   const [sortOpen, setSortOpen] = useState(false);
@@ -15,20 +18,69 @@ export function MyCourses() {
     { id: 'coming-soon', label: 'Coming Soon' },
   ];
 
+  const mappedCourses = useMemo(() => {
+    if (!summary) return [];
+    
+    console.log('[MyCourses] Summary received:', summary);
+    
+    const cohorts = summary.cohorts.map(c => ({
+      id: c.id,
+      title: c.title,
+      desc: `Status: ${c.status}`,
+      progress: c.progress,
+      lastAccess: c.nextSessionDate ? `Next session: ${c.nextSessionDate}` : 'Join cohort',
+      tag: 'Cohort',
+      icon: '/assets/cohort.png',
+      btnText: 'Resume',
+      courseSlug: c.courseSlug,
+      lastLessonSlug: null
+    }));
+
+    const onDemand = summary.onDemand.map(od => ({
+      id: od.id,
+      title: od.title,
+      desc: od.lastAccessedModule || 'Continue learning',
+      progress: od.progress,
+      lastAccess: 'On-demand',
+      tag: 'On-demand',
+      icon: '/assets/ondemand.png',
+      btnText: 'Resume',
+      courseSlug: od.courseSlug,
+      lastLessonSlug: od.lastLessonSlug
+    }));
+
+    const workshops = summary.workshops.map(w => ({
+      id: w.id,
+      title: w.title,
+      desc: `${w.date} at ${w.time}`,
+      progress: 0,
+      lastAccess: 'Workshop',
+      tag: 'Workshop',
+      icon: '/assets/workshop.png',
+      btnText: 'View',
+      courseSlug: null,
+      lastLessonSlug: null
+    }));
+
+    return [...cohorts, ...onDemand, ...workshops];
+  }, [summary]);
+
   // Helpers
-  const isComingSoon = (c: MyCoursesData) => c.tag.toLowerCase().includes('upcoming');
-  const isEnrolled = (c: MyCoursesData) => c.btnText.toLowerCase().includes('resume') || c.tag.toLowerCase().includes('ongoing');
-  const isNotEnrolled = (c: MyCoursesData) => c.btnText.toLowerCase().includes('start') || (c.btnText.toLowerCase().includes('view') && !isComingSoon(c));
+  const isComingSoon = (c: any) => c.tag.toLowerCase().includes('upcoming');
+  const isEnrolled = (c: any) => c.btnText.toLowerCase().includes('resume') || c.tag.toLowerCase().includes('ongoing');
+  const isNotEnrolled = (c: any) => c.btnText.toLowerCase().includes('start') || (c.btnText.toLowerCase().includes('view') && !isComingSoon(c));
 
   const filteredCourses = useMemo(() => {
-    return INITIAL_COURSES_DATA.filter(c => {
+    return mappedCourses.filter(c => {
       // Search
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
       // Pill Filter
       if (activeFilter.toLowerCase() !== 'all') {
-        const filterLower = activeFilter.toLowerCase();
         const tagLower = c.tag.toLowerCase();
+        const filterLower = activeFilter.toLowerCase();
+
+        if (filterLower === 'all') return true;
 
         if (activeFilter === 'Completed') {
           if (c.progress < 100) return false;
@@ -45,7 +97,7 @@ export function MyCourses() {
 
       return true;
     });
-  }, [searchQuery, activeFilter, sortOption]);
+  }, [searchQuery, activeFilter, sortOption, mappedCourses]);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -73,7 +125,7 @@ export function MyCourses() {
           <p className="text-gray-text mt-1 font-medium">Manage and continue your learning</p>
         </div>
         <div className="bg-gray-200 text-dark-text py-1 px-4 rounded-full text-sm font-bold">
-          5 Active Courses
+          {mappedCourses.length} Active Courses
         </div>
       </div>
 
@@ -120,17 +172,33 @@ export function MyCourses() {
         <div>
           <h3 className="text-xl font-bold mb-5">Continue Learning</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-            {['Python for Data Science', 'UI/UX Masterclass'].map((title, idx) => (
+            {(summary?.resumeCourse ? [summary.resumeCourse] : mappedCourses.slice(0, 2)).map((course: any, idx) => (
               <div key={idx} className="bg-white rounded-2xl p-5 shadow-sm border border-border-soft flex flex-col">
-                <p className="text-xs text-orange-primary font-bold mb-2">Course label</p>
-                <h4 className="text-lg font-bold mb-4">{title}</h4>
-                <div className="h-[120px] rounded-lg bg-cover bg-center mb-4" style={{ backgroundImage: `url('/assets/${idx === 0 ? 'python.png' : 'uiux.png'}')` }}></div>
-                <div className="h-[8px] bg-gray-200 rounded-full w-full mb-2"><div className="h-full bg-[#10B981] rounded-full w-[75%]"></div></div>
-                <div className="flex justify-between text-xs font-bold mb-2"><span>Completion %</span><span>75%</span></div>
-                <p className="text-orange-primary text-xs font-bold">Due soon</p>
-                <button className="w-full mt-4 bg-orange-primary text-white py-2 rounded-lg font-bold hover:shadow-md transition-shadow">Resume Learning</button>
+                <p className="text-xs text-orange-primary font-bold mb-2">
+                  {'lastAccessedModule' in course ? 'On-Demand' : 'Cohort'}
+                </p>
+                <h4 className="text-lg font-bold mb-4">{course.title}</h4>
+                <div className="h-[120px] rounded-lg bg-cover bg-center mb-4 bg-gray-100 flex items-center justify-center">
+                  <i className={`fas ${'lastAccessedModule' in course ? 'fa-play-circle' : 'fa-users'} text-gray-300 text-4xl`}></i>
+                </div>
+                <div className="h-[8px] bg-gray-200 rounded-full w-full mb-2"><div className="h-full bg-[#10B981] rounded-full" style={{ width: `${course.progress}%` }}></div></div>
+                <div className="flex justify-between text-xs font-bold mb-2"><span>Completion %</span><span>{course.progress}%</span></div>
+                <p className="text-orange-primary text-xs font-bold">
+                  {course.progress < 100 ? 'In Progress' : 'Completed'}
+                </p>
+                <button 
+                  onClick={() => navigate(`/course/${course.courseSlug}/learn/${course.lastLessonSlug || ''}`)}
+                  className="w-full mt-4 bg-orange-primary text-white py-2 rounded-lg font-bold hover:shadow-md transition-shadow"
+                >
+                  Resume Learning
+                </button>
               </div>
             ))}
+            {mappedCourses.length === 0 && !isLoading && (
+              <div className="col-span-2 py-8 text-center bg-white rounded-2xl border border-dashed border-border-soft">
+                <p className="text-gray-text font-medium">No courses found matching your criteria.</p>
+              </div>
+            )}
           </div>
 
           <h3 className="text-xl font-bold mb-5">All Courses Grid</h3>
@@ -146,11 +214,16 @@ export function MyCourses() {
                   <p className="text-[0.8rem] text-gray-text leading-relaxed font-medium mb-4">{course.desc}</p>
                 </div>
                 <div>
-                  <div className="h-[6px] bg-gray-200 rounded-full w-full mb-3"><div className={`h-full bg-[#10B981] rounded-full w-[${course.progress}%]`}></div></div>
+                  <div className="h-[6px] bg-gray-200 rounded-full w-full mb-3"><div className="h-full bg-[#10B981] rounded-full" style={{ width: `${course.progress}%` }}></div></div>
                   <p className="text-[0.7rem] text-gray-text mb-3">{course.lastAccess}</p>
                   <div className="flex justify-between items-center">
-                    <span className={`text-[0.75rem] font-bold px-2 py-1 rounded bg-gray-100 text-gray-700 ${course.tagStyle || ''}`}>{course.tag}</span>
-                    <button className={`${course.btnStyle === 'transparent' ? 'bg-transparent border border-orange-primary text-orange-primary' : 'bg-orange-primary text-white border-none'} py-1.5 px-4 text-xs font-bold rounded hover:opacity-90`}>{course.btnText}</button>
+                    <span className={`text-[0.75rem] font-bold px-2 py-1 rounded bg-gray-100 text-gray-700`}>{course.tag}</span>
+                    <button 
+                      onClick={() => course.courseSlug && navigate(`/course/${course.courseSlug}/learn/${course.lastLessonSlug || ''}`)}
+                      className={`bg-orange-primary text-white border-none py-1.5 px-4 text-xs font-bold rounded hover:opacity-90`}
+                    >
+                      {course.btnText}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -161,8 +234,8 @@ export function MyCourses() {
         <aside>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-border-soft mb-6">
             <h3 className="text-lg font-bold mb-6">Learning Summary</h3>
-            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Total courses</span><span className="text-2xl font-bold font-sans">11</span></div>
-            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Completed courses</span><span className="text-2xl font-bold font-sans">36</span></div>
+            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Total courses</span><span className="text-2xl font-bold font-sans">{mappedCourses.length}</span></div>
+            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Completed courses</span><span className="text-2xl font-bold font-sans">{mappedCourses.filter(c => c.progress === 100).length}</span></div>
             <p className="text-sm text-gray-text font-semibold mt-4 mb-2">Average progress</p>
             <div className="flex items-end gap-1 h-[60px] opacity-80">
               <div className="flex-1 rounded-t-sm bg-gray-200 h-[40%]"></div>
