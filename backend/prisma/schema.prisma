@@ -142,6 +142,8 @@ model Course {
   contentAssets TopicContentAsset[]
   offerings   CourseOffering[]
   certificates CourseCertificate[]
+  draftTopics      DraftTopic[]
+  draftContentAssets DraftTopicContentAsset[]
 
   @@map("courses")
 }
@@ -723,4 +725,47 @@ model JobsBlog {
   calloutStats  String[]  @map("callout_stats")
 
   @@map("jobs_blogs")
+}
+
+model DraftTopic {
+  topicId     String          @id @default(dbgenerated("gen_random_uuid()")) @map("topic_id") @db.Uuid
+  courseId    String          @map("course_id") @db.Uuid
+  moduleNo    Int             @map("module_no")
+  moduleName  String          @map("module_name")
+  topicNumber Int             @map("topic_number")
+  topicName   String          @map("topic_name")
+  contentType String          @default("video") @map("content_type")
+  pptUrl      String?         @map("ppt_url")
+  videoUrl    String?         @map("video_url")
+  textContent String?         @map("text_content")
+  textContentSports String?   @map("text_content_sports")
+  textContentCooking String?  @map("text_content_cooking")
+  textContentAdventure String? @map("text_content_adventure")
+  isPreview   Boolean         @default(false) @map("is_preview")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  course      Course          @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  contentAssets DraftTopicContentAsset[]
+
+  @@unique([courseId, moduleNo, topicNumber], map: "uq_draft_topic_per_module")
+  @@map("draft_topics")
+}
+
+model DraftTopicContentAsset {
+  assetId    String                   @id @default(dbgenerated("gen_random_uuid()")) @map("asset_id") @db.Uuid
+  topicId    String                   @map("topic_id") @db.Uuid
+  courseId   String                   @map("course_id") @db.Uuid
+  contentKey String                   @map("content_key")
+  contentType String                  @map("content_type")
+  personaKey LearnerPersonaProfileKey? @map("persona_key")
+  payload    Json                     @map("payload")
+  createdAt  DateTime                 @default(now()) @map("created_at")
+  updatedAt  DateTime                 @updatedAt @map("updated_at")
+  topic      DraftTopic               @relation(fields: [topicId], references: [topicId], onDelete: Cascade)
+  course     Course                   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+
+  @@unique([topicId, contentKey, personaKey], map: "uq_draft_topic_content_assets_topic_key_persona")
+  @@index([courseId], map: "idx_draft_topic_content_assets_course")
+  @@index([topicId], map: "idx_draft_topic_content_assets_topic")
+  @@index([contentKey], map: "idx_draft_topic_content_assets_key")
+  @@map("draft_topic_content_assets")
 }

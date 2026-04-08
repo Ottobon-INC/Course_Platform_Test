@@ -29,7 +29,8 @@ const defaultRegistrationData: StudentData = {
     mode: '',
     programType: 'cohort',
     specificCourse: '',
-    plan: ''
+    plan: '',
+    assessmentRequired: true
 }
 
 function RegistrationPage() {
@@ -104,23 +105,43 @@ function RegistrationPage() {
             if (currentSlug !== slug || !registrationData.offeringId) {
                 const resolveSlug = async () => {
                     try {
-                        const data = await fetchOfferings({ courseSlug: slug })
-                        const matched = data.offerings.find(o =>
-                            o.programType === programType && o.isActive
-                        )
-                        if (matched) {
-                            setRegistrationData(prev => ({
-                                ...prev,
-                                offeringId: matched.offeringId,
-                                specificCourse: matched.title,
-                                programType: programType
-                            }))
+                        let offeringsData;
+                        try {
+                            offeringsData = await fetchOfferings({ courseSlug: slug });
+                        } catch (e) {
+                            // If fetching by slug fails, fallback to default main course to see if it's an offering slug
+                            console.log("Course slug not found, trying default course fallback...");
+                            offeringsData = await fetchOfferings({ courseSlug: 'ai-native-fullstack-developer' });
+                        }
+
+                        if (offeringsData?.offerings) {
+                            const matched = offeringsData.offerings.find(o => {
+                                const offeringSlug = o.title.toLowerCase().replace(/ /g, '-');
+                                return o.isActive && o.programType === programType && offeringSlug === slug;
+                            });
+
+                            if (matched) {
+                                setRegistrationData(prev => ({
+                                    ...prev,
+                                    offeringId: matched.offeringId,
+                                    specificCourse: matched.title,
+                                    programType: programType,
+                                    assessmentRequired: matched.assessmentRequired,
+                                    priceCents: matched.priceCents
+                                }));
+
+                                // If user is on assessment page but course doesn't require it, redirect to success
+                                if (matched.assessmentRequired === false && assessmentParams) {
+                                    const slug = matched.title.toLowerCase().replace(/ /g, '-')
+                                    setLocation(`/registration/${programType}/${slug}/success`)
+                                }
+                            }
                         }
                     } catch (e) {
-                        console.error("Failed to resolve offering from slug", e)
+                        console.error("Failed to resolve offering from slug", e);
                     }
-                }
-                resolveSlug()
+                };
+                resolveSlug();
             }
         }
     }, [successParams?.courseSlug, assessmentParams?.courseSlug, courseParams?.courseSlug, programType, registrationData.offeringId, registrationData.specificCourse])
@@ -130,20 +151,32 @@ function RegistrationPage() {
         setLocation(`/registration/${type}`)
     }
 
-    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string }) => {
+    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number }) => {
         setRegistrationData(prev => ({
             ...prev,
             offeringId: selection.offeringId,
-            specificCourse: selection.title
+            specificCourse: selection.title,
+            assessmentRequired: selection.assessmentRequired,
+            priceCents: selection.priceCents
         }))
         const slug = selection.title.toLowerCase().replace(/ /g, '-')
         setLocation(`/registration/${programType}/${slug}`)
     }
 
-    const handleRegistrationSubmit = (data: StudentData): void => {
-        setRegistrationData(data)
-        const slug = (data.specificCourse || '').toLowerCase().replace(/ /g, '-')
-        setLocation(`/registration/${data.programType}/${slug}/assessment`)
+    const handleRegistrationSubmit = (data: Partial<StudentData>): void => {
+        setRegistrationData(prev => {
+            const updated = { ...prev, ...data }
+            const slug = (updated.specificCourse || '').toLowerCase().replace(/ /g, '-')
+            
+            // Perform navigation based on the updated state
+            if (updated.assessmentRequired === false) {
+                setLocation(`/registration/${updated.programType}/${slug}/success`)
+            } else {
+                setLocation(`/registration/${updated.programType}/${slug}/assessment`)
+            }
+            
+            return updated
+        })
     }
 
     const handleAssessmentSubmit = (answers: Answer): void => {
@@ -203,6 +236,7 @@ function RegistrationPage() {
                             programType={programType}
                             selectedCourse={registrationData.specificCourse}
                             offeringId={registrationData.offeringId}
+                            priceCents={registrationData.priceCents}
                             onBack={() => goBack(1)}
                         />
                     )}

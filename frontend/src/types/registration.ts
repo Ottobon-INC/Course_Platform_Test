@@ -1,4 +1,4 @@
-﻿// Student and Registration Types
+// Student and Registration Types
 export interface StudentData {
     id?: string | number
     offeringId?: string
@@ -19,6 +19,9 @@ export interface StudentData {
     referredBy?: string
     programType: 'cohort' | 'ondemand' | 'workshop' // Added
     plan?: string         // Added
+    assessmentRequired?: boolean // Added
+    applicationRequired?: boolean // Added
+    priceCents?: number // Added
 }
 
 export interface RegistrationFormData {
@@ -86,6 +89,7 @@ export interface RegistrationStepProps {
     programType: 'cohort' | 'ondemand' | 'workshop'
     selectedCourse?: string
     offeringId?: string
+    priceCents?: number
     onBack?: () => void
 }
 

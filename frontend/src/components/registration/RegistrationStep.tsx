@@ -19,7 +19,7 @@ const PROFILE_OPTIONS = [
     { value: "general", label: "General" },
 ] as const;
 
-const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, onBack }: RegistrationStepProps) => {
+const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack }: RegistrationStepProps) => {
     const session = readStoredSession();
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
@@ -58,6 +58,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                 specificCourse: selectedCourse || prev.specificCourse,
                 profileCategory,
                 isCollegeStudent,
+                plan: priceCents ? (priceCents / 100).toString() : prev.plan,
                 ...(!isCollegeStudent
                     ? {
                         collegeName: "",
@@ -69,7 +70,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
                     : {}),
             };
         });
-    }, [programType, selectedCourse]);
+    }, [programType, selectedCourse, priceCents]);
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -174,11 +175,11 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
-        } else if (programType === "ondemand" && ON_DEMAND_AVAILABLE) {
+        } else if (programType === "ondemand") {
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
-        } else if (programType === "workshop" && WORKSHOP_AVAILABLE) {
+        } else if (programType === "workshop") {
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
@@ -796,25 +797,18 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, o
 
                     {programType === "workshop" && (
                         <div>
-                            <label htmlFor="plan" className="label">
-                                Select Your Plan <span className="text-red-500">*</span>
+                            <label className="label">
+                                Course Price <span className="text-gray-400 font-normal ml-1">(Automatic)</span>
                             </label>
-                            <select
-                                id="plan"
-                                name="plan"
-                                value={formData.plan}
-                                onChange={handleChange}
-                                onBlur={handleBlur}
-                                className={`input-field ${touched.plan && errors.plan ? "border-red-500" : ""
-                                    }`}
-                            >
-                                <option value="">Select a price plan</option>
-                                <option value="399">Standard Plan - ₹399</option>
-                                <option value="599">Premium Plan - ₹599</option>
-                            </select>
-                            {touched.plan && errors.plan && (
-                                <p className="error-text">{errors.plan}</p>
-                            )}
+                            <div className="input-field bg-gray-50 flex items-center justify-between border-gray-200">
+                                <span className="text-gray-900 font-bold italic">
+                                    One-time payment
+                                </span>
+                                <span className="text-orange-600 font-black text-xl">
+                                    ₹{priceCents ? priceCents / 100 : '---'}
+                                </span>
+                            </div>
+                            <input type="hidden" name="plan" value={priceCents ? (priceCents / 100).toString() : ""} />
                         </div>
                     )}
 

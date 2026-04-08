@@ -1,22 +1,21 @@
-import { prisma } from './src/services/prisma.js';
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 async function test() {
-    try {
-        console.log("Testing Prisma with 'plan' field...");
-        const reg = await prisma.registration.findFirst({
-            orderBy: { createdAt: 'desc' }
-        });
-        console.log("Found registration keys:", Object.keys(reg || {}));
-        if (reg && 'plan' in reg) {
-            console.log("SUCCESS: 'plan' field exists in Prisma client. Value:", (reg as any).plan);
-        } else {
-            console.log("ERROR: 'plan' field does NOT exist in Prisma client.");
-        }
-    } catch (error) {
-        console.error("Prisma Error:", error);
-    } finally {
-        await prisma.$disconnect();
-    }
+  const courseSlug = 'ai-native-fullstack-developer'
+  const course = await prisma.course.findUnique({ where: { slug: courseSlug } })
+  console.log('Course found:', course?.courseName)
+  
+  if (course) {
+    const offerings = await prisma.courseOffering.findMany({
+      where: { courseId: course.courseId },
+    })
+    console.log('Offerings count:', offerings.length)
+    offerings.forEach(o => {
+      console.log(`- ${o.title} (Active: ${o.isActive}, Type: ${o.programType})`)
+    })
+  }
 }
 
-test();
+test().finally(() => prisma.$disconnect())
