@@ -96,11 +96,19 @@ export default {
         "retro-cyan": "rgb(var(--retro-cyan) / <alpha-value>)",
         "retro-brown": "rgb(var(--retro-brown) / <alpha-value>)",
         "retro-yellow": "rgb(var(--retro-yellow) / <alpha-value>)",
+        "orange-primary": "#E8531F",
+        "orange-soft": "#FFEFEA",
+        "dark-teal": "#1B3535",
+        "dark-brown": "#3E2723",
+        "dark-text": "#1C1D20",
+        "gray-text": "#6B7280",
+        "border-soft": "#F3F4F6",
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
+        sans: ["var(--font-sans)", "Outfit", "sans-serif"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+        mono: ["var(--font-mono)", "monospace"],
+        outfit: ["Outfit", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
