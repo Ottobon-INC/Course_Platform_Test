@@ -129,6 +129,10 @@ function GoalMatch() {
       .ws-card:hover     { border-color: ${C.brown}  !important; box-shadow: 0 6px 20px rgba(135,79,65,.10) !important; transform: translateY(-2px); }
       .cta-card-btn { transition: all .25s; }
       .cta-card-btn:active { transform: translateY(0) !important; }
+      .goal-search-input::placeholder { color: #94a3b8; }
+      .goal-search-input:focus { border-color: #244855 !important; box-shadow: 0 0 0 4px rgba(36,72,85,.06) !important; }
+      .goal-search-input-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
+      .goal-search-icon { position: absolute; left: 16px; color: #94a3b8; pointer-events: none; width: 18px; height: 18px; }
       @media (max-width:600px){ .cohort-grid, .od-grid { grid-template-columns:1fr !important; } }
       @media (max-width:700px){ .ws-grid { grid-template-columns:1fr 1fr !important; } }
       @media (max-width:460px){ .ws-grid { grid-template-columns:1fr !important; } }
@@ -146,21 +150,28 @@ function GoalMatch() {
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.navy, marginBottom: 12 }}>Find Your Course</h1>
             <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 32, lineHeight: 1.5 }}>Enter the specific course or skill you want to learn to see available live cohorts or on-demand materials.</p>
             
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="e.g. Full Stack, Data Science..." 
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => { 
-                  if (e.key === 'Enter' && searchInput.trim()) { 
-                    setSearchQuery(searchInput); 
-                    setHasSearched(true); 
-                  } 
-                }}
-                style={{ width: "100%", padding: "16px 20px", borderRadius: 14, border: `2px solid ${C.slate}`, outline: "none", fontSize: "1rem", color: C.navy }}
-              />
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%" }}>
+              <div className="goal-search-input-wrapper">
+                <svg className="goal-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  className="goal-search-input"
+                  autoFocus
+                  type="text" 
+                  placeholder="Search for a course or skill..." 
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => { 
+                    if (e.key === 'Enter' && searchInput.trim()) { 
+                      setSearchQuery(searchInput); 
+                      setHasSearched(true); 
+                    } 
+                  }}
+                  style={{ width: "100%", padding: "14px 16px 14px 44px", borderRadius: 16, border: `1.5px solid #E2E8F0`, outline: "none", fontSize: "1rem", color: "#1e293b", background: "#FFFFFF", transition: "all .2s" }}
+                />
+              </div>
               <button 
                 onClick={() => {
                   if (searchInput.trim()) {
@@ -195,35 +206,26 @@ function GoalMatch() {
 
       <div style={{ maxWidth: 720, margin: "0 auto", position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
 
-        {/* ── 1. Top Search Bar ── */}
-        <Card style={{ padding: "10px 14px" }} delay={1}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input 
-              type="text" 
-              placeholder="Search for another course..." 
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => { 
-                if (e.key === 'Enter' && searchInput.trim()) { 
-                  setSearchQuery(searchInput); 
-                } 
-              }}
-              style={{ flex: "1 1 240px", padding: "11px 16px", borderRadius: 10, border: `1.5px solid ${C.coral}`, outline: "none", fontSize: "14px", color: C.navy, minWidth: 0, background: "#FFF6F1", boxShadow: "inset 0 1px 2px rgba(230,72,51,.08)" }}
-            />
-            <button 
-              onClick={() => {
-                if (searchInput.trim()) {
-                  setSearchQuery(searchInput);
-                }
-              }}
-              style={{ flex: "0 0 auto", padding: "0 18px", height: 42, borderRadius: 10, background: C.coral, color: C.white, border: "none", fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all .2s", boxShadow: "0 6px 18px rgba(230,72,51,.22)" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#c93b28"}
-              onMouseLeave={(e) => e.currentTarget.style.background = C.coral}
-            >
-              Search
-            </button>
-          </div>
-        </Card>
+        {/* ── 1. Back Navigation ── */}
+        <div style={{ marginBottom: 4 }}>
+          <button 
+            onClick={() => {
+              setHasSearched(false);
+              setSearchQuery("");
+              setSearchInput("");
+            }}
+            style={{ 
+              background: "none", border: "none", padding: 0, 
+              color: "#64748b", fontSize: "13px", fontWeight: 700, 
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+              transition: "color .2s", fontFamily: "inherit"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = C.navy}
+            onMouseLeave={(e) => e.currentTarget.style.color = "#64748b"}
+          >
+            ← Back to Search
+          </button>
+        </div>
 
         {
     /* ── 2. Course Header ── */

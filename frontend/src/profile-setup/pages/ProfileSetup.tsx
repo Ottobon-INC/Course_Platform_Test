@@ -16,12 +16,8 @@ var C5 = {
 };
 var SKILLS_GROUPS = [
   {
-    label: "PROGRAMMING & DEVELOPMENT",
+    label: "TECHNICAL SKILLS",
     skills: ["HTML", "CSS", "JavaScript", "TypeScript", "React", "Vue.js", "Angular", "Node.js", "Python", "Java", "SQL", "Git", "REST APIs", "GraphQL"]
-  },
-  {
-    label: "TOOLS & PLATFORMS",
-    skills: ["VS Code", "Git/GitHub", "Figma", "Docker", "AWS", "Linux", "Jira", "Postman"]
   },
   {
     label: "SOFT SKILLS",
