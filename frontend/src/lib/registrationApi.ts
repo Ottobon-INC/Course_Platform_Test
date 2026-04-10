@@ -11,6 +11,8 @@ export type CourseOffering = {
   priceCents: number;
   applicationRequired: boolean;
   assessmentRequired: boolean;
+  showSlots: boolean;
+  slotsJson?: any;
 };
 
 export async function fetchActiveProgramTypes(): Promise<{ activeTypes: string[] }> {
@@ -67,6 +69,43 @@ export async function submitRegistration(payload: Record<string, unknown>) {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `Registration failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function submitPayment(registrationId: string, payload: { 
+  transactionId: string; 
+  screenshot: File;
+  fullName: string;
+  courseName: string;
+  programType: string;
+  amountCents: number;
+}) {
+  const formData = new FormData();
+  formData.append("registrationId", registrationId);
+  formData.append("transactionId", payload.transactionId);
+  formData.append("screenshot", payload.screenshot);
+  formData.append("fullName", payload.fullName);
+  formData.append("courseName", payload.courseName);
+  formData.append("programType", payload.programType);
+  formData.append("amountCents", payload.amountCents.toString());
+
+  const stored = readStoredSession();
+  const session = await ensureSessionFresh(stored, { notifyOnFailure: false });
+  const headers: Record<string, string> = {};
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+
+  const res = await fetch(buildApiUrl(`/api/registrations/${registrationId}/payment`), {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Payment submission failed (${res.status})`);
   }
   return res.json();
 }

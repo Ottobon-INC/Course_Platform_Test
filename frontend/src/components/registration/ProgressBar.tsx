@@ -2,10 +2,11 @@ import { ProgressBarProps } from '@/types/registration'
 
 const ProgressBar = ({ currentStep }: ProgressBarProps) => {
     const steps = [
-        { label: 'Course Selection' },
-        { label: 'Registration Details' },
-        { label: 'Skill Assessment' },
-        { label: 'Completion' }
+        { label: 'Course' },
+        { label: 'Details' },
+        { label: 'Skill Check' },
+        { label: 'Payment' },
+        { label: 'Success' }
     ]
 
     const totalSteps = steps.length

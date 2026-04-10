@@ -9,6 +9,7 @@ import CourseSelection from '@/components/registration/CourseSelection'
 import SpecificCourseSelection from '@/components/registration/SpecificCourseSelection'
 import { StudentData, Answer } from '@/types/registration'
 import { fetchOfferings } from '@/lib/registrationApi'
+import PaymentStep from '@/components/registration/PaymentStep'
 
 const STORAGE_KEY = 'ottolearn_reg_draft'
 
@@ -41,6 +42,7 @@ function RegistrationPage() {
     const [matchProgramType, programTypeParams] = useRoute<{ programType: string }>('/registration/:programType')
     const [matchCourseSlug, courseParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug')
     const [matchAssessment, assessmentParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug/assessment')
+    const [matchPayment, paymentParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug/payment')
     const [matchSuccess, successParams] = useRoute<{ programType: string; courseSlug: string }>('/registration/:programType/:courseSlug/success')
 
     // Initialize state from localStorage
@@ -76,6 +78,7 @@ function RegistrationPage() {
     })
 
     const [assessmentAnswers, setAssessmentAnswers] = useState<Answer>({})
+    // We now use registrationData.slots and registrationData.showSlots directly
 
     // Save to localStorage on change
     useEffect(() => {
@@ -84,7 +87,8 @@ function RegistrationPage() {
 
     // Determine current step based on URL
     const getCurrentStep = (): number => {
-        if (matchSuccess) return 4
+        if (matchSuccess) return 5
+        if (matchPayment) return 4
         if (matchAssessment) return 3
         if (matchCourseSlug) return 2
         if (matchProgramType) return 1
@@ -97,12 +101,13 @@ function RegistrationPage() {
 
     // Slug resolution from URL
     useEffect(() => {
-        const slug = successParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug
+        const slug = successParams?.courseSlug || paymentParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug
         if (slug) {
             const currentSlug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
 
             // Only resolve if slug doesn't match or we don't have an offeringId
-            if (currentSlug !== slug || !registrationData.offeringId) {
+            // Only resolve if slug doesn't match or we don't have an offeringId or slots
+            if (currentSlug !== slug || !registrationData.offeringId || !registrationData.slots) {
                 const resolveSlug = async () => {
                     try {
                         let offeringsData;
@@ -127,13 +132,19 @@ function RegistrationPage() {
                                     specificCourse: matched.title,
                                     programType: programType,
                                     assessmentRequired: matched.assessmentRequired,
-                                    priceCents: matched.priceCents
+                                    priceCents: matched.priceCents,
+                                    showSlots: matched.showSlots,
+                                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : []
                                 }));
 
-                                // If user is on assessment page but course doesn't require it, redirect to success
+                                // If user is on assessment page but course doesn't require it, redirect to success/payment
                                 if (matched.assessmentRequired === false && assessmentParams) {
                                     const slug = matched.title.toLowerCase().replace(/ /g, '-')
-                                    setLocation(`/registration/${programType}/${slug}/success`)
+                                    if (matched.priceCents > 0) {
+                                        setLocation(`/registration/${programType}/${slug}/payment`)
+                                    } else {
+                                        setLocation(`/registration/${programType}/${slug}/success`)
+                                    }
                                 }
                             }
                         }
@@ -151,13 +162,16 @@ function RegistrationPage() {
         setLocation(`/registration/${type}`)
     }
 
-    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number }) => {
+    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any }) => {
+        console.log("Course Selected:", selection);
         setRegistrationData(prev => ({
             ...prev,
             offeringId: selection.offeringId,
             specificCourse: selection.title,
             assessmentRequired: selection.assessmentRequired,
-            priceCents: selection.priceCents
+            priceCents: selection.priceCents,
+            showSlots: selection.showSlots,
+            slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : []
         }))
         const slug = selection.title.toLowerCase().replace(/ /g, '-')
         setLocation(`/registration/${programType}/${slug}`)
@@ -170,7 +184,11 @@ function RegistrationPage() {
             
             // Perform navigation based on the updated state
             if (updated.assessmentRequired === false) {
-                setLocation(`/registration/${updated.programType}/${slug}/success`)
+                if ((updated.priceCents || 0) > 0) {
+                    setLocation(`/registration/${updated.programType}/${slug}/payment`)
+                } else {
+                    setLocation(`/registration/${updated.programType}/${slug}/success`)
+                }
             } else {
                 setLocation(`/registration/${updated.programType}/${slug}/assessment`)
             }
@@ -181,6 +199,18 @@ function RegistrationPage() {
 
     const handleAssessmentSubmit = (answers: Answer): void => {
         setAssessmentAnswers(answers)
+        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        
+        if ((registrationData.priceCents || 0) > 0) {
+            setLocation(`/registration/${registrationData.programType}/${slug}/payment`)
+        } else {
+            // Clear localStorage on success
+            localStorage.removeItem(STORAGE_KEY)
+            setLocation(`/registration/${registrationData.programType}/${slug}/success`)
+        }
+    }
+
+    const handlePaymentSubmit = (): void => {
         const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
         // Clear localStorage on success
         localStorage.removeItem(STORAGE_KEY)
@@ -237,7 +267,11 @@ function RegistrationPage() {
                             selectedCourse={registrationData.specificCourse}
                             offeringId={registrationData.offeringId}
                             priceCents={registrationData.priceCents}
-                            onBack={() => goBack(1)}
+                            onBack={() => {
+                                goBack(1);
+                            }}
+                            slots={registrationData.slots || []}
+                            showSlots={registrationData.showSlots ?? true}
                         />
                     )}
                     {currentStep === 3 && (
@@ -247,6 +281,21 @@ function RegistrationPage() {
                         />
                     )}
                     {currentStep === 4 && (
+                        <PaymentStep
+                            onSubmit={handlePaymentSubmit}
+                            studentData={registrationData}
+                            onBack={() => {
+                                if (registrationData.assessmentRequired) {
+                                    // Step 3 was assessment
+                                    goBack(3)
+                                } else {
+                                    // No assessment, go back to registration
+                                    goBack(2)
+                                }
+                            }}
+                        />
+                    )}
+                    {currentStep === 5 && (
                         <SuccessStep studentData={{ ...registrationData, programType }} />
                     )}
                 </div>

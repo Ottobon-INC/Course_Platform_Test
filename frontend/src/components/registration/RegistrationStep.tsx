@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { readStoredSession } from "@/utils/session";
 import { submitRegistration } from "@/lib/registrationApi";
-import { supabase } from "@/lib/registrationSupabase";
 import {
     RegistrationStepProps,
     RegistrationFormData,
@@ -19,7 +18,7 @@ const PROFILE_OPTIONS = [
     { value: "general", label: "General" },
 ] as const;
 
-const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack }: RegistrationStepProps) => {
+const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], showSlots = true }: RegistrationStepProps & { slots?: any[], showSlots?: boolean }) => {
     const session = readStoredSession();
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
@@ -75,28 +74,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-
-    useEffect(() => {
-        if (programType !== "cohort") return;
-
-        const fetchSlots = async () => {
-            if (!supabase) return;
-
-            const { data, error } = await supabase
-                .from("alloted_timeslotes")
-                .select("slot_name")
-                .order("created_at", { ascending: true });
-
-            if (data) {
-                setAvailableSlots(data.map((s: any) => s.slot_name));
-            } else if (error) {
-                console.error("Error fetching slots:", error);
-                setAvailableSlots(["19th January", "2nd February"]);
-            }
-        };
-        fetchSlots();
-    }, [programType]);
+    // Using slots prop directly
 
     const shouldCollectAcademicDetails =
         programType !== "workshop" || formData.profileCategory === "college_student";
@@ -159,13 +137,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             }
         }
 
-        if (programType === "cohort") {
-            if (!formData.selectedSlot) {
+        if (programType === "cohort" || programType === "workshop") {
+            if (showSlots && !formData.selectedSlot && slots.length > 0) {
                 newErrors.selectedSlot = "Please select a slot";
-            }
-
-            if (!formData.sessionTime) {
-                newErrors.sessionTime = "Please select a session time";
             }
 
             if (!formData.mode) {
@@ -179,10 +153,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
-        } else if (programType === "workshop") {
-            if (!formData.specificCourse) {
-                newErrors.specificCourse = "Please select a course";
-            }
+        }
+
+        if (programType === "workshop") {
             if (!formData.plan) {
                 newErrors.plan = "Please select a plan";
             }
@@ -258,6 +231,19 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             return;
         }
 
+        if (name === "selectedSlot") {
+            const slot = slots.find((s: any) => s.name === value);
+            setFormData(prev => ({
+                ...prev,
+                selectedSlot: value,
+                sessionTime: slot?.time || ""
+            }));
+            if (errors.selectedSlot) {
+                setErrors(prev => ({ ...prev, selectedSlot: "" }));
+            }
+            return;
+        }
+
         if (name === "yearOfPassing") {
             setFormData((prev) => ({
                 ...prev,
@@ -313,9 +299,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             otherBranch:
                 shouldCollectAcademicDetails && formData.branch === "Other",
             specificCourse: true,
-            selectedSlot: programType === "cohort",
-            sessionTime: programType === "cohort",
-            mode: programType === "cohort",
+            selectedSlot: programType === "cohort" || programType === "workshop",
+            sessionTime: programType === "cohort" || programType === "workshop",
+            mode: programType === "cohort" || programType === "workshop",
             plan: programType === "workshop",
         });
 
@@ -355,9 +341,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 collegeName: shouldCollectAcademicDetails ? formData.collegeName : null,
                 yearOfPassing: resolvedYearOfPassing,
                 branch: resolvedBranch,
-                selectedSlot: programType === "cohort" ? formData.selectedSlot : null,
-                sessionTime: programType === "cohort" ? formData.sessionTime : null,
-                mode: programType === "cohort" ? formData.mode : null,
+                selectedSlot: (programType === "cohort" || programType === "workshop") ? formData.selectedSlot : null,
+                sessionTime: (programType === "cohort" || programType === "workshop") ? formData.sessionTime : null,
+                mode: (programType === "cohort" || programType === "workshop") ? formData.mode : null,
                 referredBy: formData.referredBy || null,
                 plan: programType === "workshop" ? formData.plan : null,
             };
@@ -706,7 +692,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                         </div>
                     )}
 
-                    {programType === "cohort" && (
+                    {(programType === "cohort" || programType === "workshop") && showSlots && slots.length > 0 && (
                         <>
                             <div>
                                 <label htmlFor="selectedSlot" className="label">
@@ -724,53 +710,23 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                         : ""
                                         }`}
                                 >
-                                    <option value="">Select your preferred slot</option>
-                                    {availableSlots.length > 0 ? (
-                                        availableSlots.map((slot) => (
-                                            <option key={slot} value={slot}>
-                                                {slot}
-                                            </option>
-                                        ))
-                                    ) : (
-                                        <>
-                                            <option value="19th January">19th January</option>
-                                            <option value="2nd February">2nd February</option>
-                                        </>
-                                    )}
+                                    <option value="">Select your preferred date/slot</option>
+                                    {slots.map((slot: any) => (
+                                        <option key={slot.id} value={slot.name}>
+                                            {slot.name} {slot.time ? `(${slot.time})` : ""}
+                                        </option>
+                                    ))}
                                 </select>
                                 {touched.selectedSlot && errors.selectedSlot && (
                                     <p className="error-text">{errors.selectedSlot}</p>
                                 )}
                             </div>
 
-                            <div>
-                                <label htmlFor="sessionTime" className="label">
-                                    Preferred Session Time <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="sessionTime"
-                                    name="sessionTime"
-                                    value={formData.sessionTime}
-                                    onChange={handleChange}
-                                    onBlur={handleBlur}
-                                    className={`input-field ${touched.sessionTime && errors.sessionTime
-                                        ? "border-red-500"
-                                        : ""
-                                        }`}
-                                >
-                                    <option value="">Select session time</option>
-                                    <option value="Morning Session (10am-11.30am)">
-                                        Morning Session (10am-11.30am)
-                                    </option>
-                                    <option value="Evening Session (5pm-6.30pm)">
-                                        Evening Session (5pm-6.30pm)
-                                    </option>
-                                </select>
-                                {touched.sessionTime && errors.sessionTime && (
-                                    <p className="error-text">{errors.sessionTime}</p>
-                                )}
-                            </div>
+                        </>
+                    )}
 
+                    {(programType === "cohort" || programType === "workshop") && (
+                        <>
                             <div>
                                 <label htmlFor="mode" className="label">
                                     Preferred Mode <span className="text-red-500">*</span>

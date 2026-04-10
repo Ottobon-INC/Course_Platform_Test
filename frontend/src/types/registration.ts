@@ -22,6 +22,8 @@ export interface StudentData {
     assessmentRequired?: boolean // Added
     applicationRequired?: boolean // Added
     priceCents?: number // Added
+    showSlots?: boolean // Added
+    slots?: any[]       // Added
 }
 
 export interface RegistrationFormData {
@@ -102,8 +104,33 @@ export interface ProgressBarProps {
     currentStep: number
 }
 
+export interface PaymentStepProps {
+    onSubmit: (paymentData: { transactionId: string, screenshot: File }) => void
+    studentData: StudentData
+    onBack: () => void
+}
+
 export interface SuccessStepProps {
     studentData: StudentData;
+}
+
+export interface CourseOffering {
+    offeringId: string;
+    courseId: string;
+    title: string;
+    description: string | null;
+    programType: 'cohort' | 'ondemand' | 'workshop';
+    isActive: boolean;
+    priceCents: number;
+    assessmentRequired: boolean;
+    applicationRequired: boolean;
+    showSlots: boolean;
+    slotsJson?: any;
+    course: {
+        courseId: string;
+        courseName: string;
+        slug: string;
+    };
 }
 
 // Supabase Response Types
