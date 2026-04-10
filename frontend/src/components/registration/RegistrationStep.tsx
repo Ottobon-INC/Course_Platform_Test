@@ -199,7 +199,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         }));
 
         setErrors((prev) => {
-            const next = { ...prev };
+            const next: FormErrors = { ...prev };
             delete next.profileCategory;
             if (!isCollegeStudent) {
                 delete next.collegeName;
@@ -224,7 +224,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 otherBranch: value === "Other" ? prev.otherBranch : "",
             }));
             setErrors((prev) => {
-                const next = { ...prev, branch: "" };
+                const next: FormErrors = { ...prev, branch: "" };
                 if (value !== "Other") delete next.otherBranch;
                 return next;
             });
@@ -251,7 +251,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 otherYearOfPassing: value === "Other" ? prev.otherYearOfPassing : "",
             }));
             setErrors((prev) => {
-                const next = { ...prev, yearOfPassing: "" };
+                const next: FormErrors = { ...prev, yearOfPassing: "" };
                 if (value !== "Other") delete next.otherYearOfPassing;
                 return next;
             });
