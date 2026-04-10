@@ -47,6 +47,7 @@ function Router() {
       <Route path="/registration/:programType" component={RegistrationPage} />
       <Route path="/registration/:programType/:courseSlug" component={RegistrationPage} />
       <Route path="/registration/:programType/:courseSlug/assessment" component={RegistrationPage} />
+      <Route path="/registration/:programType/:courseSlug/payment" component={RegistrationPage} />
       <Route path="/registration/:programType/:courseSlug/success" component={RegistrationPage} />
 
       {/* Course Routes */}

@@ -77,7 +77,7 @@ const SuccessStep = ({ studentData }: SuccessStepProps) => {
                             </ul>
                         ) : studentData.programType === 'workshop' ? (
                             <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                                As the seats for this workshop are limited, we will be selecting only 15–20 participants. If you are selected, you will receive a confirmation email. The email will include a payment link, through which you can proceed with the payment according to the plan you chose.
+                                Thank you for registering! You will receive the workshop details, including the schedule and access link, on your registered email shortly.
                             </p>
                         ) : (
                             <p className="text-sm text-gray-700">You'll receive enrollment instructions and next steps shortly.</p>

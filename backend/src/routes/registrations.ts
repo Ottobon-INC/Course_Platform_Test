@@ -1,8 +1,23 @@
 import express from "express";
 import { prisma } from "../services/prisma";
 import { verifyAccessToken } from "../services/sessionService";
+import multer from "multer";
+import { supabase } from "../services/supabase";
 
 export const registrationsRouter = express.Router();
+
+// Configure Multer for memory storage (direct to Supabase)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 }, // 3MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only images are allowed"));
+    }
+  }
+});
 
 const PROGRAM_TYPES = new Set(["cohort", "ondemand", "workshop"]);
 const normalizeEmail = (value: string) => value.trim().toLowerCase();
@@ -217,6 +232,86 @@ registrationsRouter.post("/", async (req, res, next) => {
 
     return res.status(existing ? 200 : 201).json({ registration });
   } catch (error: any) {
+    return next(error);
+  }
+});
+
+registrationsRouter.post("/:id/payment", upload.single("screenshot"), async (req, res, next) => {
+  try {
+    const registrationId = req.params.id;
+    const { transactionId, fullName, courseName, programType, amountCents } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Screenshot is required" });
+    }
+
+    if (!transactionId) {
+      return res.status(400).json({ error: "Transaction ID is required" });
+    }
+
+    const registration = await prisma.registration.findUnique({
+      where: { registrationId },
+    });
+
+    if (!registration) {
+      return res.status(404).json({ error: "Registration not found" });
+    }
+
+    // --- Supabase Upload Logic ---
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `payment-${registrationId}-${Date.now()}.${fileExt}`;
+    const filePath = `payments/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('Payment_images') // Using your new bucket
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error details:', {
+        message: uploadError.message,
+        name: (uploadError as any).name,
+        error: uploadError
+      });
+      return res.status(500).json({ 
+        error: "Failed to upload to Supabase storage", 
+        details: uploadError.message 
+      });
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('Payment_images')
+      .getPublicUrl(filePath);
+
+    const screenshotUrl = publicUrl;
+
+    const payment = await prisma.coursePayment.upsert({
+      where: { registrationId },
+      create: {
+        registrationId,
+        fullName: fullName || registration.fullName,
+        courseName: courseName || "Unknown Course",
+        programType: (programType as any) || "workshop",
+        transactionId,
+        screenshotUrl,
+        amountCents: amountCents ? parseInt(amountCents) : null,
+      },
+      update: {
+        transactionId,
+        screenshotUrl,
+        fullName: fullName || registration.fullName,
+        courseName: courseName || "Unknown Course",
+        programType: (programType as any) || "workshop",
+        amountCents: amountCents ? parseInt(amountCents) : null,
+        status: "pending", // Reset status if they re-upload
+      },
+    });
+
+    return res.status(200).json({ success: true, payment });
+  } catch (error) {
     return next(error);
   }
 });

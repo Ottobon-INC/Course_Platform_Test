@@ -158,8 +158,10 @@ model CourseOffering {
   priceCents          Int          @default(0) @map("price_cents")
   applicationRequired Boolean      @default(false) @map("application_required")
   assessmentRequired  Boolean      @default(false) @map("assessment_required")
+  slotsJson           Json?        @map("slots_json")
+  showSlots           Boolean      @default(true) @map("show_slots")
   createdAt           DateTime     @default(now()) @map("created_at")
-  updatedAt           DateTime     @updatedAt @map("updated_at")
+  updatedAt           DateTime     @default(now()) @updatedAt @map("updated_at")
   course              Course       @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
   registrations       Registration[]
   questions           AssessmentQuestion[]
@@ -193,10 +195,34 @@ model Registration {
   updatedAt             DateTime       @updatedAt @map("updated_at")
   offering              CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
   user                  User?          @relation(fields: [userId], references: [userId], onDelete: SetNull)
+  payment               CoursePayment?
 
   @@unique([email, offeringId], map: "uq_registration_email_offering")
   @@index([offeringId], map: "idx_registration_offering")
   @@map("registrations")
+}
+
+model CoursePayment {
+  paymentId      String      @id @default(dbgenerated("gen_random_uuid()")) @map("payment_id") @db.Uuid
+  registrationId String      @unique @map("registration_id") @db.Uuid
+  
+  // Snapshots for easy admin viewing
+  fullName       String      @map("full_name")
+  courseName     String      @map("course_name")
+  programType    ProgramType @map("program_type")
+  
+  // Payment Details
+  transactionId  String      @map("transaction_id")
+  screenshotUrl  String      @map("screenshot_url")
+  status         String      @default("pending") @map("status") // pending, verified, rejected
+  amountCents    Int?        @map("amount_cents")
+  
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  registration   Registration @relation(fields: [registrationId], references: [registrationId], onDelete: Cascade)
+
+  @@map("course_payments")
 }
 
 model AssessmentQuestion {

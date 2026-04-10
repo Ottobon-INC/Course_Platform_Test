@@ -10,10 +10,26 @@ async function listRegistrations() {
                 fullName: true,
                 email: true,
                 plan: true,
-                createdAt: true
+                createdAt: true,
+                offering: {
+                    include: {
+                        course: true
+                    }
+                }
             }
         });
-        console.log(JSON.stringify(regs, null, 2));
+        
+        const formatter = regs.map(r => ({
+            ID: r.registrationId,
+            Name: r.fullName,
+            Email: r.email,
+            Course: r.offering?.course?.courseName || "Unknown",
+            Program: r.offering?.programType || "Unknown",
+            Plan: r.plan,
+            Date: r.createdAt
+        }));
+        
+        console.table(formatter);
     } catch (err) {
         console.error(err);
     } finally {

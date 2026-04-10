@@ -4,7 +4,14 @@ import { fetchOfferings } from '@/lib/registrationApi'
 
 interface SpecificCourseSelectionProps {
     programType: 'cohort' | 'ondemand' | 'workshop'
-    onSelect: (selection: { offeringId: string; title: string }) => void
+    onSelect: (selection: { 
+        offeringId: string; 
+        title: string; 
+        assessmentRequired?: boolean; 
+        priceCents?: number;
+        showSlots?: boolean;
+        slotsJson?: any;
+    }) => void
     onBack: () => void
     courseSlug?: string
 }
@@ -15,6 +22,8 @@ type OfferingCard = {
     description: string
     priceCents: number
     assessmentRequired: boolean
+    showSlots?: boolean
+    slotsJson?: any
     disabled?: boolean
 }
 
@@ -37,7 +46,10 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                         title: o.title,
                         description: o.description || o.course?.courseName || 'Program offering',
                         priceCents: o.priceCents,
-                        assessmentRequired: o.assessmentRequired ?? true
+                        assessmentRequired: o.assessmentRequired ?? true,
+                        applicationRequired: o.applicationRequired ?? false,
+                        showSlots: o.showSlots ?? true,
+                        slotsJson: o.slotsJson
                     }))
                 setOfferings(filtered)
             } catch (error) {
@@ -57,7 +69,9 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                 offeringId: selected.id, 
                 title: selected.title, 
                 assessmentRequired: selected.assessmentRequired,
-                priceCents: selected.priceCents
+                priceCents: selected.priceCents,
+                showSlots: selected.showSlots,
+                slotsJson: selected.slotsJson
             })
             const slug = selected.title.toLowerCase().replace(/ /g, '-')
             setLocation(`/registration/${programType}/${slug}`)
