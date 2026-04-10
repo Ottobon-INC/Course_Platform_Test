@@ -24,9 +24,10 @@ export interface HeroVariant {
 const HeroSlide: React.FC<{
   onEnroll: () => void;
   onSearch: (term: string) => void;
+  showPrimaryCta?: boolean;
   variant?: HeroVariant;
   slide1?: typeof heroSection.slide1;
-}> = ({ onEnroll, variant, slide1 = heroSection.slide1 }) => {
+}> = ({ onEnroll, showPrimaryCta = true, variant, slide1 = heroSection.slide1 }) => {
     const ref = useRef<HTMLDivElement>(null);
 
     const containerVariants: Variants = {
@@ -84,21 +85,23 @@ const HeroSlide: React.FC<{
                     </motion.p>
 
                     <motion.div variants={itemVariants} className="flex flex-col items-center md:items-start gap-6 pt-2">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <motion.button
-                                onClick={onEnroll}
-                                whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
-                                whileTap={{ scale: 0.97 }}
-                                className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2"
-                            >
-                                {slide1.primaryCta} <ArrowRight size={20} />
-                            </motion.button>
+                        <div className={`flex flex-col sm:flex-row gap-4 ${showPrimaryCta ? '' : 'justify-center self-center'}`}>
+                            {showPrimaryCta && (
+                                <motion.button
+                                    onClick={onEnroll}
+                                    whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
+                                    whileTap={{ scale: 0.97 }}
+                                    className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                    {slide1.primaryCta} <ArrowRight size={20} />
+                                </motion.button>
+                            )}
                             <button
                                 onClick={() => {
                                     const el = document.getElementById('how');
                                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                                 }}
-                                className="group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md"
+                                className={`group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md ${showPrimaryCta ? '' : 'mx-auto'}`}
                             >
                                 {slide1.secondaryCta}
                                 <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
@@ -149,9 +152,10 @@ const PromoSlide: React.FC<{
     onEnroll: () => void;
     onOverlayChange: (open: boolean) => void;
     onHoverPauseChange: (paused: boolean) => void;
+    showPrimaryCta?: boolean;
     slide2?: typeof heroSection.slide2;
     syllabus?: typeof heroSection.syllabus;
-}> = ({ onEnroll, onOverlayChange, onHoverPauseChange, slide2 = heroSection.slide2, syllabus = heroSection.syllabus }) => {
+}> = ({ onEnroll, onOverlayChange, onHoverPauseChange, showPrimaryCta = true, slide2 = heroSection.slide2, syllabus = heroSection.syllabus }) => {
     const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
 
     const openSyllabus = () => { setIsSyllabusOpen(true); onOverlayChange(true); };
@@ -248,22 +252,24 @@ const PromoSlide: React.FC<{
                         transition={{ delay: 0.4 }}
                         className="flex flex-col gap-4 pt-4 max-w-md w-full"
                     >
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <motion.button
-                                onClick={onEnroll}
-                                whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
-                                whileTap={{ scale: 0.97 }}
-                                onMouseEnter={() => onHoverPauseChange(true)}
-                                onMouseLeave={() => onHoverPauseChange(false)}
-                                className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
-                            >
-                                {slide2.primaryCta} <ArrowRight size={20} />
-                            </motion.button>
+                        <div className={`flex flex-col sm:flex-row gap-4 ${showPrimaryCta ? '' : 'justify-center'}`}>
+                            {showPrimaryCta && (
+                                <motion.button
+                                    onClick={onEnroll}
+                                    whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
+                                    whileTap={{ scale: 0.97 }}
+                                    onMouseEnter={() => onHoverPauseChange(true)}
+                                    onMouseLeave={() => onHoverPauseChange(false)}
+                                    className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                                >
+                                    {slide2.primaryCta} <ArrowRight size={20} />
+                                </motion.button>
+                            )}
                             <button
                                 onClick={openSyllabus}
                                 onMouseEnter={() => onHoverPauseChange(true)}
                                 onMouseLeave={() => onHoverPauseChange(false)}
-                                className="group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md w-full sm:w-auto"
+                                className={`group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md w-full sm:w-auto ${showPrimaryCta ? '' : 'sm:mx-auto'}`}
                             >
                                 {slide2.secondaryCta}
                                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
@@ -349,9 +355,10 @@ interface HeroCarouselProps {
     onEnroll: () => void;
     onSearch: (term: string) => void;
     heroVariant?: HeroVariant;
+    showPrimaryCta?: boolean;
 }
 
-const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch, heroVariant }) => {
+const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch, heroVariant, showPrimaryCta = true }) => {
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
     const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -382,12 +389,13 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch, heroVar
                     transition={{ duration: 1.5, ease: "easeInOut" }}
                     className="w-full h-full"
                 >
-                    {currentSlide === 0 && <HeroSlide onEnroll={onEnroll} onSearch={onSearch} variant={heroVariant} />}
+                    {currentSlide === 0 && <HeroSlide onEnroll={onEnroll} onSearch={onSearch} showPrimaryCta={showPrimaryCta} variant={heroVariant} />}
                     {currentSlide === 1 && (
                         <PromoSlide
                             onEnroll={onEnroll}
                             onOverlayChange={setIsAutoplayPaused}
                             onHoverPauseChange={setIsHoverPaused}
+                            showPrimaryCta={showPrimaryCta}
                         />
                     )}
                 </motion.div>

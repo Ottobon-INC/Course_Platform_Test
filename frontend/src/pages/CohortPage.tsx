@@ -20,6 +20,63 @@ interface JourneyStageProps {
   visual: React.ReactNode;
 }
 
+interface CohortOfferingCourseApi {
+  courseId: string;
+  slug?: string | null;
+  courseName?: string | null;
+  description?: string | null;
+  category?: string | null;
+  level?: string | null;
+  instructor?: string | null;
+  durationMinutes?: number | null;
+  thumbnailUrl?: string | null;
+}
+
+interface CohortOfferingApi {
+  offeringId: string;
+  title?: string | null;
+  description?: string | null;
+  isActive: boolean;
+  programType?: string | null;
+  course?: CohortOfferingCourseApi | null;
+}
+
+interface CohortOfferingsResponse {
+  offerings?: CohortOfferingApi[];
+}
+
+interface CohortCardData {
+  id: string;
+  title: string;
+  description: string;
+  focus: string;
+  outcome: string;
+  skills: string[];
+  status: "live";
+  image: string;
+}
+
+const FALLBACK_CARD_IMAGES = [
+  "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800",
+  "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800",
+];
+
+const toDisplayDuration = (durationMinutes?: number | null): string | null => {
+  if (typeof durationMinutes !== "number" || durationMinutes <= 0) return null;
+  const hours = Math.round(durationMinutes / 60);
+  return hours > 0 ? `${hours} hrs` : `${durationMinutes} mins`;
+};
+
+const trimOrNull = (value?: string | null): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 // Connector Component for the Zig-Zag Flow
 const Connector: React.FC<{ direction: 'left-to-right' | 'right-to-left' }> = ({ direction }) => {
   return (
@@ -127,73 +184,82 @@ const CohortPage: React.FC = () => {
     "Persona based learning"
   ];
 
-  const courses = [
-    {
-      id: "ai-native-fullstack-developer",
-      title: "AI-Native Full Stack Developer",
-      description: "Learn to design, build, and deploy AI-native web applications using modern frontend, backend, and AI integration patterns.",
-      focus: "Cohort is live",
-      outcome: "Build production-ready AI apps",
-      skills: ["LLMs", "APIs", "Databases", "System Design", "AI Workflows"],
-      status: "live",
-      image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800"
-    },
-    {
-      id: "applied-machine-learning-engineer",
-      title: "Applied Machine Learning Engineer",
-      description: "Work hands-on with real datasets to build, fine-tune, and deploy machine learning models for real use cases.",
-      focus: "ML in Practice",
-      outcome: "Train, evaluate, and deploy ML",
-      skills: ["ML Pipelines", "Evaluation", "Feature Engineering", "Deployment"],
-      status: "coming_soon",
-      image: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&q=80&w=800"
-    },
-    {
-      id: "generative-ai-llm-engineering",
-      title: "Generative AI & LLM Engineering",
-      description: "Design prompt systems, RAG pipelines, and AI agents using modern large language models.",
-      focus: "LLMs & GenAI Systems",
-      outcome: "Build language-powered products",
-      skills: ["Prompt Engineering", "RAG", "Agents", "Vector DBs", "APIs"],
-      status: "coming_soon",
-      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800"
-    },
-    {
-      id: "ai-product-engineering",
-      title: "AI Product Engineering",
-      description: "Learn how to design AI-driven features, evaluate feasibility, and ship AI products responsibly.",
-      focus: "AI × Product Thinking",
-      outcome: "Build features users actually need",
-      skills: ["AI UX", "Product Strategy", "Model Evaluation", "Experimentation"],
-      status: "coming_soon",
-      image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&q=80&w=800"
-    },
-    {
-      id: "data-engineering-for-ai-systems",
-      title: "Data Engineering for AI Systems",
-      description: "Build scalable data pipelines that support analytics, machine learning, and AI-driven applications.",
-      focus: "Data Foundations",
-      outcome: "Power systems with reliable data",
-      skills: ["Data Pipelines", "ETL", "Warehousing", "Streaming", "Quality"],
-      status: "coming_soon",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800"
-    },
-    {
-      id: "ai-automation-workflow-engineering",
-      title: "AI Automation & Workflow Engineering",
-      description: "Design AI-powered automations using workflows, agents, and integrations across tools and platforms.",
-      focus: "Automation Systems",
-      outcome: "Automate business workflows",
-      skills: ["AI Automation", "Workflows", "APIs", "System Orchestration"],
-      status: "coming_soon",
-      image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=800"
-    }
-  ];
+  const [courses, setCourses] = React.useState<CohortCardData[]>([]);
+  const [coursesLoading, setCoursesLoading] = React.useState(true);
+  const [coursesError, setCoursesError] = React.useState<string | null>(null);
 
   const [showAllCourses, setShowAllCourses] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedStatus, setSelectedStatus] = React.useState("All");
   const [navigatingCourse, setNavigatingCourse] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    const loadAvailableCohorts = async () => {
+      setCoursesLoading(true);
+      setCoursesError(null);
+
+      try {
+        const res = await fetch(buildApiUrl("/api/registrations/offerings?programType=cohort"));
+        if (!res.ok) {
+          throw new Error(`Failed to load cohort offerings (${res.status})`);
+        }
+
+        const payload = (await res.json()) as CohortOfferingsResponse;
+        const offerings = payload.offerings ?? [];
+
+        const mapped: CohortCardData[] = offerings
+          .filter((offering) => offering.isActive && offering.course?.courseId)
+          .map((offering, index) => {
+            const course = offering.course as CohortOfferingCourseApi;
+            const title = trimOrNull(offering.title) ?? trimOrNull(course.courseName) ?? "Cohort Program";
+            const description =
+              trimOrNull(offering.description) ??
+              trimOrNull(course.description) ??
+              "Mentor-led cohort program with structured outcomes.";
+            const duration = toDisplayDuration(course.durationMinutes);
+            const tags = [course.category, course.level, duration, course.instructor]
+              .map((tag) => trimOrNull(tag))
+              .filter((tag): tag is string => Boolean(tag));
+
+            const uniqueTags = Array.from(new Set(tags)).slice(0, 4);
+            const primaryTag = uniqueTags[0] ?? "Cohort";
+            const outcome = trimOrNull(course.instructor)
+              ? `Mentored by ${trimOrNull(course.instructor)}`
+              : "Structured mentor-led learning";
+
+            return {
+              id: course.courseId,
+              title,
+              description,
+              focus: `${primaryTag} cohort`,
+              outcome,
+              skills: uniqueTags.length > 0 ? uniqueTags : ["Cohort", "Mentor-led", "Project-driven"],
+              status: "live",
+              image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_CARD_IMAGES[index % FALLBACK_CARD_IMAGES.length],
+            };
+          });
+
+        if (!mounted) return;
+        setCourses(mapped);
+      } catch (error) {
+        if (!mounted) return;
+        const message = error instanceof Error ? error.message : "Unable to load cohort offerings.";
+        setCourses([]);
+        setCoursesError(message);
+      } finally {
+        if (mounted) {
+          setCoursesLoading(false);
+        }
+      }
+    };
+
+    void loadAvailableCohorts();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleCardClick = async (courseId: string) => {
     if (navigatingCourse) return;
@@ -496,7 +562,6 @@ const CohortPage: React.FC = () => {
                 >
                   <option value="All">All Statuses</option>
                   <option value="live">Live Now</option>
-                  <option value="coming_soon">Coming Soon</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#244855]">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -527,7 +592,15 @@ const CohortPage: React.FC = () => {
           <div className="w-full h-px bg-slate-200 mb-12"></div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {visibleCourses.length > 0 ? (
+            {coursesLoading ? (
+              <div className="col-span-full py-12 text-center">
+                <p className="text-slate-500 text-lg">Loading available cohorts...</p>
+              </div>
+            ) : coursesError ? (
+              <div className="col-span-full py-12 text-center">
+                <p className="text-slate-500 text-lg">{coursesError}</p>
+              </div>
+            ) : visibleCourses.length > 0 ? (
               visibleCourses.map((course, i) => (
                 <div
                   key={course.id || i}
@@ -609,12 +682,14 @@ const CohortPage: React.FC = () => {
               ))
             ) : (
               <div className="col-span-full py-12 text-center">
-                <p className="text-slate-500 text-lg">No courses found matching "{searchQuery}"</p>
+                <p className="text-slate-500 text-lg">
+                  {searchQuery ? `No courses found matching "${searchQuery}"` : "No active cohort offerings found."}
+                </p>
               </div>
             )}
           </div>
 
-          {!searchQuery && (
+          {!searchQuery && filteredCourses.length > 3 && (
             <div className="flex justify-center">
               <button
                 onClick={() => setShowAllCourses(!showAllCourses)}

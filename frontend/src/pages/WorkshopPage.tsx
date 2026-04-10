@@ -1,8 +1,58 @@
 import React from 'react';
+import { useLocation } from 'wouter';
+import { buildApiUrl } from '@/lib/api';
 import OfferingsNavbar from '@/components/layout/OfferingsNavbar';
-import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import WorkshopGroupImage from '@/assets/workshop-group.jpg';
+
+interface WorkshopOfferingCourseApi {
+    courseId: string;
+    slug?: string | null;
+    courseName?: string | null;
+    description?: string | null;
+    durationMinutes?: number | null;
+    thumbnailUrl?: string | null;
+}
+
+interface WorkshopOfferingApi {
+    offeringId: string;
+    title?: string | null;
+    description?: string | null;
+    isActive: boolean;
+    course?: WorkshopOfferingCourseApi | null;
+}
+
+interface WorkshopOfferingsResponse {
+    offerings?: WorkshopOfferingApi[];
+}
+
+interface WorkshopCardData {
+    id: string;
+    title: string;
+    duration: string;
+    image: string;
+    description: string;
+    route: string;
+}
+
+const FALLBACK_WORKSHOP_IMAGES = [
+    "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800&q=80",
+    "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80",
+    "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80",
+    "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80",
+];
+
+const trimOrNull = (value?: string | null): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+};
+
+const formatWorkshopDuration = (durationMinutes?: number | null): string => {
+    if (typeof durationMinutes !== "number" || durationMinutes <= 0) return "Workshop";
+    const hours = Math.max(1, Math.round(durationMinutes / 60));
+    return `${hours}H Workshop`;
+};
 
 const CharacteristicCard: React.FC<{ title: string; text: string }> = ({ title, text }) => (
     <div className="p-8 bg-white border border-[#90AEAD]/20 rounded-xl hover:border-[#E64833]/30 transition-colors shadow-sm">
@@ -117,10 +167,14 @@ const EnterpriseInquiryModal: React.FC<{ isOpen: boolean; onClose: () => void }>
 
 const WorkshopPage: React.FC = () => {
     // Auth state handled in App.tsx now
+    const [, setLocation] = useLocation();
 
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedDuration, setSelectedDuration] = React.useState("All");
     const [isInquiryOpen, setIsInquiryOpen] = React.useState(false);
+    const [workshops, setWorkshops] = React.useState<WorkshopCardData[]>([]);
+    const [workshopsLoading, setWorkshopsLoading] = React.useState(true);
+    const [workshopsError, setWorkshopsError] = React.useState<string | null>(null);
 
     const characteristics = [
         { title: "Highly Focused", text: "Skill-specific sessions targeting professional bottlenecks." },
@@ -134,34 +188,74 @@ const WorkshopPage: React.FC = () => {
         { type: "8H", title: "8-Hour Workshops", description: "Intensive deep dives with extended hands-on execution and end-to-end project completion." }
     ];
 
-    const upcomingWorkshops = [
-        {
-            title: "Rapid API Design & Testing",
-            duration: "2H Workshop",
-            image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=800&q=80",
-            description: "Learn to design, mock, and document RESTful APIs using Swagger and Postman in a live coding session."
-        },
-        {
-            title: "Git Internals & Advanced Workflows",
-            duration: "2H Workshop",
-            image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80",
-            description: "Master interactive rebase, cherry-picking, and fixing broken history. Stop fearing the command line."
-        },
-        {
-            title: "Building Microservices with Docker",
-            duration: "8H Workshop",
-            image: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80",
-            description: "A full-day immersive workshop on containerizing applications, orchestration, and service communication."
-        },
-        {
-            title: "System Design for Scale",
-            duration: "8H Workshop",
-            image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80",
-            description: "Deep dive into load balancers, caching strategies, partitioning, and designing for high availability."
-        }
-    ];
+    React.useEffect(() => {
+        let mounted = true;
 
-    const filteredUpcomingWorkshops = upcomingWorkshops.filter(item =>
+        const loadWorkshops = async () => {
+            setWorkshopsLoading(true);
+            setWorkshopsError(null);
+
+            try {
+                const res = await fetch(buildApiUrl("/api/registrations/offerings?programType=workshop"));
+                if (!res.ok) {
+                    throw new Error(`Failed to load workshop offerings (${res.status})`);
+                }
+
+                const payload = (await res.json()) as WorkshopOfferingsResponse;
+                const offerings = payload.offerings ?? [];
+
+                const mapped: WorkshopCardData[] = offerings
+                    .filter((offering) => offering.isActive && offering.course?.courseId)
+                    .map((offering, index) => {
+                        const course = offering.course as WorkshopOfferingCourseApi;
+                        const title = trimOrNull(offering.title) ?? trimOrNull(course.courseName) ?? "Workshop Program";
+                        const description =
+                            trimOrNull(offering.description) ??
+                            trimOrNull(course.description) ??
+                            "Hands-on workshop experience focused on practical outcomes.";
+
+                        return {
+                            id: offering.offeringId,
+                            title,
+                            duration: formatWorkshopDuration(course.durationMinutes),
+                            image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_WORKSHOP_IMAGES[index % FALLBACK_WORKSHOP_IMAGES.length],
+                            description,
+                            route: "/registration/workshop",
+                        };
+                    });
+
+                if (!mounted) return;
+                setWorkshops(mapped);
+            } catch (error) {
+                if (!mounted) return;
+                const message = error instanceof Error ? error.message : "Unable to load workshop offerings.";
+                setWorkshops([]);
+                setWorkshopsError(message);
+            } finally {
+                if (mounted) {
+                    setWorkshopsLoading(false);
+                }
+            }
+        };
+
+        void loadWorkshops();
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const durationOptions = React.useMemo(
+        () => Array.from(new Set(workshops.map((workshop) => workshop.duration))).sort((a, b) => a.localeCompare(b)),
+        [workshops],
+    );
+
+    React.useEffect(() => {
+        if (selectedDuration !== "All" && !durationOptions.includes(selectedDuration)) {
+            setSelectedDuration("All");
+        }
+    }, [durationOptions, selectedDuration]);
+
+    const filteredUpcomingWorkshops = workshops.filter(item =>
         (selectedDuration === "All" || item.duration === selectedDuration) &&
         (item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.description.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -263,8 +357,11 @@ const WorkshopPage: React.FC = () => {
                                     className="appearance-none w-full pl-4 pr-10 py-3 rounded-xl border border-[#90AEAD]/30 bg-white focus:border-[#E64833] focus:ring-4 focus:ring-[#E64833]/10 transition-all font-medium text-[#244855] shadow-sm cursor-pointer"
                                 >
                                     <option value="All">All Durations</option>
-                                    <option value="2H Workshop">2-Hour Workshops</option>
-                                    <option value="8H Workshop">8-Hour Workshops</option>
+                                    {durationOptions.map((duration) => (
+                                        <option key={duration} value={duration}>
+                                            {duration}
+                                        </option>
+                                    ))}
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#244855]">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,10 +388,18 @@ const WorkshopPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {filteredUpcomingWorkshops.length > 0 ? (
+                    {workshopsLoading ? (
+                        <div className="py-12 text-center text-[#244855]/60">
+                            Loading available workshops...
+                        </div>
+                    ) : workshopsError ? (
+                        <div className="py-12 text-center text-[#244855]/60">
+                            {workshopsError}
+                        </div>
+                    ) : filteredUpcomingWorkshops.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             {filteredUpcomingWorkshops.map((workshop, i) => (
-                                <div key={i} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
+                                <div key={workshop.id || i} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
                                     {/* Image & Content */}
                                     <div className="relative h-[220px] flex-shrink-0 overflow-hidden">
                                         <div className="absolute inset-0 bg-gradient-to-t from-white via-white/70 to-transparent z-10" />
@@ -324,11 +429,14 @@ const WorkshopPage: React.FC = () => {
                                     {/* Action */}
                                     <div className="p-6 flex flex-col flex-grow bg-white">
                                         <div className="mt-auto">
-                                            <button disabled className="w-full px-6 py-3 bg-slate-100 text-slate-400 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 border border-slate-200">
+                                            <button
+                                                onClick={() => setLocation(workshop.route)}
+                                                className="w-full px-6 py-3 bg-[#E64833] hover:bg-[#D53F2B] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                View Workshop
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
-                                                Coming Soon
                                             </button>
                                         </div>
                                     </div>
@@ -337,7 +445,7 @@ const WorkshopPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="py-12 text-center text-[#244855]/60">
-                            No sessions matching "{searchQuery}" found.
+                            {searchQuery ? `No workshops matching "${searchQuery}" found.` : "No active workshop offerings found."}
                         </div>
                     )}
 

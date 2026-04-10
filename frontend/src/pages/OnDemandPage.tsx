@@ -1,7 +1,77 @@
 import React from 'react';
+import { useLocation } from 'wouter';
+import { buildApiUrl } from '@/lib/api';
 import OfferingsNavbar from '@/components/layout/OfferingsNavbar';
 import Footer from '@/components/layout/Footer';
 import OnDemandHeroImage from '@/assets/ondemand-hero.png';
+
+interface OnDemandOfferingCourseApi {
+    courseId: string;
+    slug?: string | null;
+    courseName?: string | null;
+    description?: string | null;
+    durationMinutes?: number | null;
+    thumbnailUrl?: string | null;
+}
+
+interface OnDemandOfferingApi {
+    offeringId: string;
+    title?: string | null;
+    description?: string | null;
+    isActive: boolean;
+    course?: OnDemandOfferingCourseApi | null;
+}
+
+interface OnDemandOfferingsResponse {
+    offerings?: OnDemandOfferingApi[];
+}
+
+interface OnDemandCourseCard {
+    id: string;
+    title: string;
+    description: string;
+    duration: string;
+    image: string;
+    url: string;
+}
+
+const FALLBACK_ONDEMAND_IMAGES = [
+    "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
+    "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800&q=80",
+    "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80",
+    "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?w=800&q=80",
+    "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&q=80",
+];
+
+const trimOrNull = (value?: string | null): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+};
+
+const formatDuration = (durationMinutes?: number | null): string => {
+    if (typeof durationMinutes !== "number" || durationMinutes <= 0) return "Self-paced";
+
+    const minsInWeek = 7 * 24 * 60;
+    const minsInDay = 24 * 60;
+
+    if (durationMinutes >= minsInWeek) {
+        const weeks = Math.max(1, Math.round(durationMinutes / minsInWeek));
+        return `${weeks} Week${weeks === 1 ? "" : "s"}`;
+    }
+
+    if (durationMinutes >= minsInDay) {
+        const days = Math.max(1, Math.round(durationMinutes / minsInDay));
+        return `${days} Day${days === 1 ? "" : "s"}`;
+    }
+
+    if (durationMinutes >= 60) {
+        const hours = Math.max(1, Math.round(durationMinutes / 60));
+        return `${hours} Hour${hours === 1 ? "" : "s"}`;
+    }
+
+    return `${durationMinutes} Mins`;
+};
 
 const HighlightItem: React.FC<{ text: string }> = ({ text }) => (
     <div className="group relative overflow-hidden flex items-start gap-4 p-6 bg-white border border-[#EAEAEA] rounded-xl transition-all shadow-sm hover:shadow-md hover:scale-[1.02]">
@@ -17,21 +87,14 @@ const HighlightItem: React.FC<{ text: string }> = ({ text }) => (
     </div>
 );
 
-const CourseCard: React.FC<{ title: string; description: string; duration: string }> = ({ title, description, duration }) => (
-    <div className="p-8 border border-[#EAEAEA] rounded-xl flex flex-col h-full bg-white">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{duration}</div>
-        <h3 className="text-xl font-bold text-[#1A1C2E] mb-3">{title}</h3>
-        <p className="text-slate-500 text-sm leading-relaxed mb-8 flex-grow">{description}</p>
-        <button className="text-[#1A1C2E] text-sm font-bold border-b border-[#1A1C2E] w-fit hover:text-slate-600 hover:border-slate-600 transition-colors">
-            View Details
-        </button>
-    </div>
-);
-
 const OnDemandPage: React.FC = () => {
     // Auth state handled in App.tsx now
+    const [, setLocation] = useLocation();
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedDuration, setSelectedDuration] = React.useState("All");
+    const [courses, setCourses] = React.useState<OnDemandCourseCard[]>([]);
+    const [coursesLoading, setCoursesLoading] = React.useState(true);
+    const [coursesError, setCoursesError] = React.useState<string | null>(null);
 
     const highlights = [
         "Short-duration courses (approximately 2 weeks)",
@@ -41,39 +104,73 @@ const OnDemandPage: React.FC = () => {
         "Certificate issued upon completion"
     ];
 
-    const courses = [
-        {
-            title: "AI Native Full Stack Developer",
-            duration: "8 Weeks",
-            description: "Master the art of building AI-first applications from scratch. Learn to integrate LLMs, build robust backends, and create stunning frontends.",
-            image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
-            url: "/ondemand/ai-native-fullstack-developer/learn/intro"
-        },
-        {
-            title: "Python for Data Analysis",
-            duration: "2 Weeks",
-            description: "Master essential data manipulation and visualization techniques using Pandas, NumPy, and Matplotlib.",
-            image: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800&q=80"
-        },
-        {
-            title: "AI Product Management",
-            duration: "10 Days",
-            description: "Learn the frameworks for defining, building, and launching AI-powered products in a competitive market.",
-            image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80"
-        },
-        {
-            title: "UI/UX for Developers",
-            duration: "2 Weeks",
-            description: "A practical guide to modern interface design principles and user experience research for software engineers.",
-            image: "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?w=800&q=80"
-        },
-        {
-            title: "Advanced Prompt Engineering",
-            duration: "1 Week",
-            description: "Hone your ability to interact with LLMs through complex chains, agents, and multi-step reasoning patterns.",
-            image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&q=80"
+    React.useEffect(() => {
+        let mounted = true;
+
+        const loadOnDemandCourses = async () => {
+            setCoursesLoading(true);
+            setCoursesError(null);
+
+            try {
+                const res = await fetch(buildApiUrl("/api/registrations/offerings?programType=ondemand"));
+                if (!res.ok) {
+                    throw new Error(`Failed to load on-demand offerings (${res.status})`);
+                }
+
+                const payload = (await res.json()) as OnDemandOfferingsResponse;
+                const offerings = payload.offerings ?? [];
+
+                const mapped: OnDemandCourseCard[] = offerings
+                    .filter((offering) => offering.isActive && offering.course?.courseId)
+                    .map((offering, index) => {
+                        const course = offering.course as OnDemandOfferingCourseApi;
+                        const title = trimOrNull(offering.title) ?? trimOrNull(course.courseName) ?? "On-Demand Course";
+                        const description =
+                            trimOrNull(offering.description) ??
+                            trimOrNull(course.description) ??
+                            "Self-paced learning experience with guided outcomes.";
+                        const routeKey = trimOrNull(course.slug) ?? course.courseId;
+
+                        return {
+                            id: offering.offeringId,
+                            title,
+                            description,
+                            duration: formatDuration(course.durationMinutes),
+                            image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_ONDEMAND_IMAGES[index % FALLBACK_ONDEMAND_IMAGES.length],
+                            url: `/ondemand/${encodeURIComponent(routeKey)}/learn/intro`,
+                        };
+                    });
+
+                if (!mounted) return;
+                setCourses(mapped);
+            } catch (error) {
+                if (!mounted) return;
+                const message = error instanceof Error ? error.message : "Unable to load on-demand courses.";
+                setCourses([]);
+                setCoursesError(message);
+            } finally {
+                if (mounted) {
+                    setCoursesLoading(false);
+                }
+            }
+        };
+
+        void loadOnDemandCourses();
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const durationOptions = React.useMemo(
+        () => Array.from(new Set(courses.map((course) => course.duration))).sort((a, b) => a.localeCompare(b)),
+        [courses],
+    );
+
+    React.useEffect(() => {
+        if (selectedDuration !== "All" && !durationOptions.includes(selectedDuration)) {
+            setSelectedDuration("All");
         }
-    ];
+    }, [durationOptions, selectedDuration]);
 
     const filteredCourses = courses.filter(course =>
         (selectedDuration === "All" || course.duration === selectedDuration) &&
@@ -156,10 +253,11 @@ const OnDemandPage: React.FC = () => {
                                     className="appearance-none w-full pl-4 pr-10 py-2 rounded-lg border border-[#90AEAD]/30 bg-white focus:border-[#E64833] focus:ring-2 focus:ring-[#E64833]/10 transition-all text-sm font-medium text-[#244855] shadow-sm cursor-pointer"
                                 >
                                     <option value="All">All Durations</option>
-                                    <option value="1 Week">1 Week</option>
-                                    <option value="10 Days">10 Days</option>
-                                    <option value="2 Weeks">2 Weeks</option>
-                                    <option value="8 Weeks">8 Weeks</option>
+                                    {durationOptions.map((duration) => (
+                                        <option key={duration} value={duration}>
+                                            {duration}
+                                        </option>
+                                    ))}
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-[#244855]">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,9 +285,17 @@ const OnDemandPage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {filteredCourses.length > 0 ? (
-                            filteredCourses.map((course: any, i) => (
-                                <div key={i} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
+                        {coursesLoading ? (
+                            <div className="col-span-full py-12 text-center text-[#244855]/60">
+                                Loading available on-demand courses...
+                            </div>
+                        ) : coursesError ? (
+                            <div className="col-span-full py-12 text-center text-[#244855]/60">
+                                {coursesError}
+                            </div>
+                        ) : filteredCourses.length > 0 ? (
+                            filteredCourses.map((course) => (
+                                <div key={course.id} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
 
                                     {/* Top Half: Image Background with Title & Description */}
                                     <div className="relative h-[220px] flex-shrink-0 overflow-hidden">
@@ -222,7 +328,7 @@ const OnDemandPage: React.FC = () => {
                                     <div className="p-6 flex flex-col flex-grow bg-white">
                                         <div className="mt-auto flex items-center gap-4">
                                             <button
-                                                onClick={() => course.url ? window.location.href = course.url : null}
+                                                onClick={() => setLocation(course.url)}
                                                 className="w-fit px-6 py-2.5 bg-[#E64833] hover:bg-[#D53F2B] text-white text-xs font-bold rounded-lg transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                                             >
                                                 Start Learning
@@ -230,18 +336,13 @@ const OnDemandPage: React.FC = () => {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
                                             </button>
-                                            {!course.url && (
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                                                    Coming Soon
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
                             ))
                         ) : (
                             <div className="col-span-full py-12 text-center text-[#244855]/60">
-                                No courses found.
+                                {searchQuery ? `No courses found matching "${searchQuery}".` : "No active on-demand offerings found."}
                             </div>
                         )}
                     </div>
