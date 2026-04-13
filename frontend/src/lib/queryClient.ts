@@ -45,8 +45,27 @@ export const getQueryFn: <T>(options: {
       throw new Error("Query key must start with a string path");
     }
 
+    const sessionRaw = localStorage.getItem("session");
+    let token = null;
+    try {
+      if (sessionRaw) {
+        const session = JSON.parse(sessionRaw);
+        token = session.accessToken;
+      }
+    } catch (e) {
+      console.error("Failed to parse session", e);
+    }
+    
+    // Fallback to other possible keys if needed
+    if (!token) {
+      token = localStorage.getItem("token") || localStorage.getItem("jwt");
+    }
+
     const res = await fetch(buildApiUrl(firstSegment), {
       credentials: "include",
+      headers: {
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

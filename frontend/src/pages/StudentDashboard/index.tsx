@@ -10,7 +10,7 @@ import { Certificates } from './pages/Certificates';
 import { Analysis } from './pages/Analysis';
 import { Feedback } from './pages/Feedback';
 import { Settings } from './pages/Settings';
-import { DRIP_CSS } from './constants/styles';
+import { DRIP_CSS } from './constants/styles.ts';
 
 export function StudentDashboardModular() {
   useEffect(() => {

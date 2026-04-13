@@ -27,6 +27,7 @@ type DashboardSummary = {
     status: "Upcoming" | "Ongoing" | "Completed";
     progress: number;
     nextSessionDate: string | null;
+    batchNo: number;
   }>;
   onDemand: Array<{
     id: string;
@@ -99,11 +100,7 @@ const computeSessionsThisWeek = (cohorts: Array<{ startsAt?: Date | null }>): nu
 
 export const dashboardRouter = express.Router();
 
-dashboardRouter.get("/summary", async (req, res, next) => {
-  const fs = require('fs');
-  fs.appendFileSync('dashboard_debug.log', `${new Date().toISOString()} - Request received for /summary\n`);
-  next();
-}, requireAuth, async (req, res) => {
+dashboardRouter.get("/summary", requireAuth, async (req, res) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     if (!auth) {
@@ -136,7 +133,12 @@ dashboardRouter.get("/summary", async (req, res, next) => {
         },
       }),
       prisma.cohortMember.findMany({
-        where: { userId: auth.userId },
+        where: {
+          OR: [
+            { userId: auth.userId },
+            { email: user.email }
+          ]
+        },
         include: {
           cohort: {
             include: {
@@ -157,10 +159,8 @@ dashboardRouter.get("/summary", async (req, res, next) => {
     console.log(`[DashboardSummary] User ID: ${auth.userId}`);
     console.log(`[DashboardSummary] Enrollments: ${enrollments.length}, Cohort memberships: ${cohortMemberships.length}`);
     
-    // Write to a local file for the AI to debug
-    const fs = require('fs');
-    const logMsg = `${new Date().toISOString()} - User: ${auth.userId}, Enrolls: ${enrollments.length}, Cohorts: ${cohortMemberships.length}\n`;
-    fs.appendFileSync('dashboard_debug.log', logMsg);
+    // Log summarized data for debugging (using console instead of node:fs to avoid overhead)
+    console.log(`[DashboardSummary] User: ${auth.userId}, Enrolls: ${enrollments.length}, Cohorts: ${cohortMemberships.length}`);
 
     const cohortCourseIds = new Set(
       cohortMemberships.map((membership) => membership.cohort.courseId),
@@ -280,6 +280,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
         status: computeStatus(membership.cohort.startsAt, membership.cohort.endsAt),
         progress,
         nextSessionDate: formatDateTime(membership.cohort.startsAt),
+        batchNo: membership.batchNo,
       };
     });
 
@@ -322,6 +323,39 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       isJoined: true,
     }));
 
+    const allCourses = await prisma.course.findMany({
+      include: {
+        cohorts: {
+          where: { startsAt: { gt: new Date() }, isActive: true },
+          orderBy: { startsAt: "asc" },
+          take: 1
+        }
+      }
+    });
+
+    const catalog = allCourses
+      .filter(c => !courseIds.includes(c.courseId))
+      .map(c => ({
+        id: c.courseId,
+        title: c.courseName,
+        courseSlug: c.slug,
+        category: c.category,
+        price: c.priceCents / 100,
+        rating: c.rating,
+        students: c.students,
+        thumbnailUrl: c.thumbnailUrl
+      }));
+
+    const upcoming = allCourses
+      .filter(c => c.cohorts.length > 0)
+      .map(c => ({
+        id: c.cohorts[0].cohortId,
+        title: c.courseName,
+        releaseDate: formatDateTime(c.cohorts[0].startsAt!) || "Coming Soon",
+        category: c.category
+      }))
+      .slice(0, 3);
+
     const resumeCourse = onDemand.length
       ? {
           id: onDemand[0].id,
@@ -331,9 +365,16 @@ dashboardRouter.get("/summary", async (req, res, next) => {
           lastAccessedModule: onDemand[0].lastAccessedModule,
           lastLessonSlug: onDemand[0].lastLessonSlug ?? null,
         }
-      : null;
+      : (cohorts.length ? {
+          id: cohorts[0].id,
+          courseSlug: cohorts[0].courseSlug,
+          title: cohorts[0].title,
+          progress: cohorts[0].progress,
+          lastAccessedModule: "Resume Session",
+          lastLessonSlug: null
+      } : null);
 
-    const payload: DashboardSummary = {
+    const payload: any = {
       user: {
         fullName: user.fullName,
         email: user.email,
@@ -347,7 +388,8 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       onDemand,
       workshops,
       completed: [],
-      upcoming: [],
+      upcoming,
+      catalog,
     };
 
     res.status(200).json(payload);

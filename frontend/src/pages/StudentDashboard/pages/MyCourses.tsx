@@ -10,7 +10,7 @@ export function MyCourses() {
   const [sortOpen, setSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filters = ['All', 'Cohorts', 'On-demand', 'Workshops', 'Completed'];
+  const filters = ['All', 'Cohorts', 'On-demand', 'Workshops', 'Catalog', 'Completed'];
   const sortOptions = [
     { id: 'all', label: 'All Courses' },
     { id: 'enrolled', label: 'Enrolled' },
@@ -26,14 +26,15 @@ export function MyCourses() {
     const cohorts = summary.cohorts.map(c => ({
       id: c.id,
       title: c.title,
-      desc: `Status: ${c.status}`,
+      desc: `Batch ${c.batchNo} • Status: ${c.status}`,
       progress: c.progress,
       lastAccess: c.nextSessionDate ? `Next session: ${c.nextSessionDate}` : 'Join cohort',
-      tag: 'Cohort',
+      tag: `Cohort (Batch ${c.batchNo})`,
       icon: '/assets/cohort.png',
       btnText: 'Resume',
       courseSlug: c.courseSlug,
-      lastLessonSlug: null
+      lastLessonSlug: null,
+      isEnrolled: true
     }));
 
     const onDemand = summary.onDemand.map(od => ({
@@ -46,7 +47,8 @@ export function MyCourses() {
       icon: '/assets/ondemand.png',
       btnText: 'Resume',
       courseSlug: od.courseSlug,
-      lastLessonSlug: od.lastLessonSlug
+      lastLessonSlug: od.lastLessonSlug,
+      isEnrolled: true
     }));
 
     const workshops = summary.workshops.map(w => ({
@@ -59,16 +61,31 @@ export function MyCourses() {
       icon: '/assets/workshop.png',
       btnText: 'View',
       courseSlug: null,
-      lastLessonSlug: null
+      lastLessonSlug: null,
+      isEnrolled: true
     }));
 
-    return [...cohorts, ...onDemand, ...workshops];
+    const catalog = summary.catalog.map(c => ({
+      id: c.id,
+      title: c.title,
+      desc: `Explore: ${c.category} • Enroll now to start your journey`,
+      progress: 0,
+      lastAccess: `${c.students}+ Students joined`,
+      tag: c.category,
+      icon: c.thumbnailUrl || '/assets/ondemand.png',
+      btnText: 'Enroll Now',
+      courseSlug: c.courseSlug,
+      lastLessonSlug: null,
+      isEnrolled: false
+    }));
+
+    return [...cohorts, ...onDemand, ...workshops, ...catalog];
   }, [summary]);
 
   // Helpers
-  const isComingSoon = (c: any) => c.tag.toLowerCase().includes('upcoming');
-  const isEnrolled = (c: any) => c.btnText.toLowerCase().includes('resume') || c.tag.toLowerCase().includes('ongoing');
-  const isNotEnrolled = (c: any) => c.btnText.toLowerCase().includes('start') || (c.btnText.toLowerCase().includes('view') && !isComingSoon(c));
+  const isComingSoon = (c: any) => c.tag.toLowerCase().includes('upcoming') || (!c.isEnrolled && c.tag.toLowerCase().includes('cohort'));
+  const isEnrolled = (c: any) => c.isEnrolled;
+  const isNotEnrolled = (c: any) => !c.isEnrolled;
 
   const filteredCourses = useMemo(() => {
     return mappedCourses.filter(c => {
@@ -80,10 +97,10 @@ export function MyCourses() {
         const tagLower = c.tag.toLowerCase();
         const filterLower = activeFilter.toLowerCase();
 
-        if (filterLower === 'all') return true;
-
-        if (activeFilter === 'Completed') {
+        if (filterLower === 'completed') {
           if (c.progress < 100) return false;
+        } else if (filterLower === 'catalog') {
+          if (c.isEnrolled) return false;
         } else {
           // Match if tag contains filter or filter contains tag (handles Cohort vs Cohorts)
           if (!tagLower.includes(filterLower) && !filterLower.includes(tagLower)) return false;

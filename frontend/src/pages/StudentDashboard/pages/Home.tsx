@@ -54,7 +54,7 @@ export function Home() {
               ))}
             </div>
             {resumeCourse && (
-              <button 
+              <button
                 onClick={() => navigate(`/course/${resumeCourse.courseSlug}/learn/${resumeCourse.lastLessonSlug || ''}`)}
                 className="bg-orange-primary text-white border-none py-3 px-6 rounded-lg font-bold cursor-pointer transition-all shadow-md hover:-translate-y-1 hover:shadow-lg"
               >
@@ -66,47 +66,36 @@ export function Home() {
         </div>
 
         <div className="col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col items-center">
-          <div className="w-[120px] h-[120px] rounded-full flex items-center justify-center mb-6 relative shadow-inner" style={{ background: 'conic-gradient(var(--orange-primary) 72%, #f3f4f6 0)' }}>
-            <div className="w-[100px] h-[100px] bg-white rounded-full flex items-center justify-center text-2xl font-bold">
-              72%
+          {activeCourses.length > 0 ? (
+            <div className="w-full flex flex-col items-center">
+              <div className="w-[120px] h-[120px] rounded-full flex items-center justify-center mb-6 relative shadow-inner" style={{ background: `conic-gradient(var(--orange-primary) ${activeCourses[0].progress}%, #f3f4f6 0)` }}>
+                <div className="w-[100px] h-[100px] bg-white rounded-full flex items-center justify-center text-2xl font-bold">
+                  {activeCourses[0].progress}%
+                </div>
+              </div>
+              {activeCourses.map((course, idx) => (
+                <div key={course.id} className="w-full mb-3 last:mb-0">
+                  <div className="flex justify-between text-sm font-semibold mb-1">
+                    <span className="truncate pr-2">{course.title}</span>
+                    <span>{course.progress}%</span>
+                  </div>
+                  <div className="h-[8px] bg-[#E5E7EB] rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ${idx % 2 === 0 ? 'bg-orange-primary' : 'bg-dark-teal'}`} 
+                      style={{ width: `${course.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="w-full mb-3">
-            <div className="flex justify-between text-sm font-semibold mb-1">
-              <span>Python Master</span>
-              <span>72%</span>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                 <i className="fas fa-book-open text-gray-300"></i>
+               </div>
+               <p className="text-xs font-bold text-gray-text">Join a course to see your progress!</p>
             </div>
-            <div className="h-[8px] bg-[#E5E7EB] rounded-full overflow-hidden">
-              <div className="h-full bg-orange-primary rounded-full transition-all duration-1000 w-[72%]"></div>
-            </div>
-          </div>
-          <div className="w-full mb-3">
-            <div className="flex justify-between text-sm font-semibold mb-1">
-              <span>SQL Fundamentals</span>
-              <span>32%</span>
-            </div>
-            <div className="h-[8px] bg-[#E5E7EB] rounded-full overflow-hidden">
-              <div className="h-full bg-orange-primary rounded-full transition-all duration-1000 w-[32%]"></div>
-            </div>
-          </div>
-          <div className="w-full mb-3">
-            <div className="flex justify-between text-[0.8rem] font-semibold mb-1 text-gray-text opacity-90">
-              <span>Python (Advanced)</span>
-              <span>87%</span>
-            </div>
-            <div className="h-[6px] bg-[#E5E7EB] rounded-full overflow-hidden">
-              <div className="h-full bg-dark-teal rounded-full transition-all duration-1000 w-[87%]"></div>
-            </div>
-          </div>
-          <div className="w-full">
-            <div className="flex justify-between text-[0.8rem] font-semibold mb-1 text-gray-text opacity-90">
-              <span>Cloud Fundamentals</span>
-              <span>75%</span>
-            </div>
-            <div className="h-[6px] bg-[#E5E7EB] rounded-full overflow-hidden">
-              <div className="h-full bg-dark-teal rounded-full transition-all duration-1000 w-[75%]"></div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="col-span-3 bg-[#3E2723] text-white p-6 rounded-2xl shadow-sm relative overflow-hidden">
@@ -150,7 +139,7 @@ export function Home() {
                     <i className="fab fa-react text-[#61DAFB] text-xl"></i>
                     <i className="fab fa-node-js text-[#68A063] text-xl"></i>
                   </div>
-                  <button 
+                  <button
                     onClick={() => navigate(`/course/${course.courseSlug}/learn/${('lastLessonSlug' in course ? course.lastLessonSlug : '') || ''}`)}
                     className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow"
                   >
@@ -216,20 +205,21 @@ export function Home() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 flex-grow">
-            <div className="bg-gray-50 p-4 rounded-xl border border-border-soft flex flex-col justify-between">
-              <div>
-                <span className="text-[0.65rem] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block mb-3 border border-blue-100">Popular</span>
-                <h4 className="font-bold text-[0.95rem] leading-tight mb-2">Machine Learning Fundamentals</h4>
+            {(summary?.catalog || []).slice(0, 2).map((course) => (
+              <div key={course.id} className="bg-gray-50 p-4 rounded-xl border border-border-soft flex flex-col justify-between">
+                <div>
+                  <span className="text-[0.65rem] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded inline-block mb-3 border border-blue-100">Recommended</span>
+                  <h4 className="font-bold text-[0.95rem] leading-tight mb-1 truncate">{course.title}</h4>
+                  <p className="text-[0.65rem] text-gray-text font-bold mb-2">{course.category}</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/my-courses')}
+                  className="mt-4 text-xs font-bold w-full bg-white border border-border-soft rounded-lg py-2 hover:border-orange-primary transition-colors shadow-sm text-dark-text"
+                >
+                  Join Course
+                </button>
               </div>
-              <button className="mt-4 text-xs font-bold w-full bg-white border border-border-soft rounded-lg py-2 hover:border-gray-400 transition-colors shadow-sm text-dark-text">View Course</button>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-xl border border-border-soft flex flex-col justify-between">
-              <div>
-                <i className="fab fa-docker text-[#2496ED] text-3xl mb-3 mt-1"></i>
-                <h4 className="font-bold text-[0.95rem] leading-tight mb-2">Docker Mastery</h4>
-              </div>
-              <button className="mt-4 text-xs font-bold w-full bg-white border border-border-soft rounded-lg py-2 hover:border-gray-400 transition-colors shadow-sm text-dark-text">View Course</button>
-            </div>
+            ))}
           </div>
         </div>
 

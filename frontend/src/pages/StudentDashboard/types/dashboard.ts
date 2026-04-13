@@ -24,6 +24,7 @@ export interface DashboardCohort {
   status: "Upcoming" | "Ongoing" | "Completed";
   progress: number;
   nextSessionDate: string | null;
+  batchNo: number;
 }
 
 export interface DashboardOnDemand {
@@ -43,6 +44,17 @@ export interface DashboardWorkshop {
   isJoined: boolean;
 }
 
+export interface DashboardCatalogCourse {
+  id: string;
+  title: string;
+  courseSlug: string | null;
+  category: string;
+  price: number;
+  rating: number;
+  students: number;
+  thumbnailUrl: string | null;
+}
+
 export interface DashboardSummary {
   user: DashboardUser;
   stats: DashboardStats;
@@ -52,4 +64,5 @@ export interface DashboardSummary {
   workshops: DashboardWorkshop[];
   completed: Array<{ title: string; date: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
+  catalog: DashboardCatalogCourse[];
 }
