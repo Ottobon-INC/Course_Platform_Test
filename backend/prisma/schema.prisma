@@ -160,6 +160,7 @@ model CourseOffering {
   assessmentRequired  Boolean      @default(false) @map("assessment_required")
   slotsJson           Json?        @map("slots_json")
   showSlots           Boolean      @default(true) @map("show_slots")
+  qrImageUrl          String?      @map("qr_image_url")
   createdAt           DateTime     @default(now()) @map("created_at")
   updatedAt           DateTime     @default(now()) @updatedAt @map("updated_at")
   course              Course       @relation(fields: [courseId], references: [courseId], onDelete: Cascade)

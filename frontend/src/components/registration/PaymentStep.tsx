@@ -117,13 +117,20 @@ const PaymentStep = ({ onSubmit, studentData, onBack }: PaymentStepProps) => {
             <div className="space-y-8">
                 <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-2xl">
                     <h3 className="font-bold text-gray-900 mb-4">Scan QR Code to Pay</h3>
-                    <div className="w-48 h-48 bg-gray-100 mx-auto mb-4 flex items-center justify-center rounded-xl overflow-hidden shadow-inner">
-                        {/* QR Code Placeholder - In a real app this would be a dynamic QR or static UPI image */}
-                        <div className="text-center p-4">
-                            <div className="text-2xl mb-2">📸</div>
-                            <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">QR CODE AREA</span>
-                            <div className="text-[10px] text-gray-400 mt-1 line-clamp-2">Ottobon Academy Pvt Ltd</div>
-                        </div>
+                    <div className="w-56 h-56 bg-white border border-gray-200 mx-auto mb-4 flex items-center justify-center rounded-2xl shadow-md p-4">
+                        {studentData.qrImageUrl ? (
+                            <img 
+                                src={studentData.qrImageUrl} 
+                                alt="Payment QR Code"
+                                className="w-full h-full object-contain"
+                            />
+                        ) : (
+                            <div className="text-center">
+                                <div className="text-2xl mb-2">📸</div>
+                                <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">QR CODE AREA</span>
+                                <div className="text-[10px] text-gray-400 mt-1">QR not configured yet</div>
+                            </div>
+                        )}
                     </div>
                     <div className="text-sm text-gray-500">
                         <p className="font-bold text-gray-900 leading-tight">Merchant Name: Ottobon Academy Private Limited</p>

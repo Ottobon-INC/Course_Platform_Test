@@ -11,6 +11,7 @@ interface SpecificCourseSelectionProps {
         priceCents?: number;
         showSlots?: boolean;
         slotsJson?: any;
+        qrImageUrl?: string | null;
     }) => void
     onBack: () => void
     courseSlug?: string
@@ -24,6 +25,7 @@ type OfferingCard = {
     assessmentRequired: boolean
     showSlots?: boolean
     slotsJson?: any
+    qrImageUrl?: string | null
     disabled?: boolean
 }
 
@@ -49,7 +51,8 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                         assessmentRequired: o.assessmentRequired ?? true,
                         applicationRequired: o.applicationRequired ?? false,
                         showSlots: o.showSlots ?? true,
-                        slotsJson: o.slotsJson
+                        slotsJson: o.slotsJson,
+                        qrImageUrl: o.qrImageUrl ?? null
                     }))
                 setOfferings(filtered)
             } catch (error) {
@@ -71,7 +74,8 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                 assessmentRequired: selected.assessmentRequired,
                 priceCents: selected.priceCents,
                 showSlots: selected.showSlots,
-                slotsJson: selected.slotsJson
+                slotsJson: selected.slotsJson,
+                qrImageUrl: selected.qrImageUrl
             })
             const slug = selected.title.toLowerCase().replace(/ /g, '-')
             setLocation(`/registration/${programType}/${slug}`)
