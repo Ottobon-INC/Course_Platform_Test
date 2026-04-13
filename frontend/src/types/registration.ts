@@ -24,6 +24,7 @@ export interface StudentData {
     priceCents?: number // Added
     showSlots?: boolean // Added
     slots?: any[]       // Added
+    qrImageUrl?: string // Added
 }
 
 export interface RegistrationFormData {
@@ -126,6 +127,7 @@ export interface CourseOffering {
     applicationRequired: boolean;
     showSlots: boolean;
     slotsJson?: any;
+    qrImageUrl?: string | null;
     course: {
         courseId: string;
         courseName: string;

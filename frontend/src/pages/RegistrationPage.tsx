@@ -134,7 +134,8 @@ function RegistrationPage() {
                                     assessmentRequired: matched.assessmentRequired,
                                     priceCents: matched.priceCents,
                                     showSlots: matched.showSlots,
-                                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : []
+                                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
+                                    qrImageUrl: matched.qrImageUrl ?? undefined
                                 }));
 
                                 // If user is on assessment page but course doesn't require it, redirect to success/payment
@@ -162,7 +163,7 @@ function RegistrationPage() {
         setLocation(`/registration/${type}`)
     }
 
-    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any }) => {
+    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any, qrImageUrl?: string | null }) => {
         console.log("Course Selected:", selection);
         setRegistrationData(prev => ({
             ...prev,
@@ -171,7 +172,8 @@ function RegistrationPage() {
             assessmentRequired: selection.assessmentRequired,
             priceCents: selection.priceCents,
             showSlots: selection.showSlots,
-            slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : []
+            slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : [],
+            qrImageUrl: selection.qrImageUrl ?? undefined
         }))
         const slug = selection.title.toLowerCase().replace(/ /g, '-')
         setLocation(`/registration/${programType}/${slug}`)
