@@ -47,6 +47,8 @@ interface CohortOfferingsResponse {
 
 interface CohortCardData {
   id: string;
+  courseId: string;
+  courseKey: string;
   title: string;
   description: string;
   focus: string;
@@ -231,6 +233,8 @@ const CohortPage: React.FC = () => {
 
             return {
               id: course.courseId,
+              courseId: course.courseId,
+              courseKey: trimOrNull(course.slug) ?? course.courseId,
               title,
               description,
               focus: `${primaryTag} cohort`,
@@ -261,7 +265,7 @@ const CohortPage: React.FC = () => {
     };
   }, []);
 
-  const handleCardClick = async (courseId: string) => {
+  const handleCardClick = async (courseId: string, courseKey: string) => {
     if (navigatingCourse) return;
     setNavigatingCourse(courseId);
     try {
@@ -281,7 +285,7 @@ const CohortPage: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.isApprovedMember) {
-          setLocation(`/course/${courseId}/learn/start`);
+          setLocation(`/course/${encodeURIComponent(courseKey)}/learn/start`);
           return;
         }
       }
@@ -290,7 +294,7 @@ const CohortPage: React.FC = () => {
     } finally {
       setNavigatingCourse(null);
     }
-    setLocation(`/course/${courseId}`);
+    setLocation(`/course/${encodeURIComponent(courseKey)}`);
   };
 
   const filteredCourses = courses.filter(course =>
@@ -606,7 +610,7 @@ const CohortPage: React.FC = () => {
                   key={course.id || i}
                   onClick={() => {
                     if (course.status === 'live') {
-                      void handleCardClick(course.id);
+                      void handleCardClick(course.courseId, course.courseKey);
                     }
                   }}
                   className={`group bg-white rounded-[1.5rem] border border-slate-200 shadow-lg transition-all duration-300 flex flex-col h-full ring-1 ring-slate-100/50 overflow-hidden ${course.status === 'live' ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1' : ''}`}

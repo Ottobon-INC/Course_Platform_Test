@@ -10,6 +10,7 @@ import SpecificCourseSelection from '@/components/registration/SpecificCourseSel
 import { StudentData, Answer } from '@/types/registration'
 import { fetchOfferings } from '@/lib/registrationApi'
 import PaymentStep from '@/components/registration/PaymentStep'
+import { buildApiUrl } from '@/lib/api'
 
 const STORAGE_KEY = 'ottolearn_reg_draft'
 
@@ -33,6 +34,13 @@ const defaultRegistrationData: StudentData = {
     plan: '',
     assessmentRequired: true
 }
+
+const toSlug = (value?: string | null): string =>
+    (value ?? '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
 
 function RegistrationPage() {
     const [, setLocation] = useLocation()
@@ -78,6 +86,7 @@ function RegistrationPage() {
     })
 
     const [assessmentAnswers, setAssessmentAnswers] = useState<Answer>({})
+    const [resolvedCourseSlug, setResolvedCourseSlug] = useState<string>('')
     // We now use registrationData.slots and registrationData.showSlots directly
 
     // Save to localStorage on change
@@ -98,65 +107,112 @@ function RegistrationPage() {
 
     const currentStep = getCurrentStep()
     const programType = (successParams?.programType || assessmentParams?.programType || courseParams?.programType || programTypeParams?.programType || 'cohort') as 'cohort' | 'ondemand' | 'workshop'
+    const routeCourseKey = successParams?.courseSlug || paymentParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug || ''
 
-    // Slug resolution from URL
+    const getRoutingCourseKey = (fallbackTitle?: string): string => {
+        const fallbackSlug = toSlug(fallbackTitle ?? registrationData.specificCourse)
+        return resolvedCourseSlug || routeCourseKey || fallbackSlug
+    }
+
+    // Resolve direct route course key (slug/id) to canonical course + offering.
     useEffect(() => {
-        const slug = successParams?.courseSlug || paymentParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug
-        if (slug) {
-            const currentSlug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        if (!routeCourseKey) {
+            setResolvedCourseSlug('')
+            return
+        }
 
-            // Only resolve if slug doesn't match or we don't have an offeringId
-            // Only resolve if slug doesn't match or we don't have an offeringId or slots
-            if (currentSlug !== slug || !registrationData.offeringId || !registrationData.slots) {
-                const resolveSlug = async () => {
-                    try {
-                        let offeringsData;
-                        try {
-                            offeringsData = await fetchOfferings({ courseSlug: slug });
-                        } catch (e) {
-                            // If fetching by slug fails, fallback to default main course to see if it's an offering slug
-                            console.log("Course slug not found, trying default course fallback...");
-                            offeringsData = await fetchOfferings({ courseSlug: 'ai-native-fullstack-developer' });
-                        }
+        let mounted = true
 
-                        if (offeringsData?.offerings) {
-                            const matched = offeringsData.offerings.find(o => {
-                                const offeringSlug = o.title.toLowerCase().replace(/ /g, '-');
-                                return o.isActive && o.programType === programType && offeringSlug === slug;
-                            });
+        const resolveRouteCourse = async () => {
+            try {
+                const currentCourseSlug = toSlug(registrationData.specificCourse)
+                if (
+                    currentCourseSlug !== routeCourseKey ||
+                    !registrationData.offeringId
+                ) {
+                    setRegistrationData(prev => ({
+                        ...prev,
+                        offeringId: '',
+                        specificCourse: '',
+                    }))
+                }
 
-                            if (matched) {
-                                setRegistrationData(prev => ({
-                                    ...prev,
-                                    offeringId: matched.offeringId,
-                                    specificCourse: matched.title,
-                                    programType: programType,
-                                    assessmentRequired: matched.assessmentRequired,
-                                    priceCents: matched.priceCents,
-                                    showSlots: matched.showSlots,
-                                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
-                                    qrImageUrl: matched.qrImageUrl ?? undefined
-                                }));
+                // 1) Resolve the course key to canonical course id/slug.
+                const courseRes = await fetch(buildApiUrl(`/api/courses/${encodeURIComponent(routeCourseKey)}`))
+                if (!courseRes.ok) {
+                    throw new Error(`Failed to resolve course key (${courseRes.status})`)
+                }
+                const coursePayload = await courseRes.json()
+                const resolvedCourseId: string | undefined = coursePayload?.course?.id
+                const canonicalSlug: string = coursePayload?.course?.slug ?? routeCourseKey
 
-                                // If user is on assessment page but course doesn't require it, redirect to success/payment
-                                if (matched.assessmentRequired === false && assessmentParams) {
-                                    const slug = matched.title.toLowerCase().replace(/ /g, '-')
-                                    if (matched.priceCents > 0) {
-                                        setLocation(`/registration/${programType}/${slug}/payment`)
-                                    } else {
-                                        setLocation(`/registration/${programType}/${slug}/success`)
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Failed to resolve offering from slug", e);
+                if (!resolvedCourseId) {
+                    throw new Error('Resolved course id missing in response')
+                }
+
+                // 2) Fetch offerings tied to this exact course id + selected program type.
+                const offeringsData = await fetchOfferings({ courseId: resolvedCourseId, programType })
+                const matched = offeringsData?.offerings?.find(o => o.isActive && o.programType === programType)
+
+                if (!matched || !mounted) {
+                    return
+                }
+
+                setResolvedCourseSlug(canonicalSlug)
+                setRegistrationData(prev => ({
+                    ...prev,
+                    offeringId: matched.offeringId,
+                    specificCourse: matched.title,
+                    programType,
+                    assessmentRequired: matched.assessmentRequired,
+                    priceCents: matched.priceCents,
+                    showSlots: matched.showSlots,
+                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
+                    qrImageUrl: matched.qrImageUrl ?? undefined
+                }))
+
+                // If user is on assessment route but this offering does not require assessment, redirect forward.
+                if (matched.assessmentRequired === false && assessmentParams) {
+                    if (matched.priceCents > 0) {
+                        setLocation(`/registration/${programType}/${canonicalSlug}/payment`)
+                    } else {
+                        setLocation(`/registration/${programType}/${canonicalSlug}/success`)
                     }
-                };
-                resolveSlug();
+                }
+            } catch (e) {
+                // Backward-compat fallback for legacy title-slug route values.
+                try {
+                    const legacy = await fetchOfferings({ courseSlug: routeCourseKey, programType })
+                    const matchedLegacy = legacy?.offerings?.find(o => {
+                        const offeringSlug = toSlug(o.title)
+                        return o.isActive && o.programType === programType && offeringSlug === routeCourseKey
+                    })
+
+                    if (matchedLegacy && mounted) {
+                        setResolvedCourseSlug(routeCourseKey)
+                        setRegistrationData(prev => ({
+                            ...prev,
+                            offeringId: matchedLegacy.offeringId,
+                            specificCourse: matchedLegacy.title,
+                            programType,
+                            assessmentRequired: matchedLegacy.assessmentRequired,
+                            priceCents: matchedLegacy.priceCents,
+                            showSlots: matchedLegacy.showSlots,
+                            slots: Array.isArray(matchedLegacy.slotsJson) ? matchedLegacy.slotsJson : [],
+                            qrImageUrl: matchedLegacy.qrImageUrl ?? undefined
+                        }))
+                    }
+                } catch {
+                    console.error('Failed to resolve route course offering', e)
+                }
             }
         }
-    }, [successParams?.courseSlug, assessmentParams?.courseSlug, courseParams?.courseSlug, programType, registrationData.offeringId, registrationData.specificCourse])
+
+        void resolveRouteCourse()
+        return () => {
+            mounted = false
+        }
+    }, [routeCourseKey, programType, assessmentParams, setLocation])
 
     const handleCourseSelect = (type: 'cohort' | 'ondemand' | 'workshop') => {
         setRegistrationData(prev => ({ ...prev, programType: type }))
@@ -165,6 +221,8 @@ function RegistrationPage() {
 
     const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any, qrImageUrl?: string | null }) => {
         console.log("Course Selected:", selection);
+        const slug = toSlug(selection.title)
+        setResolvedCourseSlug(slug)
         setRegistrationData(prev => ({
             ...prev,
             offeringId: selection.offeringId,
@@ -175,14 +233,13 @@ function RegistrationPage() {
             slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : [],
             qrImageUrl: selection.qrImageUrl ?? undefined
         }))
-        const slug = selection.title.toLowerCase().replace(/ /g, '-')
         setLocation(`/registration/${programType}/${slug}`)
     }
 
     const handleRegistrationSubmit = (data: Partial<StudentData>): void => {
         setRegistrationData(prev => {
             const updated = { ...prev, ...data }
-            const slug = (updated.specificCourse || '').toLowerCase().replace(/ /g, '-')
+            const slug = getRoutingCourseKey(updated.specificCourse)
             
             // Perform navigation based on the updated state
             if (updated.assessmentRequired === false) {
@@ -201,7 +258,7 @@ function RegistrationPage() {
 
     const handleAssessmentSubmit = (answers: Answer): void => {
         setAssessmentAnswers(answers)
-        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        const slug = getRoutingCourseKey()
         
         if ((registrationData.priceCents || 0) > 0) {
             setLocation(`/registration/${registrationData.programType}/${slug}/payment`)
@@ -213,14 +270,14 @@ function RegistrationPage() {
     }
 
     const handlePaymentSubmit = (): void => {
-        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        const slug = getRoutingCourseKey()
         // Clear localStorage on success
         localStorage.removeItem(STORAGE_KEY)
         setLocation(`/registration/${registrationData.programType}/${slug}/success`)
     }
 
     const goBack = (targetStep: number) => {
-        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        const slug = getRoutingCourseKey()
 
         switch (targetStep) {
             case 0:

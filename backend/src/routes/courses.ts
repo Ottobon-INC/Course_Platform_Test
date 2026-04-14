@@ -69,6 +69,14 @@ async function resolveCourseIdOrError(courseKeyRaw: string | undefined): Promise
     return { courseId: aliasMatch };
   }
 
+  const courseBySlug = await prisma.course.findUnique({
+    where: { slug: normalizedSlug },
+    select: { courseId: true },
+  });
+  if (courseBySlug) {
+    return { courseId: courseBySlug.courseId };
+  }
+
   const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
   const searchNames = Array.from(
     new Set(
