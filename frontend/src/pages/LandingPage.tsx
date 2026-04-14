@@ -1327,6 +1327,7 @@ function LandingPage() {
         onEnroll={() => handleEnroll(undefined, undefined, 'hero')}
         onSearch={handleSearchCourses}
         heroVariant={heroVariant}
+        showPrimaryCta={!isAuthenticated}
       />
       <EmotionalHook />
       <TransformationSection />
