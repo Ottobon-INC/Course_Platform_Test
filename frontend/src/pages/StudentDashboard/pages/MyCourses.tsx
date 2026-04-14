@@ -264,18 +264,33 @@ export function MyCourses() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-border-soft">
-            <h3 className="text-lg font-bold mb-5">Recommended Next Course</h3>
-            <div className="flex gap-4 mb-4">
-              <img src="/assets/recommended.png" alt="Recommended" className="w-[70px] h-[70px] rounded-lg object-cover" />
-              <div>
-                <h4 className="font-bold text-md leading-tight mb-1">Advanced AI Patterns</h4>
-                <span className="text-[0.65rem] font-bold bg-orange-soft text-orange-primary px-2 py-0.5 rounded">Cohort</span>
+          {summary?.catalog && summary.catalog.length > 0 && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border-soft">
+              <h3 className="text-lg font-bold mb-5">Recommended Next Course</h3>
+              <div className="flex gap-4 mb-4">
+                <img 
+                  src={summary.catalog[0].thumbnailUrl || "/assets/recommended.png"} 
+                  alt={summary.catalog[0].title} 
+                  className="w-[70px] h-[70px] rounded-lg object-cover" 
+                />
+                <div>
+                  <h4 className="font-bold text-md leading-tight mb-1">{summary.catalog[0].title}</h4>
+                  <span className="text-[0.65rem] font-bold bg-orange-soft text-orange-primary px-2 py-0.5 rounded">
+                    {summary.catalog[0].category}
+                  </span>
+                </div>
               </div>
+              <p className="text-sm text-gray-text mb-5 font-medium leading-relaxed">
+                Enroll now to start your journey in {summary.catalog[0].title}.
+              </p>
+              <button 
+                onClick={() => navigate('/my-courses')}
+                className="w-full bg-orange-primary text-white font-bold py-2.5 rounded-lg hover:shadow-md transition-shadow"
+              >
+                Join Course
+              </button>
             </div>
-            <p className="text-sm text-gray-text mb-5 font-medium leading-relaxed">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.</p>
-            <button className="w-full bg-orange-primary text-white font-bold py-2.5 rounded-lg hover:shadow-md">Resume Learning</button>
-          </div>
+          )}
         </aside>
       </div>
     </div>

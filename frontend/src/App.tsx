@@ -52,8 +52,8 @@ function Router() {
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />
       <Route path="/course/:id/enroll" component={EnrollmentPage} />
-      <Route path="/course/:id/learn/:lesson" component={CoursePlayerPage} />
-      <Route path="/ondemand/:id/learn/:lesson" component={OnDemandPlayerPage} />
+      <Route path="/course/:id/learn/:lesson?" component={CoursePlayerPage} />
+      <Route path="/ondemand/:id/learn/:lesson?" component={OnDemandPlayerPage} />
       <Route path="/ondemand/:id/congrats/certificate" component={CourseCertificatePage} />
       <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />

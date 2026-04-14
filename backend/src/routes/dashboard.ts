@@ -273,10 +273,18 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
       const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
       const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
+      const latest = latestByCourse.get(courseId);
+      const lastLessonSlug = latest ? slugify(latest.topicName) : null;
+      const lastAccessedModule = latest
+        ? `Module ${latest.moduleNo}: ${latest.topicName}`
+        : "Getting started";
+
       return {
         id: membership.cohort.cohortId,
         title: membership.cohort.course.courseName,
         courseSlug: membership.cohort.course.slug ?? null,
+        lastLessonSlug,
+        lastAccessedModule,
         status: computeStatus(membership.cohort.startsAt, membership.cohort.endsAt),
         progress,
         nextSessionDate: formatDateTime(membership.cohort.startsAt),

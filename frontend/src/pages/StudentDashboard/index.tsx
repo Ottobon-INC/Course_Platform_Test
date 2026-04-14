@@ -5,7 +5,7 @@ import { Home } from './pages/Home';
 import { MyCourses } from './pages/MyCourses';
 import { Leaderboard } from './pages/Leaderboard';
 import { Cohorts } from './pages/Cohorts';
-import { Messages } from './pages/Messages';
+import Messages from './pages/messaging/MessagingModule';
 import { Certificates } from './pages/Certificates';
 import { Analysis } from './pages/Analysis';
 import { Feedback } from './pages/Feedback';
