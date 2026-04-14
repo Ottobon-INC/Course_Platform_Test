@@ -1,0 +1,180 @@
+Create a comprehensive course learning platform with three main routes: knowledge assessment, enrollment flow, and course player. Build this as a React application with modern UI/UX design following these specifications:
+
+PROJECT STRUCTURE & ROUTING:
+
+/course/:id/assessment - Pre-course knowledge check page
+
+/course/:id/enroll - Login and enrollment gateway
+
+/course/:id/learn/:lesson - Main course player with persistent layout
+
+Use React Router v6 for navigation with nested routes
+
+DESIGN REQUIREMENTS:
+Apply professional course platform aesthetics similar to Coursera/Udemy with:
+
+Clean, modern typography (use Inter or similar professional font)
+
+Consistent color scheme: primary blue (#2563eb), secondary gray (#64748b), success green (#22c55e)
+
+Professional spacing using 8px grid system
+
+Responsive design for desktop, tablet, and mobile
+
+Smooth animations and micro-interactions for enhanced UX
+
+PAGE 1: KNOWLEDGE ASSESSMENT (/course/:id/assessment)
+Create an engaging pre-course assessment with:
+
+Hero section with course title and brief description
+
+Interactive quiz component with 5-7 multiple choice questions
+
+Progress indicator showing question number (1 of 7)
+
+Professional card-based question layout with hover effects
+
+"Next" and "Previous" navigation buttons
+
+Results summary with personalized recommendations
+
+Call-to-action button leading to enrollment
+
+PAGE 2: ENROLLMENT GATEWAY (/course/:id/enroll)
+Design a professional login/enrollment flow:
+
+Split layout: left side with course benefits/testimonials, right side with forms
+
+Toggle between "Login" and "Sign Up" modes
+
+Form validation with real-time feedback
+
+Social login options (Google, GitHub placeholders)
+
+Course pricing display with enrollment button
+
+Loading states and success animations
+
+Redirect to course player after successful enrollment
+
+PAGE 3: COURSE PLAYER LAYOUT (/course/:id/learn/:lesson)
+Build the main learning interface with:
+
+SIDEBAR (Left, Collapsible):
+
+Course curriculum tree structure showing:
+
+Sections (e.g., "1. Getting Started")
+
+Lessons within each section (e.g., "1.1 Introduction", "1.2 Setup")
+
+Progress indicators (checkmarks for completed, current highlighted)
+
+Expandable/collapsible sections
+
+Mini mode for narrow screens (icons only)
+
+Smooth slide animations
+
+Search functionality to find specific topics
+
+Total progress bar at top
+
+MAIN CONTENT AREA (Right):
+
+Video Player Section (Top):
+
+Responsive video player with custom controls
+
+Playback speed options (0.5x, 1x, 1.25x, 1.5x, 2x)
+
+Progress bar with chapter markers
+
+Full-screen capability
+
+Auto-play next lesson option
+
+Content Section (Below Video):
+
+Tabbed interface: "Transcript", "Notes", "Resources", "Quiz"
+
+Synchronized transcript that highlights current spoken text
+
+Rich text lesson notes with code syntax highlighting
+
+Downloadable resources section
+
+Interactive quiz questions at lesson end
+
+"Mark as Complete" button
+
+Navigation to next/previous lesson
+
+RESPONSIVE BEHAVIOR:
+
+Desktop (>1024px): Full sidebar + main content side-by-side
+
+Tablet (768-1024px): Collapsible sidebar with overlay
+
+Mobile (<768px): Hidden sidebar accessible via hamburger menu
+
+Video player maintains 16:9 aspect ratio across all devices
+
+UI COMPONENTS TO BUILD:
+
+Custom video player with branded controls
+
+Animated progress indicators and completion badges
+
+Toast notifications for actions (enrollment success, lesson completion)
+
+Loading skeletons for content
+
+Modal dialogs for confirmation actions
+
+Breadcrumb navigation
+
+Search with auto-complete for course content
+
+TECHNICAL SPECIFICATIONS:
+
+Use React 18+ with hooks (useState, useEffect, useContext)
+
+Implement React Router for navigation with protected routes
+
+Add CSS modules or Tailwind CSS for styling
+
+Include localStorage for progress persistence
+
+Mock API calls for enrollment and progress tracking
+
+Ensure keyboard navigation accessibility (ARIA labels)
+
+Implement error boundaries for graceful failure handling
+
+SAMPLE DATA STRUCTURE:
+Include mock course data with:
+
+Course metadata (title, description, instructor, duration)
+
+Curriculum structure (sections, lessons, video URLs, transcripts)
+
+User progress tracking
+
+Assessment questions with correct answers
+
+ADDITIONAL FEATURES:
+
+Dark/light mode toggle
+
+Bookmark/favorite lessons functionality
+
+Course completion certificate page
+
+Discussion/comments section placeholder
+
+Speed reading mode for transcript
+
+Keyboard shortcuts for video control (spacebar, arrow keys)
+
+Build this with clean, production-ready code following React best practices. Ensure all components are modular and reusable. Add proper error handling and loading states throughout the application. Make the design pixel-perfect and professional, suitable for a commercial course platform.
