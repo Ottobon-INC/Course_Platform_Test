@@ -85,7 +85,6 @@ function RegistrationPage() {
         return defaultRegistrationData
     })
 
-    const [assessmentAnswers, setAssessmentAnswers] = useState<Answer>({})
     const [resolvedCourseSlug, setResolvedCourseSlug] = useState<string>('')
     // We now use registrationData.slots and registrationData.showSlots directly
 
@@ -220,7 +219,6 @@ function RegistrationPage() {
     }
 
     const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any, qrImageUrl?: string | null }) => {
-        console.log("Course Selected:", selection);
         const slug = toSlug(selection.title)
         setResolvedCourseSlug(slug)
         setRegistrationData(prev => ({
@@ -256,8 +254,7 @@ function RegistrationPage() {
         })
     }
 
-    const handleAssessmentSubmit = (answers: Answer): void => {
-        setAssessmentAnswers(answers)
+    const handleAssessmentSubmit = (_answers: Answer): void => {
         const slug = getRoutingCourseKey()
         
         if ((registrationData.priceCents || 0) > 0) {
