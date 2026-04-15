@@ -22,7 +22,6 @@ type SeedCourse = {
   category: string;
   level: string;
   instructor: string;
-  durationMinutes: number;
   rating: number;
   students: number;
   thumbnailUrl?: string;
@@ -41,7 +40,6 @@ const SEED_COURSES: SeedCourse[] = [
     category: "AI & Machine Learning",
     level: "Beginner",
     instructor: "Dr. Sarah Chen",
-    durationMinutes: 8 * 60,
     rating: 4.8,
     students: 2847,
     thumbnailUrl: "https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=800&q=80",
@@ -57,7 +55,6 @@ const SEED_COURSES: SeedCourse[] = [
     category: "Frontend Development",
     level: "Intermediate",
     instructor: "Alex Rodriguez",
-    durationMinutes: 12 * 60,
     rating: 4.9,
     students: 1523,
     thumbnailUrl: "https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&w=800&q=80",
@@ -73,7 +70,6 @@ const SEED_COURSES: SeedCourse[] = [
     category: "Python & Automation",
     level: "Beginner",
     instructor: "Maria Garcia",
-    durationMinutes: 6 * 60,
     rating: 4.7,
     students: 3241,
     thumbnailUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
@@ -87,7 +83,6 @@ const SEED_COURSES: SeedCourse[] = [
     category: "Programming Languages",
     level: "Advanced",
     instructor: "John Mitchell",
-    durationMinutes: 10 * 60,
     rating: 4.8,
     students: 2113,
     thumbnailUrl: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=800&q=80",
@@ -101,7 +96,6 @@ const SEED_COURSES: SeedCourse[] = [
     category: "Design",
     level: "Intermediate",
     instructor: "Priya Natarajan",
-    durationMinutes: 5 * 60,
     rating: 4.6,
     students: 1842,
     thumbnailUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",

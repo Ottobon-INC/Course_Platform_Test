@@ -8,7 +8,6 @@ export async function getLandingResouceContext(): Promise<string> {
                 courseName: true,
                 description: true,
                 level: true,
-                durationMinutes: true,
                 rating: true,
                 category: true,
             },
@@ -41,7 +40,7 @@ export async function getLandingResouceContext(): Promise<string> {
     ]);
 
     const courseSection = courses.map(c =>
-        `- Course: "${c.courseName}" (${c.category})\n  Desc: ${(c.description || "").substring(0, 100)}...\n  Duration: ${Math.round(c.durationMinutes / 60)}h`
+        `- Course: "${c.courseName}" (${c.category})\n  Desc: ${(c.description || "").substring(0, 100)}...`
     ).join("\n");
 
     const offeringSection = offerings.map(o =>

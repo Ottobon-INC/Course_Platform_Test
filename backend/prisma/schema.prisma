@@ -119,7 +119,6 @@ model Course {
   category    String      @default("General") @map("category")
   level       String      @default("Beginner") @map("level")
   instructor  String      @default("Staff Instructor") @map("instructor")
-  durationMinutes Int     @default(0) @map("duration_minutes")
   rating      Float       @default(4.5) @map("rating")
   students    Int         @default(0) @map("students")
   thumbnailUrl String?    @map("thumbnail_url")

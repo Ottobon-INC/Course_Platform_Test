@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
-  Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -42,15 +41,13 @@ interface CourseData {
 }
 
 interface CourseMeta {
-  subtitle: string;
-  displayPriceCents: number | null;
-  compareAtCents: number | null;
-  originalPriceCents: number | null;
+  subtitle: string | null;
+  priceCents: number | null;
   rating: number | null;
   students: number | null;
-  badge: string;
-  category?: string;
-  promoActive: boolean;
+  category: string | null;
+  level: string | null;
+  instructor: string | null;
 }
 
 interface TopicApi {
@@ -77,24 +74,7 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-");
 
-const DEFAULT_SUBTITLE = "Complete bootcamp for job-ready AI engineers.";
-const DEFAULT_BADGE = "New for 2025";
-const PROMO_PRICING: Record<
-  string,
-  {
-    priceCents: number;
-    compareAtCents?: number;
-    badge?: string;
-  }
-> = {
-  "ai-native-fullstack-developer": {
-    priceCents: 0,
-    compareAtCents: 49900,
-    badge: "Limited time: free cohort",
-  },
-};
-
-const formatCurrency = (cents: number | null | undefined, fallback: string): string => {
+const formatCurrency = (cents: number | null | undefined): string => {
   if (typeof cents === "number" && Number.isFinite(cents)) {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -102,14 +82,14 @@ const formatCurrency = (cents: number | null | undefined, fallback: string): str
       maximumFractionDigits: 0,
     }).format(cents / 100);
   }
-  return fallback;
+  return "Price unavailable";
 };
 
-const formatCount = (value: number | null | undefined, fallback: string): string => {
+const formatCount = (value: number | null | undefined): string | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value.toLocaleString("en-IN");
   }
-  return fallback;
+  return null;
 };
 
 const ProtocolModal: React.FC<ProtocolModalProps> = ({ isOpen, onClose, onAccept }) => {
@@ -190,15 +170,13 @@ const CourseDetailsPage: React.FC = () => {
     isApprovedMember: boolean;
   } | null>(null);
   const [courseMeta, setCourseMeta] = useState<CourseMeta>({
-    subtitle: DEFAULT_SUBTITLE,
-    displayPriceCents: null,
-    compareAtCents: null,
-    originalPriceCents: null,
+    subtitle: null,
+    priceCents: null,
     rating: null,
     students: null,
-    badge: DEFAULT_BADGE,
-    category: "Hands-on projects",
-    promoActive: false,
+    category: null,
+    level: null,
+    instructor: null,
   });
 
   useEffect(() => {
@@ -210,30 +188,22 @@ const CourseDetailsPage: React.FC = () => {
           const payload = await courseRes.json();
           if (mounted) {
             const course = payload?.course;
-            const slug = course?.slug ?? courseId;
-            setCourseTitle(course?.title ?? course?.courseName ?? "AI Engineer Bootcamp");
-            const normalizedPrice =
-              typeof course?.priceCents === "number" && Number.isFinite(course.priceCents)
-                ? course.priceCents
-                : null;
-            const promo = slug && typeof slug === "string" ? PROMO_PRICING[slug] : undefined;
-            const displayPriceCents = promo?.priceCents ?? normalizedPrice;
-            const compareAtFromPromo =
-              promo?.compareAtCents ?? (normalizedPrice ? Math.round(normalizedPrice * 1.8) : null);
+            setCourseTitle(course?.title ?? course?.courseName ?? "Course");
             setCourseMeta({
-              subtitle: course?.description ?? DEFAULT_SUBTITLE,
-              displayPriceCents,
-              compareAtCents: compareAtFromPromo,
-              originalPriceCents: normalizedPrice,
+              subtitle: typeof course?.description === "string" ? course.description : null,
+              priceCents:
+                typeof course?.priceCents === "number" && Number.isFinite(course.priceCents)
+                  ? course.priceCents
+                  : null,
               rating:
                 typeof course?.rating === "number" && Number.isFinite(course.rating) ? course.rating : null,
               students:
                 typeof course?.students === "number" && Number.isFinite(course.students)
                   ? course.students
                   : null,
-              badge: promo?.badge ?? (course?.level ? `${course.level} level` : DEFAULT_BADGE),
-              category: course?.category ?? "Hands-on projects",
-              promoActive: Boolean(promo),
+              category: typeof course?.category === "string" ? course.category : null,
+              level: typeof course?.level === "string" ? course.level : null,
+              instructor: typeof course?.instructor === "string" ? course.instructor : null,
             });
           }
         }
@@ -571,29 +541,40 @@ const CourseDetailsPage: React.FC = () => {
         </div>
 
         <div className="relative z-10 container mx-auto px-6 md:px-12">
-          <div className="inline-flex items-center gap-2 bg-[#4a4845] text-[#f8f1e6] px-3 py-1 rounded-full text-xs font-semibold mb-4">
-            {courseMeta.badge}
-          </div>
+          {courseMeta.level && (
+            <div className="inline-flex items-center gap-2 bg-[#4a4845] text-[#f8f1e6] px-3 py-1 rounded-full text-xs font-semibold mb-4">
+              {courseMeta.level}
+            </div>
+          )}
           <h1 className="text-4xl md:text-5xl font-black leading-tight max-w-3xl">{courseTitle}</h1>
-          <p className="mt-3 text-lg text-[#f8f1e6]/80 max-w-2xl">{courseMeta.subtitle}</p>
+          {courseMeta.subtitle && (
+            <p className="mt-3 text-lg text-[#f8f1e6]/80 max-w-2xl">{courseMeta.subtitle}</p>
+          )}
           <div className="flex flex-wrap items-center gap-6 mt-4 text-sm text-[#f8f1e6]/80">
-            <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-yellow-300" />
-              <span className="font-semibold text-[#f8f1e6]">
-                {courseMeta.rating != null ? courseMeta.rating.toFixed(1) : "4.8"}
-              </span>
-              <span className="text-[#f8f1e6]/60">
-                ({formatCount(courseMeta.students, "3,369")} ratings)
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span>{formatCount(courseMeta.students, "8,485")} students</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Code2 className="h-4 w-4" />
-              <span>{courseMeta.category ?? "Hands-on projects"}</span>
-            </div>
+            {courseMeta.rating != null && (
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-yellow-300" />
+                <span className="font-semibold text-[#f8f1e6]">{courseMeta.rating.toFixed(1)}</span>
+              </div>
+            )}
+            {courseMeta.students != null && (
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>{formatCount(courseMeta.students)} learners</span>
+              </div>
+            )}
+            {courseMeta.category && (
+              <div className="flex items-center gap-2">
+                <Code2 className="h-4 w-4" />
+                <span>{courseMeta.category}</span>
+              </div>
+            )}
+            {courseMeta.instructor && (
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                <span>{courseMeta.instructor}</span>
+              </div>
+            )}
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-6">
             {!accessStatus ? (
@@ -637,14 +618,8 @@ const CourseDetailsPage: React.FC = () => {
             )}
             <div className="text-[#f8f1e6]">
               <div className="text-3xl font-black">
-                {formatCurrency(courseMeta.displayPriceCents, "₹1,499")}
+                {formatCurrency(courseMeta.priceCents)}
               </div>
-              <div className="text-sm text-[#f8f1e6]/60 line-through">
-                {formatCurrency(courseMeta.compareAtCents ?? courseMeta.originalPriceCents, "₹3,999")}
-              </div>
-              {courseMeta.promoActive && (
-                <div className="text-xs font-semibold text-[#bf2f1f] mt-1">Limited-time enrollment</div>
-              )}
             </div>
           </div>
         </div>
@@ -653,36 +628,32 @@ const CourseDetailsPage: React.FC = () => {
       <main className="container mx-auto px-6 md:px-12 py-12 space-y-10">
         <section className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Interactive build weeks that mirror real client briefs
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Simulation exercises to pressure-test AI features end-to-end
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Mandatory quizzes to unlock each module and earn certificate
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Pay only when you’re ready for the completion certificate
-            </div>
+            <p className="text-sm font-semibold text-[#000000]/70">Course attributes</p>
+            {[
+              courseMeta.category ? `Category: ${courseMeta.category}` : null,
+              courseMeta.level ? `Level: ${courseMeta.level}` : null,
+              courseMeta.instructor ? `Instructor: ${courseMeta.instructor}` : null,
+              modules.length > 0 ? `Total modules: ${modules.length}` : null,
+            ]
+              .filter((value): value is string => Boolean(value))
+              .map((item) => (
+                <div key={item} className="flex items-center gap-3 text-sm text-[#000000]/80">
+                  <span className="h-2 w-2 rounded-full bg-[#bf2f1f]" />
+                  {item}
+                </div>
+              ))}
           </div>
           <div className="space-y-3">
-            <p className="text-sm font-semibold text-[#000000]/70">Skills you'll gain</p>
+            <p className="text-sm font-semibold text-[#000000]/70">Module outline</p>
             <div className="flex flex-wrap gap-2">
-              {["Next.js Automation", "Tailwind Systems", "Prompt Engineering", "LangChain Agents", "AI QA Pipelines", "Edge Deployments"].map(
-                (skill) => (
+              {modules.slice(0, 6).map((module) => (
                   <span
-                    key={skill}
+                    key={module.id}
                     className="px-3 py-1 rounded-full border-2 border-[#000000] text-xs font-bold uppercase tracking-wide bg-white hover:bg-[#000000] hover:text-white transition"
                   >
-                    {skill}
+                    {module.title}
                   </span>
-                ),
-              )}
+                ))}
             </div>
           </div>
         </section>
