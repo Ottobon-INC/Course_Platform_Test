@@ -1,0 +1,1161 @@
+[
+  {
+    "questionId": "f301cbb4-cd86-4ffd-ac5a-9ae7d65f759f",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 1,
+    "questionText": "Tell us about a time you had to learn something very difficult from scratch. How did you start, and what did you do when you felt stuck?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "8975c4e3-a483-4d92-9a0a-9e3e3ae6fc76",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 2,
+    "questionText": "When you don't understand a concept after trying once, what is your next step?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "c0b14da9-4e39-4e6d-94b4-14e6c6cee667",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 3,
+    "questionText": "Describe how you usually break a big problem into smaller parts.",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "84abd33f-d648-45f0-a53a-e28894fd4b70",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 4,
+    "questionText": "Tell us about a skill you failed to learn at first but later improved at.",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "f95b3917-b6f8-4246-b289-5196bc392f64",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 5,
+    "questionText": "How do you decide whether to keep pushing through confusion or take a break and return later?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "c2f4cb7c-a118-408e-93a3-c99ed8e39dc6",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 6,
+    "questionText": "Explain a situation where you had to solve a problem with limited information.",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "1b392fe7-15fa-4318-9c82-821254b22e53",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 7,
+    "questionText": "When faced with multiple possible solutions, how do you choose one?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "dce90ec8-856c-40bc-8586-421c2a941d33",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 8,
+    "questionText": "Describe a time when your first solution did not work. What did you do next?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "4cc3dec2-acc9-4d02-acb9-32a6829fd7c3",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 9,
+    "questionText": "How do you check whether your solution is actually correct?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "4ed14d92-05dd-4afd-9820-d169bf3ed6bb",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 10,
+    "questionText": "Tell us about a moment when you had to think clearly under pressure.",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "ecaf3f47-d97d-4104-9244-149ccf2b58e2",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 11,
+    "questionText": "Describe a situation where being honest was harder than taking a shortcut.",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I admitted a mistake even though it made me look bad",
+      "I gave honest feedback when it was uncomfortable",
+      "I refused to copy someone else's work despite time pressure",
+      "I told the truth about my skill level instead of exaggerating",
+      "I chose transparency over convenience in a team setting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "67e55d80-c175-41a7-9ca2-bf30fbf7a9f7",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 12,
+    "questionText": "If you discover an error in your work that no one else noticed, what do you usually do?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I immediately fix it and inform relevant people",
+      "I fix it quietly without mentioning it",
+      "I assess the impact first, then decide whether to report it",
+      "I document the error and the fix for future reference",
+      "I discuss it with a peer before taking action"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "0efb42cc-7862-412c-b163-1cf6cff89df3",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 13,
+    "questionText": "Tell us about a time you had to take responsibility for a mistake.",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I owned up immediately and focused on fixing it",
+      "I explained what went wrong and what I learned",
+      "I apologized and made sure it wouldn't happen again",
+      "I took responsibility even when others were partly at fault",
+      "I used it as a learning opportunity and shared lessons with others"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "59ff9fcc-36ed-4466-8753-9ca0ec705ee8",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 14,
+    "questionText": "In your view, what risks can come from using AI carelessly?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Spreading misinformation or biased content",
+      "Over reliance without understanding the underlying concepts",
+      "Privacy violations and data misuse",
+      "Ethical issues like plagiarism or unfair advantages",
+      "All of the above – AI requires careful and responsible use"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "cfff9f90-6b1c-4f26-964c-2c483240bbc2",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 15,
+    "questionText": "How do you balance speed and correctness when working on important tasks?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I prioritize correctness, even if it takes longer",
+      "I work quickly first, then review and refine carefully",
+      "I set checkpoints to verify accuracy while maintaining pace",
+      "I focus on speed for drafts, then slow down for final versions",
+      "I ask for feedback early to catch errors without losing momentum"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "8eca683a-6c0a-4476-a3f4-d07cef2c087c",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 16,
+    "questionText": "Explain how you usually communicate complex ideas to someone non technical.",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I use simple analogies and real world examples",
+      "I break it down into smaller, digestible parts",
+      "I avoid jargon and explain in plain language",
+      "I use visuals or diagrams to illustrate concepts",
+      "I check their understanding and adjust my explanation accordingly"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "25278ffe-8df1-4ea8-87c7-95fc0f82f4ec",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 17,
+    "questionText": "Tell us about a time you disagreed with a teammate. How did you handle it?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I listened to their perspective first, then shared mine respectfully",
+      "I focused on finding common ground and a compromise",
+      "I presented facts and data to support my viewpoint",
+      "I suggested we try both approaches and compare results",
+      "I involved a third party to help mediate the discussion"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "c5b4254f-eaa4-477f-b7f1-313b1c69fd54",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 18,
+    "questionText": "How do you ask for help when you are stuck?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I clearly explain what I've tried and where I'm stuck",
+      "I research first, then ask specific questions",
+      "I ask for guidance on approach rather than direct answers",
+      "I reach out to peers, mentors, or online communities",
+      "I frame it as a learning opportunity, not just problem solving"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "06611fb8-47a5-4094-929a-cff7f91752e3",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 19,
+    "questionText": "Describe your role in a group project where everyone had different skill levels.",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I helped others learn while completing my own tasks",
+      "I took on tasks that matched my strengths and supported others",
+      "I coordinated efforts to ensure everyone contributed meaningfully",
+      "I learned from more skilled members and taught less experienced ones",
+      "I focused on clear communication to bridge skill gaps"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "015ed6cd-e67e-4a21-b94d-3389d70bf515",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 20,
+    "questionText": "How do you react when someone gives feedback on your work?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I listen carefully and ask clarifying questions",
+      "I appreciate it and look for actionable improvements",
+      "I reflect on it before deciding what to change",
+      "I thank them and implement relevant suggestions",
+      "I see it as an opportunity to grow and improve"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "4db3d248-d668-4dfa-b456-f3d50747d487",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 21,
+    "questionText": "Why do you want to learn AI at this stage of your life?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "AI is transforming industries and I want to be part of it",
+      "I'm curious about how AI works and want hands on experience",
+      "I see AI skills as essential for my career goals",
+      "I want to solve real world problems using AI technology",
+      "I'm passionate about technology and innovation"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "2e5bd5e9-452f-4fa6-bc3f-c59c7e4851c8",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 22,
+    "questionText": "What keeps you going when learning becomes boring or repetitive?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I remind myself of my long term goals",
+      "I find ways to make it more interesting or challenging",
+      "I take breaks and come back with fresh perspective",
+      "I connect it to real world applications that excite me",
+      "I focus on small wins and track my progress"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "4eec11f8-9595-4952-b9ac-9b9ce396922a",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 23,
+    "questionText": "Tell us about a personal project or idea you worked on without external pressure.",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I built something to solve a problem I personally faced",
+      "I explored a topic I was genuinely curious about",
+      "I created something just for the joy of learning",
+      "I challenged myself to learn a new skill independently",
+      "I contributed to an open source or community project"
+    ],
+    "isActive": true,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "ce8e6543-3bbe-4124-8b69-b6b741641f5f",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 26,
+    "questionText": "whta is html",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "a",
+      "b",
+      "c",
+      "d"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-16T06:02:11.481Z"
+  },
+  {
+    "questionId": "f3689f7a-df98-4fbe-8c10-2d548070217c",
+    "programType": "workshop",
+    "offeringId": "51faa8b4-e5d1-4124-b50a-f1cb316ae6d9",
+    "questionNumber": 201,
+    "questionText": "How many interviews have you attended so far?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "0",
+      "1–2",
+      "3–5",
+      "More than 5"
+    ],
+    "isActive": true,
+    "createdAt": "2026-02-03T07:04:55.851Z"
+  },
+  {
+    "questionId": "424a69e4-e421-410a-99d7-2096e3602798",
+    "programType": "workshop",
+    "offeringId": "51faa8b4-e5d1-4124-b50a-f1cb316ae6d9",
+    "questionNumber": 202,
+    "questionText": "What challenges do you usually face during HR interviews?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-02-03T07:04:55.851Z"
+  },
+  {
+    "questionId": "2e4aa198-bd46-402c-8d23-7490640eaed0",
+    "programType": "workshop",
+    "offeringId": "51faa8b4-e5d1-4124-b50a-f1cb316ae6d9",
+    "questionNumber": 203,
+    "questionText": "Which HR interview questions do you find most difficult?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-02-03T07:04:55.851Z"
+  },
+  {
+    "questionId": "b2f3ce3a-f40b-485e-85cc-6eed3eb4d0d8",
+    "programType": "workshop",
+    "offeringId": "51faa8b4-e5d1-4124-b50a-f1cb316ae6d9",
+    "questionNumber": 204,
+    "questionText": "What is your biggest fear or concern about HR interviews?",
+    "questionType": "text",
+    "mcqOptions": null,
+    "isActive": true,
+    "createdAt": "2026-02-03T07:04:55.851Z"
+  },
+  {
+    "questionId": "6cf2916b-01de-465c-b984-97fb49b2d0fa",
+    "programType": "all",
+    "offeringId": "02578436-e329-4302-bd77-8c1b1cb493c6",
+    "questionNumber": 1,
+    "questionText": "What is the main advantage of using AI in web design?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Reduces hosting cost",
+      "Automates design and personalization",
+      "Eliminating need for frontend",
+      "Increases server speed"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "68bad665-d54c-451e-9293-44a3d9bf6d19",
+    "programType": "all",
+    "offeringId": "02578436-e329-4302-bd77-8c1b1cb493c6",
+    "questionNumber": 2,
+    "questionText": "Which AI tool is commonly used for UI generation?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Figma AI",
+      "MySQL",
+      "Node.js",
+      "Docker"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "4267e17c-2faa-4bd4-92ac-2851df6d48d9",
+    "programType": "all",
+    "offeringId": "02578436-e329-4302-bd77-8c1b1cb493c6",
+    "questionNumber": 3,
+    "questionText": "AI-driven design mainly improves:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Backend speed",
+      "User experience",
+      "Database storage",
+      "Network latency"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "8ff565f9-8d4e-45ae-9ea5-3985e990199a",
+    "programType": "all",
+    "offeringId": "02578436-e329-4302-bd77-8c1b1cb493c6",
+    "questionNumber": 4,
+    "questionText": "What is adaptive UI?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Fixed layout",
+      "Layout changes based on user behavior",
+      "Only mobile design",
+      "Static components"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "3e2c8775-3444-4997-b5cd-59915820ecc3",
+    "programType": "all",
+    "offeringId": "02578436-e329-4302-bd77-8c1b1cb493c6",
+    "questionNumber": 5,
+    "questionText": "Which input helps AI personalize UI?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Server logs",
+      "User behavior data",
+      "File size",
+      "CSS styles"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "01e28528-c048-4375-81ce-a6b88f426f26",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 25,
+    "questionText": "Imagine you complete this AI program successfully. How do you see yourself using these skills responsibly?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I'll build solutions that benefit society and respect privacy",
+      "I'll continue learning and stay updated on ethical AI practices",
+      "I'll use AI to augment human capabilities, not replace them",
+      "I'll be transparent about AI's limitations and potential biases",
+      "I'll mentor others and promote responsible AI use in my community"
+    ],
+    "isActive": false,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "cd86e67e-eac6-4087-9fef-8f7cebee2223",
+    "programType": "cohort",
+    "offeringId": "195e7758-87c8-4885-834f-ea1a3b796eb2",
+    "questionNumber": 24,
+    "questionText": "How do you measure your own progress when no one is grading you?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I set personal milestones and track completion",
+      "I compare my current skills to where I started",
+      "I test myself with projects or challenges",
+      "I seek feedback from peers or mentors",
+      "I reflect on what I can do now that I couldn't before"
+    ],
+    "isActive": false,
+    "createdAt": "2026-01-30T11:11:08.862Z"
+  },
+  {
+    "questionId": "614de925-c297-4c49-9cde-635de50a6b09",
+    "programType": "ondemand",
+    "offeringId": "13e346f6-5802-46e8-bd8e-1a6d0e47b01f",
+    "questionNumber": 1,
+    "questionText": "who is siddhu",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "upcoming ceo",
+      "b"
+    ],
+    "isActive": false,
+    "createdAt": "2026-04-16T06:03:22.753Z"
+  },
+  {
+    "questionId": "15b75d4d-54c3-41f2-a715-b9fbc2af7c9f",
+    "programType": "workshop",
+    "offeringId": "a6a1c8fa-46c4-4787-9514-0a047bf8f408",
+    "questionNumber": 301,
+    "questionText": "Have you ever worked with crochet before?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Yes",
+      "No"
+    ],
+    "isActive": true,
+    "createdAt": "2026-03-12T10:14:09.923Z"
+  },
+  {
+    "questionId": "dce7f99f-f8af-4042-a3ce-a84f5a0e9729",
+    "programType": "workshop",
+    "offeringId": "a6a1c8fa-46c4-4787-9514-0a047bf8f408",
+    "questionNumber": 302,
+    "questionText": "Is this your first time learning crochet?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Yes",
+      "No"
+    ],
+    "isActive": true,
+    "createdAt": "2026-03-12T10:14:09.923Z"
+  },
+  {
+    "questionId": "3afa0edc-8164-4ef6-ba82-7c3095903c57",
+    "programType": "workshop",
+    "offeringId": "a6a1c8fa-46c4-4787-9514-0a047bf8f408",
+    "questionNumber": 303,
+    "questionText": "Why are you interested in joining this workshop?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Just to learn as a hobby",
+      "To start a small business",
+      "To explore job opportunities in crafts",
+      "Just curious to try something new"
+    ],
+    "isActive": true,
+    "createdAt": "2026-03-12T10:14:09.923Z"
+  },
+  {
+    "questionId": "d631ae31-5a4c-4603-bdf9-6ac922b3f261",
+    "programType": "workshop",
+    "offeringId": "a6a1c8fa-46c4-4787-9514-0a047bf8f408",
+    "questionNumber": 304,
+    "questionText": "How familiar are you with handmade crafts (like crochet, pipe cleaners, resin, etc.)?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "I have experience with some crafts",
+      "I have basic knowledge",
+      "I am a complete beginner"
+    ],
+    "isActive": true,
+    "createdAt": "2026-03-12T10:14:09.923Z"
+  },
+  {
+    "questionId": "53523021-ce0a-4ba2-8ab6-90ad42e4e424",
+    "programType": "workshop",
+    "offeringId": "a6a1c8fa-46c4-4787-9514-0a047bf8f408",
+    "questionNumber": 305,
+    "questionText": "What do you expect to gain from this workshop?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Learn a new creative skill",
+      "Start making products to sell",
+      "Improve my crafting skills",
+      "Just for fun and relaxation"
+    ],
+    "isActive": true,
+    "createdAt": "2026-03-12T10:14:09.923Z"
+  },
+  {
+    "questionId": "4bd42582-ff88-46b5-8224-9cfd0b8c14d4",
+    "programType": "all",
+    "offeringId": "99e0d49f-19b0-4fe3-bed3-f14c992a6e86",
+    "questionNumber": 1,
+    "questionText": "What is an interactive app?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Static website",
+      "Responds to user actions",
+      "Only backend system",
+      "Database tool"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "cdc68d7c-a50c-4828-bb35-ecbead18d546",
+    "programType": "all",
+    "offeringId": "99e0d49f-19b0-4fe3-bed3-f14c992a6e86",
+    "questionNumber": 2,
+    "questionText": "Which concept is core to frontend logic?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Event handling",
+      "Indexing",
+      "Deployment",
+      "Hosting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "c5c585bc-a13e-4d88-8df4-204a6f219eed",
+    "programType": "all",
+    "offeringId": "99e0d49f-19b0-4fe3-bed3-f14c992a6e86",
+    "questionNumber": 3,
+    "questionText": "AI in frontend is used for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Styling only",
+      "Recommendations & predictions",
+      "Database creation",
+      "Server scaling"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "664323cf-9173-458b-af23-35001742d416",
+    "programType": "all",
+    "offeringId": "99e0d49f-19b0-4fe3-bed3-f14c992a6e86",
+    "questionNumber": 4,
+    "questionText": "What triggers UI updates?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "API crash",
+      "User events",
+      "Server shutdown",
+      "Cache clear"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "a13a7bd7-34a2-4988-8b66-2ed80369af7d",
+    "programType": "all",
+    "offeringId": "99e0d49f-19b0-4fe3-bed3-f14c992a6e86",
+    "questionNumber": 5,
+    "questionText": "Chatbot UI mainly uses:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Loops",
+      "Conditional logic",
+      "Compilation",
+      "Indexing"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "fd34bfe9-4ec2-47de-9cbc-49e0aa26ba17",
+    "programType": "all",
+    "offeringId": "780c3d15-1a35-408c-b7ff-14ce937e7bf1",
+    "questionNumber": 1,
+    "questionText": "Backend is responsible for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "UI design",
+      "Data processing & logic",
+      "Styling",
+      "Animations"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "5e2eb9c4-ae9f-4ef8-b0a2-a2f04a8b3a19",
+    "programType": "all",
+    "offeringId": "780c3d15-1a35-408c-b7ff-14ce937e7bf1",
+    "questionNumber": 2,
+    "questionText": "API stands for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Application Programming Interface",
+      "Automated Process Integration",
+      "Advanced Programming Input",
+      "App Process Internal"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "d6d92b7d-3799-4b1e-9be6-cc24a127a0f8",
+    "programType": "all",
+    "offeringId": "780c3d15-1a35-408c-b7ff-14ce937e7bf1",
+    "questionNumber": 3,
+    "questionText": "AI backend mainly adds:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Static pages",
+      "Smart decision making",
+      "CSS styling",
+      "Hosting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "21fef135-5f31-49fe-9536-19281860097f",
+    "programType": "all",
+    "offeringId": "780c3d15-1a35-408c-b7ff-14ce937e7bf1",
+    "questionNumber": 4,
+    "questionText": "Request-response cycle starts with:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Database",
+      "Client request",
+      "Server crash",
+      "API error"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "f40acfa6-5a11-4078-ba2f-464bf5b068e6",
+    "programType": "all",
+    "offeringId": "780c3d15-1a35-408c-b7ff-14ce937e7bf1",
+    "questionNumber": 5,
+    "questionText": "Which language is common for backend?",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "HTML",
+      "Python",
+      "CSS",
+      "XML"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "1f6a0e1c-8763-4022-a660-ccbafcd1fe15",
+    "programType": "all",
+    "offeringId": "fbbd96da-c8b2-4515-a9dc-abb2c02b733f",
+    "questionNumber": 1,
+    "questionText": "Database is used to:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Style UI",
+      "Store data",
+      "Deploy app",
+      "Run frontend"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "4db94b75-9b11-408f-b762-acddcae5ddcd",
+    "programType": "all",
+    "offeringId": "fbbd96da-c8b2-4515-a9dc-abb2c02b733f",
+    "questionNumber": 2,
+    "questionText": "SQL databases are:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Structured",
+      "Unstructured",
+      "Random",
+      "Temporary"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "9568cee7-ee7a-4343-b085-345be65081ca",
+    "programType": "all",
+    "offeringId": "fbbd96da-c8b2-4515-a9dc-abb2c02b733f",
+    "questionNumber": 3,
+    "questionText": "NoSQL is best for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Fixed schema",
+      "Flexible data",
+      "Styling",
+      "Animations"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "77755418-4ad9-40b6-81b2-7d3f93cb7ee3",
+    "programType": "all",
+    "offeringId": "fbbd96da-c8b2-4515-a9dc-abb2c02b733f",
+    "questionNumber": 4,
+    "questionText": "Indexing improves:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Storage size",
+      "Query speed",
+      "UI design",
+      "Hosting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "81ff80b3-6c3e-4d36-a805-356c8aee45d5",
+    "programType": "all",
+    "offeringId": "fbbd96da-c8b2-4515-a9dc-abb2c02b733f",
+    "questionNumber": 5,
+    "questionText": "Persistent storage means:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Temporary data",
+      "Data saved long-term",
+      "Cache only",
+      "Logs"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "bc2d8c92-ed34-406d-95c9-ddaddbb54f81",
+    "programType": "all",
+    "offeringId": "a0fafea5-9996-43e1-b6ac-0f7e018c59c9",
+    "questionNumber": 1,
+    "questionText": "RAG stands for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Retrieval Augmented Generation",
+      "Random AI Generator",
+      "Rapid App Growth",
+      "Runtime AI Graph"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "61f808d9-46b4-48ad-b1b6-e21699f3e6e9",
+    "programType": "all",
+    "offeringId": "a0fafea5-9996-43e1-b6ac-0f7e018c59c9",
+    "questionNumber": 2,
+    "questionText": "RAG combines:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "UI + CSS",
+      "Retrieval + Generation",
+      "Backend + Hosting",
+      "API + DB"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "7d31889e-f83b-4972-8faf-47e4efa65a34",
+    "programType": "all",
+    "offeringId": "a0fafea5-9996-43e1-b6ac-0f7e018c59c9",
+    "questionNumber": 3,
+    "questionText": "Embeddings are:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Images",
+      "Vector representations",
+      "CSS files",
+      "Logs"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "e9898e8c-f6fb-4929-9f5c-5c56e8a1c18b",
+    "programType": "all",
+    "offeringId": "a0fafea5-9996-43e1-b6ac-0f7e018c59c9",
+    "questionNumber": 4,
+    "questionText": "RAG is useful when:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Data is static",
+      "External knowledge is needed",
+      "No data available",
+      "Only frontend exists"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "9211eb1a-c666-4e56-a0a4-a3f0626b682c",
+    "programType": "all",
+    "offeringId": "a0fafea5-9996-43e1-b6ac-0f7e018c59c9",
+    "questionNumber": 5,
+    "questionText": "RAG reduces need for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Servers",
+      "Fine-tuning",
+      "APIs",
+      "UI"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "85c10152-c3d8-49ca-9056-9d6c1d4b7533",
+    "programType": "all",
+    "offeringId": "e6b6ecfc-c85d-41a5-bccb-90d211921048",
+    "questionNumber": 1,
+    "questionText": "Fine-tuning means:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Training from scratch",
+      "Updating pre-trained model",
+      "Styling UI",
+      "Deploying app"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "671f5cf1-72d4-4228-9306-149a3e05afce",
+    "programType": "all",
+    "offeringId": "e6b6ecfc-c85d-41a5-bccb-90d211921048",
+    "questionNumber": 2,
+    "questionText": "SLM stands for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Small Language Model",
+      "Smart Logic Machine",
+      "System Level Model",
+      "Server Learning Module"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "05966929-da7a-4e0d-a2c1-66112ba918e2",
+    "programType": "all",
+    "offeringId": "e6b6ecfc-c85d-41a5-bccb-90d211921048",
+    "questionNumber": 3,
+    "questionText": "Fine-tuning requires:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Random data",
+      "Task-specific data",
+      "UI design",
+      "Hosting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "53134576-6884-4ed6-a2ac-88a15b9b99a8",
+    "programType": "all",
+    "offeringId": "e6b6ecfc-c85d-41a5-bccb-90d211921048",
+    "questionNumber": 4,
+    "questionText": "Alternative to fine-tuning:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Prompt engineering",
+      "CSS",
+      "API creation",
+      "Deployment"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "c6c65096-d275-4924-baef-3f97a2871037",
+    "programType": "all",
+    "offeringId": "e6b6ecfc-c85d-41a5-bccb-90d211921048",
+    "questionNumber": 5,
+    "questionText": "Fine-tuning improves:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "UI",
+      "Accuracy for specific tasks",
+      "Storage",
+      "Hosting"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "194d18a5-9981-4c85-a7d3-40ef32d7dbb5",
+    "programType": "all",
+    "offeringId": "3d5c95f8-7b12-4c22-9c67-1f4ad213ab78",
+    "questionNumber": 2,
+    "questionText": "Cloud platform example:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "AWS",
+      "HTML",
+      "CSS",
+      "JSON"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "0d55d020-08f6-4ad8-bfe4-db827d1f0311",
+    "programType": "all",
+    "offeringId": "0b8860c3-8897-4f2e-bea2-bdd07f1fca00",
+    "questionNumber": 1,
+    "questionText": "Unit testing tests:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Whole system",
+      "Small components",
+      "UI only",
+      "Deployment"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "625f7bc9-9ebe-4a3f-8604-05c979cf3ba6",
+    "programType": "all",
+    "offeringId": "0b8860c3-8897-4f2e-bea2-bdd07f1fca00",
+    "questionNumber": 2,
+    "questionText": "Error handling helps:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Crash system",
+      "Manage failures",
+      "Delete data",
+      "Slow app"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "d58946da-74e3-4197-a23b-eb496764b127",
+    "programType": "all",
+    "offeringId": "0b8860c3-8897-4f2e-bea2-bdd07f1fca00",
+    "questionNumber": 3,
+    "questionText": "Debugging is:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Writing code",
+      "Finding & fixing errors",
+      "Deploying",
+      "Designing"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "182b2eb1-07d5-4108-8437-25a026e5fc8a",
+    "programType": "all",
+    "offeringId": "0b8860c3-8897-4f2e-bea2-bdd07f1fca00",
+    "questionNumber": 4,
+    "questionText": "Integration testing checks:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "UI colors",
+      "Module interaction",
+      "Hosting",
+      "Storage"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "9da688d9-6be1-4a1e-84ca-41a9f1bd9cf9",
+    "programType": "all",
+    "offeringId": "0b8860c3-8897-4f2e-bea2-bdd07f1fca00",
+    "questionNumber": 5,
+    "questionText": "Try-catch is used for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Styling",
+      "Error handling",
+      "Database",
+      "Deployment"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "8a004c95-e9cb-4100-805a-188c9d055449",
+    "programType": "all",
+    "offeringId": "3d5c95f8-7b12-4c22-9c67-1f4ad213ab78",
+    "questionNumber": 3,
+    "questionText": "CI/CD stands for:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Continuous Integration / Continuous Deployment",
+      "Code Internal Control",
+      "Cloud Input Data",
+      "Centralized Info Dev"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "16379bcb-bddf-40eb-b916-6ce38bf4125b",
+    "programType": "all",
+    "offeringId": "3d5c95f8-7b12-4c22-9c67-1f4ad213ab78",
+    "questionNumber": 4,
+    "questionText": "Scalability means:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Reduce users",
+      "Handle more users",
+      "Delete data",
+      "Slow system"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "24aaa980-6402-454f-96ab-545b05d9e1cf",
+    "programType": "all",
+    "offeringId": "3d5c95f8-7b12-4c22-9c67-1f4ad213ab78",
+    "questionNumber": 5,
+    "questionText": "Load balancing helps:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Increase errors",
+      "Distribute traffic",
+      "Reduce storage",
+      "Stop servers"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  },
+  {
+    "questionId": "9ce68a3a-87a0-4286-884d-3515ae1a9b65",
+    "programType": "workshop",
+    "offeringId": "3d5c95f8-7b12-4c22-9c67-1f4ad213ab78",
+    "questionNumber": 1,
+    "questionText": "Deployment means:",
+    "questionType": "mcq",
+    "mcqOptions": [
+      "Writing code",
+      "Making app live",
+      "Designing UI",
+      "Testing only"
+    ],
+    "isActive": true,
+    "createdAt": "2026-04-08T10:19:36.431Z"
+  }
+]

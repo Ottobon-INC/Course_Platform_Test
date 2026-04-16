@@ -105,9 +105,9 @@ function RegistrationPage() {
         if (slug) {
             const currentSlug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
 
-            // Only resolve if slug doesn't match or we don't have an offeringId
-            // Only resolve if slug doesn't match or we don't have an offeringId or slots
-            if (currentSlug !== slug || !registrationData.offeringId || !registrationData.slots) {
+            // Only resolve if we don't have an offeringId OR if the slug doesn't match the specificCourse title
+            if (!registrationData.offeringId || currentSlug !== slug) {
+                console.log(`Resolving course for slug: ${slug}, current: ${currentSlug}`);
                 const resolveSlug = async () => {
                     try {
                         let offeringsData;
@@ -180,35 +180,41 @@ function RegistrationPage() {
     }
 
     const handleRegistrationSubmit = (data: Partial<StudentData>): void => {
-        setRegistrationData(prev => {
-            const updated = { ...prev, ...data }
-            const slug = (updated.specificCourse || '').toLowerCase().replace(/ /g, '-')
-            
-            // Perform navigation based on the updated state
-            if (updated.assessmentRequired === false) {
-                if ((updated.priceCents || 0) > 0) {
-                    setLocation(`/registration/${updated.programType}/${slug}/payment`)
-                } else {
-                    setLocation(`/registration/${updated.programType}/${slug}/success`)
-                }
+        // Update state first
+        setRegistrationData(prev => ({ ...prev, ...data }));
+        
+        // Compute navigation target using the most reliable current values
+        // programType is the constant from line 100 which is derived from URL/State
+        // Use param from URL if possible, otherwise state
+        const currentProgramType = assessmentParams?.programType || courseParams?.programType || programTypeParams?.programType || programType || registrationData.programType;
+        const currentSpecificCourse = data.specificCourse || registrationData.specificCourse;
+        const slug = (currentSpecificCourse || '').toLowerCase().replace(/ /g, '-');
+        
+        // Try to get assessmentRequired from state or data
+        const assessmentRequired = data.assessmentRequired !== undefined ? data.assessmentRequired : registrationData.assessmentRequired;
+        
+        if (assessmentRequired === false) {
+            if ((registrationData.priceCents || 0) > 0) {
+                setLocation(`/registration/${currentProgramType}/${slug}/payment`);
             } else {
-                setLocation(`/registration/${updated.programType}/${slug}/assessment`)
+                setLocation(`/registration/${currentProgramType}/${slug}/success`);
             }
-            
-            return updated
-        })
+        } else {
+            setLocation(`/registration/${currentProgramType}/${slug}/assessment`);
+        }
     }
 
     const handleAssessmentSubmit = (answers: Answer): void => {
-        setAssessmentAnswers(answers)
-        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-')
+        setAssessmentAnswers(answers);
+        const slug = (registrationData.specificCourse || '').toLowerCase().replace(/ /g, '-');
+        const currentProgramType = registrationData.programType || programType;
         
         if ((registrationData.priceCents || 0) > 0) {
-            setLocation(`/registration/${registrationData.programType}/${slug}/payment`)
+            setLocation(`/registration/${currentProgramType}/${slug}/payment`);
         } else {
             // Clear localStorage on success
-            localStorage.removeItem(STORAGE_KEY)
-            setLocation(`/registration/${registrationData.programType}/${slug}/success`)
+            localStorage.removeItem(STORAGE_KEY);
+            setLocation(`/registration/${currentProgramType}/${slug}/success`);
         }
     }
 
@@ -274,6 +280,7 @@ function RegistrationPage() {
                             }}
                             slots={registrationData.slots || []}
                             showSlots={registrationData.showSlots ?? true}
+                            assessmentRequired={registrationData.assessmentRequired !== false}
                         />
                     )}
                     {currentStep === 3 && (

@@ -18,7 +18,7 @@ const PROFILE_OPTIONS = [
     { value: "general", label: "General" },
 ] as const;
 
-const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], showSlots = true }: RegistrationStepProps & { slots?: any[], showSlots?: boolean }) => {
+const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], showSlots = true, assessmentRequired = true }: RegistrationStepProps & { slots?: any[], showSlots?: boolean, assessmentRequired?: boolean }) => {
     const session = readStoredSession();
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
@@ -57,7 +57,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 specificCourse: selectedCourse || prev.specificCourse,
                 profileCategory,
                 isCollegeStudent,
-                plan: priceCents ? (priceCents / 100).toString() : prev.plan,
+                plan: priceCents !== undefined ? (priceCents / 100).toString() : prev.plan,
                 ...(!isCollegeStudent
                     ? {
                         collegeName: "",
@@ -70,6 +70,15 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             };
         });
     }, [programType, selectedCourse, priceCents]);
+
+    useEffect(() => {
+        if (priceCents !== undefined) {
+            setFormData(prev => ({
+                ...prev,
+                plan: (priceCents / 100).toString()
+            }));
+        }
+    }, [priceCents]);
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -156,7 +165,8 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         }
 
         if (programType === "workshop") {
-            if (!formData.plan) {
+            // Only require plan if price is > 0, or if price is 0 explicitly allow it
+            if (formData.plan === "" && priceCents !== 0) {
                 newErrors.plan = "Please select a plan";
             }
         }
@@ -474,7 +484,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-field ${touched.email && errors.email ? "border-red-500" : ""
+                            className={`input-email ${touched.email && errors.email ? "border-red-500" : ""
                                 }`}
                             placeholder="your.email@example.com"
                         />
@@ -761,10 +771,13 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                     One-time payment
                                 </span>
                                 <span className="text-orange-600 font-black text-xl">
-                                    ₹{priceCents ? priceCents / 100 : '---'}
+                                    ₹{priceCents !== undefined ? priceCents / 100 : '---'}
                                 </span>
                             </div>
-                            <input type="hidden" name="plan" value={priceCents ? (priceCents / 100).toString() : ""} />
+                            <input type="hidden" name="plan" value={formData.plan} />
+                            {touched.plan && errors.plan && (
+                                <p className="error-text text-red-500 text-xs mt-1">{errors.plan}</p>
+                            )}
                         </div>
                     )}
 
@@ -824,7 +837,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                 </>
                             ) : (
                                 <>
-                                    Continue to Assessment
+                                    {assessmentRequired ? 'Continue to Assessment' : (priceCents && priceCents > 0 ? 'Continue to Payment' : 'Complete Registration')}
                                     <svg
                                         className="inline-block ml-2 w-5 h-5"
                                         fill="none"

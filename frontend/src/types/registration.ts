@@ -94,6 +94,9 @@ export interface RegistrationStepProps {
     offeringId?: string
     priceCents?: number
     onBack?: () => void
+    assessmentRequired?: boolean
+    slots?: any[]
+    showSlots?: boolean
 }
 
 export interface AssessmentStepProps {
@@ -126,7 +129,7 @@ export interface CourseOffering {
     assessmentRequired: boolean;
     applicationRequired: boolean;
     showSlots: boolean;
-    slotsJson?: any;
+    slotsJson: any; // Changed from slotsJson?: any;
     qrImageUrl?: string | null;
     course: {
         courseId: string;

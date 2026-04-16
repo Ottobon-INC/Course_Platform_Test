@@ -42,13 +42,13 @@ function Router() {
       <Route path="/our-courses/on-demand" component={OnDemandPage} />
       <Route path="/our-courses/workshops" component={WorkshopPage} />
 
-      {/* Registration Routes - URL-driven multi-stage flow */}
-      <Route path="/registration" component={RegistrationPage} />
-      <Route path="/registration/:programType" component={RegistrationPage} />
-      <Route path="/registration/:programType/:courseSlug" component={RegistrationPage} />
-      <Route path="/registration/:programType/:courseSlug/assessment" component={RegistrationPage} />
-      <Route path="/registration/:programType/:courseSlug/payment" component={RegistrationPage} />
+      {/* Registration Routes - Most specific first */}
       <Route path="/registration/:programType/:courseSlug/success" component={RegistrationPage} />
+      <Route path="/registration/:programType/:courseSlug/payment" component={RegistrationPage} />
+      <Route path="/registration/:programType/:courseSlug/assessment" component={RegistrationPage} />
+      <Route path="/registration/:programType/:courseSlug" component={RegistrationPage} />
+      <Route path="/registration/:programType" component={RegistrationPage} />
+      <Route path="/registration" component={RegistrationPage} />
 
       {/* Course Routes */}
       <Route path="/course/:id/assessment" component={AssessmentPage} />

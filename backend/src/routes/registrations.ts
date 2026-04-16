@@ -94,20 +94,22 @@ registrationsRouter.get("/assessment-questions", async (req, res, next) => {
       return res.status(400).json({ error: "Invalid programType" });
     }
 
-    const questions = await prisma.assessmentQuestion.findMany({
-      where: {
-        isActive: true,
-        AND: [
-          {
-            OR: [{ offeringId: null }, { offeringId }],
-          },
-          {
-            OR: [{ programType: "all" }, { programType: programType as any }],
-          },
-        ],
-      },
-      orderBy: { questionNumber: "asc" },
+    // 1. Try to find a specific assessment for this offering
+    let assessment = await prisma.assessmentQuestion.findFirst({
+      where: { offeringId }
     });
+
+    // 2. If not found, fall back to global questions for that program type
+    if (!assessment) {
+      assessment = await prisma.assessmentQuestion.findFirst({
+        where: {
+          offeringId: null,
+          programType: programType as any
+        }
+      });
+    }
+
+    const questions = assessment?.questions || [];
 
     return res.json({ questions });
   } catch (error) {
