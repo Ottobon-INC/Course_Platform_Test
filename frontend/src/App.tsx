@@ -24,7 +24,7 @@ import CourseDetailsPage from "@/pages/CourseDetailsPage";
 import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
-import StudentDashboardPage from "@/pages/Strudent_Dashboard";
+import StudentDashboardPage from "@/pages/StudentDashboard";
 import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
@@ -60,6 +60,15 @@ function Router() {
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
       <Route path="/student-dashboard" component={StudentDashboardPage} />
+      <Route path="/student-dashboard/:rest*" component={StudentDashboardPage} />
+      <Route path="/analysis" component={StudentDashboardPage} />
+      <Route path="/feedback" component={StudentDashboardPage} />
+      <Route path="/settings" component={StudentDashboardPage} />
+      <Route path="/leaderboard" component={StudentDashboardPage} />
+      <Route path="/cohorts" component={StudentDashboardPage} />
+      <Route path="/my-courses" component={StudentDashboardPage} />
+      <Route path="/certificates" component={StudentDashboardPage} />
+      <Route path="/messages" component={StudentDashboardPage} />
       <Route path="/auth/callback" component={AuthCallbackPage} />
 
 
@@ -87,7 +96,15 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
     location.startsWith("/ondemand/") ||
     location.startsWith("/registration") ||
     location.startsWith("/blogs") ||
-    location === "/student-dashboard";
+    location.startsWith("/student-dashboard") ||
+    location === "/messages" ||
+    location === "/leaderboard" ||
+    location === "/cohorts" ||
+    location === "/my-courses" ||
+    location === "/certificates" ||
+    location === "/analysis" ||
+    location === "/feedback" ||
+    location === "/settings";
 
   useEffect(() => {
     if (typeof window === "undefined") {
