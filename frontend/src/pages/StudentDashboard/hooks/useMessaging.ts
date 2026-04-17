@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { API_BASE_URL } from "@/lib/api";
 import { readStoredSession } from "@/utils/session";
-import type { Message, Conversation, ReplyInfo, MessageReactions, AllPollVotes } from "../pages/messaging/types";
+import type { Message, Conversation, ReplyInfo, MessageReactions, AllPollVotes } from "../components/messaging/types";
 
 export function useMessaging(selectedConversationId: string | null) {
   const [messageReactions, setMessageReactions] = useState<MessageReactions>({});
@@ -18,8 +18,8 @@ export function useMessaging(selectedConversationId: string | null) {
   const fetchConversations = useCallback(async (cohortId?: string | null) => {
     if (!session?.accessToken) return;
     try {
-      const url = cohortId
-        ? `${API_BASE_URL}/api/messaging/conversations?cohortId=${cohortId}`
+      const url = cohortId 
+        ? `${API_BASE_URL}/api/messaging/conversations?cohortId=${cohortId}` 
         : `${API_BASE_URL}/api/messaging/conversations`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -41,11 +41,11 @@ export function useMessaging(selectedConversationId: string | null) {
       if (data.messages) {
         const msgs = data.messages.reverse();
         setMessages(msgs);
-
+        
         // Parse reactions and poll votes from history
         const loadedReactions: MessageReactions = {};
         const loadedVotes: AllPollVotes = {};
-
+        
         msgs.forEach((m: any) => {
           if (m.reactions && m.reactions.length > 0) {
             loadedReactions[m.id] = {};
@@ -99,11 +99,11 @@ export function useMessaging(selectedConversationId: string | null) {
           [msg.conversation_id]: (prev[msg.conversation_id] || 0) + 1,
         }));
       }
-
+      
       // Update the last message in the sidebar list
-      setConversations((prev) =>
-        prev.map(c => c.id === msg.conversation_id
-          ? { ...c, last_message: msg.content, last_message_at: msg.created_at }
+      setConversations((prev) => 
+        prev.map(c => c.id === msg.conversation_id 
+          ? { ...c, last_message: msg.content, last_message_at: msg.created_at } 
           : c
         )
       );
@@ -126,7 +126,7 @@ export function useMessaging(selectedConversationId: string | null) {
     socket.on("message_edited", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     socket.on("message_deleted", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     socket.on("message_pinned", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
-
+    
     socket.on("reactions_updated", (data: { messageId: string, reactions: any }) => {
       setMessageReactions(p => ({ ...p, [data.messageId]: data.reactions }));
     });

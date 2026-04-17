@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { verifyAccessToken } from "../services/sessionService";
 import { ensurePersonaProfile } from "../services/personaProfileService";
 import { resolveCourseId } from "../services/courseResolutionService";
+import { checkCohortAccessFromRequest } from "../services/cohortAccess";
 const progressPayloadSchema = z.object({
     progress: z.number().int().min(0).max(100),
     status: z.enum(["not_started", "in_progress", "completed"]),
@@ -270,6 +271,11 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
     const resolvedCourseId = await resolveCourseId(courseKey);
     if (!resolvedCourseId) {
         res.status(404).json({ message: "Course not found" });
+        return;
+    }
+    const accessDecision = await checkCohortAccessFromRequest(req, resolvedCourseId);
+    if (!accessDecision.allowed) {
+        res.status(accessDecision.status).json({ message: accessDecision.message });
         return;
     }
     const userId = getOptionalAuthUserId(req);

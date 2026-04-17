@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import { useNavigate } from 'react-router-dom';
+import illustrationImage from '@/assets/illustration.png';
+import avatarImage from '@/assets/avatar.png';
 
 export function Home() {
   const { data: summary, isLoading } = useDashboardSummary();
@@ -13,6 +15,13 @@ export function Home() {
 
   const toggleTask = (id: number) => {
     setTasks(tasks.map(t => t.id === id ? { ...t, checked: !t.checked } : t));
+  };
+
+  const resolveLearnPath = (courseSlug: string | null | undefined, lessonSlug?: string | null) => {
+    if (!courseSlug) {
+      return null;
+    }
+    return `/course/${courseSlug}/learn/${lessonSlug || 'start'}`;
   };
 
   if (isLoading) {
@@ -55,14 +64,17 @@ export function Home() {
             </div>
             {resumeCourse && (
               <button
-                onClick={() => navigate(`/course/${resumeCourse.courseSlug}/learn/${resumeCourse.lastLessonSlug || ''}`)}
+                onClick={() => {
+                  const target = resolveLearnPath(resumeCourse.courseSlug, resumeCourse.lastLessonSlug);
+                  if (target) navigate(target);
+                }}
                 className="bg-orange-primary text-white border-none py-3 px-6 rounded-lg font-bold cursor-pointer transition-all shadow-md hover:-translate-y-1 hover:shadow-lg"
               >
                 Continue Learning
               </button>
             )}
           </div>
-          <img src="/assets/illustration.png" alt="Study Desk" className="w-[180px] h-[180px] object-contain self-end absolute right-4 bottom-4 z-0" />
+          <img src={illustrationImage} alt="Study Desk" className="w-[180px] h-[180px] object-contain self-end absolute right-4 bottom-4 z-0" />
         </div>
 
         <div className="col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col items-center">
@@ -140,7 +152,13 @@ export function Home() {
                     <i className="fab fa-node-js text-[#68A063] text-xl"></i>
                   </div>
                   <button
-                    onClick={() => navigate(`/course/${course.courseSlug}/learn/${('lastLessonSlug' in course ? course.lastLessonSlug : '') || ''}`)}
+                    onClick={() => {
+                      const target = resolveLearnPath(
+                        course.courseSlug,
+                        'lastLessonSlug' in course ? course.lastLessonSlug : null,
+                      );
+                      if (target) navigate(target);
+                    }}
                     className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow"
                   >
                     Resume
@@ -230,16 +248,16 @@ export function Home() {
           </div>
           <div className="flex items-end justify-center gap-2 h-[80px] mb-4 w-full flex-grow">
             <div className="flex flex-col items-center">
-              <img src="/assets/avatar.png" className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
+              <img src={avatarImage} className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
               <div className="w-8 h-10 bg-gray-200 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-text">2</div>
             </div>
             <div className="flex flex-col items-center">
               <i className="fas fa-crown text-orange-primary mb-1 text-[0.8rem]"></i>
-              <img src="/assets/avatar.png" className="w-[36px] h-[36px] rounded-full border-2 border-orange-primary shadow-sm -mb-2 z-10" />
+              <img src={avatarImage} className="w-[36px] h-[36px] rounded-full border-2 border-orange-primary shadow-sm -mb-2 z-10" />
               <div className="w-10 h-14 bg-orange-soft rounded-t-md flex items-end justify-center pb-1.5 text-sm font-bold text-orange-primary border border-orange-primary">1</div>
             </div>
             <div className="flex flex-col items-center">
-              <img src="/assets/avatar.png" className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
+              <img src={avatarImage} className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
               <div className="w-8 h-7 bg-gray-200 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-text">3</div>
             </div>
           </div>

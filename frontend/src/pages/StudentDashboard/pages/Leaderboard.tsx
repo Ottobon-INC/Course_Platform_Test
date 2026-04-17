@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LeaderboardRow, RECENT_ACTIVITIES, ActivityItemType } from '../constants/mockData';
+import avatarImage from '@/assets/avatar.png';
 
 function ActivityItem({ activity }: { activity: ActivityItemType }) {
   return (
@@ -139,9 +140,9 @@ function EnhancedLeaderboardRow({ row }: { row: LeaderboardRow }) {
       <td className={`py-5 px-4 border-b border-border-soft ${row.isCurrentUser ? 'border-b-[#FCA5A5]' : ''}`}>
         <div className="flex items-center gap-3">
           {row.name.includes('Alex') ? (
-            <img src="/assets/avatar.png" className="w-[30px] h-[30px] rounded-full" style={{ opacity: row.opacity }} alt="Avatar" />
+            <img src={avatarImage} className="w-[30px] h-[30px] rounded-full" style={{ opacity: row.opacity }} alt="Avatar" />
           ) : row.name.includes('Name / Team') ? (
-            <img src="/assets/avatar.png" className="w-[30px] h-[30px] rounded-full grayscale" alt="Avatar" />
+            <img src={avatarImage} className="w-[30px] h-[30px] rounded-full grayscale" alt="Avatar" />
           ) : (
             <div className="w-[30px] h-[30px] rounded-full bg-gray-200"></div>
           )}
@@ -164,13 +165,13 @@ export function Leaderboard() {
   const [view, setView] = useState<'score' | 'activity'>('score');
 
   const tableData: LeaderboardRow[] = [
-    { rank: '1', rankClass: 'text-gray-text', name: 'David Kim', score: '5,800 pts', progress: 95, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 12, movement: 'neutral', badges: ['Super', 'Fast'] },
-    { rank: '2', rankClass: 'text-gray-text', name: 'Sarah Lee', score: '5,200 pts', progress: 90, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 9, movement: 'up', badges: ['Elite'] },
-    { rank: '3', rankClass: 'text-gray-text', name: 'Kenjiro Tanaka', score: '4,900 pts', progress: 85, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 5, movement: 'down', badges: ['Active'] },
-    { rank: '4', rankClass: 'text-gray-text', name: 'Mana Kazai', score: '4,800 pts', progress: 80, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 3, movement: 'up', badges: ['Newbie'] },
-    { rank: '5', rankClass: 'text-orange-primary', name: 'Alex Johnson', score: '2,450 pts', progress: 50, isCurrentUser: true, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 15, movement: 'up', badges: ['MVP', 'Early Bird'] },
-    { rank: '6', rankClass: 'text-gray-text', name: 'James Wilson', score: '2,100 pts', progress: 45, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 2, movement: 'down', badges: [] },
-    { rank: '7', rankClass: 'text-gray-text', name: 'Emma Davis', score: '1,950 pts', progress: 30, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: '/assets/avatar.png', streak: 1, movement: 'neutral', badges: [] },
+    { rank: '1', rankClass: 'text-gray-text', name: 'David Kim', score: '5,800 pts', progress: 95, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 12, movement: 'neutral', badges: ['Super', 'Fast'] },
+    { rank: '2', rankClass: 'text-gray-text', name: 'Sarah Lee', score: '5,200 pts', progress: 90, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 9, movement: 'up', badges: ['Elite'] },
+    { rank: '3', rankClass: 'text-gray-text', name: 'Kenjiro Tanaka', score: '4,900 pts', progress: 85, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 5, movement: 'down', badges: ['Active'] },
+    { rank: '4', rankClass: 'text-gray-text', name: 'Mana Kazai', score: '4,800 pts', progress: 80, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 3, movement: 'up', badges: ['Newbie'] },
+    { rank: '5', rankClass: 'text-orange-primary', name: 'Alex Johnson', score: '2,450 pts', progress: 50, isCurrentUser: true, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 15, movement: 'up', badges: ['MVP', 'Early Bird'] },
+    { rank: '6', rankClass: 'text-gray-text', name: 'James Wilson', score: '2,100 pts', progress: 45, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 2, movement: 'down', badges: [] },
+    { rank: '7', rankClass: 'text-gray-text', name: 'Emma Davis', score: '1,950 pts', progress: 30, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 1, movement: 'neutral', badges: [] },
   ];
 
   return (
@@ -202,7 +203,7 @@ export function Leaderboard() {
                 <div className="flex flex-wrap items-center justify-between gap-6">
                   <div className="flex items-center gap-6">
                     <span className="text-6xl font-extrabold text-orange-primary leading-none">#5</span>
-                    <img src="/assets/avatar.png" alt="Alex" className="w-[60px] h-[60px] rounded-full" />
+                    <img src={avatarImage} alt="Alex" className="w-[60px] h-[60px] rounded-full" />
                     <span className="text-2xl font-extrabold">Alex Johnson</span>
                   </div>
                   <div className="text-right">

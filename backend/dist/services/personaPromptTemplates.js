@@ -101,5 +101,9 @@ export const PERSONA_PROMPT_TEMPLATES = {
 };
 export const PERSONA_KEYS = Object.keys(PERSONA_PROMPT_TEMPLATES);
 export function getPersonaPromptTemplate(key) {
-    return PERSONA_PROMPT_TEMPLATES[key];
+    const normalizedKey = key;
+    if (normalizedKey in PERSONA_PROMPT_TEMPLATES) {
+        return PERSONA_PROMPT_TEMPLATES[normalizedKey];
+    }
+    return PERSONA_PROMPT_TEMPLATES.non_it_migrant;
 }

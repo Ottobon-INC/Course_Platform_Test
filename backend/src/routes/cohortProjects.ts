@@ -80,7 +80,7 @@ async function resolveCourseIdOrError(courseKeyRaw: string | undefined): Promise
 
 async function resolveCohortMembership(courseId: string, userId: string): Promise<MembershipDecision> {
   const cohorts = await prisma.cohort.findMany({
-    where: { courseId, isActive: true },
+    where: { isActive: true, offering: { courseId } },
     select: { cohortId: true, name: true },
   });
 

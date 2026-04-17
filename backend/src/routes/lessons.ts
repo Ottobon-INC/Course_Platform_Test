@@ -7,6 +7,7 @@ import { verifyAccessToken } from "../services/sessionService";
 import { ensurePersonaProfile } from "../services/personaProfileService";
 
 import { resolveCourseId } from "../services/courseResolutionService";
+import { checkCohortAccessFromRequest } from "../services/cohortAccess";
 
 const progressPayloadSchema = z.object({
   progress: z.number().int().min(0).max(100),
@@ -347,10 +348,52 @@ lessonsRouter.get(
       return;
     }
 
+    const outlineOnly = typeof req.query.outline === "string" && req.query.outline === "true";
+
+    if (outlineOnly) {
+      const topics = await prisma.topic.findMany({
+        where: { courseId: resolvedCourseId },
+        orderBy: [{ moduleNo: "asc" }, { topicNumber: "asc" }],
+        select: {
+          topicId: true,
+          courseId: true,
+          moduleNo: true,
+          moduleName: true,
+          topicNumber: true,
+          topicName: true,
+          contentType: true,
+          isPreview: true,
+        },
+      });
+
+      res.status(200).json({
+        topics: topics.map((topic) => ({
+          ...topic,
+          videoUrl: null,
+          textContent: null,
+          pptUrl: null,
+          simulation: null,
+        })),
+      });
+      return;
+    }
+
+    const accessDecision = await checkCohortAccessFromRequest(req, resolvedCourseId);
+    if (!accessDecision.allowed) {
+      res.status(accessDecision.status).json({ message: accessDecision.message });
+      return;
+    }
+
     const userId = getOptionalAuthUserId(req);
-    const personaProfile = userId
-      ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
-      : null;
+    let personaProfile: { personaKey: string } | null = null;
+    if (userId) {
+      try {
+        personaProfile = await ensurePersonaProfile({ userId, courseId: resolvedCourseId });
+      } catch (error) {
+        // Never block course outline rendering on persona profile persistence issues.
+        console.warn("Unable to resolve persona profile; falling back to default content assets.", error);
+      }
+    }
     const personaKey = personaProfile?.personaKey ?? null;
 
     const topics = await prisma.topic.findMany({

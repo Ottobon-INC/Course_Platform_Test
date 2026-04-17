@@ -1,20 +1,17 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import MessagingSidebar from "./MessagingSidebar";
 import ChatWindow from "./ChatWindow";
 import Composer from "./Composer";
 import type { Conversation, Message, MsgUser, ReplyInfo, MessageReactions, AllPollVotes } from "./types";
 import "./messaging.css";
 import { useDashboardSummary } from "../../hooks/useDashboardSummary";
-import { useMessaging } from "../../hooks/useMessaging";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { API_BASE_URL, buildApiUrl } from "@/lib/api";
+import { useMessaging } from "../../hooks/useMessaging";
 import { readStoredSession } from "@/utils/session";
 
 export default function MessagingModule() {
   const [session, setSession] = useState<any>(null);
-  const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
-  const [selectedCourseTitle, setSelectedCourseTitle] = useState<string | null>(null);
   
   useEffect(() => {
     const init = async () => {
@@ -25,36 +22,8 @@ export default function MessagingModule() {
   }, []);
 
   const { data: summary } = useDashboardSummary();
-
-  // Group cohorts by Course Title
-  const courseGroups = useMemo(() => {
-    if (!summary?.cohorts) return {};
-    return summary.cohorts.reduce((acc: any, c) => {
-      const title = c.title;
-      if (!acc[title]) acc[title] = [];
-      acc[title].push(c);
-      return acc;
-    }, {});
-  }, [summary]);
-
-  const uniqueCourses = Object.keys(courseGroups);
-
-  // Sync initial selection or when data loads
-  useEffect(() => {
-    if (uniqueCourses.length > 0 && !selectedCourseTitle) {
-      const firstCourse = uniqueCourses[0];
-      setSelectedCourseTitle(firstCourse);
-      setSelectedCohortId(courseGroups[firstCourse][0].id);
-    }
-  }, [uniqueCourses, selectedCourseTitle, courseGroups]);
-
-  const handleCourseChange = (title: string) => {
-    setSelectedCourseTitle(title);
-    setSelectedCohortId(courseGroups[title][0].id);
-  };
-
+  const selectedCohortId = summary?.cohorts?.[0]?.id || null;
   const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
-  const CURRENT_USER_ID = session?.userId || "Guest";
 
   const [activeCategory, setActiveCategory] = useState("team");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -83,7 +52,7 @@ export default function MessagingModule() {
   // ── Fetch Org Users ──
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!selectedCohortId || !headers) return;
+      if (!selectedCohortId) return;
       try {
         const res = await apiRequest("GET", `/api/messaging/cohort-members?cohortId=${selectedCohortId}`, undefined, headers ? { headers } : undefined);
         const data = await res.json();
@@ -283,13 +252,6 @@ export default function MessagingModule() {
         lastReadTimes={unseenCounts as any}
         onCreateTeamChat={handleCreateTeamChat}
         onStartChatWithUser={handleStartChatWithUser}
-        // Filter Props
-        courses={uniqueCourses}
-        selectedCourse={selectedCourseTitle}
-        onCourseChange={handleCourseChange}
-        batches={selectedCourseTitle ? courseGroups[selectedCourseTitle] : []}
-        selectedBatchId={selectedCohortId}
-        onBatchChange={setSelectedCohortId}
       />
       <div className="msg-main-area">
         <ChatWindow

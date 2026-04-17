@@ -22,9 +22,12 @@ export type DashboardSummary = {
     id: string;
     title: string;
     courseSlug: string | null;
+    lastLessonSlug: string | null;
+    lastAccessedModule: string;
     status: "Upcoming" | "Ongoing" | "Completed";
     progress: number;
     nextSessionDate: string | null;
+    batchNo: number;
   }>;
   onDemand: Array<{
     id: string;
@@ -40,6 +43,18 @@ export type DashboardSummary = {
     date: string;
     time: string;
     isJoined: boolean;
+  }>;
+  catalog: Array<{
+    id: string;
+    courseId: string;
+    title: string;
+    courseSlug: string | null;
+    category: string;
+    price: number;
+    rating: number;
+    students: number;
+    thumbnailUrl: string | null;
+    programType: "cohort" | "ondemand" | "workshop";
   }>;
   completed: Array<{ title: string; date: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;

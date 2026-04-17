@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SETTINGS_NOTIFICATION_LABELS } from '../constants/mockData';
+import avatarImage from '@/assets/avatar.png';
 
 export function Settings() {
   const [fullName, setFullName] = useState('Alex Johnson');
@@ -49,7 +50,7 @@ export function Settings() {
             <div className="flex flex-col md:flex-row gap-6 mb-6">
               <div className="flex flex-col items-center flex-shrink-0">
                 <div className="relative group">
-                  <img src="/assets/avatar.png" alt="Alex" className="w-[80px] h-[80px] rounded-full object-cover border-4 border-gray-50 shadow-sm" />
+                  <img src={avatarImage} alt="Alex" className="w-[80px] h-[80px] rounded-full object-cover border-4 border-gray-50 shadow-sm" />
                   <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <i className="fas fa-camera text-white"></i>
                   </div>

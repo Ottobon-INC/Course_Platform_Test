@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { assertWithinRagRateLimit, RateLimitError } from "../rag/rateLimiter";
 import { getModulePromptUsageCount, incrementModulePromptUsage, PROMPT_LIMIT_PER_MODULE } from "./promptUsageService";
 import { rewriteFollowUpQuestion, summarizeConversation } from "../rag/openAiClient";
-import { getPersonaPromptTemplate } from "./personaPromptTemplates";
+import { getPersonaPromptTemplate, PERSONA_KEYS, type PersonaKey } from "./personaPromptTemplates";
 import { ensurePersonaProfile } from "./personaProfileService";
 import { askCourseAssistant } from "../rag/ragService";
 import { resolveCourseId } from "./courseResolutionService";
@@ -275,7 +275,12 @@ export async function processUserQuery(params: {
         userId,
         courseId: resolvedCourseId,
     });
-    const personaPrompt = personaProfile ? getPersonaPromptTemplate(personaProfile.personaKey) : null;
+    const personaKey = personaProfile?.personaKey;
+    const normalizedPersonaKey =
+      personaKey && PERSONA_KEYS.includes(personaKey as PersonaKey)
+        ? (personaKey as PersonaKey)
+        : null;
+    const personaPrompt = normalizedPersonaKey ? getPersonaPromptTemplate(normalizedPersonaKey) : null;
     const userQuestionForHistory = effectiveQuestion;
 
     if (precomposedAnswer) {

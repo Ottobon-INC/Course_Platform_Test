@@ -1,3 +1,5 @@
+import avatarImage from '@/assets/avatar.png';
+
 export const ANALYSIS_SCORE_EVOLUTION = [
   { name: 'Jun', score: 20 },
   { name: 'Jul', score: 35 },
@@ -61,11 +63,11 @@ export type ActivityItemType = {
 };
 
 export const RECENT_ACTIVITIES: ActivityItemType[] = [
-  { id: 1, user: 'David Kim', avatar: '/assets/avatar.png', action: 'Completed "Advanced React" course', timestamp: '2 hours ago' },
-  { id: 2, user: 'Sarah Lee', avatar: '/assets/avatar.png', action: 'Earned "Quiz Master" badge', timestamp: '5 hours ago' },
-  { id: 3, user: 'Kenjiro Tanaka', avatar: '/assets/avatar.png', action: 'Submitted "Final Project"', timestamp: 'Yesterday' },
-  { id: 4, user: 'Mana Kazai', avatar: '/assets/avatar.png', action: 'Started "Data Science" course', timestamp: '2 days ago' },
-  { id: 5, user: 'Alex Johnson', avatar: '/assets/avatar.png', action: 'Scored 95% in Weekly Quiz', timestamp: '3 days ago' },
+  { id: 1, user: 'David Kim', avatar: avatarImage, action: 'Completed "Advanced React" course', timestamp: '2 hours ago' },
+  { id: 2, user: 'Sarah Lee', avatar: avatarImage, action: 'Earned "Quiz Master" badge', timestamp: '5 hours ago' },
+  { id: 3, user: 'Kenjiro Tanaka', avatar: avatarImage, action: 'Submitted "Final Project"', timestamp: 'Yesterday' },
+  { id: 4, user: 'Mana Kazai', avatar: avatarImage, action: 'Started "Data Science" course', timestamp: '2 days ago' },
+  { id: 5, user: 'Alex Johnson', avatar: avatarImage, action: 'Scored 95% in Weekly Quiz', timestamp: '3 days ago' },
 ];
 
 export const SETTINGS_NOTIFICATION_LABELS = [

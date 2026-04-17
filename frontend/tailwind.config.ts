@@ -96,6 +96,14 @@ export default {
         "retro-cyan": "rgb(var(--retro-cyan) / <alpha-value>)",
         "retro-brown": "rgb(var(--retro-brown) / <alpha-value>)",
         "retro-yellow": "rgb(var(--retro-yellow) / <alpha-value>)",
+        // Student dashboard palette (Spandana branch visual system)
+        "dark-teal": "#244855",
+        "orange-primary": "#E64833",
+        "orange-soft": "#FBE9D0",
+        "light-cream": "#FFFDD0",
+        "dark-text": "#1F2937",
+        "gray-text": "#6B7280",
+        "border-soft": "#E5E7EB",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

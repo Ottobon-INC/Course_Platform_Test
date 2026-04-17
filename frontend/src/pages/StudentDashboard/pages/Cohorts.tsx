@@ -1,4 +1,5 @@
 import React from 'react';
+import avatarImage from '@/assets/avatar.png';
 
 export function Cohorts() {
   return (
@@ -32,7 +33,7 @@ export function Cohorts() {
                 </div>
                 <div className="flex -space-x-3 group cursor-pointer">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <img key={i} src="/assets/avatar.png" className="w-[34px] h-[34px] rounded-full border-2 border-white shadow-sm transition-transform group-hover:translate-x-1" />
+                    <img key={i} src={avatarImage} className="w-[34px] h-[34px] rounded-full border-2 border-white shadow-sm transition-transform group-hover:translate-x-1" />
                   ))}
                   <div className="w-[34px] h-[34px] rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[0.65rem] font-bold text-gray-500 shadow-sm transition-transform group-hover:translate-x-1">
                     +12
@@ -164,7 +165,7 @@ export function Cohorts() {
             <div className="flex flex-col items-center pt-2">
               <div className="relative mb-3">
                 <div className="absolute -top-2 -right-2 bg-yellow-400 text-white w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[0.65rem] font-bold shadow-sm z-10">1</div>
-                <img src="/assets/avatar.png" className="w-[80px] h-[80px] rounded-full border-4 border-orange-soft shadow-inner object-cover" />
+                <img src={avatarImage} className="w-[80px] h-[80px] rounded-full border-4 border-orange-soft shadow-inner object-cover" />
               </div>
               <h4 className="font-bold text-[0.95rem]">Kenjiro Tanaka</h4>
               <p className="text-[0.65rem] font-bold text-orange-primary uppercase tracking-widest mt-0.5">Ranked #1</p>

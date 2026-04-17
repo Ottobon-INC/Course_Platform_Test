@@ -19,6 +19,9 @@ import { cohortProjectsRouter } from "./routes/cohortProjects";
 import { registrationsRouter } from "./routes/registrations";
 import { landingAssistantRouter } from "./routes/landingAssistant";
 import { dashboardRouter } from "./routes/dashboard";
+import { certificatesRouter } from "./routes/certificates";
+import { blogsRouter } from "./routes/blogs";
+import { sitemapRouter } from "./routes/sitemap";
 export function createApp() {
     const app = express();
     const allowedOrigins = env.frontendAppUrls;
@@ -43,6 +46,7 @@ export function createApp() {
     app.use(cookieParser());
     app.use(express.json());
     app.use(express.urlencoded({ extended: false }));
+    app.use("/uploads", express.static("uploads"));
     app.get("/", (_req, res) => {
         res.status(200).json({ message: "Course Platform API" });
     });
@@ -63,6 +67,14 @@ export function createApp() {
     app.use("/registrations", registrationsRouter);
     app.use("/landing-assistant", landingAssistantRouter);
     app.use("/dashboard", dashboardRouter);
+    app.use("/certificates", certificatesRouter);
+    app.use("/blogs", blogsRouter);
+    // SEO — Sitemap & Robots (served directly, no /api prefix needed)
+    app.use("/sitemap.xml", sitemapRouter);
+    app.get("/robots.txt", (_req, res) => {
+        res.header("Content-Type", "text/plain");
+        res.send(`User-agent: *\nAllow: /\nDisallow: /auth/\nDisallow: /student-dashboard\nDisallow: /admin/\n\nSitemap: https://learn.ottobon.in/sitemap.xml`);
+    });
     // Mirror routes under /api/* so the frontend can call them with a consistent prefix.
     const apiRouter = express.Router();
     apiRouter.use("/health", healthRouter);
@@ -82,6 +94,8 @@ export function createApp() {
     apiRouter.use("/registrations", registrationsRouter);
     apiRouter.use("/landing-assistant", landingAssistantRouter);
     apiRouter.use("/dashboard", dashboardRouter);
+    apiRouter.use("/certificates", certificatesRouter);
+    apiRouter.use("/blogs", blogsRouter);
     app.use("/api", apiRouter);
     app.use((err, _req, res, _next) => {
         console.error("Unhandled error", err);

@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { buildApiUrl } from "@/lib/api";
+import { ensureSessionFresh, readStoredSession } from "@/utils/session";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -45,8 +46,25 @@ export const getQueryFn: <T>(options: {
       throw new Error("Query key must start with a string path");
     }
 
+    let token: string | null = null;
+    try {
+      const storedSession = readStoredSession();
+      const session = await ensureSessionFresh(storedSession, { notifyOnFailure: false });
+      token = session?.accessToken ?? null;
+    } catch (error) {
+      console.error("Failed to refresh query session", error);
+    }
+
+    // Backward-compatible fallback for older local storage keys.
+    if (!token) {
+      token = localStorage.getItem("token") || localStorage.getItem("jwt");
+    }
+
     const res = await fetch(buildApiUrl(firstSegment), {
       credentials: "include",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

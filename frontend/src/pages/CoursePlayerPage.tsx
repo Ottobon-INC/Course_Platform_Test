@@ -839,7 +839,14 @@ const CoursePlayerPage: React.FC = () => {
         credentials: "include",
         headers,
       });
-      if (!res.ok) throw new Error("Failed to load topics");
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setLessons([]);
+          setLocation(`/course/${courseKey}`);
+          return;
+        }
+        throw new Error("Failed to load topics");
+      }
       const data = await res.json();
       const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
         topicId: t.topicId,
@@ -867,7 +874,7 @@ const CoursePlayerPage: React.FC = () => {
     } finally {
       setTopicsLoaded(true);
     }
-  }, [courseKey, session?.accessToken, toast]);
+  }, [courseKey, session?.accessToken, setLocation, toast]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {

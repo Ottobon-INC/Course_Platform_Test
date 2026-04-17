@@ -79,7 +79,6 @@ adminRouter.post("/tutor-applications/:applicationId/approve", requireAuth, requ
             category: "General",
             level: "Beginner",
             instructor: application.fullName,
-            durationMinutes: 0,
             rating: 4.5,
             students: 0,
             isFeatured: false,

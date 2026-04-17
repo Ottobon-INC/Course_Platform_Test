@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildApiUrl } from '@/lib/api';
+import { ensureSessionFresh, readStoredSession } from '@/utils/session';
 import OfferingsNavbar from '@/components/layout/OfferingsNavbar';
 import Footer from '@/components/layout/Footer';
 import CohortHeroImage from '@/assets/cohort-hero-2.png';
@@ -47,6 +48,8 @@ interface CohortOfferingsResponse {
 
 interface CohortCardData {
   id: string;
+  courseId: string;
+  routeKey: string;
   title: string;
   description: string;
   focus: string;
@@ -230,7 +233,9 @@ const CohortPage: React.FC = () => {
               : "Structured mentor-led learning";
 
             return {
-              id: course.courseId,
+              id: offering.offeringId,
+              courseId: course.courseId,
+              routeKey: trimOrNull(course.slug) ?? course.courseId,
               title,
               description,
               focus: `${primaryTag} cohort`,
@@ -261,27 +266,24 @@ const CohortPage: React.FC = () => {
     };
   }, []);
 
-  const handleCardClick = async (courseId: string) => {
+  const handleCardClick = async (courseKey: string) => {
     if (navigatingCourse) return;
-    setNavigatingCourse(courseId);
+    setNavigatingCourse(courseKey);
     try {
-      const stored = window.localStorage.getItem("session");
-      let token = null;
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.accessToken) token = parsed.accessToken;
-      }
+      const stored = readStoredSession();
+      const session = await ensureSessionFresh(stored);
+      const token = session?.accessToken ?? null;
 
       const headers: Record<string, string> = {};
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const res = await fetch(buildApiUrl(`/api/courses/${courseId}/access-status`), { headers });
+      const res = await fetch(buildApiUrl(`/api/courses/${courseKey}/access-status`), { headers });
       if (res.ok) {
         const data = await res.json();
         if (data.isApprovedMember) {
-          setLocation(`/course/${courseId}/learn/start`);
+          setLocation(`/course/${courseKey}/learn/start`);
           return;
         }
       }
@@ -290,7 +292,7 @@ const CohortPage: React.FC = () => {
     } finally {
       setNavigatingCourse(null);
     }
-    setLocation(`/course/${courseId}`);
+    setLocation(`/course/${courseKey}`);
   };
 
   const filteredCourses = courses.filter(course =>
@@ -606,7 +608,7 @@ const CohortPage: React.FC = () => {
                   key={course.id || i}
                   onClick={() => {
                     if (course.status === 'live') {
-                      void handleCardClick(course.id);
+                      void handleCardClick(course.routeKey);
                     }
                   }}
                   className={`group bg-white rounded-[1.5rem] border border-slate-200 shadow-lg transition-all duration-300 flex flex-col h-full ring-1 ring-slate-100/50 overflow-hidden ${course.status === 'live' ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1' : ''}`}
@@ -664,8 +666,8 @@ const CohortPage: React.FC = () => {
                     <div className="mt-auto pt-6">
                       {course.status === 'live' ? (
                         <div className="w-full py-2.5 bg-[#1A1C2E] group-hover:bg-indigo-600 text-white text-sm font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
-                          {navigatingCourse === course.id ? "Checking Access..." : "View Course"}
-                          {!navigatingCourse && (
+                          {navigatingCourse === course.routeKey ? "Checking Access..." : "View Course"}
+                          {navigatingCourse !== course.routeKey && (
                             <svg className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                             </svg>

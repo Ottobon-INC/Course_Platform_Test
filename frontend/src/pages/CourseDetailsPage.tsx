@@ -205,6 +205,13 @@ const CourseDetailsPage: React.FC = () => {
     let mounted = true;
     const loadCourse = async () => {
       try {
+        const storedSession = readStoredSession();
+        const session = await ensureSessionFresh(storedSession);
+        const authHeaders: Record<string, string> = {};
+        if (session?.accessToken) {
+          authHeaders.Authorization = `Bearer ${session.accessToken}`;
+        }
+
         const courseRes = await fetch(buildApiUrl(`/api/courses/${courseId}`));
         if (courseRes.ok) {
           const payload = await courseRes.json();
@@ -238,9 +245,17 @@ const CourseDetailsPage: React.FC = () => {
           }
         }
 
-        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics`));
+        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics?outline=true`), {
+          headers: authHeaders,
+        });
         if (!res.ok) {
-          throw new Error("Failed to load course topics");
+          // Keep CDP visible even when topic outline is temporarily unavailable
+          // (auth, membership, or backend shape transitions).
+          if (mounted) {
+            setModules([]);
+            setFirstLessonSlug(null);
+          }
+          return;
         }
         const data = (await res.json()) as { topics: TopicApi[] };
 
@@ -341,6 +356,14 @@ const CourseDetailsPage: React.FC = () => {
         setLocation(`/registration/cohort/${courseId}`);
       }
     }
+  }, [accessStatus, loading, courseId, setLocation, firstLessonSlug]);
+
+  useEffect(() => {
+    if (!accessStatus || loading) return;
+    if (!accessStatus.isAuthenticated || !accessStatus.isApprovedMember) return;
+
+    const targetLesson = firstLessonSlug ?? "start";
+    setLocation(`/course/${courseId}/learn/${targetLesson}`);
   }, [accessStatus, loading, courseId, setLocation, firstLessonSlug]);
 
   const toggleModule = (id: number) => {

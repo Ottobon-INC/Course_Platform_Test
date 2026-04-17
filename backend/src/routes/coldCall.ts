@@ -16,7 +16,7 @@ const normalizeEmail = (value: string) => value.trim().toLowerCase();
 
 const resolveCohortMembership = async (courseId: string, userId: string): Promise<MembershipDecision> => {
   const cohorts = await prisma.cohort.findMany({
-    where: { courseId, isActive: true },
+    where: { isActive: true, offering: { courseId } },
     select: { cohortId: true, name: true },
   });
 

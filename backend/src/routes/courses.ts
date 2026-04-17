@@ -220,21 +220,29 @@ coursesRouter.get(
       ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" as const } }]
       : [{ userId }];
 
-    const [registration, member] = await Promise.all([
+    const [activeCohort, registration, member, enrollment] = await Promise.all([
+      prisma.cohort.findFirst({
+        where: { isActive: true, offering: { courseId: resolved.courseId } },
+        select: { cohortId: true },
+      }),
       prisma.registration.findFirst({
         where: {
           offering: { courseId: resolved.courseId, programType: "cohort" },
           OR: registrationIdentityFilter,
         },
-        select: { registrationId: true, userId: true, email: true },
+        select: { registrationId: true, userId: true, email: true, cohortId: true },
       }),
       prisma.cohortMember.findFirst({
         where: {
           status: ACTIVE_MEMBER_STATUS,
-          cohort: { courseId: resolved.courseId },
+          cohort: { offering: { courseId: resolved.courseId } },
           OR: cohortIdentityFilter,
         },
         select: { memberId: true, userId: true, email: true },
+      }),
+      prisma.enrollment.findFirst({
+        where: { userId, courseId: resolved.courseId },
+        select: { enrollmentId: true },
       }),
     ]);
 
@@ -255,10 +263,16 @@ coursesRouter.get(
       ]);
     }
 
+    const courseHasActiveCohorts = Boolean(activeCohort);
+    const hasApplied = courseHasActiveCohorts
+      ? Boolean(registration) || Boolean(member)
+      : Boolean(enrollment);
+    const isApprovedMember = courseHasActiveCohorts ? Boolean(member) : Boolean(enrollment);
+
     res.status(200).json({
       isAuthenticated: true,
-      hasApplied: Boolean(registration),
-      isApprovedMember: Boolean(member),
+      hasApplied,
+      isApprovedMember,
     });
   }),
 );

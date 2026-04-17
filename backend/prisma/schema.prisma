@@ -126,7 +126,6 @@ model Course {
   promptSuggestions TopicPromptSuggestion[]
   promptUsage ModulePromptUsage[]
   personaProfiles LearnerPersonaProfile[]
-  cohorts     Cohort[]
   coldCallPrompts ColdCallPrompt[]
   activityEvents LearnerActivityEvent[]
   ragChatSessions RagChatSession[]
@@ -155,6 +154,7 @@ model CourseOffering {
   createdAt           DateTime     @default(now()) @map("created_at")
   updatedAt           DateTime     @default(now()) @updatedAt @map("updated_at")
   course              Course       @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  cohorts             Cohort[]
   registrations       Registration[]
   assessment          AssessmentQuestion?
 
@@ -167,6 +167,7 @@ model Registration {
   registrationId        String         @id @default(dbgenerated("gen_random_uuid()")) @map("registration_id") @db.Uuid
   offeringId            String         @map("offering_id") @db.Uuid
   userId                String?        @map("user_id") @db.Uuid
+  cohortId              String?        @map("cohort_id") @db.Uuid
   fullName              String         @map("full_name")
   email                 String         @map("email")
   phoneNumber           String         @map("phone_number")
@@ -187,6 +188,7 @@ model Registration {
   updatedAt             DateTime       @updatedAt @map("updated_at")
   offering              CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
   user                  User?          @relation(fields: [userId], references: [userId], onDelete: SetNull)
+  cohort                Cohort?        @relation(fields: [cohortId], references: [cohortId], onDelete: SetNull)
   payment               CoursePayment?
 
   @@unique([email, offeringId], map: "uq_registration_email_offering")
@@ -246,20 +248,21 @@ model CartItem {
 }
 
 model Cohort {
-  cohortId  String   @id @default(dbgenerated("gen_random_uuid()")) @map("cohort_id") @db.Uuid
-  courseId  String   @map("course_id") @db.Uuid
-  name      String   @map("name")
-  isActive  Boolean  @default(true) @map("is_active")
-  startsAt  DateTime? @map("starts_at")
-  endsAt    DateTime? @map("ends_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  course    Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  cohortId  String        @id @default(dbgenerated("gen_random_uuid()")) @map("cohort_id") @db.Uuid
+  offeringId String       @map("offering_id") @db.Uuid
+  name      String        @map("name")
+  isActive  Boolean       @default(true) @map("is_active")
+  startsAt  DateTime?     @map("starts_at")
+  endsAt    DateTime?     @map("ends_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  offering  CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
   members   CohortMember[]
+  registrations Registration[]
   batchProjects CohortBatchProject[]
   coldCallMessages ColdCallMessage[]
 
-  @@index([courseId], map: "idx_cohort_course")
+  @@index([offeringId], map: "idx_cohort_offering")
   @@map("cohorts")
 }
 

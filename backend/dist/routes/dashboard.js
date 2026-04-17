@@ -77,7 +77,12 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
                 },
             }),
             prisma.cohortMember.findMany({
-                where: { userId: auth.userId },
+                where: {
+                    OR: [
+                        { userId: auth.userId },
+                        { email: { equals: user.email, mode: "insensitive" } },
+                    ],
+                },
                 include: {
                     cohort: {
                         include: {
@@ -181,13 +186,21 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
             const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
             const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
+            const latest = latestByCourse.get(courseId);
+            const lastLessonSlug = latest ? slugify(latest.topicName) : null;
+            const lastAccessedModule = latest
+                ? `Module ${latest.moduleNo}: ${latest.topicName}`
+                : "Getting started";
             return {
                 id: membership.cohort.cohortId,
                 title: membership.cohort.course.courseName,
                 courseSlug: membership.cohort.course.slug ?? null,
+                lastLessonSlug,
+                lastAccessedModule,
                 status: computeStatus(membership.cohort.startsAt, membership.cohort.endsAt),
                 progress,
                 nextSessionDate: formatDateTime(membership.cohort.startsAt),
+                batchNo: membership.batchNo,
             };
         });
         const onDemand = onDemandEnrollments.map((enrollment) => {
@@ -226,6 +239,44 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             time: registration.sessionTime || "TBD",
             isJoined: true,
         }));
+        const activeOfferings = await prisma.courseOffering.findMany({
+            where: { isActive: true },
+            include: {
+                course: {
+                    select: {
+                        courseId: true,
+                        slug: true,
+                        category: true,
+                        rating: true,
+                        students: true,
+                        thumbnailUrl: true,
+                    },
+                },
+            },
+        });
+        const catalog = activeOfferings
+            .filter((offering) => !courseIds.includes(offering.courseId))
+            .map((offering) => ({
+            id: offering.offeringId,
+            courseId: offering.courseId,
+            title: offering.title,
+            courseSlug: offering.course.slug ?? null,
+            category: offering.course.category ?? "General",
+            price: offering.priceCents / 100,
+            rating: offering.course.rating ?? 4.8,
+            students: offering.course.students ?? 0,
+            thumbnailUrl: offering.course.thumbnailUrl ?? null,
+            programType: offering.programType,
+        }));
+        const upcoming = activeOfferings
+            .filter((offering) => offering.programType === "cohort")
+            .map((offering) => ({
+            id: offering.offeringId,
+            title: offering.title,
+            releaseDate: "Upcoming",
+            category: offering.course.category ?? "Learning",
+        }))
+            .slice(0, 3);
         const resumeCourse = onDemand.length
             ? {
                 id: onDemand[0].id,
@@ -235,7 +286,16 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
                 lastAccessedModule: onDemand[0].lastAccessedModule,
                 lastLessonSlug: onDemand[0].lastLessonSlug ?? null,
             }
-            : null;
+            : cohorts.length
+                ? {
+                    id: cohorts[0].id,
+                    courseSlug: cohorts[0].courseSlug ?? null,
+                    title: cohorts[0].title,
+                    progress: cohorts[0].progress,
+                    lastAccessedModule: cohorts[0].lastAccessedModule,
+                    lastLessonSlug: cohorts[0].lastLessonSlug ?? null,
+                }
+                : null;
         const payload = {
             user: {
                 fullName: user.fullName,
@@ -249,8 +309,9 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             cohorts,
             onDemand,
             workshops,
+            catalog,
             completed: [],
-            upcoming: [],
+            upcoming,
         };
         res.status(200).json(payload);
     }

@@ -105,6 +105,10 @@ export type PersonaKey = keyof typeof PERSONA_PROMPT_TEMPLATES;
 
 export const PERSONA_KEYS = Object.keys(PERSONA_PROMPT_TEMPLATES) as PersonaKey[];
 
-export function getPersonaPromptTemplate(key: PersonaKey): string {
-  return PERSONA_PROMPT_TEMPLATES[key];
+export function getPersonaPromptTemplate(key: string): string {
+  const normalizedKey = key as PersonaKey;
+  if (normalizedKey in PERSONA_PROMPT_TEMPLATES) {
+    return PERSONA_PROMPT_TEMPLATES[normalizedKey];
+  }
+  return PERSONA_PROMPT_TEMPLATES.non_it_migrant;
 }

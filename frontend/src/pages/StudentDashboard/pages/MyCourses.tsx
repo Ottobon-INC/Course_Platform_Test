@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import { useNavigate } from 'react-router-dom';
+import cohortIcon from '@/assets/html_css.png';
+import onDemandIcon from '@/assets/js_sql.png';
+import workshopIcon from '@/assets/uiux.png';
+import recommendedImage from '@/assets/recommended.png';
 
 export function MyCourses() {
   const { data: summary, isLoading } = useDashboardSummary();
@@ -18,6 +22,21 @@ export function MyCourses() {
     { id: 'coming-soon', label: 'Coming Soon' },
   ];
 
+  const resolveCourseTarget = (course: {
+    courseSlug: string | null;
+    lastLessonSlug?: string | null;
+    isEnrolled?: boolean;
+  }) => {
+    if (!course.courseSlug) {
+      return null;
+    }
+    if (course.isEnrolled === false) {
+      return `/course/${course.courseSlug}`;
+    }
+    const lessonSlug = course.lastLessonSlug || 'start';
+    return `/course/${course.courseSlug}/learn/${lessonSlug}`;
+  };
+
   const mappedCourses = useMemo(() => {
     if (!summary) return [];
     
@@ -30,10 +49,10 @@ export function MyCourses() {
       progress: c.progress,
       lastAccess: c.nextSessionDate ? `Next session: ${c.nextSessionDate}` : 'Join cohort',
       tag: `Cohort (Batch ${c.batchNo})`,
-      icon: '/assets/cohort.png',
+      icon: cohortIcon,
       btnText: 'Resume',
       courseSlug: c.courseSlug,
-      lastLessonSlug: null,
+      lastLessonSlug: c.lastLessonSlug,
       isEnrolled: true
     }));
 
@@ -44,7 +63,7 @@ export function MyCourses() {
       progress: od.progress,
       lastAccess: 'On-demand',
       tag: 'On-demand',
-      icon: '/assets/ondemand.png',
+      icon: onDemandIcon,
       btnText: 'Resume',
       courseSlug: od.courseSlug,
       lastLessonSlug: od.lastLessonSlug,
@@ -58,7 +77,7 @@ export function MyCourses() {
       progress: 0,
       lastAccess: 'Workshop',
       tag: 'Workshop',
-      icon: '/assets/workshop.png',
+      icon: workshopIcon,
       btnText: 'View',
       courseSlug: null,
       lastLessonSlug: null,
@@ -72,7 +91,7 @@ export function MyCourses() {
       progress: 0,
       lastAccess: `${c.students}+ Students joined`,
       tag: c.category,
-      icon: c.thumbnailUrl || '/assets/ondemand.png',
+      icon: c.thumbnailUrl || onDemandIcon,
       btnText: 'Enroll Now',
       courseSlug: c.courseSlug,
       lastLessonSlug: null,
@@ -204,7 +223,10 @@ export function MyCourses() {
                   {course.progress < 100 ? 'In Progress' : 'Completed'}
                 </p>
                 <button 
-                  onClick={() => navigate(`/course/${course.courseSlug}/learn/${course.lastLessonSlug || ''}`)}
+                  onClick={() => {
+                    const target = resolveCourseTarget(course);
+                    if (target) navigate(target);
+                  }}
                   className="w-full mt-4 bg-orange-primary text-white py-2 rounded-lg font-bold hover:shadow-md transition-shadow"
                 >
                   Resume Learning
@@ -236,7 +258,10 @@ export function MyCourses() {
                   <div className="flex justify-between items-center">
                     <span className={`text-[0.75rem] font-bold px-2 py-1 rounded bg-gray-100 text-gray-700`}>{course.tag}</span>
                     <button 
-                      onClick={() => course.courseSlug && navigate(`/course/${course.courseSlug}/learn/${course.lastLessonSlug || ''}`)}
+                      onClick={() => {
+                        const target = resolveCourseTarget(course);
+                        if (target) navigate(target);
+                      }}
                       className={`bg-orange-primary text-white border-none py-1.5 px-4 text-xs font-bold rounded hover:opacity-90`}
                     >
                       {course.btnText}
@@ -269,7 +294,7 @@ export function MyCourses() {
               <h3 className="text-lg font-bold mb-5">Recommended Next Course</h3>
               <div className="flex gap-4 mb-4">
                 <img 
-                  src={summary.catalog[0].thumbnailUrl || "/assets/recommended.png"} 
+                  src={summary.catalog[0].thumbnailUrl || recommendedImage} 
                   alt={summary.catalog[0].title} 
                   className="w-[70px] h-[70px] rounded-lg object-cover" 
                 />

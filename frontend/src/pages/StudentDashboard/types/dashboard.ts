@@ -21,6 +21,8 @@ export interface DashboardCohort {
   id: string;
   title: string;
   courseSlug: string | null;
+  lastLessonSlug: string | null;
+  lastAccessedModule: string;
   status: "Upcoming" | "Ongoing" | "Completed";
   progress: number;
   nextSessionDate: string | null;
@@ -46,6 +48,7 @@ export interface DashboardWorkshop {
 
 export interface DashboardCatalogCourse {
   id: string;
+  courseId: string;
   title: string;
   courseSlug: string | null;
   category: string;
@@ -53,6 +56,7 @@ export interface DashboardCatalogCourse {
   rating: number;
   students: number;
   thumbnailUrl: string | null;
+  programType: "cohort" | "ondemand" | "workshop";
 }
 
 export interface DashboardSummary {

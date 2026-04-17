@@ -59,8 +59,16 @@ function Router() {
       <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
+      {/* Student Dashboard Routes - Consolidated into the modular system */}
+      <Route path="/dashboard">
+        {() => {
+          window.location.replace("/student-dashboard");
+          return null;
+        }}
+      </Route>
       <Route path="/student-dashboard" component={StudentDashboardPage} />
       <Route path="/student-dashboard/:rest*" component={StudentDashboardPage} />
+      
       <Route path="/analysis" component={StudentDashboardPage} />
       <Route path="/feedback" component={StudentDashboardPage} />
       <Route path="/settings" component={StudentDashboardPage} />
@@ -97,14 +105,14 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
     location.startsWith("/registration") ||
     location.startsWith("/blogs") ||
     location.startsWith("/student-dashboard") ||
-    location === "/messages" ||
+    location === "/analysis" ||
+    location === "/feedback" ||
+    location === "/settings" ||
     location === "/leaderboard" ||
     location === "/cohorts" ||
     location === "/my-courses" ||
     location === "/certificates" ||
-    location === "/analysis" ||
-    location === "/feedback" ||
-    location === "/settings";
+    location === "/messages";
 
   useEffect(() => {
     if (typeof window === "undefined") {

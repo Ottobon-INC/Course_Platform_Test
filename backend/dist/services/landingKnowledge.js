@@ -7,7 +7,6 @@ export async function getLandingResouceContext() {
                 courseName: true,
                 description: true,
                 level: true,
-                durationMinutes: true,
                 rating: true,
                 category: true,
             },
@@ -38,7 +37,7 @@ export async function getLandingResouceContext() {
             take: 3
         })
     ]);
-    const courseSection = courses.map(c => `- Course: "${c.courseName}" (${c.category})\n  Desc: ${(c.description || "").substring(0, 100)}...\n  Duration: ${Math.round(c.durationMinutes / 60)}h`).join("\n");
+    const courseSection = courses.map(c => `- Course: "${c.courseName}" (${c.category})\n  Desc: ${(c.description || "").substring(0, 100)}...\n  Level: ${c.level || "Beginner"} • Rating: ${Number(c.rating ?? 0).toFixed(1)}`).join("\n");
     const offeringSection = offerings.map(o => `- ${o.programType.toUpperCase()}: "${o.title}" - $${(o.priceCents / 100).toFixed(2)}`).join("\n");
     const cohortSection = cohorts.map(c => `- Cohort: "${c.name}" (${c.course.courseName}) starts ${c.startsAt?.toDateString()}`).join("\n");
     return `
