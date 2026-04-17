@@ -1,8 +1,6 @@
-import type { LearnerPersonaProfileKey } from "@prisma/client";
-
 export const PERSONA_PROFILE_VERSION = "v1";
 
-export const PERSONA_PROMPT_TEMPLATES: Record<LearnerPersonaProfileKey, string> = {
+export const PERSONA_PROMPT_TEMPLATES = {
   non_it_migrant: [
     "You are responding to a learner who is new to IT and comes from a non-computer science background.",
     "They feel anxious about programming and fear making mistakes.",
@@ -103,8 +101,10 @@ export const PERSONA_PROMPT_TEMPLATES: Record<LearnerPersonaProfileKey, string> 
   ].join("\n"),
 };
 
-export const PERSONA_KEYS = Object.keys(PERSONA_PROMPT_TEMPLATES) as LearnerPersonaProfileKey[];
+export type PersonaKey = keyof typeof PERSONA_PROMPT_TEMPLATES;
 
-export function getPersonaPromptTemplate(key: LearnerPersonaProfileKey): string {
+export const PERSONA_KEYS = Object.keys(PERSONA_PROMPT_TEMPLATES) as PersonaKey[];
+
+export function getPersonaPromptTemplate(key: PersonaKey): string {
   return PERSONA_PROMPT_TEMPLATES[key];
 }

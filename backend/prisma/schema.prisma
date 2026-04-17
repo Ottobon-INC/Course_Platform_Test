@@ -49,14 +49,6 @@ enum StudyPersona {
   adventure
 }
 
-enum LearnerPersonaProfileKey {
-  non_it_migrant
-  rote_memorizer
-  english_hesitant
-  last_minute_panic
-  pseudo_coder
-}
-
 enum RagChatRole {
   user
   assistant
@@ -456,7 +448,7 @@ model TopicContentAsset {
   courseId   String                   @map("course_id") @db.Uuid
   contentKey String                   @map("content_key")
   contentType String                  @map("content_type")
-  personaKey LearnerPersonaProfileKey? @map("persona_key")
+  personaKey String?                  @map("persona_key")
   payload    Json                     @map("payload")
   createdAt  DateTime                 @default(now()) @map("created_at")
   updatedAt  DateTime                 @updatedAt @map("updated_at")
@@ -474,7 +466,7 @@ model LearnerPersonaProfile {
   profileId       String                   @id @default(dbgenerated("gen_random_uuid()")) @map("profile_id") @db.Uuid
   userId          String                   @map("user_id") @db.Uuid
   courseId        String                   @map("course_id") @db.Uuid
-  personaKey      LearnerPersonaProfileKey @map("persona_key")
+  personaKey      String                   @map("persona_key")
   rawAnswers      Json                     @map("raw_answers")
   analysisSummary String?                  @map("analysis_summary")
   analysisVersion String?                  @map("analysis_version")
@@ -779,7 +771,7 @@ model DraftTopicContentAsset {
   courseId   String                   @map("course_id") @db.Uuid
   contentKey String                   @map("content_key")
   contentType String                  @map("content_type")
-  personaKey LearnerPersonaProfileKey? @map("persona_key")
+  personaKey String?                  @map("persona_key")
   payload    Json                     @map("payload")
   createdAt  DateTime                 @default(now()) @map("created_at")
   updatedAt  DateTime                 @updatedAt @map("updated_at")

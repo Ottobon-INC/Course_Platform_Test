@@ -1,7 +1,7 @@
-import type { LearnerPersonaProfileKey, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { classifyLearnerPersona } from "../rag/openAiClient";
-import { PERSONA_KEYS, PERSONA_PROFILE_VERSION } from "./personaPromptTemplates";
+import { PERSONA_KEYS, PERSONA_PROFILE_VERSION, type PersonaKey } from "./personaPromptTemplates";
 
 export type PersonaProfileResponse = {
   questionId: string;
@@ -9,7 +9,7 @@ export type PersonaProfileResponse = {
   answer: string;
 };
 
-const KEYWORD_MAP: Record<LearnerPersonaProfileKey, string[]> = {
+const KEYWORD_MAP: Record<PersonaKey, string[]> = {
   english_hesitant: ["english", "language", "hindi", "vernacular", "translate", "fluency", "grammar"],
   non_it_migrant: ["mechanical", "civil", "electrical", "non-it", "core branch", "manufacturing", "machines"],
   last_minute_panic: ["last minute", "deadline", "panic", "final sprint", "urgent", "cram", "tomorrow"],
@@ -17,28 +17,28 @@ const KEYWORD_MAP: Record<LearnerPersonaProfileKey, string[]> = {
   rote_memorizer: ["memorize", "theory", "definitions", "exam", "interview", "mcq"],
 };
 
-const DEFAULT_PERSONA: LearnerPersonaProfileKey = "non_it_migrant";
+const DEFAULT_PERSONA: PersonaKey = "non_it_migrant";
 
 export const DEFAULT_PERSONA_KEY = DEFAULT_PERSONA;
 
 function scorePersonaFromText(text: string): {
-  personaKey: LearnerPersonaProfileKey;
+  personaKey: PersonaKey;
   reason: string;
 } {
   const normalized = text.toLowerCase();
-  const scores = PERSONA_KEYS.reduce<Record<LearnerPersonaProfileKey, number>>((acc, key) => {
+  const scores = PERSONA_KEYS.reduce<Record<PersonaKey, number>>((acc, key) => {
     acc[key] = 0;
     return acc;
-  }, {} as Record<LearnerPersonaProfileKey, number>);
+  }, {} as Record<PersonaKey, number>);
 
-  (Object.keys(KEYWORD_MAP) as LearnerPersonaProfileKey[]).forEach((key) => {
+  (Object.keys(KEYWORD_MAP) as PersonaKey[]).forEach((key) => {
     const hits = KEYWORD_MAP[key].reduce((count, keyword) => {
       return normalized.includes(keyword) ? count + 1 : count;
     }, 0);
     scores[key] = hits;
   });
 
-  const sorted = (Object.keys(scores) as LearnerPersonaProfileKey[]).sort((a, b) => scores[b] - scores[a]);
+  const sorted = (Object.keys(scores) as PersonaKey[]).sort((a, b) => scores[b] - scores[a]);
   const best = sorted[0];
   if (scores[best] === 0) {
     return { personaKey: DEFAULT_PERSONA, reason: "Fallback default persona (no keyword hits)." };
@@ -51,7 +51,7 @@ function scorePersonaFromText(text: string): {
 
 export async function analyzePersonaProfile(
   responses: PersonaProfileResponse[],
-): Promise<{ personaKey: LearnerPersonaProfileKey; analysisSummary: string; analysisVersion: string }> {
+): Promise<{ personaKey: PersonaKey; analysisSummary: string; analysisVersion: string }> {
   const joined = responses
     .map((item) => `${item.prompt}\n${item.answer}`)
     .join("\n\n");
@@ -82,7 +82,7 @@ export async function analyzePersonaProfile(
 export async function upsertPersonaProfile(params: {
   userId: string;
   courseId: string;
-  personaKey: LearnerPersonaProfileKey;
+  personaKey: PersonaKey;
   rawAnswers: Prisma.InputJsonValue;
   analysisSummary: string;
   analysisVersion: string;
