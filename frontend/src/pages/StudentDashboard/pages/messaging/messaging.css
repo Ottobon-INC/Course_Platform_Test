@@ -2,6 +2,31 @@
    Messaging Module – Scoped Styles
    ═══════════════════════════════════════════ */
 
+/* ── Legacy Dashboard Palette (used by restored filters/categories) ── */
+:root {
+  --dash-teal: #1B3535;
+  --dash-orange: #E8531F;
+}
+
+.msg-filter-select {
+  width: 100%;
+  padding: 8px 10px;
+  background: #fffdf0;
+  border: 1px solid var(--dash-teal);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1c1d20;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.msg-filter-select:focus {
+  border-color: var(--dash-orange);
+  box-shadow: 0 0 0 2px rgba(232, 83, 31, 0.15);
+}
+
 /* ── Container ── */
 .msg-container {
   display: flex;
@@ -1755,4 +1780,3 @@
 .msg-mention-item.active span {
   color: #006BFF !important;
 }
-

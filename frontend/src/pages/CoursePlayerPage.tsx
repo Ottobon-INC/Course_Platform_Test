@@ -24,7 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { buildApiUrl } from "@/lib/api";
 import { streamJobResult } from "@/lib/streamJob";
-import { subscribeToSession } from "@/utils/session";
+import { subscribeToSession, readStoredSession, ensureSessionFresh } from "@/utils/session";
 import { recordTelemetryEvent, updateTelemetryAccessToken } from "@/utils/telemetry";
 import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
@@ -829,12 +829,20 @@ const CoursePlayerPage: React.FC = () => {
       setTopicsLoaded(true);
       return;
     }
+    if (!sessionHydrated) {
+      return;
+    }
     setTopicsLoaded(false);
     try {
-      const headers: HeadersInit = {};
-      if (session?.accessToken) {
-        headers.Authorization = `Bearer ${session.accessToken}`;
+      const storedSession = readStoredSession();
+      const freshSession = await ensureSessionFresh(storedSession);
+      if (!freshSession?.accessToken) {
+        setLessons([]);
+        setLocation(`/course/${courseKey}`);
+        return;
       }
+      const headers: HeadersInit = {};
+      headers.Authorization = `Bearer ${freshSession.accessToken}`;
       const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseKey}/topics`), {
         credentials: "include",
         headers,
@@ -874,7 +882,7 @@ const CoursePlayerPage: React.FC = () => {
     } finally {
       setTopicsLoaded(true);
     }
-  }, [courseKey, session?.accessToken, setLocation, toast]);
+  }, [courseKey, sessionHydrated, setLocation, toast]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {

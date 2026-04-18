@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { API_BASE_URL } from "@/lib/api";
 import { readStoredSession } from "@/utils/session";
-import type { Message, Conversation, ReplyInfo, MessageReactions, AllPollVotes } from "../components/messaging/types";
+import type { Message, Conversation, ReplyInfo, MessageReactions, AllPollVotes } from "../pages/messaging/types";
 
 export function useMessaging(selectedConversationId: string | null) {
   const [messageReactions, setMessageReactions] = useState<MessageReactions>({});

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, Users, Building2, Search, X, Plus } from "lucide-react";
+import { MessageCircle, Users, Building2, Search, X, Plus, GraduationCap, UserCircle } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import type { Conversation, MsgUser } from "./types";
 
@@ -14,11 +14,18 @@ interface MessagingSidebarProps {
   lastReadTimes: Record<string, number>;
   onCreateTeamChat: (name: string, members: string[]) => void;
   onStartChatWithUser: (user: MsgUser) => void;
+  courses: string[];
+  selectedCourse: string | null;
+  onCourseChange: (course: string) => void;
+  batches: Array<{ id: string; batchNo: number }>;
+  selectedBatchId: string | null;
+  onBatchChange: (id: string) => void;
 }
 
 const categories = [
-  { id: "myself", label: "Members", icon: MessageCircle, description: "Direct messages" },
-  { id: "team", label: "Cohort Teams", icon: Users, description: "Batch group chats" },
+  { id: "tutors", label: "Tutors", icon: GraduationCap, description: "Message your instructors" },
+  { id: "team-members", label: "Team Members", icon: UserCircle, description: "Direct messages" },
+  { id: "team", label: "Team Chat", icon: Users, description: "Batch group chat" },
   { id: "broadcast", label: "Cohorts", icon: Building2, description: "Announcements & Updates" },
 ];
 
@@ -26,6 +33,7 @@ export default function MessagingSidebar({
   currentUserId, activeCategory, setActiveCategory,
   conversations, selectedConversation, onSelectConversation,
   orgUsers, lastReadTimes, onCreateTeamChat, onStartChatWithUser,
+  courses, selectedCourse, onCourseChange, batches, selectedBatchId, onBatchChange,
 }: MessagingSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewDMModal, setShowNewDMModal] = useState(false);
@@ -104,6 +112,35 @@ export default function MessagingSidebar({
           })}
         </div>
 
+        <div className="msg-filters-section" style={{ padding: "0 16px 12px", borderBottom: "1px solid #e2e8f0" }}>
+          <div style={{ marginBottom: 0 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 10,
+                fontWeight: 800,
+                color: "var(--dash-teal)",
+                textTransform: "uppercase",
+                marginBottom: 6,
+                letterSpacing: "0.05em",
+              }}
+            >
+              Course Name
+            </label>
+            <select
+              value={selectedCourse ?? ""}
+              onChange={(e) => onCourseChange(e.target.value)}
+              className="msg-filter-select"
+            >
+              {courses.map((course) => (
+                <option key={course} value={course}>
+                  {course}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="msg-conv-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>Communications</h2>
@@ -121,15 +158,29 @@ export default function MessagingSidebar({
         </div>
 
         <div className="msg-conv-list">
-          {activeCategory === "myself" ? (
-            orgUsers.filter((u) => u.id !== currentUserId && (!searchQuery || u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || u.email?.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 ? (
+          {(activeCategory === "tutors" || activeCategory === "team-members") ? (
+            orgUsers
+              .filter((u) => u.id !== currentUserId)
+              .filter((u) => {
+                if (activeCategory === "tutors") return u.role === "tutor" || u.role === "admin";
+                return u.role === "student" || !u.role;
+              })
+              .filter((u) => {
+                if (!searchQuery) return true;
+                const q = searchQuery.toLowerCase();
+                return u.full_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+              }).length === 0 ? (
               <div className="msg-empty-state">
-                <Users size={40} />
-                <p>No students found</p>
+                {activeCategory === "tutors" ? <GraduationCap size={40} /> : <UserCircle size={40} />}
+                <p>No {activeCategory === "tutors" ? "tutors" : "members"} found</p>
               </div>
             ) : (
               orgUsers
                 .filter((u) => u.id !== currentUserId)
+                .filter((u) => {
+                  if (activeCategory === "tutors") return u.role === "tutor" || u.role === "admin";
+                  return u.role === "student" || !u.role;
+                })
                 .filter((u) => {
                   if (!searchQuery) return true;
                   const q = searchQuery.toLowerCase();
@@ -311,4 +362,3 @@ export default function MessagingSidebar({
     </>
   );
 }
-
