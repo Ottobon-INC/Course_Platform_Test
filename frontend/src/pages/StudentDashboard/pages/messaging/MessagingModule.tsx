@@ -69,7 +69,7 @@ export default function MessagingModule() {
   const [orgUsers, setOrgUsers] = useState<MsgUser[]>([]);
   const { toast } = useToast();
 
-  // ── Hook ──
+  // ── Hooks ──
   const {
     messages,
     conversations,
