@@ -15,6 +15,7 @@ import Navbar from '@/components/layout/Navbar';
 import HeroCarousel, { HeroVariant } from '@/components/landing/HeroCarousel';
 import LandingChatBot from '@/components/LandingChatBot';
 import { TransformationSection } from '@/components/landing/TransformationSection';
+import { AskingSection } from '@/components/landing/AskingSection';
 import { WhoIsItForSection } from '@/components/landing/WhoIsItForSection';
 import { trackEvent } from '@/lib/analytics';
 import { User } from '@/types/user';
@@ -1331,6 +1332,7 @@ function LandingPage() {
       />
       <EmotionalHook />
       <TransformationSection />
+      <AskingSection />
       <WhoIsItForSection />
       <LearningFlowSystem />
       <CohortSimulation />
