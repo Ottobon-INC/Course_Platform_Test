@@ -22,6 +22,20 @@ export function Sidebar() {
   return (
     <aside className="w-[250px] bg-dark-teal text-white h-screen fixed left-0 top-0 flex flex-col pt-8 pb-6 px-0 overflow-y-auto z-50">
       <div className="flex flex-col items-center mb-8 px-4 text-center">
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = '/';
+          }}
+          className="group mb-5 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-3 py-2 transition-all hover:bg-white/10"
+          aria-label="Go to Ottolearn home"
+          title="Ottolearn Home"
+        >
+          <div className="w-6 h-6 bg-retro-sage rounded-md transform rotate-45 shrink-0 flex items-center justify-center">
+            <span className="-rotate-45 text-white font-bold text-[9px]">OL</span>
+          </div>
+          <span className="text-sm font-bold tracking-tight text-white group-hover:text-retro-sage">Ottolearn</span>
+        </button>
         <p className="text-orange-primary font-bold text-xl mb-2">Welcome!</p>
         <h3 className="text-xl font-bold font-sans">
           {summary?.user?.fullName || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student')}
