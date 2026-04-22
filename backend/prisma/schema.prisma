@@ -32,6 +32,12 @@ model User {
   ragChatMessages RagChatMessage[]
   registrations Registration[]
   certificates CourseCertificate[]
+  cpConversationMembers CpConversationMember[]
+  cpSentMessages CpMessage[] @relation("CpMessageSender")
+  cpSeenStates CpMessageSeen[]
+  cpDeletedMessages CpMessageDeletedForUser[]
+  cpMessageReactions CpMessageReaction[]
+  cpPollVotes CpPollVote[]
 
   @@map("users")
 }
@@ -280,6 +286,113 @@ model CohortMember {
   @@unique([cohortId, email], map: "uq_cohort_email")
   @@index([userId], map: "idx_cohort_member_user")
   @@map("cohort_members")
+}
+
+model CpConversation {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type      String
+  title     String?
+  cohortId  String?                @map("cohort_id") @db.Uuid
+  batchNo   Int?                   @default(0) @map("batch_no")
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+  members   CpConversationMember[]
+  messages  CpMessage[]
+  seenStates CpMessageSeen[]
+
+  @@index([cohortId], map: "idx_cp_conversation_cohort")
+  @@map("cp_conversations")
+}
+
+model CpConversationMember {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String         @map("conversation_id") @db.Uuid
+  userId         String         @map("user_id") @db.Uuid
+  joinedAt       DateTime       @default(now()) @map("joined_at")
+  conversation   CpConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([conversationId, userId], map: "CP_ConversationMember_conversation_id_user_id_key")
+  @@map("cp_conversation_members")
+}
+
+model CpMessage {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String                  @map("conversation_id") @db.Uuid
+  senderId       String                  @map("sender_id") @db.Uuid
+  content        String
+  type           String                  @default("text")
+  pollData       Json?                   @map("poll_data")
+  isPinned       Boolean                 @default(false) @map("is_pinned")
+  isEdited       Boolean                 @default(false) @map("is_edited")
+  isDeleted      Boolean                 @default(false) @map("is_deleted")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  attachments    Json?
+  replyToId      String?                 @map("reply_to_id") @db.Uuid
+  conversation   CpConversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                    @relation("CpMessageSender", fields: [senderId], references: [userId], onDelete: Cascade)
+  replyTo        CpMessage?              @relation("CpMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        CpMessage[]             @relation("CpMessageReplies")
+  seenStates     CpMessageSeen[]         @relation("CpSeenLastMessage")
+  deletedFor     CpMessageDeletedForUser[]
+  reactions      CpMessageReaction[]
+  pollVotes      CpPollVote[]
+
+  @@index([conversationId], map: "idx_cp_message_conversation")
+  @@index([createdAt], map: "idx_cp_message_created_at")
+  @@map("cp_messages")
+}
+
+model CpMessageSeen {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId    String         @map("conversation_id") @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  lastSeenMessageId String         @map("last_seen_message_id") @db.Uuid
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  conversation      CpConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  lastSeenMessage   CpMessage      @relation("CpSeenLastMessage", fields: [lastSeenMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId], map: "CP_MessageSeen_conversation_id_user_id_key")
+  @@map("cp_message_seen")
+}
+
+model CpMessageDeletedForUser {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String    @map("message_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  message   CpMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([messageId, userId], map: "uq_cp_message_deleted_user")
+  @@map("cp_message_deleted_for_user")
+}
+
+model CpMessageReaction {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String    @map("message_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  emoji     String
+  createdAt DateTime  @default(now()) @map("created_at")
+  message   CpMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji], map: "uq_cp_message_reaction")
+  @@map("cp_message_reactions")
+}
+
+model CpPollVote {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId   String    @map("message_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  optionIndex Int       @map("option_index")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  message     CpMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("cp_poll_votes")
 }
 
 model CohortBatchProject {
