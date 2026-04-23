@@ -238,14 +238,60 @@ export default function MessagingModule() {
       });
   }, [headers, selectedCohortId, fetchConversations]);
 
-  const handleCreateTeamChat = useCallback((name: string, _memberIds: string[]) => {
-    apiRequest("POST", `/api/messaging/conversations/cohort/${selectedCohortId}/team`, { batchNo: 1, title: name }, headers ? { headers } : undefined)
-      .then(res => res.json())
-      .then(data => {
-        fetchConversations(selectedCohortId);
+  const handleCreateTeamChat = useCallback(async (name: string, memberIds: string[]) => {
+    if (!selectedCohortId) return;
+    try {
+      const res = await apiRequest(
+        "POST",
+        `/api/messaging/conversations/cohort/${selectedCohortId}/team`,
+        { title: name, memberUserIds: memberIds },
+        headers ? { headers } : undefined,
+      );
+      const data = await res.json();
+      await fetchConversations(selectedCohortId);
+      if (data.conversation) {
         setSelectedConversation(data.conversation);
-      });
+      }
+    } catch (err) {
+      console.error("Failed to create team chat:", err);
+    }
   }, [selectedCohortId, headers, fetchConversations]);
+
+  const handleAddMemberToConversation = useCallback(async (conversationId: string, userId: string) => {
+    try {
+      const res = await apiRequest(
+        "POST",
+        `/api/messaging/conversations/${conversationId}/members`,
+        { userId },
+        headers ? { headers } : undefined,
+      );
+      const data = await res.json();
+      await fetchConversations(selectedCohortId);
+      if (data.conversation) {
+        setSelectedConversation(data.conversation);
+      }
+    } catch (err) {
+      console.error("Failed to add member:", err);
+    }
+  }, [headers, fetchConversations, selectedCohortId]);
+
+  const handleRenameConversation = useCallback(async (conversationId: string, newName: string) => {
+    try {
+      const res = await apiRequest(
+        "PUT",
+        `/api/messaging/conversations/${conversationId}/rename`,
+        { newName },
+        headers ? { headers } : undefined,
+      );
+      const data = await res.json();
+      await fetchConversations(selectedCohortId);
+      if (data.conversation) {
+        setSelectedConversation(data.conversation);
+      }
+    } catch (err) {
+      console.error("Failed to rename conversation:", err);
+    }
+  }, [headers, fetchConversations, selectedCohortId]);
 
   const handleStartChatWithUser = useCallback((user: MsgUser) => {
     if (!user.id) {
@@ -319,6 +365,8 @@ export default function MessagingModule() {
           onBackToList={handleBackToList}
           conversations={conversations}
           onForward={handleForward}
+          onAddMemberToConversation={handleAddMemberToConversation}
+          onRenameConversation={handleRenameConversation}
         />
         <Composer
           selectedConversation={selectedConversation}

@@ -48,6 +48,8 @@ interface ChatWindowProps {
   onBackToList?: () => void;
   conversations: Conversation[];
   onForward: (conversationId: string, message: Message) => void;
+  onAddMemberToConversation: (conversationId: string, userId: string) => Promise<void> | void;
+  onRenameConversation: (conversationId: string, newName: string) => Promise<void> | void;
 }
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🎉", "🔥", "👏"];
@@ -56,7 +58,7 @@ export default function ChatWindow({
   selectedConversation, messages, currentUserId, orgUsers,
   isCurrentUserAdmin, currentMembers, messageReactions, allPollVotes,
   replyingTo, setReplyingTo, onReaction, onVote, onDeleteForMe, onDeleteForEveryone,
-  onPinMessage, onBackToList, conversations, onForward
+  onPinMessage, onBackToList, conversations, onForward, onAddMemberToConversation, onRenameConversation
 }: ChatWindowProps) {
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
@@ -513,8 +515,8 @@ export default function ChatWindow({
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           {isSent && (
                             <span className="msg-status-tick">
-                              <Check size={10} style={{ marginLeft: 2, display: "inline-block" }} />
-                              {msg.status === "seen" && <Check size={10} style={{ marginLeft: -6, display: "inline-block" }} />}
+                              <Check size={10} style={{ marginLeft: 2, display: "inline-block", color: (msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) ? "#006BFF" : "inherit" }} />
+                              {(msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) && <Check size={10} style={{ marginLeft: -6, display: "inline-block", color: "#006BFF" }} />}
                             </span>
                           )}
                         </div>
@@ -683,4 +685,3 @@ export default function ChatWindow({
     </>
   );
 }
-

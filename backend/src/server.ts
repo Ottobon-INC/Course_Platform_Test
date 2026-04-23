@@ -1,8 +1,11 @@
 import process from "node:process";
+import http from "node:http";
+import { Server as SocketIOServer } from "socket.io";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { prisma } from "./services/prisma";
 import { startAiWorker, stopAiWorker } from "./workers/aiWorker";
+import { setupMessagingSocket } from "./services/messagingSocket";
 
 const app = createApp();
 
@@ -18,7 +21,18 @@ async function startServer(): Promise<void> {
     return;
   }
 
-  const server = app.listen(env.port, () => {
+  const httpServer = http.createServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: env.frontendAppUrls,
+      credentials: true,
+      methods: ["GET", "POST"],
+    },
+  });
+
+  setupMessagingSocket(io);
+
+  httpServer.listen(env.port, () => {
     console.log(`API ready on http://localhost:${env.port}`);
     console.log(`Primary frontend origin: ${env.frontendAppUrl}`);
     console.log(`OAuth redirect URI: ${env.googleRedirectUri}`);
@@ -30,7 +44,8 @@ async function startServer(): Promise<void> {
   const shutdown = async () => {
     console.log("Shutting down server...");
     stopAiWorker();
-    server.close();
+    io.close();
+    httpServer.close();
     await prisma.$disconnect();
     process.exit(0);
   };

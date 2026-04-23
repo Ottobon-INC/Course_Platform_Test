@@ -25,6 +25,7 @@ import { dashboardRouter } from "./routes/dashboard";
 import { certificatesRouter } from "./routes/certificates";
 import { blogsRouter } from "./routes/blogs";
 import { sitemapRouter } from "./routes/sitemap";
+import { messagingRouter } from "./routes/messaging";
 
 export function createApp(): Express {
   const app = express();
@@ -77,6 +78,7 @@ export function createApp(): Express {
   app.use("/dashboard", dashboardRouter);
   app.use("/certificates", certificatesRouter);
   app.use("/blogs", blogsRouter);
+  app.use("/messaging", messagingRouter);
 
   // SEO — Sitemap & Robots (served directly, no /api prefix needed)
   app.use("/sitemap.xml", sitemapRouter);
@@ -110,6 +112,7 @@ export function createApp(): Express {
   apiRouter.use("/dashboard", dashboardRouter);
   apiRouter.use("/certificates", certificatesRouter);
   apiRouter.use("/blogs", blogsRouter);
+  apiRouter.use("/messaging", messagingRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
