@@ -47,6 +47,7 @@ export async function uploadToOneDrive(filename: string, buffer: Buffer, mimeTyp
   }
 
   // 1. Upload the file
+  const uploadBody = Uint8Array.from(buffer);
   const uploadUrl = `https://graph.microsoft.com/v1.0/users/${userId}/drive/root:/${folder}/${filename}:/content`;
   const uploadRes = await fetch(uploadUrl, {
     method: "PUT",
@@ -54,7 +55,7 @@ export async function uploadToOneDrive(filename: string, buffer: Buffer, mimeTyp
       Authorization: `Bearer ${token}`,
       "Content-Type": mimeType,
     },
-    body: buffer,
+    body: uploadBody,
   });
 
   const uploadData = await uploadRes.json();
