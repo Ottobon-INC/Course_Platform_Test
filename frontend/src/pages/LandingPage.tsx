@@ -41,29 +41,55 @@ const EmotionalHook: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-16"
+          className="relative rounded-3xl overflow-hidden bg-retro-teal p-10 md:p-14 text-center mb-16 shadow-[0_12px_72px_rgba(36,72,85,0.2)]"
         >
-          <motion.h2
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false }}
-            transition={{ delay: 0.1, duration: 0.6 }}
-            className="text-sm font-bold text-retro-salmon tracking-widest uppercase mb-4"
-          >
-            {c.badge}
-          </motion.h2>
-          <div className="space-y-8 text-2xl md:text-4xl font-bold text-retro-teal leading-tight break-words">
-            {c.lines.map((line, i) => (
-              i < 2 ? (
-                <motion.p key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: 0.4 + i * 0.3, duration: 0.6 }}>
-                  {line}
-                </motion.p>
-              ) : (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: 1.0, duration: 0.6 }} className="relative inline-block">
-                  {line} <span className="text-retro-salmon inline-block origin-center" style={{ animation: 'shake 0.8s cubic-bezier(.36,.07,.19,.97) both 1.5s' }}>{c.freezeWord}</span>
-                </motion.div>
-              )
-            ))}
+          {/* Base gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-retro-teal via-retro-teal to-[#1a3540]" />
+
+          {/* Ambient glow orbs */}
+          <motion.div
+            className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-retro-salmon/20 rounded-full blur-[90px] pointer-events-none"
+            animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0.85, 0.5] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute bottom-[-20%] left-[-10%] w-80 h-80 bg-retro-sage/[0.18] rounded-full blur-[90px] pointer-events-none"
+            animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0.7, 0.4] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+          />
+
+          {/* Soft radial glow behind text */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.07) 0%, transparent 65%)',
+            }}
+          />
+
+          {/* Content */}
+          <div className="relative z-10">
+            <motion.h2
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false }}
+              transition={{ delay: 0.1, duration: 0.6 }}
+              className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-retro-sage mb-6 px-4 py-1.5 rounded-full bg-white/10 border border-white/20"
+            >
+              {c.badge}
+            </motion.h2>
+            <div className="space-y-8 text-2xl md:text-4xl font-bold text-white leading-tight break-words">
+              {c.lines.map((line, i) => (
+                i < 2 ? (
+                  <motion.p key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: 0.4 + i * 0.3, duration: 0.6 }}>
+                    {line}
+                  </motion.p>
+                ) : (
+                  <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false }} transition={{ delay: 1.0, duration: 0.6 }} className="relative inline-block">
+                    {line} <span className="text-retro-salmon inline-block origin-center" style={{ animation: 'shake 0.8s cubic-bezier(.36,.07,.19,.97) both 1.5s' }}>{c.freezeWord}</span>
+                  </motion.div>
+                )
+              ))}
+            </div>
           </div>
         </motion.div>
 

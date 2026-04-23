@@ -15,6 +15,166 @@ const TIMELINE_ICONS = [
   <Briefcase />,
 ];
 
+// ── Frustration Loop Infographic (Before · right half) ──
+const FrustrationLoopGraphic: React.FC = () => {
+  const nodes = [
+    { emoji: '📺', label: 'Watch', top: '8%', left: '50%', tx: '-50%' },
+    { emoji: '💻', label: 'Try to build', top: '45%', left: '88%', tx: '-50%' },
+    { emoji: '😰', label: 'Get stuck', top: '82%', left: '50%', tx: '-50%' },
+    { emoji: '🔍', label: 'Google again', top: '45%', left: '12%', tx: '-50%' },
+  ];
+
+  return (
+    <div className="hidden md:flex absolute right-0 top-0 bottom-0 w-[50%] items-center justify-center pointer-events-none select-none">
+      <div className="relative w-[240px] h-[240px]">
+        {/* Rotating dashed ring */}
+        <motion.svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 240 240"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
+        >
+          <circle cx="120" cy="120" r="85" fill="none" stroke="rgba(230,72,51,0.35)" strokeWidth="2" strokeDasharray="6 8" />
+          {/* Directional arrow markers */}
+          <polygon points="205,116 210,120 205,124" fill="rgba(230,72,51,0.5)" />
+          <polygon points="124,35 120,30 116,35" fill="rgba(230,72,51,0.5)" />
+          <polygon points="35,124 30,120 35,116" fill="rgba(230,72,51,0.5)" />
+          <polygon points="116,205 120,210 124,205" fill="rgba(230,72,51,0.5)" />
+        </motion.svg>
+
+        {/* Step nodes */}
+        {nodes.map((node, i) => (
+          <motion.div
+            key={i}
+            className="absolute flex flex-col items-center gap-1"
+            style={{ top: node.top, left: node.left, transform: `translateX(${node.tx})` }}
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 3, repeat: Infinity, delay: i * 0.75, ease: 'easeInOut' }}
+          >
+            <div className="w-11 h-11 rounded-xl bg-retro-salmon/[0.12] border border-retro-salmon/[0.25] flex items-center justify-center text-lg shadow-md">
+              {node.emoji}
+            </div>
+            <span className="text-[9px] font-bold text-retro-teal/60 uppercase tracking-wider whitespace-nowrap">
+              {node.label}
+            </span>
+          </motion.div>
+        ))}
+
+        {/* Center label */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <motion.span
+            animate={{ scale: [1, 1.05, 1], opacity: [0.4, 0.65, 0.4] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="text-retro-salmon font-black text-xs tracking-[0.25em] uppercase"
+          >
+            Endless
+          </motion.span>
+          <span className="text-retro-salmon/40 font-black text-[10px] tracking-[0.2em] uppercase">Loop</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Growth Trajectory Infographic (After · left half) ──
+const GrowthTrajectoryGraphic: React.FC = () => {
+  const milestones = [
+    { emoji: '📁', label: 'First Project', bottom: '75%', left: '18%', delay: 0.6 },
+    { emoji: '💼', label: 'Portfolio', bottom: '52%', left: '38%', delay: 1.1 },
+    { emoji: '🤝', label: 'Team Ready', bottom: '32%', left: '58%', delay: 1.6 },
+    { emoji: '🚀', label: 'Hired!', bottom: '10%', left: '78%', delay: 2.1 },
+  ];
+
+  return (
+    <div className="hidden md:flex absolute left-0 top-0 bottom-0 w-[50%] items-center justify-center pointer-events-none select-none">
+      <div className="relative w-[260px] h-[300px]">
+        {/* Grid dots */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 260 300">
+          {Array.from({ length: 6 }, (_, r) =>
+            Array.from({ length: 5 }, (_, c) => (
+              <circle key={`${r}-${c}`} cx={22 + c * 54} cy={22 + r * 54} r="1.5" fill="rgba(255,255,255,0.15)" />
+            ))
+          )}
+        </svg>
+
+        {/* Growth curve */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 260 300">
+          <defs>
+            <linearGradient id="growthGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(230,72,51,0.8)" />
+              <stop offset="100%" stopColor="rgba(42,157,143,1)" />
+            </linearGradient>
+          </defs>
+          <motion.path
+            d="M 30 260 C 50 240, 70 220, 90 190 C 110 160, 130 140, 150 115 C 170 90, 190 70, 220 40"
+            fill="none"
+            stroke="url(#growthGrad)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            whileInView={{ pathLength: 1, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 2, ease: 'easeOut' }}
+          />
+          {/* Faint shadow line */}
+          <motion.path
+            d="M 30 260 C 50 240, 70 220, 90 190 C 110 160, 130 140, 150 115 C 170 90, 190 70, 220 40"
+            fill="none"
+            stroke="rgba(42,157,143,0.2)"
+            strokeWidth="14"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            whileInView={{ pathLength: 1, opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 2, ease: 'easeOut' }}
+          />
+        </svg>
+
+        {/* Milestone markers */}
+        {milestones.map((m, i) => (
+          <motion.div
+            key={i}
+            className="absolute flex flex-col items-center gap-1"
+            style={{ bottom: m.bottom, left: m.left, transform: 'translateX(-50%)' }}
+            initial={{ opacity: 0, scale: 0 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: m.delay, type: 'spring', bounce: 0.4 }}
+          >
+            <div className={`w-11 h-11 rounded-full border-2 flex items-center justify-center text-lg backdrop-blur-sm ${
+              i === milestones.length - 1
+                ? 'bg-retro-cyan/30 border-retro-cyan/60 shadow-[0_0_24px_rgba(42,157,143,0.4)]'
+                : 'bg-white/15 border-white/35 shadow-md'
+            }`}>
+              {i === milestones.length - 1 ? (
+                <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+                  {m.emoji}
+                </motion.span>
+              ) : m.emoji}
+            </div>
+            <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${
+              i === milestones.length - 1 ? 'text-retro-cyan font-black' : 'text-white/60'
+            }`}>
+              {m.label}
+            </span>
+          </motion.div>
+        ))}
+
+        {/* Sparkles near the top */}
+        {[{ t: '8%', l: '90%', d: 0 }, { t: '15%', l: '70%', d: 0.8 }, { t: '5%', l: '82%', d: 1.5 }].map((s, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1.5 h-1.5 rounded-full bg-retro-cyan/70"
+            style={{ top: s.t, left: s.l }}
+            animate={{ opacity: [0, 0.8, 0], scale: [0.5, 1.2, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity, delay: s.d }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface TransformationProps {
   heading?: string;
   subheading?: string;
@@ -160,6 +320,8 @@ export const TransformationSection: React.FC<TransformationProps> = ({
           >
             {/* AFTER SIDE */}
             <div className="absolute inset-0 bg-retro-teal flex flex-col justify-center p-6 md:p-12 text-center md:text-left md:items-end">
+              {/* Growth trajectory infographic — fills the left blank half */}
+              <GrowthTrajectoryGraphic />
               <div className="w-full md:w-[45%]">
                 <motion.div
                   className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-retro-cyan/20 flex items-center justify-center mb-4 md:mb-6 mx-auto md:mx-0"
@@ -217,6 +379,8 @@ export const TransformationSection: React.FC<TransformationProps> = ({
                   ))}
                 </ul>
               </div>
+              {/* Frustration loop infographic — fills the right blank half */}
+              <FrustrationLoopGraphic />
             </motion.div>
 
             {/* SLIDER HANDLE */}
@@ -235,14 +399,7 @@ export const TransformationSection: React.FC<TransformationProps> = ({
               </motion.div>
             </div>
 
-            {/* Drag hint */}
-            <motion.div
-               className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-black/40 text-white backdrop-blur-md px-4 py-2 rounded-full text-sm font-medium pointer-events-none"
-               animate={{ opacity: [0.5, 1, 0.5] }}
-               transition={{ duration: 2, repeat: Infinity }}
-            >
-               <MousePointerClick className="w-4 h-4" /> {dragHint}
-            </motion.div>
+
           </div>
         </div>
 
@@ -284,7 +441,7 @@ export const TransformationSection: React.FC<TransformationProps> = ({
                     </motion.div>
 
                     <div className="text-center">
-                      <div className="font-bold text-retro-teal text-sm mb-1">{step.month}</div>
+
                       <div className={`text-xs font-semibold uppercase tracking-wider transition-colors duration-500 ${isPassed ? 'text-retro-teal' : 'text-retro-teal/40'}`}>
                         {step.title}
                       </div>

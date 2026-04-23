@@ -45,6 +45,7 @@ const FadeSlideUp: React.FC<{
 // ─────────────────────────────────────────────────────────
 const ProblemBlock: React.FC = () => {
   const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-80px' });
 
   // Track scroll from when block enters (80% from top) to when it has scrolled 50% in
   const { scrollYProgress } = useScroll({
@@ -63,49 +64,71 @@ const ProblemBlock: React.FC = () => {
   const blurPx = useTransform(smoothProgress, [0, 1], [4, 0]);
   // opacity: 0.50 → 1
   const opacity = useTransform(smoothProgress, [0, 1], [0.5, 1]);
-  // Subtle upward parallax for background element — moves 20px slower than content
-  const bgY = useTransform(smoothProgress, [0, 1], [20, 0]);
 
   return (
     <div ref={ref} className="relative mb-20">
-      {/* Parallax background layer — moves slower than text */}
       <motion.div
-        className="absolute inset-0 rounded-3xl pointer-events-none"
-        style={{
-          y: bgY,
-          background:
-            'radial-gradient(ellipse at 50% 60%, rgba(230,72,51,0.06) 0%, transparent 70%)',
-        }}
-      />
-
-      {/* Scroll-driven blur+opacity wrapper (CSS filter, GPU-composited) */}
-      <motion.div
-        style={{
-          filter: useTransform(blurPx, (v) => `blur(${v}px)`),
-          opacity,
-          willChange: 'filter, opacity',
-        }}
-        className="relative rounded-3xl text-center py-14 px-6 md:px-14 border border-retro-sage/10 bg-white/40 backdrop-blur-[2px]"
+        initial={{ opacity: 0, y: 30, scale: 0.97 }}
+        animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+        transition={{ duration: 0.75, ease: EASE_OUT }}
+        className="relative rounded-3xl overflow-hidden bg-retro-teal p-10 md:p-14 text-center shadow-[0_12px_72px_rgba(36,72,85,0.2)]"
       >
-        <FadeSlideUp delay={0}>
-          <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-retro-salmon mb-5 px-4 py-1.5 rounded-full bg-retro-salmon/10 border border-retro-salmon/20">
-            The Problem
-          </span>
-        </FadeSlideUp>
+        {/* Base gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-retro-teal via-retro-teal to-[#1a3540]" />
 
-        <FadeSlideUp delay={0.13}>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-retro-teal leading-tight mb-6 max-w-3xl mx-auto">
-            Most students don't fail because they can't learn —
-            <br className="hidden md:block" />
-            <span className="text-retro-salmon"> they fail because they stop asking.</span>
-          </h2>
-        </FadeSlideUp>
+        {/* Ambient glow orbs — subtle, slow pulse */}
+        <motion.div
+          className="absolute top-[-20%] right-[-10%] w-80 h-80 bg-retro-salmon/20 rounded-full blur-[90px] pointer-events-none"
+          animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0.85, 0.5] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute bottom-[-20%] left-[-10%] w-80 h-80 bg-retro-sage/18 rounded-full blur-[90px] pointer-events-none"
+          animate={{ scale: [1, 1.18, 1], opacity: [0.4, 0.7, 0.4] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+        />
 
-        <FadeSlideUp delay={0.26}>
-          <p className="text-lg md:text-xl text-retro-teal/60 max-w-xl mx-auto leading-relaxed">
-            Doubt builds up. Questions stay unasked. Progress slows down.
-          </p>
-        </FadeSlideUp>
+        {/* Soft radial glow directly behind the text */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 1.2, delay: 0.4 }}
+          style={{
+            background:
+              'radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.07) 0%, transparent 65%)',
+          }}
+        />
+
+        {/* Scroll-driven blur+opacity wrapper (CSS filter, GPU-composited) */}
+        <motion.div
+          style={{
+            filter: useTransform(blurPx, (v) => `blur(${v}px)`),
+            opacity,
+            willChange: 'filter, opacity',
+          }}
+          className="relative z-10"
+        >
+          <FadeSlideUp delay={0}>
+            <span className="inline-block text-xs font-bold uppercase tracking-[0.2em] text-retro-sage mb-6 px-4 py-1.5 rounded-full bg-white/10 border border-white/20">
+              The Problem
+            </span>
+          </FadeSlideUp>
+
+          <FadeSlideUp delay={0.13}>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight mb-6 max-w-3xl mx-auto">
+              Most students don't fail because they can't learn —
+              <br className="hidden md:block" />
+              <span className="text-retro-salmon"> they fail because they stop asking.</span>
+            </h2>
+          </FadeSlideUp>
+
+          <FadeSlideUp delay={0.26}>
+            <p className="text-lg md:text-xl text-white/70 max-w-xl mx-auto leading-relaxed">
+              Doubt builds up. Questions stay unasked. Progress slows down.
+            </p>
+          </FadeSlideUp>
+        </motion.div>
       </motion.div>
 
       {/* Scroll hint arrow */}
