@@ -368,15 +368,17 @@ export default function MessagingModule() {
           onAddMemberToConversation={handleAddMemberToConversation}
           onRenameConversation={handleRenameConversation}
         />
-        <Composer
-          selectedConversation={selectedConversation}
-          replyingTo={replyingTo}
-          setReplyingTo={setReplyingTo}
-          onSendMessage={handleSendMessage}
-          onSendPoll={handleSendPoll}
-          currentMembers={selectedConversation?.members || []}
-          currentUserId={currentUserId}
-        />
+        {selectedConversation?.type !== "broadcast" && (
+          <Composer
+            selectedConversation={selectedConversation}
+            replyingTo={replyingTo}
+            setReplyingTo={setReplyingTo}
+            onSendMessage={handleSendMessage}
+            onSendPoll={handleSendPoll}
+            currentMembers={selectedConversation?.members || []}
+            currentUserId={currentUserId}
+          />
+        )}
       </div>
     </div>
   );

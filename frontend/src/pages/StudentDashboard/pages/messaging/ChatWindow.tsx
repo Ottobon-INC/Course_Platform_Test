@@ -8,6 +8,7 @@ import MessageRenderer from "./MessageRenderer";
 import UserAvatar from "./UserAvatar";
 import { DocumentViewerModal, ReactionDetailsModal, VoteDetailsModal, MembersModal, AddMemberModal, RenameGroupModal, ForwardModal } from "./ChatModals";
 import type { Conversation, Message, MsgUser, ReplyInfo, MessageReactions, AllPollVotes } from "./types";
+import { buildApiUrl } from "@/lib/api";
 
 // ── Date divider helper ──
 const formatDividerDate = (dateString: string) => {
@@ -463,18 +464,22 @@ export default function ChatWindow({
                         {/* Attachments */}
                         {!msg.is_deleted && msg.attachments && msg.attachments.length > 0 && (
                           <div className="msg-message-attachments">
-                            {msg.attachments.map((att) => (
-                              isImageFile(att.file_name) ? (
+                            {msg.attachments.map((att) => {
+                              const resolvedUrl = att.drive_item_id 
+                                ? buildApiUrl(`/messaging/attachments/${att.drive_item_id}/content`) 
+                                : buildApiUrl(att.url);
+                                
+                              return isImageFile(att.file_name) && !resolvedUrl.includes('sharepoint.com') ? (
                                 <div key={att.id} className="msg-attachment-image-container">
                                   <img
-                                    src={att.url}
+                                    src={resolvedUrl}
                                     alt={att.file_name}
                                     className="msg-attachment-img"
-                                    onClick={(e) => { e.stopPropagation(); setPreviewUrl(att.url); setPreviewFileName(att.file_name); setShowPreview(true); }}
+                                    onClick={(e) => { e.stopPropagation(); setPreviewUrl(resolvedUrl); setPreviewFileName(att.file_name); setShowPreview(true); }}
                                   />
                                 </div>
                               ) : (
-                                <button key={att.id} className="msg-attachment-card" onClick={() => { setPreviewUrl(att.url); setPreviewFileName(att.file_name); setShowPreview(true); }}>
+                                <button key={att.id} className="msg-attachment-card" onClick={() => { setPreviewUrl(resolvedUrl); setPreviewFileName(att.file_name); setShowPreview(true); }}>
                                   {att.file_name.toLowerCase().endsWith(".pdf") ? (
                                     <FileText size={18} color="#ef4444" />
                                   ) : (
@@ -485,8 +490,8 @@ export default function ChatWindow({
                                     <div className="msg-attachment-type">{att.file_name.split('.').pop()?.toUpperCase() || 'FILE'}</div>
                                   </div>
                                 </button>
-                              )
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
 

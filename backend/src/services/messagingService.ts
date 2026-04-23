@@ -23,13 +23,14 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue | Prisma.NullableJso
   return value as Prisma.InputJsonValue;
 }
 
-function mapUserForMessaging(user: { userId: string; fullName: string; email: string; role: string }) {
+function mapUserForMessaging(user: { userId: string; fullName: string; email: string; role: string; batchNo?: number | null }) {
   return {
     id: user.userId,
     full_name: user.fullName,
     email: user.email,
     role: normalizeRole(user.role),
     avatar_url: null as string | null,
+    batch_no: user.batchNo ?? null,
   };
 }
 
@@ -264,7 +265,7 @@ export async function getCohortMembersForMessaging(cohortId: string) {
   // 1. Fetch cohort members (students)
   const memberships = await prisma.cohortMember.findMany({
     where: { cohortId, status: "active" },
-    select: { userId: true, email: true },
+    select: { userId: true, email: true, batchNo: true },
   });
 
   const emails = memberships.map((member) => member.email);
@@ -302,7 +303,17 @@ export async function getCohortMembersForMessaging(cohortId: string) {
     orderBy: { fullName: "asc" },
   });
 
-  return users.map(mapUserForMessaging);
+  // 4. Map batch numbers back to users
+  const emailToBatch = new Map(memberships.map((m) => [m.email.toLowerCase(), m.userId]));
+  const membershipData = new Map(memberships.map((m) => [m.userId || m.email.toLowerCase(), m]));
+
+  return users.map((u) => {
+    const member = memberships.find(m => m.userId === u.userId || m.email.toLowerCase() === u.email.toLowerCase());
+    return mapUserForMessaging({
+      ...u,
+      batchNo: (member as any)?.batchNo ?? null,
+    });
+  });
 }
 
 export async function getOrCreateDM(userId1: string, userId2: string) {

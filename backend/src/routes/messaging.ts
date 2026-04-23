@@ -6,8 +6,28 @@ import multer from "multer";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { asyncHandler } from "../utils/asyncHandler";
 import * as messagingService from "../services/messagingService";
+import { uploadToOneDrive, getOneDriveContent } from "../utils/oneDrive";
+import { env } from "../config/env";
 
 export const messagingRouter = express.Router();
+
+messagingRouter.get(
+  "/attachments/:driveItemId/content",
+  asyncHandler(async (req, res) => {
+    const driveItemId = req.params.driveItemId;
+    console.log("[Backend] Proxying attachment:", driveItemId);
+    try {
+      const { buffer, mimeType } = await getOneDriveContent(driveItemId);
+      console.log("[Backend] Proxy success. Sending mime:", mimeType);
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Content-Disposition", "inline");
+      res.send(buffer);
+    } catch (err: any) {
+      console.error("[Backend] Proxy Error:", err.message);
+      res.status(500).json({ message: "Failed to fetch document content" });
+    }
+  }),
+);
 
 messagingRouter.use(requireAuth);
 
@@ -238,28 +258,11 @@ messagingRouter.post(
   }),
 );
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
-const ALLOWED_MIME_TYPES = new Set([
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "text/plain",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-]);
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
-  fileFilter: (_req, file, cb) => {
-    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Unsupported file type"));
-      return;
-    }
-    cb(null, true);
-  },
 });
 
 messagingRouter.post(
@@ -296,6 +299,27 @@ messagingRouter.post(
     const ext = path.extname(file.originalname);
     const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 80) || "file";
     const filename = `${Date.now()}-${crypto.randomUUID()}-${base}${ext}`;
+
+    // Try OneDrive if configured
+    if (env.oneDrive.clientId && env.oneDrive.clientSecret && env.oneDrive.tenantId) {
+      try {
+        const driveData = await uploadToOneDrive(filename, file.buffer, file.mimetype);
+        const proxyUrl = `/messaging/attachments/${driveData.drive_item_id}/content`;
+        res.status(200).json({
+          id: `att-${Date.now()}`,
+          file_name: file.originalname,
+          mime_type: file.mimetype,
+          size: file.size,
+          url: proxyUrl,
+          drive_item_id: driveData.drive_item_id,
+        });
+        return;
+      } catch (err) {
+        console.error("OneDrive upload failed, falling back to local:", err);
+      }
+    }
+
+    // Fallback to local storage (existing logic)
     const uploadDir = path.join(process.cwd(), "uploads", "messaging");
     await fs.mkdir(uploadDir, { recursive: true });
     await fs.writeFile(path.join(uploadDir, filename), file.buffer);
