@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Shield, UserMinus, UserPlus, Download, Copy, Check } from "lucide-react";
+import { X, Shield, UserMinus, UserPlus, Download, Copy, Check, Search } from "lucide-react";
 import UserAvatar from "./UserAvatar";
 import type { MsgUser, Message, PollVote, ReactionData } from "./types";
 
@@ -16,16 +16,21 @@ export function DocumentViewerModal({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-
-  const isImage = (f: string | undefined) => {
-    if (!f) return false;
+  const isImage = (f: string | undefined, urlStr: string) => {
+    if (!f || urlStr.includes('sharepoint.com') || urlStr.includes('1drv.ms')) return false;
     const ext = f.split(".").pop()?.toLowerCase();
     return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext || "");
   };
 
-  const isPdf = (f: string | undefined) => {
-    if (!f) return false;
+  const isPdf = (f: string | undefined, urlStr: string) => {
+    if (!f || urlStr.includes('sharepoint.com') || urlStr.includes('1drv.ms')) return false;
     return f.toLowerCase().endsWith(".pdf");
+  };
+
+  const isVideo = (f: string | undefined) => {
+    if (!f) return false;
+    const ext = f.split(".").pop()?.toLowerCase();
+    return ["mp4", "webm", "ogg", "mov"].includes(ext || "");
   };
 
   const handleDownload = async () => {
@@ -49,24 +54,30 @@ export function DocumentViewerModal({
   const handleCopyImage = async () => {
     try {
       const res = await fetch(url);
+      if (!res.ok) throw new Error("Fetch failed");
       const blob = await res.blob();
 
       let finalBlob = blob;
       if (blob.type !== 'image/png') {
-        finalBlob = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0);
-            canvas.toBlob(b => b ? resolve(b) : reject('Canvas fail'), 'image/png');
-          };
-          img.onerror = () => reject('Img load fail');
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
           img.src = URL.createObjectURL(blob);
         });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+
+        const p = new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(b => b ? resolve(b) : reject('Canvas fail'), 'image/png');
+        });
+        finalBlob = await p;
+        URL.revokeObjectURL(img.src);
       }
 
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
@@ -80,29 +91,35 @@ export function DocumentViewerModal({
       }
     } catch (err) {
       console.error("Failed to copy image data:", err);
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Fallback: Copy URL
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e) { }
     }
   };
+
+  const isExternal = url.startsWith("http") && !url.includes(window.location.host);
 
   return (
     <div className="msg-modal-overlay" onClick={onClose}>
       <div className="msg-modal-content" onClick={(e) => e.stopPropagation()} style={{
-        maxWidth: isImage(fileName) ? "min(1400px, 95vw)" : 560,
+        maxWidth: (isImage(fileName, url) || isVideo(fileName)) ? "min(1400px, 95vw)" : 560,
         maxHeight: "95vh",
         display: "flex",
         flexDirection: "column",
-        width: isImage(fileName) ? "fit-content" : "560px",
+        width: (isImage(fileName, url) || isVideo(fileName)) ? "fit-content" : "560px",
         margin: "0 auto"
       }}>
         <div className="msg-modal-header" style={{ flexShrink: 0 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <h3 style={{ margin: 0 }}>{fileName}</h3>
-            {isImage(fileName) && <span style={{ fontSize: 11, color: "#64748b" }}>Image Preview</span>}
+            {isImage(fileName, url) && <span style={{ fontSize: 11, color: "#64748b" }}>Image Preview</span>}
+            {isVideo(fileName) && <span style={{ fontSize: 11, color: "#64748b" }}>Video Preview</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {isImage(fileName) && (
+            {isImage(fileName, url) && (
               <button
                 onClick={handleCopyImage}
                 style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, color: copied ? "#059669" : "#475569", transition: "all 0.2s" }}
@@ -111,6 +128,12 @@ export function DocumentViewerModal({
                 {copied ? "Copied" : "Copy Image"}
               </button>
             )}
+            <button
+              onClick={() => window.open(url, "_blank")}
+              style={{ background: "white", border: "1px solid #006BFF", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#006BFF" }}
+            >
+              Open in New Tab
+            </button>
             <button
               onClick={handleDownload}
               style={{ background: "#EBF3FF", border: "none", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#006BFF", textDecoration: "none" }}
@@ -123,14 +146,14 @@ export function DocumentViewerModal({
         <div className="msg-modal-body" style={{
           textAlign: "center",
           padding: 0,
-          background: (isImage(fileName) || isPdf(fileName)) ? "#000" : "white",
+          background: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName)) ? "#000" : "white",
           overflow: "auto",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          minHeight: (isImage(fileName) || isPdf(fileName)) ? "82vh" : "200px"
+          minHeight: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName)) ? "82vh" : "200px"
         }}>
-          {isImage(fileName) ? (
+          {isImage(fileName, url) ? (
             <div style={{ padding: 12, display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
               <img
                 src={url}
@@ -144,7 +167,16 @@ export function DocumentViewerModal({
                 }}
               />
             </div>
-          ) : isPdf(fileName) ? (
+          ) : isVideo(fileName) ? (
+            <div style={{ padding: 12, display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
+              <video
+                src={url}
+                controls
+                autoPlay
+                style={{ maxWidth: "100%", maxHeight: "82vh", borderRadius: 4 }}
+              />
+            </div>
+          ) : isPdf(fileName, url) ? (
             <iframe
               src={`${url}#view=FitH`}
               title={fileName}
@@ -153,7 +185,7 @@ export function DocumentViewerModal({
           ) : (
             <div style={{ padding: "40px 20px" }}>
               <div
-                onClick={handleDownload}
+                onClick={() => window.open(url, "_blank")}
                 style={{
                   border: "2px dashed #006BFF33",
                   borderRadius: 12,
@@ -164,9 +196,9 @@ export function DocumentViewerModal({
                 }}
               >
                 <Download size={32} color="#006BFF" />
-                <div style={{ marginTop: 12, fontWeight: 700, color: "#006BFF" }}>Click here to download {fileName}</div>
+                <div style={{ marginTop: 12, fontWeight: 700, color: "#006BFF" }}>Click here to view/download {fileName}</div>
               </div>
-              <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>{url}</div>
+              <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>{isExternal ? "Redirecting to external storage..." : url}</div>
             </div>
           )}
         </div>

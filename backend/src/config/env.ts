@@ -20,6 +20,11 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, { message: "OPENAI_API_KEY is required" }),
   LLM_MODEL: z.string().min(1, { message: "LLM_MODEL is required" }).default("gpt-3.5-turbo"),
   EMBEDDING_MODEL: z.string().min(1, { message: "EMBEDDING_MODEL is required" }).default("text-embedding-3-small"),
+  CLIENT_ID: z.string().optional(),
+  CLIENT_SECRET: z.string().optional(),
+  TENANT_ID: z.string().optional(),
+  USER_ID: z.string().optional(),
+  ONEDRIVE_FOLDER: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -50,4 +55,11 @@ export const env = {
   openAiApiKey: parsed.data.OPENAI_API_KEY,
   llmModel: parsed.data.LLM_MODEL,
   embeddingModel: parsed.data.EMBEDDING_MODEL,
+  oneDrive: {
+    clientId: parsed.data.CLIENT_ID,
+    clientSecret: parsed.data.CLIENT_SECRET,
+    tenantId: parsed.data.TENANT_ID,
+    userId: parsed.data.USER_ID,
+    folder: parsed.data.ONEDRIVE_FOLDER || "messaging",
+  },
 };

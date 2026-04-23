@@ -37,7 +37,7 @@ export function Navbar() {
         </button>
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer border border-border-soft transition-transform hover:-translate-y-[2px]">
           <span className="font-semibold text-[0.95rem]">
-            {summary?.user?.fullName || localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student'}
+            {summary?.user?.fullName || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student')}
           </span>
           <i className="fas fa-chevron-down text-[0.7rem] text-gray-text"></i>
         </div>

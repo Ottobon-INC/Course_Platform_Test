@@ -2,11 +2,13 @@
 
 export interface MsgUser {
   id: string;
+  user_id?: string;
   full_name: string;
   email: string;
   role: string;
   avatar_url?: string;
   is_admin?: boolean;
+  batch_no?: number | null;
 }
 
 export interface ConversationIndex {
@@ -32,6 +34,7 @@ export interface Attachment {
   id: string;
   file_name: string;
   url: string;
+  drive_item_id?: string;
 }
 
 export interface Message {
