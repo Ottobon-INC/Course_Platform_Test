@@ -29,6 +29,7 @@
     "openai": "^6.9.0",
     "p-limit": "^7.3.0",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.20.0",
     "socket.io": "^4.8.3",
     "zod": "^3.24.2"
   },
@@ -40,6 +41,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^20.16.11",
     "@types/pdf-parse": "^1.1.5",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^2.0.16",
     "prisma": "^6.17.0",
     "supertest": "^7.1.1",

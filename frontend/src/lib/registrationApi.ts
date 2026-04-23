@@ -13,6 +13,12 @@ export type CourseOffering = {
   assessmentRequired: boolean;
   showSlots: boolean;
   slotsJson?: any;
+  qrImageUrl?: string | null;
+  course?: {
+    courseId: string;
+    courseName: string;
+    slug: string;
+  };
 };
 
 export async function fetchActiveProgramTypes(): Promise<{ activeTypes: string[] }> {

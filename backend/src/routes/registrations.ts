@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "../services/prisma";
 import { verifyAccessToken } from "../services/sessionService";
+import { resolveCourseId } from "../services/courseResolutionService";
 import multer from "multer";
 import { supabase } from "../services/supabase";
 
@@ -56,16 +57,22 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
     const courseId = typeof req.query.courseId === "string" ? req.query.courseId : undefined;
     const programType = typeof req.query.programType === "string" ? req.query.programType : undefined;
 
-    let course = null;
+    let resolvedCourseId: string | null = null;
     if (courseSlug) {
-      course = await prisma.course.findUnique({ where: { slug: courseSlug } });
+      resolvedCourseId = await resolveCourseId(courseSlug);
+      if (!resolvedCourseId) {
+        return res.json({ offerings: [] });
+      }
     } else if (courseId) {
-      course = await prisma.course.findUnique({ where: { courseId } });
+      resolvedCourseId = await resolveCourseId(courseId);
+      if (!resolvedCourseId) {
+        return res.json({ offerings: [] });
+      }
     }
 
     const offerings = await prisma.courseOffering.findMany({
       where: {
-        ...(course ? { courseId: course.courseId } : {}),
+        ...(resolvedCourseId ? { courseId: resolvedCourseId } : {}),
         isActive: true,
         ...(programType ? { programType: programType as any } : {}),
       },

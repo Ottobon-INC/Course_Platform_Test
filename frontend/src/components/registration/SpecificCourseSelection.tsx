@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'wouter'
 import { fetchOfferings } from '@/lib/registrationApi'
 
 interface SpecificCourseSelectionProps {
@@ -7,6 +6,7 @@ interface SpecificCourseSelectionProps {
     onSelect: (selection: { 
         offeringId: string; 
         title: string; 
+        routeSlug?: string;
         assessmentRequired?: boolean; 
         priceCents?: number;
         showSlots?: boolean;
@@ -20,6 +20,7 @@ interface SpecificCourseSelectionProps {
 type OfferingCard = {
     id: string
     title: string
+    routeSlug?: string
     description: string
     priceCents: number
     assessmentRequired: boolean
@@ -30,7 +31,6 @@ type OfferingCard = {
 }
 
 const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = 'ai-native-fullstack-developer' }: SpecificCourseSelectionProps) => {
-    const [, setLocation] = useLocation()
     const [selectedCourse, setSelectedCourse] = useState<string>('')
     const [offerings, setOfferings] = useState<OfferingCard[]>([])
     const [loading, setLoading] = useState<boolean>(true)
@@ -46,6 +46,7 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                     .map((o: any) => ({
                         id: o.offeringId,
                         title: o.title,
+                        routeSlug: o.course?.slug ?? undefined,
                         description: o.description || o.course?.courseName || 'Program offering',
                         priceCents: o.priceCents,
                         assessmentRequired: o.assessmentRequired ?? true,
@@ -71,14 +72,13 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
             onSelect({ 
                 offeringId: selected.id, 
                 title: selected.title, 
+                routeSlug: selected.routeSlug,
                 assessmentRequired: selected.assessmentRequired,
                 priceCents: selected.priceCents,
                 showSlots: selected.showSlots,
                 slotsJson: selected.slotsJson,
                 qrImageUrl: selected.qrImageUrl
             })
-            const slug = selected.title.toLowerCase().replace(/ /g, '-')
-            setLocation(`/registration/${programType}/${slug}`)
         }
     }
 
