@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import MessagingSidebar from "./MessagingSidebar";
 import ChatWindow from "./ChatWindow";
 import Composer from "./Composer";
@@ -76,6 +76,7 @@ export default function MessagingModule() {
     unseenCounts,
     messageReactions,
     allPollVotes,
+    socketError,
     fetchConversations,
     sendMessage,
     setMessages,
@@ -84,6 +85,7 @@ export default function MessagingModule() {
     deleteMsgForEveryone,
     deleteMsgForMe,
     submitPollVoteInfo,
+    clearSocketError,
   } = useMessaging(selectedConversation?.id || null);
 
   // ── Fetch Org Users ──
@@ -127,8 +129,21 @@ export default function MessagingModule() {
     };
   }, []);
 
+  const lastSocketErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!socketError) return;
+    if (lastSocketErrorRef.current === socketError) return;
+    lastSocketErrorRef.current = socketError;
+    toast({
+      variant: "destructive",
+      title: "Messaging issue",
+      description: socketError,
+    });
+    clearSocketError();
+  }, [socketError, toast, clearSocketError]);
+
   const handleSendMessage = useCallback(async (content: string, files: File[]) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation) return false;
 
     let attachments: any[] = [];
     let uploadErrors = 0;
@@ -185,18 +200,32 @@ export default function MessagingModule() {
 
     if (!content.trim() && attachments.length === 0) {
       if (uploadErrors > 0) {
-        return;
+        return false;
       }
-      return;
+      return false;
     }
 
-    sendMessage(content, { replyToId: replyingTo?.id, attachments: attachments.length > 0 ? attachments : undefined });
+    const result = await sendMessage(content, {
+      replyToId: replyingTo?.id,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+
+    if (!result.ok) {
+      toast({
+        variant: "destructive",
+        title: "Message not sent",
+        description: result.error || "Unable to deliver message. Please try again.",
+      });
+      return false;
+    }
+
     setReplyingTo(null);
+    return true;
   }, [selectedConversation, sendMessage, replyingTo, session?.accessToken, toast]);
 
   const handleSendPoll = useCallback((question: string, options: string[], allowMultiple: boolean) => {
     if (!selectedConversation) return;
-    sendMessage(`[Poll] ${question}`, {
+    void sendMessage(`[Poll] ${question}`, {
       pollData: { question, options, allowMultiple }
     });
   }, [selectedConversation, sendMessage]);

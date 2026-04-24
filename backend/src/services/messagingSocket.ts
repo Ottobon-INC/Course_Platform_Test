@@ -9,6 +9,8 @@ type MessageSocket = Socket & {
   };
 };
 
+type SendMessageAck = (payload: { ok: boolean; messageId?: string; error?: string }) => void;
+
 function getToken(socket: Socket): string | null {
   const authToken = socket.handshake.auth?.token;
   if (typeof authToken === "string" && authToken.trim()) {
@@ -66,13 +68,22 @@ export function setupMessagingSocket(io: Server): void {
 
     socket.on(
       "send_message",
-      async (data: { conversationId: string; content: string; type?: string; pollData?: unknown; attachments?: unknown; replyToId?: string }) => {
+      async (
+        data: { conversationId: string; content: string; type?: string; pollData?: unknown; attachments?: unknown; replyToId?: string },
+        ack?: SendMessageAck,
+      ) => {
         const conversationId = typeof data?.conversationId === "string" ? data.conversationId : "";
-        if (!conversationId) return;
+        if (!conversationId) {
+          ack?.({ ok: false, error: "Missing conversationId" });
+          return;
+        }
 
         const content = typeof data?.content === "string" ? data.content : "";
         const attachmentsPresent = Array.isArray(data?.attachments) && data.attachments.length > 0;
-        if (!content.trim() && !attachmentsPresent) return;
+        if (!content.trim() && !attachmentsPresent) {
+          ack?.({ ok: false, error: "Message content or attachments are required" });
+          return;
+        }
 
         try {
           const message = await messagingService.sendMessage({
@@ -86,10 +97,13 @@ export function setupMessagingSocket(io: Server): void {
           });
 
           io.to(`conv:${conversationId}`).emit("new_message", message);
+          ack?.({ ok: true, messageId: message.id });
         } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to send message";
           socket.emit("error", {
-            message: error instanceof Error ? error.message : "Failed to send message",
+            message,
           });
+          ack?.({ ok: false, error: message });
         }
       },
     );

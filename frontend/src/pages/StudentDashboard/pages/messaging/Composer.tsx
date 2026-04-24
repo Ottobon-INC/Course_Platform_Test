@@ -7,7 +7,7 @@ interface ComposerProps {
   selectedConversation: Conversation | null;
   replyingTo: ReplyInfo | null;
   setReplyingTo: (r: ReplyInfo | null) => void;
-  onSendMessage: (content: string, files: File[]) => void;
+  onSendMessage: (content: string, files: File[]) => Promise<boolean>;
   onSendPoll: (question: string, options: string[], allowMultiple: boolean) => void;
   currentMembers: MsgUser[];
   currentUserId?: string;
@@ -17,6 +17,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
   const [messageInput, setMessageInput] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [showPollModal, setShowPollModal] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [allowMultiple, setAllowMultiple] = useState(false);
@@ -117,17 +118,28 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
     e.target.value = "";
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageInput.trim() && attachments.length === 0) return;
+
     const content = messageInput;
     const filesCopy = [...attachments];
-    setMessageInput("");
-    if (selectedConversation?.id) {
-      setDrafts(prev => ({ ...prev, [selectedConversation.id]: "" }));
+    setIsSending(true);
+
+    try {
+      const didSend = await onSendMessage(content, filesCopy);
+      if (!didSend) {
+        return;
+      }
+
+      setMessageInput("");
+      if (selectedConversation?.id) {
+        setDrafts(prev => ({ ...prev, [selectedConversation.id]: "" }));
+      }
+      setAttachments([]);
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+    } finally {
+      setIsSending(false);
     }
-    setAttachments([]);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-    onSendMessage(content, filesCopy);
   };
 
   const handleSendPoll = () => {
@@ -206,7 +218,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
               onPaste={handlePaste}
               rows={1}
             />
-            <button className="msg-send-btn" onClick={handleSend} disabled={!messageInput.trim() && attachments.length === 0}>
+            <button className="msg-send-btn" onClick={handleSend} disabled={isSending || (!messageInput.trim() && attachments.length === 0)}>
               <Send size={18} />
             </button>
           </div>

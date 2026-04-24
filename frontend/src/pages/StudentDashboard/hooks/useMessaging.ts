@@ -2,7 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { API_BASE_URL } from "@/lib/api";
 import { readStoredSession } from "@/utils/session";
-import type { Message, Conversation, ReplyInfo, MessageReactions, AllPollVotes } from "../pages/messaging/types";
+import type { Message, Conversation, MessageReactions, AllPollVotes } from "../pages/messaging/types";
+
+type SendMessageOptions = {
+  replyToId?: string;
+  attachments?: any[];
+  pollData?: any;
+};
+
+type SendMessageResult = {
+  ok: boolean;
+  via?: "socket" | "http";
+  error?: string;
+};
 
 export function useMessaging(selectedConversationId: string | null) {
   const [messageReactions, setMessageReactions] = useState<MessageReactions>({});
@@ -11,6 +23,7 @@ export function useMessaging(selectedConversationId: string | null) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [unseenCounts, setUnseenCounts] = useState<Record<string, number>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const [socketError, setSocketError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const session = readStoredSession();
 
@@ -82,14 +95,27 @@ export function useMessaging(selectedConversationId: string | null) {
 
     socket.on("connect", () => {
       console.log("Connected to Messaging Socket");
+      setSocketError(null);
       if (selectedConversationId) {
         socket.emit("join_conversation", selectedConversationId);
       }
     });
 
+    socket.on("connect_error", (error) => {
+      const message = error instanceof Error ? error.message : "Messaging socket connection failed";
+      setSocketError(message);
+      console.error("Messaging socket connect_error:", message);
+    });
+
+    socket.on("disconnect", (reason) => {
+      if (reason !== "io client disconnect") {
+        setSocketError(`Messaging disconnected: ${reason}`);
+      }
+    });
+
     socket.on("new_message", (msg: Message) => {
       if (msg.conversation_id === selectedConversationId) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => (prev.some((existing) => existing.id === msg.id) ? prev : [...prev, msg]));
         // Auto-mark as read if we are in the chat
         socket.emit("mark_as_read", { conversationId: msg.conversation_id, messageId: msg.id });
       } else {
@@ -134,6 +160,11 @@ export function useMessaging(selectedConversationId: string | null) {
       setAllPollVotes(p => ({ ...p, [data.messageId]: data.poll_votes }));
     });
 
+    socket.on("error", (payload: { message?: string } | undefined) => {
+      const message = payload?.message || "Failed to send message";
+      setSocketError(message);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -153,17 +184,111 @@ export function useMessaging(selectedConversationId: string | null) {
   }, [selectedConversationId, fetchHistory]);
 
   // ── 3. Actions ──
-  const sendMessage = useCallback((content: string, options?: { replyToId?: string; attachments?: any[]; pollData?: any }) => {
-    if (!selectedConversationId || !socketRef.current) return;
-    socketRef.current.emit("send_message", {
-      conversationId: selectedConversationId,
-      content,
-      type: options?.pollData ? "poll" : "text",
-      replyToId: options?.replyToId,
-      attachments: options?.attachments,
-      pollData: options?.pollData,
-    });
-  }, [selectedConversationId]);
+  const sendMessageViaHttp = useCallback(
+    async (content: string, options?: SendMessageOptions): Promise<SendMessageResult> => {
+      if (!selectedConversationId) {
+        return { ok: false, error: "No conversation selected" };
+      }
+      if (!session?.accessToken) {
+        return { ok: false, error: "Authentication token missing" };
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/messaging/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: JSON.stringify({
+            conversationId: selectedConversationId,
+            content,
+            type: options?.pollData ? "poll" : "text",
+            replyToId: options?.replyToId,
+            attachments: options?.attachments,
+            pollData: options?.pollData,
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          return { ok: false, via: "http", error: data?.message || `HTTP ${response.status}` };
+        }
+
+        if (data?.message) {
+          const createdMessage = data.message as Message;
+          setMessages((prev) => (prev.some((existing) => existing.id === createdMessage.id) ? prev : [...prev, createdMessage]));
+          setConversations((prev) =>
+            prev.map((conversation) =>
+              conversation.id === selectedConversationId
+                ? { ...conversation, last_message: createdMessage.content, last_message_at: createdMessage.created_at }
+                : conversation,
+            ),
+          );
+        }
+
+        return { ok: true, via: "http" };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to send message";
+        return { ok: false, via: "http", error: message };
+      }
+    },
+    [selectedConversationId, session?.accessToken],
+  );
+
+  const sendMessage = useCallback(
+    async (content: string, options?: SendMessageOptions): Promise<SendMessageResult> => {
+      if (!selectedConversationId) {
+        return { ok: false, error: "No conversation selected" };
+      }
+
+      const socket = socketRef.current;
+      if (socket?.connected) {
+        const socketResult = await new Promise<SendMessageResult>((resolve) => {
+          let settled = false;
+          const timeoutId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            resolve({ ok: false, via: "socket", error: "Socket send timeout" });
+          }, 6000);
+
+          socket.emit(
+            "send_message",
+            {
+              conversationId: selectedConversationId,
+              content,
+              type: options?.pollData ? "poll" : "text",
+              replyToId: options?.replyToId,
+              attachments: options?.attachments,
+              pollData: options?.pollData,
+            },
+            (ack?: { ok?: boolean; error?: string }) => {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timeoutId);
+              if (ack?.ok) {
+                resolve({ ok: true, via: "socket" });
+                return;
+              }
+              resolve({ ok: false, via: "socket", error: ack?.error || "Socket send failed" });
+            },
+          );
+        });
+
+        if (socketResult.ok) {
+          return socketResult;
+        }
+        setSocketError(socketResult.error || "Socket send failed");
+      }
+
+      const fallbackResult = await sendMessageViaHttp(content, options);
+      if (!fallbackResult.ok) {
+        setSocketError(fallbackResult.error || "Message send failed");
+      }
+      return fallbackResult;
+    },
+    [selectedConversationId, sendMessageViaHttp],
+  );
 
   const sendTyping = useCallback((isTyping: boolean) => {
     if (!selectedConversationId || !socketRef.current) return;
@@ -194,6 +319,10 @@ export function useMessaging(selectedConversationId: string | null) {
     socketRef.current?.emit("submit_poll_vote", { conversationId: selectedConversationId, messageId, optionIndex, allowMultiple });
   }, [selectedConversationId]);
 
+  const clearSocketError = useCallback(() => {
+    setSocketError(null);
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -203,6 +332,7 @@ export function useMessaging(selectedConversationId: string | null) {
     typingUsers,
     messageReactions,
     allPollVotes,
+    socketError,
     fetchConversations,
     sendMessage,
     sendTyping,
@@ -211,5 +341,6 @@ export function useMessaging(selectedConversationId: string | null) {
     deleteMsgForEveryone,
     deleteMsgForMe,
     submitPollVoteInfo,
+    clearSocketError,
   };
 }
