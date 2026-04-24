@@ -48,7 +48,11 @@ export default function MessagingSidebar({
   });
 
   const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
+    if (!dateStr) return "";
+    // Double-Offset Bypass: Strip 'Z' or offset to treat the time exactly as it is written
+    const cleanStr = dateStr.replace(/Z$/, '').split('+')[0];
+    const d = new Date(cleanStr);
+    
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today);
@@ -164,17 +168,55 @@ export default function MessagingSidebar({
               );
             }
 
-            return filteredUsers.map((user) => (
-              <div key={user.id} className="msg-conv-item" onClick={() => onStartChatWithUser(user)} style={{ padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
-                <div className="msg-conv-avatar">
-                  <UserAvatar user={user} size={36} />
+            return filteredUsers.map((user) => {
+              // Find if we have an existing DM conversation with this user
+              // We check both members and otherUser for maximum compatibility
+              const conv = conversations.find(c => 
+                c.type === "dm" && (
+                  c.members?.some(p => p.id === user.id || p.user_id === user.id) ||
+                  c.otherUser?.id === user.id ||
+                  c.otherUser?.user_id === user.id
+                )
+              );
+
+              // Pull the latest message and timestamp from conversation_indexes or messages
+              const lastMessage = conv?.conversation_indexes?.[0]?.last_message || conv?.messages?.[0]?.content || (conv as any)?.last_message || "";
+              const lastMessageAt = conv?.conversation_indexes?.[0]?.last_message_at || conv?.messages?.[0]?.created_at || (conv as any)?.last_message_at || "";
+              const unseenCount = conv ? (lastReadTimes as any)[conv.id] || 0 : 0;
+              const isUnread = unseenCount > 0;
+
+              return (
+                <div 
+                  key={user.id} 
+                  className={`msg-conv-item ${selectedConversation?.id === conv?.id ? "active" : ""}`} 
+                  onClick={() => conv ? onSelectConversation(conv) : onStartChatWithUser(user)}
+                >
+                  <div className="msg-conv-avatar">
+                    <UserAvatar user={user} size={36} />
+                  </div>
+                  <div className="msg-conv-info">
+                    <div className="msg-conv-name">{user.full_name || user.email}</div>
+                    <div className="msg-conv-preview">
+                      {!isUnread && lastMessage && (
+                        <span className="msg-seen-indicator">
+                          <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
+                            <path d="M11.071 0.929L4.5 7.5L1.929 4.929" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M14.071 0.929L7.5 7.5L6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      )}
+                      {lastMessage || (conv ? "No messages yet" : (user.role || "Student"))}
+                    </div>
+                  </div>
+                  <div className="msg-conv-meta">
+                    <div style={{ fontSize: 10, color: "#94a3b8" }}>
+                      {lastMessageAt ? formatTime(lastMessageAt) : ""}
+                    </div>
+                    {isUnread && <span className="msg-unread-badge">{unseenCount}</span>}
+                  </div>
                 </div>
-                <div className="msg-conv-info">
-                  <div className="msg-conv-name">{user.full_name || user.email}</div>
-                  <div className="msg-conv-preview" style={{ textTransform: "capitalize", fontSize: 13, color: "#64748b" }}>{user.role}</div>
-                </div>
-              </div>
-            ));
+              );
+            });
           })() : filteredConversations.length === 0 ? (
             <div className="msg-empty-state">
               {activeCategory === "team" ? <Users size={40} /> : <Building2 size={40} />}

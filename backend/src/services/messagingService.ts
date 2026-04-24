@@ -802,6 +802,34 @@ export async function getConversationHistory(
   return messages.map((message) => formatMessage(message));
 }
 
+export async function getMessageById(messageId: string) {
+  const msg = await prisma.cpMessage.findUnique({
+    where: { id: messageId },
+    include: {
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          sender: { select: { fullName: true } },
+        },
+      },
+      reactions: {
+        include: {
+          user: { select: { userId: true, fullName: true } },
+        },
+      },
+      pollVotes: {
+        include: {
+          user: { select: { userId: true, fullName: true, email: true } },
+        },
+      },
+    },
+  });
+
+  if (!msg) return null;
+  return formatMessage(msg);
+}
+
 export async function markAsRead(conversationId: string, userId: string, messageId: string) {
   await ensureConversationMembership(conversationId, userId);
 

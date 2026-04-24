@@ -10,9 +10,18 @@ import { DocumentViewerModal, ReactionDetailsModal, VoteDetailsModal, MembersMod
 import type { Conversation, Message, MsgUser, ReplyInfo, MessageReactions, AllPollVotes } from "./types";
 import { buildApiUrl } from "@/lib/api";
 
+// ── Date bypass helper ──
+// This tells the browser to ignore the UTC label and treat the time exactly as it is written.
+const parseDateBypass = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  // Strip 'Z' or '+00:00' to treat the time exactly as it is written
+  const cleanStr = dateStr.replace(/Z$/, '').split('+')[0];
+  return new Date(cleanStr);
+};
+
 // ── Date divider helper ──
 const formatDividerDate = (dateString: string) => {
-  const date = new Date(dateString);
+  const date = parseDateBypass(dateString);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -356,13 +365,17 @@ export default function ChatWindow({
             const nextMsg = messages[idx + 1];
 
             // ── Grouping Logic ──
+            const msgDate = parseDateBypass(msg.created_at);
+            const prevMsgDate = prevMsg ? parseDateBypass(prevMsg.created_at) : null;
+            const nextMsgDate = nextMsg ? parseDateBypass(nextMsg.created_at) : null;
+
             const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id ||
-              (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 5 * 60 * 1000);
+              (msgDate.getTime() - (prevMsgDate?.getTime() || 0) > 5 * 60 * 1000);
 
             const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id ||
-              (new Date(nextMsg.created_at).getTime() - new Date(msg.created_at).getTime() > 5 * 60 * 1000);
+              ((nextMsgDate?.getTime() || 0) - msgDate.getTime() > 5 * 60 * 1000);
 
-            const isNewDay = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
+            const isNewDay = !prevMsg || msgDate.toDateString() !== prevMsgDate?.toDateString();
             const isSent = msg.sender_id === currentUserId;
             const isSearchMatch = messageSearchQuery && searchResultIds.includes(msg.id);
             const isCurrentResult = highlightedMessageId === msg.id;
@@ -517,7 +530,7 @@ export default function ChatWindow({
 
                         {/* Timestamp Inside (Bottom Right) */}
                         <div className="msg-time-inside">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {parseDateBypass(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           {isSent && (
                             <span className="msg-status-tick">
                               <Check size={10} style={{ marginLeft: 2, display: "inline-block", color: (msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) ? "#006BFF" : "inherit" }} />
@@ -625,7 +638,7 @@ export default function ChatWindow({
             const msg = messages.find(m => m.id === contextMenu.msgId);
             if (!msg) return null;
             const isMe = msg.sender_id === currentUserId;
-            const canEdit = isMe && (Date.now() - new Date(msg.created_at).getTime()) < 2 * 60 * 1000;
+            const canEdit = isMe && (Date.now() - parseDateBypass(msg.created_at).getTime()) < 2 * 60 * 1000;
             const canDeleteForEveryone = isMe; // Allow delete for everyone for tutor
 
             return (
