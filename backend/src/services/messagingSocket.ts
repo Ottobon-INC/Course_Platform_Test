@@ -24,7 +24,79 @@ function getToken(socket: Socket): string | null {
   return null;
 }
 
+let ioInstance: Server | null = null;
+const recentlyEmittedMessages = new Set<string>();
+
+export function broadcastNewMessage(conversationId: string, message: any) {
+  if (!ioInstance) return;
+  // Deduplicate: Don't emit if we already emitted this message recently
+  if (recentlyEmittedMessages.has(message.id)) return;
+  
+  recentlyEmittedMessages.add(message.id);
+  setTimeout(() => recentlyEmittedMessages.delete(message.id), 15000); // 15s cache
+  
+  ioInstance.to(`conv:${conversationId}`).emit("new_message", message);
+}
+
+// ── Professional Cursor Poller (The Ultimate Sync Fix) ──
+// We track the timestamp of the LATEST message seen in each active chat room.
+const roomCursors = new Map<string, Date>();
+const globalMessageRegistry = new Set<string>();
+
+setInterval(async () => {
+  if (!ioInstance) return;
+
+  // 1. Identify all active conversation rooms
+  const activeRooms = Array.from(ioInstance.sockets.adapter.rooms.keys())
+    .filter(room => room.startsWith("conv:"));
+  
+  if (activeRooms.length === 0) return;
+
+  for (const roomName of activeRooms) {
+    const conversationId = roomName.replace("conv:", "");
+    
+    // 2. Get the cursor for this room. 
+    // We use a 1-second overlap buffer on every poll to ensure millisecond-perfect delivery
+    const cursor = roomCursors.get(conversationId) || new Date(Date.now() - 30 * 60 * 1000);
+
+    try {
+      const messages = await messagingService.prisma.cpMessage.findMany({
+        where: {
+          conversationId,
+          createdAt: { gte: cursor } // Use Greater Than or Equal
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, createdAt: true }
+      });
+
+      if (messages.length > 0) {
+        // 3. Update the cursor to the timestamp of the newest message found
+        const newestMsg = messages[messages.length - 1];
+        roomCursors.set(conversationId, newestMsg.createdAt);
+
+        for (const msg of messages) {
+          // Double-check with registry to be 100% safe against duplicates
+          if (!globalMessageRegistry.has(msg.id)) {
+            globalMessageRegistry.add(msg.id);
+            // Longer registry memory (20 mins) to handle slow tutor clocks
+            setTimeout(() => globalMessageRegistry.delete(msg.id), 20 * 60 * 1000);
+
+            const fullMsg = await messagingService.getMessageById(msg.id);
+            if (fullMsg) {
+              broadcastNewMessage(fullMsg.conversation_id, fullMsg);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Iron-Clad Poller Error:", err);
+    }
+  }
+}, 1000); // 1 second frequency for near-instant response
+
 export function setupMessagingSocket(io: Server): void {
+  ioInstance = io;
+
   io.use((socket, next) => {
     const token = getToken(socket);
     if (!token) {
@@ -54,6 +126,12 @@ export function setupMessagingSocket(io: Server): void {
       try {
         await messagingService.ensureConversationMembership(conversationId, userId);
         socket.join(`conv:${conversationId}`);
+
+        // Initialize cursor for this room if not set.
+        // We use a 30-minute past buffer to ensure we catch messages from slow tutor clocks.
+        if (!roomCursors.has(conversationId)) {
+          roomCursors.set(conversationId, new Date(Date.now() - 30 * 60 * 1000));
+        }
       } catch {
         // Ignore unauthorized join requests.
       }
@@ -85,7 +163,8 @@ export function setupMessagingSocket(io: Server): void {
             replyToId: typeof data?.replyToId === "string" ? data.replyToId : undefined,
           });
 
-          io.to(`conv:${conversationId}`).emit("new_message", message);
+          // Instantly broadcast our own message
+          broadcastNewMessage(conversationId, message);
         } catch (error) {
           socket.emit("error", {
             message: error instanceof Error ? error.message : "Failed to send message",

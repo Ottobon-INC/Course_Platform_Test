@@ -30,6 +30,7 @@ async function startServer(): Promise<void> {
     },
   });
 
+  app.set("io", io); // Attach io to app so routers can use it for broadcasting
   setupMessagingSocket(io);
 
   httpServer.listen(env.port, () => {

@@ -18,8 +18,8 @@ export function useMessaging(selectedConversationId: string | null) {
   const fetchConversations = useCallback(async (cohortId?: string | null) => {
     if (!session?.accessToken) return;
     try {
-      const url = cohortId 
-        ? `${API_BASE_URL}/api/messaging/conversations?cohortId=${cohortId}` 
+      const url = cohortId
+        ? `${API_BASE_URL}/api/messaging/conversations?cohortId=${cohortId}`
         : `${API_BASE_URL}/api/messaging/conversations`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${session.accessToken}` },
@@ -38,24 +38,38 @@ export function useMessaging(selectedConversationId: string | null) {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
       const data = await res.json();
+
+      // Safety check: Only update if the user is still looking at the same conversation
+      if (selectedConvRef.current !== convId) return;
+
       if (data.messages) {
-        const msgs = data.messages.reverse();
-        setMessages(msgs);
-        
+        const historyMsgs = data.messages.reverse();
+
+        setMessages((currentMessages) => {
+          // If we're switching to a brand new conversation, just use the history
+          // Otherwise, merge history with any live messages that might have arrived
+          const existingIds = new Set(historyMsgs.map((m: any) => m.id));
+          const liveOnly = currentMessages.filter(m => m.conversation_id === convId && !existingIds.has(m.id));
+
+          return [...historyMsgs, ...liveOnly];
+        });
+
         // Parse reactions and poll votes from history
         const loadedReactions: MessageReactions = {};
         const loadedVotes: AllPollVotes = {};
-        
-        msgs.forEach((m: any) => {
+
+        historyMsgs.forEach((m: any) => {
           if (m.reactions && m.reactions.length > 0) {
             loadedReactions[m.id] = {};
             m.reactions.forEach((r: any) => {
-              if (!loadedReactions[m.id][r.emoji]) loadedReactions[m.id][r.emoji] = { count: 0, users: [] };
+              if (!loadedReactions[m.id][r.emoji]) {
+                loadedReactions[m.id][r.emoji] = { count: 0, users: [] };
+              }
               loadedReactions[m.id][r.emoji].count++;
-              loadedReactions[m.id][r.emoji].users.push({ user_id: r.user?.userId || r.userId, name: r.user?.fullName || "User" });
+              loadedReactions[m.id][r.emoji].users.push({ user_id: r.user.userId, name: r.user.fullName });
             });
           }
-          if (m.poll_votes && m.poll_votes.length > 0) {
+          if (m.poll_votes) {
             loadedVotes[m.id] = m.poll_votes.map((v: any) => ({
               id: v.id, user_id: v.user?.userId || v.userId, option_index: v.optionIndex || v.option_index,
               profiles: { full_name: v.user?.fullName, email: "" }
@@ -71,6 +85,12 @@ export function useMessaging(selectedConversationId: string | null) {
   }, [session?.accessToken]);
 
   // ── 2. Socket.io Integration ──
+  // Use a ref to access the latest selected ID inside the socket listener without causing reconnects
+  const selectedConvRef = useRef(selectedConversationId);
+  useEffect(() => {
+    selectedConvRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
   useEffect(() => {
     if (!session?.accessToken) return;
 
@@ -82,15 +102,27 @@ export function useMessaging(selectedConversationId: string | null) {
 
     socket.on("connect", () => {
       console.log("Connected to Messaging Socket");
-      if (selectedConversationId) {
-        socket.emit("join_conversation", selectedConversationId);
+      // Initial join if an ID is already selected
+      if (selectedConvRef.current) {
+        socket.emit("join_conversation", selectedConvRef.current);
       }
     });
 
     socket.on("new_message", (msg: Message) => {
-      if (msg.conversation_id === selectedConversationId) {
-        setMessages((prev) => [...prev, msg]);
-        // Auto-mark as read if we are in the chat
+      // Use a robust comparison to avoid missing messages during transitions
+      const currentSelectedId = selectedConvRef.current;
+      const isForActiveChat =
+        currentSelectedId &&
+        msg.conversation_id &&
+        msg.conversation_id.toString().trim().toLowerCase() === currentSelectedId.toString().trim().toLowerCase();
+
+      if (isForActiveChat) {
+        setMessages((prev) => {
+          // Prevent duplicates
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        // Auto-mark as read
         socket.emit("mark_as_read", { conversationId: msg.conversation_id, messageId: msg.id });
       } else {
         // Increment unseen count for background conversations
@@ -99,11 +131,23 @@ export function useMessaging(selectedConversationId: string | null) {
           [msg.conversation_id]: (prev[msg.conversation_id] || 0) + 1,
         }));
       }
-      
-      // Update the last message in the sidebar list
-      setConversations((prev) => 
-        prev.map(c => c.id === msg.conversation_id 
-          ? { ...c, last_message: msg.content, last_message_at: msg.created_at } 
+
+      // Update the last message in the sidebar list regardless of which chat is active
+      setConversations((prev) =>
+        prev.map(c => c.id === msg.conversation_id
+          ? {
+            ...c,
+            last_message: msg.content,
+            last_message_at: msg.created_at,
+            // Update nested conversation_indexes for consistency
+            conversation_indexes: [
+              {
+                last_message: msg.content,
+                last_message_at: msg.created_at,
+                last_sender_id: msg.sender_id
+              }
+            ]
+          }
           : c
         )
       );
@@ -126,7 +170,7 @@ export function useMessaging(selectedConversationId: string | null) {
     socket.on("message_edited", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     socket.on("message_deleted", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     socket.on("message_pinned", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
-    
+
     socket.on("reactions_updated", (data: { messageId: string, reactions: any }) => {
       setMessageReactions(p => ({ ...p, [data.messageId]: data.reactions }));
     });
@@ -137,11 +181,13 @@ export function useMessaging(selectedConversationId: string | null) {
     return () => {
       socket.disconnect();
     };
-  }, [session?.accessToken, selectedConversationId]);
+  }, [session?.accessToken]); // ONLY reconnect if the user logs out/changes auth token
 
   // Handle switching conversations
   useEffect(() => {
     if (selectedConversationId) {
+      // Clear messages immediately when switching to a NEW chat to prevent flicker from previous chat
+      setMessages([]);
       fetchHistory(selectedConversationId);
       socketRef.current?.emit("join_conversation", selectedConversationId);
     }

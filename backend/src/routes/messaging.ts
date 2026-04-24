@@ -184,6 +184,11 @@ messagingRouter.post(
       replyToId: typeof req.body.replyToId === "string" ? req.body.replyToId : undefined,
     });
 
+    // We must lazily import it to avoid circular dependency issues at startup
+    import("../services/messagingSocket").then(({ broadcastNewMessage }) => {
+      broadcastNewMessage(conversationId, message);
+    });
+
     res.status(201).json({ message });
   }),
 );
@@ -201,6 +206,17 @@ messagingRouter.post(
     }
 
     await messagingService.markAsRead(conversationId, auth.userId, messageId);
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`conv:${conversationId}`).emit("user_seen", {
+        conversationId,
+        userId: auth.userId,
+        messageId,
+        seenAt: new Date().toISOString(),
+      });
+    }
+
     res.status(200).json({ success: true });
   }),
 );
