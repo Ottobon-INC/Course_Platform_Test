@@ -184,10 +184,10 @@ messagingRouter.post(
       replyToId: typeof req.body.replyToId === "string" ? req.body.replyToId : undefined,
     });
 
-    // We must lazily import it to avoid circular dependency issues at startup
-    import("../services/messagingSocket").then(({ broadcastNewMessage }) => {
-      broadcastNewMessage(conversationId, message);
-    });
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`conv:${conversationId}`).emit("new_message", message);
+    }
 
     res.status(201).json({ message });
   }),
