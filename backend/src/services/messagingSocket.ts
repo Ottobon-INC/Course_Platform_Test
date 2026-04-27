@@ -26,6 +26,19 @@ function getToken(socket: Socket): string | null {
   return null;
 }
 
+async function emitNewMessage(io: Server, conversationId: string, message: unknown) {
+  io.to(`conv:${conversationId}`).emit("new_message", message);
+
+  try {
+    const participantIds = await messagingService.getConversationMemberUserIds(conversationId);
+    for (const participantId of participantIds) {
+      io.to(`user:${participantId}`).emit("new_message", message);
+    }
+  } catch (error) {
+    console.error("Failed to emit new_message to participant user rooms:", error);
+  }
+}
+
 export function setupMessagingSocket(io: Server): void {
   io.use((socket, next) => {
     const token = getToken(socket);
@@ -96,7 +109,7 @@ export function setupMessagingSocket(io: Server): void {
             replyToId: typeof data?.replyToId === "string" ? data.replyToId : undefined,
           });
 
-          io.to(`conv:${conversationId}`).emit("new_message", message);
+          await emitNewMessage(io, conversationId, message);
           ack?.({ ok: true, messageId: message.id });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to send message";

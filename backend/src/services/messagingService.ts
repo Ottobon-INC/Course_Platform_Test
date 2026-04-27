@@ -175,6 +175,15 @@ export async function ensureConversationMembership(conversationId: string, userI
   }
 }
 
+export async function getConversationMemberUserIds(conversationId: string): Promise<string[]> {
+  const memberships = await prisma.cpConversationMember.findMany({
+    where: { conversationId },
+    select: { userId: true },
+  });
+
+  return Array.from(new Set(memberships.map((membership) => membership.userId)));
+}
+
 export async function addMemberToConversation(conversationId: string, userId: string) {
   const conversation = await prisma.cpConversation.findUnique({
     where: { id: conversationId },
@@ -262,57 +271,120 @@ export async function getConversationByIdForUser(conversationId: string, userId:
 }
 
 export async function getCohortMembersForMessaging(cohortId: string) {
-  // 1. Fetch cohort members (students)
+  // 1) Active cohort learners (source of truth for learner list)
   const memberships = await prisma.cohortMember.findMany({
     where: { cohortId, status: "active" },
     select: { userId: true, email: true, batchNo: true },
   });
 
-  const emails = memberships.map((member) => member.email);
-  await ensureUsersExistForEmails(emails);
+  const membershipEmails = memberships.map((member) => member.email.toLowerCase());
+  await ensureUsersExistForEmails(membershipEmails);
 
-  // 2. Fetch tutors for the course associated with this cohort
+  // 2) Course tutors from tutor mapping tables only (source of truth for tutor list)
   const cohort = await prisma.cohort.findUnique({
     where: { cohortId },
-    include: { offering: { select: { courseId: true } } },
+    select: { offering: { select: { courseId: true } } },
   });
 
-  let tutorUserIds: string[] = [];
-  if (cohort?.offering?.courseId) {
-    const courseTutors = await prisma.courseTutor.findMany({
-      where: { courseId: cohort.offering.courseId, isActive: true },
-      include: { tutor: { select: { userId: true } } },
+  const courseTutors = cohort?.offering?.courseId
+    ? await prisma.courseTutor.findMany({
+        where: { courseId: cohort.offering.courseId, isActive: true },
+        select: {
+          tutor: {
+            select: {
+              userId: true,
+              displayName: true,
+              user: {
+                select: {
+                  userId: true,
+                  fullName: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      })
+    : [];
+
+  const tutorUserIds = new Set(
+    courseTutors
+      .map((assignment) => assignment.tutor.userId)
+      .filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
+
+  const membershipByUserId = new Map(
+    memberships
+      .filter((membership): membership is { userId: string; email: string; batchNo: number } => Boolean(membership.userId))
+      .map((membership) => [membership.userId, membership]),
+  );
+  const membershipByEmail = new Map(memberships.map((membership) => [membership.email.toLowerCase(), membership]));
+
+  // 3) Resolve learners from users table but force learner role to avoid legacy tutor-role leakage
+  const learnerUserIds = Array.from(
+    new Set(
+      memberships
+        .map((membership) => membership.userId)
+        .filter((value): value is string => typeof value === "string" && value.length > 0),
+    ),
+  );
+
+  const learnerUsers =
+    learnerUserIds.length > 0 || membershipEmails.length > 0
+      ? await prisma.user.findMany({
+          where: {
+            OR: [
+              ...(learnerUserIds.length > 0 ? [{ userId: { in: learnerUserIds } }] : []),
+              ...(membershipEmails.length > 0 ? [{ email: { in: membershipEmails } }] : []),
+            ],
+          },
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+          },
+        })
+      : [];
+
+  const learners = learnerUsers
+    .filter((user) => !tutorUserIds.has(user.userId))
+    .map((user) => {
+      const member = membershipByUserId.get(user.userId) ?? membershipByEmail.get(user.email.toLowerCase()) ?? null;
+      return mapUserForMessaging({
+        userId: user.userId,
+        fullName: user.fullName,
+        email: user.email,
+        role: "learner",
+        batchNo: member?.batchNo ?? null,
+      });
     });
-    tutorUserIds = courseTutors.map((ct) => ct.tutor.userId).filter(Boolean);
+
+  // 4) Tutor entries from tutor assignments only
+  const tutors = courseTutors.map((assignment) => {
+    const tutor = assignment.tutor;
+    const user = tutor.user;
+    return mapUserForMessaging({
+      userId: user.userId,
+      fullName: tutor.displayName || user.fullName,
+      email: user.email,
+      role: "tutor",
+      batchNo: null,
+    });
+  });
+
+  // 5) Merge + dedupe by user id (tutor takes precedence)
+  const byUserId = new Map<string, ReturnType<typeof mapUserForMessaging>>();
+  for (const learner of learners) {
+    byUserId.set(learner.id, learner);
+  }
+  for (const tutor of tutors) {
+    byUserId.set(tutor.id, tutor);
   }
 
-  // 3. Combine both and fetch User records
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [
-        { email: { in: emails.map((email) => email.toLowerCase()) } },
-        { userId: { in: tutorUserIds } },
-      ],
-    },
-    select: {
-      userId: true,
-      fullName: true,
-      email: true,
-      role: true,
-    },
-    orderBy: { fullName: "asc" },
-  });
-
-  // 4. Map batch numbers back to users
-  const emailToBatch = new Map(memberships.map((m) => [m.email.toLowerCase(), m.userId]));
-  const membershipData = new Map(memberships.map((m) => [m.userId || m.email.toLowerCase(), m]));
-
-  return users.map((u) => {
-    const member = memberships.find(m => m.userId === u.userId || m.email.toLowerCase() === u.email.toLowerCase());
-    return mapUserForMessaging({
-      ...u,
-      batchNo: (member as any)?.batchNo ?? null,
-    });
+  return Array.from(byUserId.values()).sort((a, b) => {
+    const nameA = (a.full_name || "").toLowerCase();
+    const nameB = (b.full_name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
   });
 }
 

@@ -187,6 +187,10 @@ messagingRouter.post(
     const io = req.app.get("io");
     if (io) {
       io.to(`conv:${conversationId}`).emit("new_message", message);
+      const participantIds = await messagingService.getConversationMemberUserIds(conversationId);
+      for (const participantId of participantIds) {
+        io.to(`user:${participantId}`).emit("new_message", message);
+      }
     }
 
     res.status(201).json({ message });
