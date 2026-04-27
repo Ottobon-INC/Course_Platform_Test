@@ -116,21 +116,6 @@ export function useMessaging(selectedConversation: Conversation | null) {
     }
   }, [session?.accessToken]);
 
-  // Fallback reliability path:
-  // if websocket delivery is delayed/missed, keep list + active chat synced via API polling.
-  useEffect(() => {
-    if (!session?.accessToken) return;
-
-    const intervalId = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void fetchConversations();
-    }, 4000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [session?.accessToken, fetchConversations]);
-
   const fetchHistory = useCallback(async (convId: string) => {
     if (!session?.accessToken) return;
     const requestId = activeHistoryRequestRef.current + 1;
@@ -173,6 +158,34 @@ export function useMessaging(selectedConversation: Conversation | null) {
       console.error("Failed to fetch history:", err);
     }
   }, [session?.accessToken]);
+
+  // Fallback reliability path:
+  // active chat refreshes first, then sidebar preview refreshes.
+  useEffect(() => {
+    if (!session?.accessToken) return;
+
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+      const activeConversationId = selectedConversationIdRef.current;
+      if (activeConversationId) {
+        void (async () => {
+          await fetchHistory(activeConversationId);
+          // Keep ordering deterministic: chat timeline first, sidebar preview second.
+          setTimeout(() => {
+            void fetchConversations();
+          }, 250);
+        })();
+        return;
+      }
+
+      void fetchConversations();
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [session?.accessToken, fetchConversations, fetchHistory]);
 
   // ── 2. Socket.io Integration ──
   useEffect(() => {
@@ -337,20 +350,6 @@ export function useMessaging(selectedConversation: Conversation | null) {
       }
     };
   }, [selectedConversationId, fetchHistory]);
-
-  // Keep selected chat timeline live even if real-time socket events are missed.
-  useEffect(() => {
-    if (!session?.accessToken || !selectedConversationId) return;
-
-    const intervalId = window.setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void fetchHistory(selectedConversationId);
-    }, 3000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [session?.accessToken, selectedConversationId, fetchHistory]);
 
   // Keep chat history in sync with conversation preview metadata.
   // If preview moves forward (via socket/poll/update) but messages array is behind,
