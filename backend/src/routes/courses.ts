@@ -18,7 +18,35 @@ const courseSelect = {
   description: true,
   priceCents: true,
   slug: true,
+  category: true,
+  level: true,
+  rating: true,
+  students: true,
+  heroVideoUrl: true,
+  skillsJson: true,
+  reviewsJson: true,
+  faqsJson: true,
+  companiesJson: true,
+  overviewBullets: true,
+  syllabusUrl: true,
   createdAt: true,
+  offerings: {
+    select: {
+      programType: true,
+      programmeDetails: true,
+    }
+  },
+  tutors: {
+    select: {
+      role: true,
+      tutor: {
+        select: {
+          displayName: true,
+          bio: true,
+        }
+      }
+    }
+  }
 } as const;
 
 type CourseRecord = Prisma.CourseGetPayload<{ select: typeof courseSelect }>;
@@ -27,6 +55,22 @@ function mapCourse(course: CourseRecord) {
   const priceCents = course.priceCents ?? 0;
   const createdAt = course.createdAt instanceof Date ? course.createdAt : new Date(course.createdAt ?? Date.now());
 
+  const cohortOffering = course.offerings?.find(o => o.programType === "cohort");
+
+  const mentorsJson = course.tutors?.map(t => {
+    const nameParts = t.tutor.displayName.trim().split(" ");
+    const init = nameParts.length > 1 
+      ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+      : nameParts[0].substring(0, 2).toUpperCase();
+
+    return {
+      name: t.tutor.displayName,
+      role: t.role,
+      company: t.tutor.bio || "Instructor",
+      init
+    };
+  }) || [];
+
   return {
     id: course.courseId,
     slug: course.slug,
@@ -34,6 +78,20 @@ function mapCourse(course: CourseRecord) {
     description: course.description,
     price: Math.round(priceCents / 100),
     priceCents,
+    category: course.category,
+    level: course.level,
+    rating: course.rating,
+    students: course.students,
+    heroVideoUrl: course.heroVideoUrl,
+    skills_json: course.skillsJson,
+    reviews_json: course.reviewsJson,
+    faqs_json: course.faqsJson,
+    companies_json: course.companiesJson,
+    overview_bullets: course.overviewBullets,
+    syllabus_url: course.syllabusUrl,
+    mentors_json: mentorsJson,
+    instructor: mentorsJson.length > 0 ? mentorsJson[0].name : "Staff Instructor",
+    programme_details: cohortOffering?.programmeDetails ?? course.offerings?.[0]?.programmeDetails,
     createdAt: createdAt.toISOString(),
   };
 }
