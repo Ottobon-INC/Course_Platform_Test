@@ -7,15 +7,13 @@ export function Sidebar() {
     { icon: 'fa-home', label: 'Dashboard', path: '/student-dashboard' },
     { icon: 'fa-book-open', label: 'My Courses', path: '/my-courses' },
     { icon: 'fa-users', label: 'Cohorts', path: '/cohorts' },
-    { icon: 'fa-tasks', label: 'Assignments', path: '#' },
+    { icon: 'fa-tasks', label: 'Assignments', path: '/assignments' },
     { icon: 'fa-trophy', label: 'Leaderboard', path: '/leaderboard' },
     { icon: 'fa-comment-dots', label: 'Messages', path: '/messages' },
     { icon: 'fa-certificate', label: 'Certificates', path: '/certificates' },
   ];
 
   const secondaryNavItems = [
-    { icon: 'fa-chart-bar', label: 'Analysis', path: '/analysis' },
-    { icon: 'fa-quote-left', label: 'Feedback', path: '/feedback' },
     { icon: 'fa-cog', label: 'Settings', path: '/settings' },
   ];
 
@@ -70,7 +68,7 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 mt-auto">
-        <a href="https://learn.ottobon.in" className="flex items-center gap-3 py-3 px-6 rounded-lg text-[#F87171] font-medium transition-colors hover:bg-[rgba(248,113,113,0.1)]">
+        <a href="/" className="flex items-center gap-3 py-3 px-6 rounded-lg text-[#F87171] font-medium transition-colors hover:bg-[rgba(248,113,113,0.1)]">
           <i className="fas fa-sign-out-alt"></i> Logout
         </a>
       </div>

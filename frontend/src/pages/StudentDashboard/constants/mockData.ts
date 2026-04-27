@@ -1,43 +1,5 @@
 import avatarImage from '@/assets/avatar.png';
 
-export const ANALYSIS_SCORE_EVOLUTION = [
-  { name: 'Jun', score: 20 },
-  { name: 'Jul', score: 35 },
-  { name: 'Aug', score: 45 },
-  { name: 'Sep', score: 60 },
-  { name: 'Oct', score: 70 },
-  { name: 'Nov', score: 78 },
-  { name: 'Dec', score: 85 },
-];
-
-export const ANALYSIS_PERFORMANCE = [
-  { name: 'C1', score: 45 },
-  { name: 'C2', score: 60 },
-  { name: 'C3', score: 75 },
-  { name: 'D4', score: 50 },
-  { name: 'C5', score: 80 },
-  { name: 'E6', score: 65 },
-];
-
-export const ANALYSIS_SKILL_DATA = [
-  { subject: 'Frontend', A: 45, B: 70 },
-  { subject: 'Backend', A: 70, B: 45 },
-  { subject: 'AI', A: 30, B: 60 },
-];
-
-export const FEEDBACK_COURSES = [
-  "Advanced JavaScript (Frontend)",
-  "Full Stack Web Development",
-  "React & Next.js Mastery",
-  "UI/UX Design Fundamentals"
-];
-
-export const FEEDBACK_HISTORY = [
-  { course: "Intro to UX Design", rating: 5, date: "Oct 12, 2025", preview: "Preview: text Learn above nconmandation, text text and skills ovvaciations about thise…" },
-  { course: "Intro to UX Design", rating: 5, date: "Oct 12, 2025", preview: "Preview: text Learn above nconmandation, text text and skills ovvaciations about thise…" },
-  { course: "Intro to UX Design", rating: 5, date: "Oct 12, 2025", preview: "Preview: text Learn above nconmandation, text text and skills ovvaciations about thise…" }
-];
-
 export type LeaderboardRow = {
   rank: string;
   rankClass: string;
@@ -68,6 +30,59 @@ export const RECENT_ACTIVITIES: ActivityItemType[] = [
   { id: 3, user: 'Kenjiro Tanaka', avatar: avatarImage, action: 'Submitted "Final Project"', timestamp: 'Yesterday' },
   { id: 4, user: 'Mana Kazai', avatar: avatarImage, action: 'Started "Data Science" course', timestamp: '2 days ago' },
   { id: 5, user: 'Alex Johnson', avatar: avatarImage, action: 'Scored 95% in Weekly Quiz', timestamp: '3 days ago' },
+];
+
+export const ASSIGNMENTS_DATA = [
+  {
+    id: 1,
+    courseName: "Full Stack Web Development",
+    courseSlug: "full-stack-web-development",
+    title: "Build a Portfolio with React",
+    deadline: "Oct 30, 2025",
+    status: "Pending",
+    type: "Project",
+    description: "Create a fully responsive portfolio using React and Tailwind CSS."
+  },
+  {
+    id: 2,
+    courseName: "UI/UX Design Mastery",
+    courseSlug: "ui-ux-design-mastery",
+    title: "High-Fidelity Wireframes",
+    deadline: "Oct 25, 2025",
+    status: "Under Review",
+    type: "Homework",
+    description: "Complete the mobile app wireframes for the travel booking app."
+  },
+  {
+    id: 3,
+    courseName: "Advanced JavaScript (Frontend)",
+    courseSlug: "advanced-javascript",
+    title: "Async/Await Quiz",
+    deadline: "Oct 20, 2025",
+    status: "Approved",
+    type: "Quiz",
+    description: "Multiple choice questions on asynchronous programming."
+  },
+  {
+    id: 4,
+    courseName: "React & Next.js Mastery",
+    courseSlug: "react-nextjs-mastery",
+    title: "Next.js API Routes",
+    deadline: "Nov 05, 2025",
+    status: "Pending",
+    type: "Project",
+    description: "Implement server-side logic using Next.js internal API routing."
+  },
+  {
+    id: 5,
+    courseName: "Full Stack Web Development",
+    courseSlug: "full-stack-web-development",
+    title: "Database Normalization Task",
+    deadline: "Oct 18, 2025",
+    status: "Submitted",
+    type: "Homework",
+    description: "Normalize the given schema to 3rd Normal Form."
+  }
 ];
 
 export const SETTINGS_NOTIFICATION_LABELS = [

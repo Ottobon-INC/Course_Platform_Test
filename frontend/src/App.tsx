@@ -69,10 +69,9 @@ function Router() {
       <Route path="/student-dashboard" component={StudentDashboardPage} />
       <Route path="/student-dashboard/:rest*" component={StudentDashboardPage} />
       
-      <Route path="/analysis" component={StudentDashboardPage} />
-      <Route path="/feedback" component={StudentDashboardPage} />
       <Route path="/settings" component={StudentDashboardPage} />
       <Route path="/leaderboard" component={StudentDashboardPage} />
+      <Route path="/assignments" component={StudentDashboardPage} />
       <Route path="/cohorts" component={StudentDashboardPage} />
       <Route path="/my-courses" component={StudentDashboardPage} />
       <Route path="/certificates" component={StudentDashboardPage} />
@@ -105,10 +104,9 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
     location.startsWith("/registration") ||
     location.startsWith("/blogs") ||
     location.startsWith("/student-dashboard") ||
-    location === "/analysis" ||
-    location === "/feedback" ||
     location === "/settings" ||
     location === "/leaderboard" ||
+    location === "/assignments" ||
     location === "/cohorts" ||
     location === "/my-courses" ||
     location === "/certificates" ||

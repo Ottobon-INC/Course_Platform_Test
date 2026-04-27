@@ -27,6 +27,7 @@ import { blogsRouter } from "./routes/blogs";
 import { sitemapRouter } from "./routes/sitemap";
 import { messagingRouter } from "./routes/messaging";
 import { studentCohortsRouter } from "./routes/studentCohorts";
+import { studentCertificatesRouter } from "./routes/studentCertificates";
 
 export function createApp(): Express {
   const app = express();
@@ -81,6 +82,7 @@ export function createApp(): Express {
   app.use("/blogs", blogsRouter);
   app.use("/messaging", messagingRouter);
   app.use("/student", studentCohortsRouter);
+app.use("/student", studentCertificatesRouter);
 
   // SEO — Sitemap & Robots (served directly, no /api prefix needed)
   app.use("/sitemap.xml", sitemapRouter);
@@ -116,6 +118,7 @@ export function createApp(): Express {
   apiRouter.use("/blogs", blogsRouter);
   apiRouter.use("/messaging", messagingRouter);
   apiRouter.use("/student", studentCohortsRouter);
+apiRouter.use("/student", studentCertificatesRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
