@@ -175,6 +175,15 @@ export async function ensureConversationMembership(conversationId: string, userI
   }
 }
 
+export async function getConversationMemberUserIds(conversationId: string): Promise<string[]> {
+  const memberships = await prisma.cpConversationMember.findMany({
+    where: { conversationId },
+    select: { userId: true },
+  });
+
+  return Array.from(new Set(memberships.map((membership) => membership.userId)));
+}
+
 export async function addMemberToConversation(conversationId: string, userId: string) {
   const conversation = await prisma.cpConversation.findUnique({
     where: { id: conversationId },

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { API_BASE_URL } from "@/lib/api";
-import { readStoredSession } from "@/utils/session";
+import { ensureSessionFresh, readStoredSession, subscribeToSession } from "@/utils/session";
 import type { Message, Conversation, MessageReactions, AllPollVotes } from "../pages/messaging/types";
+import type { StoredSession } from "@/types/session";
 
 type SendMessageOptions = {
   replyToId?: string;
@@ -46,11 +47,27 @@ export function useMessaging(selectedConversation: Conversation | null) {
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [socketError, setSocketError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const processedIncomingMessageIdsRef = useRef<Set<string>>(new Set());
   const conversationsRef = useRef<Conversation[]>([]);
   const selectedConversationRef = useRef<Conversation | null>(selectedConversation);
   const selectedConversationIdRef = useRef<string | null>(selectedConversationId);
   const activeHistoryRequestRef = useRef(0);
-  const session = readStoredSession();
+  const [session, setSession] = useState<StoredSession | null>(() => readStoredSession());
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSession((nextSession) => {
+      setSession(nextSession);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    void ensureSessionFresh(readStoredSession(), { notifyOnFailure: false }).then((freshSession) => {
+      if (freshSession) {
+        setSession(freshSession);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
@@ -98,6 +115,21 @@ export function useMessaging(selectedConversation: Conversation | null) {
       console.error("Failed to fetch conversations:", err);
     }
   }, [session?.accessToken]);
+
+  // Fallback reliability path:
+  // if websocket delivery is delayed/missed, keep list + active chat synced via API polling.
+  useEffect(() => {
+    if (!session?.accessToken) return;
+
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void fetchConversations();
+    }, 4000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [session?.accessToken, fetchConversations]);
 
   const fetchHistory = useCallback(async (convId: string) => {
     if (!session?.accessToken) return;
@@ -164,6 +196,15 @@ export function useMessaging(selectedConversation: Conversation | null) {
       const message = error instanceof Error ? error.message : "Messaging socket connection failed";
       setSocketError(message);
       console.error("Messaging socket connect_error:", message);
+
+      const lower = message.toLowerCase();
+      if (lower.includes("expired") || lower.includes("invalid") || lower.includes("jwt")) {
+        void ensureSessionFresh(readStoredSession(), { notifyOnFailure: false }).then((freshSession) => {
+          if (freshSession?.accessToken) {
+            setSession(freshSession);
+          }
+        });
+      }
     });
 
     socket.on("disconnect", (reason) => {
@@ -173,6 +214,15 @@ export function useMessaging(selectedConversation: Conversation | null) {
     });
 
     socket.on("new_message", (msg: Message) => {
+      if (processedIncomingMessageIdsRef.current.has(msg.id)) {
+        return;
+      }
+      processedIncomingMessageIdsRef.current.add(msg.id);
+      if (processedIncomingMessageIdsRef.current.size > 5000) {
+        processedIncomingMessageIdsRef.current.clear();
+        processedIncomingMessageIdsRef.current.add(msg.id);
+      }
+
       const activeConversationId = selectedConversationIdRef.current;
       const selectedConversationSnapshot = selectedConversationRef.current;
       const activeConversation = activeConversationId
@@ -287,6 +337,20 @@ export function useMessaging(selectedConversation: Conversation | null) {
       }
     };
   }, [selectedConversationId, fetchHistory]);
+
+  // Keep selected chat timeline live even if real-time socket events are missed.
+  useEffect(() => {
+    if (!session?.accessToken || !selectedConversationId) return;
+
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void fetchHistory(selectedConversationId);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [session?.accessToken, selectedConversationId, fetchHistory]);
 
   // Keep chat history in sync with conversation preview metadata.
   // If preview moves forward (via socket/poll/update) but messages array is behind,

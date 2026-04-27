@@ -8,7 +8,7 @@ import { useDashboardSummary } from "../../hooks/useDashboardSummary";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMessaging } from "../../hooks/useMessaging";
-import { readStoredSession } from "@/utils/session";
+import { readStoredSession, subscribeToSession } from "@/utils/session";
 import { API_BASE_URL, buildApiUrl } from "@/lib/api";
 
 function extractParticipantId(entity: any): string | null {
@@ -27,16 +27,15 @@ function extractParticipantId(entity: any): string | null {
 }
 
 export default function MessagingModule() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<any>(() => readStoredSession());
   const [selectedCohortId, setSelectedCohortId] = useState<string | null>(null);
   const [selectedCourseTitle, setSelectedCourseTitle] = useState<string | null>(null);
   
   useEffect(() => {
-    const init = async () => {
-      const s = await readStoredSession();
-      setSession(s);
-    };
-    init();
+    const unsubscribe = subscribeToSession((nextSession) => {
+      setSession(nextSession);
+    });
+    return unsubscribe;
   }, []);
 
   const { data: summary } = useDashboardSummary();
