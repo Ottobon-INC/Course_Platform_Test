@@ -74,7 +74,10 @@ export default function MessagingModule() {
     },
     [courseGroups],
   );
-  const headers = session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined;
+  const headers = useMemo(
+    () => (session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined),
+    [session?.accessToken],
+  );
   const currentUserId = session?.userId ?? "";
 
   const [activeCategory, setActiveCategory] = useState("team");

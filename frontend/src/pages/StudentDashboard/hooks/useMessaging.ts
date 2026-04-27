@@ -31,6 +31,11 @@ function extractMemberId(member: any): string | null {
   return value.length > 0 ? value : null;
 }
 
+function normalizeName(value: string | null | undefined): string {
+  if (!value || typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
 export function useMessaging(selectedConversation: Conversation | null) {
   const selectedConversationId = selectedConversation?.id ?? null;
   const [messageReactions, setMessageReactions] = useState<MessageReactions>({});
@@ -65,6 +70,17 @@ export function useMessaging(selectedConversation: Conversation | null) {
     if (memberIds.length === 0) return null;
     return memberIds.join("|");
   }, []);
+
+  const getDmPartnerIds = useCallback((conversation: Conversation | null | undefined) => {
+    if (!conversation || conversation.type !== "dm") return [] as string[];
+    const currentUserId = typeof session?.userId === "string" ? session.userId : "";
+    const ids = (conversation.members ?? [])
+      .map((member) => extractMemberId(member))
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    const unique = Array.from(new Set(ids));
+    if (!currentUserId) return unique;
+    return unique.filter((id) => id !== currentUserId);
+  }, [session?.userId]);
 
   // ── 1. Fetch Initial Data (API) ──
   const fetchConversations = useCallback(async (cohortId?: string | null) => {
@@ -167,13 +183,22 @@ export function useMessaging(selectedConversation: Conversation | null) {
 
       const activeDmSignature = getDmMemberSignature(activeConversation ?? selectedConversationSnapshot);
       const incomingDmSignature = getDmMemberSignature(incomingConversation);
+      const activeDmPartnerIds = getDmPartnerIds(activeConversation ?? selectedConversationSnapshot);
+      const isSelectedDmPartnerMessage =
+        selectedConversationSnapshot?.type === "dm" &&
+        activeDmPartnerIds.includes(msg.sender_id);
+      const activeDmName = normalizeName((activeConversation ?? selectedConversationSnapshot)?.name);
+      const incomingDmName = normalizeName(incomingConversation?.name);
+      const isSameDmDisplayName =
+        selectedConversationSnapshot?.type === "dm" &&
+        Boolean(activeDmName && incomingDmName && activeDmName === incomingDmName);
       const isSameActiveConversation = msg.conversation_id === activeConversationId;
       const isSameDmParticipants =
         !isSameActiveConversation &&
         selectedConversationSnapshot?.type === "dm" &&
         Boolean(activeDmSignature && incomingDmSignature && activeDmSignature === incomingDmSignature);
 
-      if (isSameActiveConversation || isSameDmParticipants) {
+      if (isSameActiveConversation || isSameDmParticipants || isSelectedDmPartnerMessage || isSameDmDisplayName) {
         setMessages((prev) => (prev.some((existing) => existing.id === msg.id) ? prev : [...prev, msg]));
         // Auto-mark as read if we are in the chat
         socket.emit("mark_as_read", { conversationId: msg.conversation_id, messageId: msg.id });
@@ -188,7 +213,28 @@ export function useMessaging(selectedConversation: Conversation | null) {
       // Update the last message in the sidebar list
       setConversations((prev) => 
         prev.map(c => c.id === msg.conversation_id 
-          ? { ...c, last_message: msg.content, last_message_at: msg.created_at } 
+          ? {
+              ...c,
+              last_message: msg.content,
+              last_message_at: msg.created_at,
+              conversation_indexes: Array.isArray(c.conversation_indexes) && c.conversation_indexes.length > 0
+                ? [
+                    {
+                      ...c.conversation_indexes[0],
+                      last_message: msg.content,
+                      last_message_at: msg.created_at,
+                      last_sender_id: msg.sender_id,
+                    },
+                    ...c.conversation_indexes.slice(1),
+                  ]
+                : [
+                    {
+                      last_message: msg.content,
+                      last_message_at: msg.created_at,
+                      last_sender_id: msg.sender_id,
+                    },
+                  ],
+            } 
           : c
         )
       );
@@ -227,7 +273,7 @@ export function useMessaging(selectedConversation: Conversation | null) {
     return () => {
       socket.disconnect();
     };
-  }, [session?.accessToken, getDmMemberSignature]);
+  }, [session?.accessToken, getDmMemberSignature, getDmPartnerIds]);
 
   // Handle switching conversations
   useEffect(() => {
@@ -241,6 +287,36 @@ export function useMessaging(selectedConversation: Conversation | null) {
       }
     };
   }, [selectedConversationId, fetchHistory]);
+
+  // Keep chat history in sync with conversation preview metadata.
+  // If preview moves forward (via socket/poll/update) but messages array is behind,
+  // refetch selected conversation history to avoid right-pane staleness.
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    const selectedFromList = conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+    const previewLastMessageRaw =
+      selectedFromList?.conversation_indexes?.[0]?.last_message ??
+      (selectedFromList as any)?.last_message ??
+      "";
+    if (!String(previewLastMessageRaw).trim()) return;
+
+    const previewLastAtRaw =
+      selectedFromList?.conversation_indexes?.[0]?.last_message_at ??
+      (selectedFromList as any)?.last_message_at ??
+      null;
+    if (!previewLastAtRaw) return;
+
+    const previewLastAt = Date.parse(String(previewLastAtRaw));
+    if (!Number.isFinite(previewLastAt)) return;
+
+    const latestLoadedAtRaw = messages.length > 0 ? messages[messages.length - 1]?.created_at : null;
+    const latestLoadedAt = latestLoadedAtRaw ? Date.parse(String(latestLoadedAtRaw)) : Number.NaN;
+
+    if (!Number.isFinite(latestLoadedAt) || previewLastAt > latestLoadedAt) {
+      void fetchHistory(selectedConversationId);
+    }
+  }, [conversations, messages, selectedConversationId, fetchHistory]);
 
   // ── 3. Actions ──
   const sendMessageViaHttp = useCallback(
