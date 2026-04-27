@@ -317,30 +317,37 @@ export async function getCohortMembersForMessaging(cohortId: string) {
 }
 
 export async function getOrCreateDM(userId1: string, userId2: string) {
-  const existing = await prisma.cpConversation.findFirst({
-    where: {
-      type: "dm",
-      AND: [
-        { members: { some: { userId: userId1 } } },
-        { members: { some: { userId: userId2 } } },
-      ],
-    },
-    include: {
-      members: {
-        include: {
-          user: { select: { userId: true, fullName: true, email: true, role: true } },
+  const sortedUserIds = [userId1, userId2].sort();
+  const lockKey = `dm:${sortedUserIds[0]}:${sortedUserIds[1]}`;
+
+  const conversation = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+    const existing = await tx.cpConversation.findFirst({
+      where: {
+        type: "dm",
+        AND: [
+          { members: { some: { userId: userId1 } } },
+          { members: { some: { userId: userId2 } } },
+        ],
+      },
+      include: {
+        members: {
+          include: {
+            user: { select: { userId: true, fullName: true, email: true, role: true } },
+          },
+        },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
         },
       },
-      messages: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-    },
-  });
+      orderBy: { updatedAt: "desc" },
+    });
 
-  const conversation =
-    existing ??
-    (await prisma.cpConversation.create({
+    if (existing) return existing;
+
+    return tx.cpConversation.create({
       data: {
         type: "dm",
         title: "Direct Message",
@@ -360,7 +367,8 @@ export async function getOrCreateDM(userId1: string, userId2: string) {
           take: 1,
         },
       },
-    }));
+    });
+  });
 
   return formatConversation(conversation, userId1);
 }
@@ -727,7 +735,30 @@ export async function getConversationsForUser(userId: string, cohortId?: string)
     orderBy: { updatedAt: "desc" },
   });
 
-  return conversations.map((conversation) => formatConversation(conversation, userId));
+  const seenDmPairs = new Set<string>();
+  const deduped = conversations.filter((conversation) => {
+    if (conversation.type !== "dm") {
+      return true;
+    }
+
+    const participantIds = conversation.members
+      .map((member) => member.user.userId)
+      .sort();
+    const pairKey = participantIds.join("|");
+
+    if (!pairKey) {
+      return true;
+    }
+
+    if (seenDmPairs.has(pairKey)) {
+      return false;
+    }
+
+    seenDmPairs.add(pairKey);
+    return true;
+  });
+
+  return deduped.map((conversation) => formatConversation(conversation, userId));
 }
 
 export async function sendMessage(input: CreateMessageInput) {

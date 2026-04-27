@@ -16,7 +16,23 @@ type SendMessageResult = {
   error?: string;
 };
 
-export function useMessaging(selectedConversationId: string | null) {
+function extractMemberId(member: any): string | null {
+  if (!member || typeof member !== "object") return null;
+  const raw =
+    member.id ??
+    member.user_id ??
+    member.userId ??
+    member.user?.id ??
+    member.user?.user_id ??
+    member.user?.userId ??
+    null;
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  return value.length > 0 ? value : null;
+}
+
+export function useMessaging(selectedConversation: Conversation | null) {
+  const selectedConversationId = selectedConversation?.id ?? null;
   const [messageReactions, setMessageReactions] = useState<MessageReactions>({});
   const [allPollVotes, setAllPollVotes] = useState<AllPollVotes>({});
   const [messages, setMessages] = useState<Message[]>([]);
@@ -25,7 +41,30 @@ export function useMessaging(selectedConversationId: string | null) {
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [socketError, setSocketError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const conversationsRef = useRef<Conversation[]>([]);
+  const selectedConversationRef = useRef<Conversation | null>(selectedConversation);
+  const selectedConversationIdRef = useRef<string | null>(selectedConversationId);
+  const activeHistoryRequestRef = useRef(0);
   const session = readStoredSession();
+
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversation, selectedConversationId]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  const getDmMemberSignature = useCallback((conversation: Conversation | null | undefined) => {
+    if (!conversation || conversation.type !== "dm") return null;
+    const memberIds = (conversation.members ?? [])
+      .map((member) => extractMemberId(member))
+      .filter((id): id is string => typeof id === "string" && id.length > 0)
+      .sort();
+    if (memberIds.length === 0) return null;
+    return memberIds.join("|");
+  }, []);
 
   // ── 1. Fetch Initial Data (API) ──
   const fetchConversations = useCallback(async (cohortId?: string | null) => {
@@ -46,11 +85,15 @@ export function useMessaging(selectedConversationId: string | null) {
 
   const fetchHistory = useCallback(async (convId: string) => {
     if (!session?.accessToken) return;
+    const requestId = activeHistoryRequestRef.current + 1;
+    activeHistoryRequestRef.current = requestId;
     try {
       const res = await fetch(`${API_BASE_URL}/api/messaging/conversations/${convId}/history`, {
         headers: { Authorization: `Bearer ${session.accessToken}` },
       });
       const data = await res.json();
+      if (requestId !== activeHistoryRequestRef.current) return;
+      if (selectedConversationIdRef.current !== convId) return;
       if (data.messages) {
         const msgs = data.messages.reverse();
         setMessages(msgs);
@@ -96,8 +139,8 @@ export function useMessaging(selectedConversationId: string | null) {
     socket.on("connect", () => {
       console.log("Connected to Messaging Socket");
       setSocketError(null);
-      if (selectedConversationId) {
-        socket.emit("join_conversation", selectedConversationId);
+      if (selectedConversationIdRef.current) {
+        socket.emit("join_conversation", selectedConversationIdRef.current);
       }
     });
 
@@ -114,7 +157,23 @@ export function useMessaging(selectedConversationId: string | null) {
     });
 
     socket.on("new_message", (msg: Message) => {
-      if (msg.conversation_id === selectedConversationId) {
+      const activeConversationId = selectedConversationIdRef.current;
+      const selectedConversationSnapshot = selectedConversationRef.current;
+      const activeConversation = activeConversationId
+        ? conversationsRef.current.find((conversation) => conversation.id === activeConversationId) ?? null
+        : null;
+      const incomingConversation =
+        conversationsRef.current.find((conversation) => conversation.id === msg.conversation_id) ?? null;
+
+      const activeDmSignature = getDmMemberSignature(activeConversation ?? selectedConversationSnapshot);
+      const incomingDmSignature = getDmMemberSignature(incomingConversation);
+      const isSameActiveConversation = msg.conversation_id === activeConversationId;
+      const isSameDmParticipants =
+        !isSameActiveConversation &&
+        selectedConversationSnapshot?.type === "dm" &&
+        Boolean(activeDmSignature && incomingDmSignature && activeDmSignature === incomingDmSignature);
+
+      if (isSameActiveConversation || isSameDmParticipants) {
         setMessages((prev) => (prev.some((existing) => existing.id === msg.id) ? prev : [...prev, msg]));
         // Auto-mark as read if we are in the chat
         socket.emit("mark_as_read", { conversationId: msg.conversation_id, messageId: msg.id });
@@ -168,7 +227,7 @@ export function useMessaging(selectedConversationId: string | null) {
     return () => {
       socket.disconnect();
     };
-  }, [session?.accessToken, selectedConversationId]);
+  }, [session?.accessToken, getDmMemberSignature]);
 
   // Handle switching conversations
   useEffect(() => {
