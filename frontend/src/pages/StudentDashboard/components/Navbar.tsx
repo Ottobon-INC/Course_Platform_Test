@@ -5,7 +5,7 @@ export function Navbar() {
   const { data: summary } = useDashboardSummary();
   const location = useLocation();
   const isDashboardHome = location.pathname === '/' || location.pathname === '/student-dashboard';
-  const hideSearch = location.pathname === '/' || location.pathname === '/my-courses' || location.pathname === '/leaderboard' || location.pathname === '/messages' || location.pathname === '/feedback' || location.pathname === '/settings' || location.pathname === '/analysis' || location.pathname === '/certificates';
+  const hideSearch = location.pathname === '/' || location.pathname === '/student-dashboard' || location.pathname === '/my-courses' || location.pathname === '/leaderboard' || location.pathname === '/messages' || location.pathname === '/settings' || location.pathname === '/certificates' || location.pathname === '/cohorts' || location.pathname === '/assignments';
 
   return (
     <header className="flex justify-between items-center py-4 px-8 bg-cream sticky top-0 z-40">

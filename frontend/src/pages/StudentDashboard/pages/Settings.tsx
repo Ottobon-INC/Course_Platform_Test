@@ -234,7 +234,7 @@ export function Settings() {
             <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-6 px-0.5">Account Actions</label>
 
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <a href="https://learn.ottobon.in" className="border border-gray-200 rounded-xl py-2.5 text-[0.75rem] font-extrabold text-gray-600 hover:bg-gray-50 hover:text-dark-text transition-all text-center">Logout</a>
+              <a href="/" className="border border-gray-200 rounded-xl py-2.5 text-[0.75rem] font-extrabold text-gray-600 hover:bg-gray-50 hover:text-dark-text transition-all text-center">Logout</a>
               <button className="border border-gray-200 rounded-xl py-2.5 text-[0.75rem] font-extrabold text-gray-600 hover:bg-gray-50 hover:text-dark-text transition-all">Reset All</button>
             </div>
 

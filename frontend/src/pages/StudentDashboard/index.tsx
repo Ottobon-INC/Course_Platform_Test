@@ -5,10 +5,9 @@ import { Home } from './pages/Home';
 import { MyCourses } from './pages/MyCourses';
 import { Leaderboard } from './pages/Leaderboard';
 import { Cohorts } from './pages/Cohorts';
+import { Assignments } from './pages/Assignments';
 import Messages from './pages/messaging/MessagingModule';
 import { Certificates } from './pages/Certificates';
-import { Analysis } from './pages/Analysis';
-import { Feedback } from './pages/Feedback';
 import { Settings } from './pages/Settings';
 import { DRIP_CSS } from './constants/styles.ts';
 
@@ -34,10 +33,9 @@ export function StudentDashboardModular() {
           <Route path="/my-courses" element={<MyCourses />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/cohorts" element={<Cohorts />} />
+          <Route path="/assignments" element={<Assignments />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/certificates" element={<Certificates />} />
-          <Route path="/analysis" element={<Analysis />} />
-          <Route path="/feedback" element={<Feedback />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
