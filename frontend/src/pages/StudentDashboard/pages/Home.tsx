@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import illustrationImage from '@/assets/illustration.png';
 import avatarImage from '@/assets/avatar.png';
 
 export function Home() {
   const { data: summary, isLoading } = useDashboardSummary();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [tasks, setTasks] = useState([
     { id: 1, text: 'Complete Quiz', checked: true },
     { id: 2, text: 'Submit Project', checked: true },
@@ -37,9 +37,9 @@ export function Home() {
   const nextWorkshops = summary?.workshops || [];
 
   return (
-    <div className="animate-fade-in">
-      <div className="grid grid-cols-12 gap-6 mb-8">
-        <div className="col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex justify-between relative overflow-hidden">
+    <div className="animate-fade-in pb-10">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
+        <div className="col-span-1 md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col sm:flex-row justify-between relative overflow-hidden">
           <div className="z-10 relative">
             <h2 className="text-2xl font-bold mb-2">
               {resumeCourse ? `Resume: ${resumeCourse.title}` : "Today's Focus"}
@@ -66,7 +66,7 @@ export function Home() {
               <button
                 onClick={() => {
                   const target = resolveLearnPath(resumeCourse.courseSlug, resumeCourse.lastLessonSlug);
-                  if (target) navigate(target);
+                  if (target) setLocation(target);
                 }}
                 className="bg-orange-primary text-white border-none py-3 px-6 rounded-lg font-bold cursor-pointer transition-all shadow-md hover:-translate-y-1 hover:shadow-lg"
               >
@@ -74,10 +74,10 @@ export function Home() {
               </button>
             )}
           </div>
-          <img src={illustrationImage} alt="Study Desk" className="w-[180px] h-[180px] object-contain self-end absolute right-4 bottom-4 z-0" />
+          <img src={illustrationImage} alt="Study Desk" className="w-[140px] h-[140px] md:w-[180px] md:h-[180px] object-contain self-end absolute right-4 bottom-4 z-0 opacity-20 sm:opacity-100" />
         </div>
 
-        <div className="col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col items-center">
+        <div className="col-span-1 sm:col-span-6 md:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col items-center">
           {activeCourses.length > 0 ? (
             <div className="w-full flex flex-col items-center">
               <div className="w-[120px] h-[120px] rounded-full flex items-center justify-center mb-6 relative shadow-inner" style={{ background: `conic-gradient(var(--orange-primary) ${activeCourses[0].progress}%, #f3f4f6 0)` }}>
@@ -110,7 +110,7 @@ export function Home() {
           )}
         </div>
 
-        <div className="col-span-3 bg-[#3E2723] text-white p-6 rounded-2xl shadow-sm relative overflow-hidden">
+        <div className="col-span-1 sm:col-span-6 md:col-span-3 bg-[#3E2723] text-white p-6 rounded-2xl shadow-sm relative overflow-hidden">
           <h3 className="text-xl font-bold mb-2 flex items-center gap-2"><i className="fas fa-bullhorn"></i> Announcements</h3>
           <p className="text-sm opacity-80 mb-6">Special cards for announcements</p>
           <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl mb-4">
@@ -127,13 +127,13 @@ export function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-7">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="col-span-1 md:col-span-12 lg:col-span-7">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Active Courses</h3>
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {activeCourses.map((course, idx) => (
               <div key={course.id} className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft flex flex-col">
                 <div className="flex gap-2 mb-4">
@@ -157,7 +157,7 @@ export function Home() {
                         course.courseSlug,
                         'lastLessonSlug' in course ? course.lastLessonSlug : null,
                       );
-                      if (target) navigate(target);
+                      if (target) setLocation(target);
                     }}
                     className="bg-orange-primary text-white py-2 px-5 rounded-md font-bold hover:shadow-md transition-shadow"
                   >
@@ -174,7 +174,7 @@ export function Home() {
           </div>
         </div>
 
-        <div className="col-span-3">
+        <div className="col-span-1 sm:col-span-6 lg:col-span-3">
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft h-full">
             <h3 className="text-[1.1rem] font-bold mb-1">Leaderboard</h3>
             <p className="text-xs text-gray-text mb-5">Upcoming Sessions</p>
@@ -194,7 +194,7 @@ export function Home() {
           </div>
         </div>
 
-        <div className="col-span-2">
+        <div className="col-span-1 sm:col-span-6 lg:col-span-2">
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft h-full">
             <h3 className="text-sm text-[#DC2626] font-bold flex items-center gap-2 mb-4">
               <i className="fas fa-exclamation-triangle"></i> Urgent tasks today
@@ -213,8 +213,8 @@ export function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6 mt-6">
-        <div className="col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
+        <div className="col-span-1 md:col-span-12 lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">Recommendations</h3>
             <div className="flex gap-2">
@@ -222,7 +222,7 @@ export function Home() {
               <button className="w-8 h-8 rounded-full border border-border-soft flex items-center justify-center text-gray-text hover:text-dark-text hover:bg-gray-50 transition-colors"><i className="fas fa-chevron-right text-xs"></i></button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 flex-grow">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-grow">
             {(summary?.catalog || []).slice(0, 2).map((course) => (
               <div key={course.id} className="bg-gray-50 p-4 rounded-xl border border-border-soft flex flex-col justify-between">
                 <div>
@@ -231,7 +231,7 @@ export function Home() {
                   <p className="text-[0.65rem] text-gray-text font-bold mb-2">{course.category}</p>
                 </div>
                 <button 
-                  onClick={() => navigate('/my-courses')}
+                  onClick={() => setLocation('/my-courses')}
                   className="mt-4 text-xs font-bold w-full bg-white border border-border-soft rounded-lg py-2 hover:border-orange-primary transition-colors shadow-sm text-dark-text"
                 >
                   Join Course
@@ -241,7 +241,7 @@ export function Home() {
           </div>
         </div>
 
-        <div className="col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col relative justify-center items-center">
+        <div className="col-span-1 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col relative justify-center items-center">
           <div className="w-full flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold">Your Rank</h3>
             <i className="fas fa-trophy text-orange-primary opacity-80"></i>
@@ -264,7 +264,7 @@ export function Home() {
           <p className="text-[0.75rem] font-bold text-center text-dark-text opacity-90"><i className="fas fa-medal text-orange-primary mr-1"></i> Top 5% this week!</p>
         </div>
 
-        <div className="col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
+        <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fas fa-award text-orange-primary"></i> Certificates Section</h3>
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>

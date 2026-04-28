@@ -1,17 +1,17 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 
 export function Navbar() {
   const { data: summary } = useDashboardSummary();
-  const location = useLocation();
-  const isDashboardHome = location.pathname === '/' || location.pathname === '/student-dashboard';
-  const hideSearch = location.pathname === '/' || location.pathname === '/student-dashboard' || location.pathname === '/my-courses' || location.pathname === '/leaderboard' || location.pathname === '/messages' || location.pathname === '/settings' || location.pathname === '/certificates' || location.pathname === '/cohorts' || location.pathname === '/assignments';
+  const [location] = useLocation();
+  const isDashboardHome = location === '/' || location === '/student-dashboard';
+  const hideSearch = location === '/' || location === '/student-dashboard' || location === '/my-courses' || location === '/leaderboard' || location === '/messages' || location === '/profile' || location === '/certificates' || location === '/cohorts' || location === '/assignments';
 
   return (
     <header className="flex justify-between items-center py-4 px-8 bg-cream sticky top-0 z-40">
       <div className="flex-1">
         <h1 className="text-[2rem] font-bold m-0 font-sans capitalize">
-          {isDashboardHome ? 'Dashboard' : location.pathname.split('/').pop()?.replace(/-/g, ' ')}
+          {isDashboardHome ? 'Dashboard' : location.split('/').pop()?.replace(/-/g, ' ')}
         </h1>
       </div>
 
@@ -36,6 +36,17 @@ export function Navbar() {
           <i className="fas fa-calendar-alt"></i>
         </button>
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer border border-border-soft transition-transform hover:-translate-y-[2px]">
+          {summary?.user?.profilePhotoUrl ? (
+            <img 
+              src={summary.user.profilePhotoUrl} 
+              alt="" 
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
+              <i className="fas fa-user text-xs"></i>
+            </div>
+          )}
           <span className="font-semibold text-[0.95rem]">
             {summary?.user?.fullName || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') || '{}').fullName : 'Student')}
           </span>

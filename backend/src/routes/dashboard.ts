@@ -7,6 +7,11 @@ type DashboardSummary = {
   user: {
     fullName: string;
     email: string;
+    phone: string | null;
+    profilePhotoUrl: string | null;
+    skills: string[];
+    theme: string;
+    language: string;
   };
   stats: {
     sessionsThisWeek: number;
@@ -124,7 +129,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { userId: auth.userId },
-      select: { fullName: true, email: true },
+      select: { 
+        fullName: true, 
+        email: true,
+        phone: true,
+        profilePhotoUrl: true,
+        skills: true,
+        theme: true,
+        language: true
+      },
     });
 
     if (!user) {
@@ -475,6 +488,11 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       user: {
         fullName: user.fullName,
         email: user.email,
+        phone: user.phone,
+        profilePhotoUrl: user.profilePhotoUrl,
+        skills: user.skills,
+        theme: user.theme,
+        language: user.language,
       },
       stats: {
         sessionsThisWeek: computeSessionsThisWeek(cohortEntries.map((entry) => ({ startsAt: entry.startsAt }))),

@@ -15,6 +15,10 @@ model User {
   passwordHash String         @map("password_hash")
   role         Role           @default(learner) @map("role")
   createdAt    DateTime       @default(now()) @map("created_at")
+  profilePhotoUrl String?      @map("profile_photo_url")
+  skills       String[]       @default([]) @map("skills")
+  theme        String         @default("dark") @map("theme")
+  language     String         @default("English") @map("language")
   cartItems    CartItem[]
   cartLines    CartLine[]
   enrollments  Enrollment[]

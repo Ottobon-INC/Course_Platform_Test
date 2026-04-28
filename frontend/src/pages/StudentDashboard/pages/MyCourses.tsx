@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import cohortIcon from '@/assets/html_css.png';
 import onDemandIcon from '@/assets/js_sql.png';
 import workshopIcon from '@/assets/uiux.png';
@@ -8,13 +8,13 @@ import recommendedImage from '@/assets/recommended.png';
 
 export function MyCourses() {
   const { data: summary, isLoading } = useDashboardSummary();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [activeFilter, setActiveFilter] = useState('All');
   const [sortOption, setSortOption] = useState<{ id: string, label: string }>({ id: 'all', label: 'All Courses' });
   const [sortOpen, setSortOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filters = ['All', 'Cohorts', 'On-demand', 'Workshops', 'Catalog', 'Completed'];
+  const filters = ['All', 'Cohorts', 'On-demand', 'Workshops'];
   const sortOptions = [
     { id: 'all', label: 'All Courses' },
     { id: 'enrolled', label: 'Enrolled' },
@@ -98,7 +98,7 @@ export function MyCourses() {
       isEnrolled: false
     }));
 
-    return [...cohorts, ...onDemand, ...workshops, ...catalog];
+    return [...cohorts, ...onDemand, ...workshops];
   }, [summary]);
 
   // Helpers
@@ -106,8 +106,8 @@ export function MyCourses() {
   const isEnrolled = (c: any) => c.isEnrolled;
   const isNotEnrolled = (c: any) => !c.isEnrolled;
 
-  const filteredCourses = useMemo(() => {
-    return mappedCourses.filter(c => {
+  const { activeCourses, completedCourses } = useMemo(() => {
+    const filtered = mappedCourses.filter(c => {
       // Search
       if (searchQuery && !c.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
@@ -115,25 +115,19 @@ export function MyCourses() {
       if (activeFilter.toLowerCase() !== 'all') {
         const tagLower = c.tag.toLowerCase();
         const filterLower = activeFilter.toLowerCase();
-
-        if (filterLower === 'completed') {
-          if (c.progress < 100) return false;
-        } else if (filterLower === 'catalog') {
-          if (c.isEnrolled) return false;
-        } else {
-          // Match if tag contains filter or filter contains tag (handles Cohort vs Cohorts)
-          if (!tagLower.includes(filterLower) && !filterLower.includes(tagLower)) return false;
-        }
+        
+        // Match if tag contains filter or filter contains tag (handles Cohort vs Cohorts)
+        if (!tagLower.includes(filterLower) && !filterLower.includes(tagLower)) return false;
       }
-
-      // Sort / Status Filter
-      if (sortOption.id === 'enrolled' && !isEnrolled(c)) return false;
-      if (sortOption.id === 'not-enrolled' && !isNotEnrolled(c)) return false;
-      if (sortOption.id === 'coming-soon' && !isComingSoon(c)) return false;
 
       return true;
     });
-  }, [searchQuery, activeFilter, sortOption, mappedCourses]);
+
+    return {
+      activeCourses: filtered.filter(c => c.progress < 100),
+      completedCourses: filtered.filter(c => c.progress === 100)
+    };
+  }, [searchQuery, activeFilter, mappedCourses]);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -145,87 +139,63 @@ export function MyCourses() {
   return (
     <div className="animate-fade-in relative z-0 pb-16">
       {/* Search Bar */}
-      <div className="mb-6 relative max-w-sm">
+      <div className="mb-6 relative w-full sm:max-w-sm">
         <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-text"></i>
         <input
           type="text"
           placeholder="Search courses..."
-          className="w-full bg-white border border-border-soft rounded-full py-2.5 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-orange-primary"
+          className="w-full bg-white border border-border-soft rounded-full py-2.5 pl-10 pr-4 text-sm font-medium focus:outline-none focus:border-orange-primary shadow-sm"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-2">
         <div>
-          <p className="text-gray-text mt-1 font-medium">Manage and continue your learning</p>
+          <p className="text-sm text-gray-text mt-1 font-medium">Manage and continue your learning</p>
         </div>
-        <div className="bg-gray-200 text-dark-text py-1 px-4 rounded-full text-sm font-bold">
+        <div className="bg-gray-200 text-dark-text py-1 px-4 rounded-full text-xs md:text-sm font-bold">
           {mappedCourses.length} Active Courses
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
-        <div className="flex gap-3">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+        <div className="flex flex-wrap gap-2">
           {filters.map(f => (
             <button
               key={f}
               onClick={() => setActiveFilter(f)}
-              className={`py-2 px-5 rounded-full text-sm font-semibold transition-colors border ${activeFilter === f ? 'bg-dark-text text-white border-dark-text' : 'bg-white text-gray-text border-border-soft hover:bg-gray-50'}`}
+              className={`py-2 px-4 rounded-full text-xs font-semibold transition-colors border ${activeFilter === f ? 'bg-dark-text text-white border-dark-text' : 'bg-white text-gray-text border-border-soft hover:bg-gray-50'}`}
             >
               {f}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 relative">
-          <span className="text-sm text-gray-text font-medium">Sort</span>
-          <div
-            onClick={(e) => { e.stopPropagation(); setSortOpen(!sortOpen); }}
-            className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg cursor-pointer border border-border-soft min-w-[140px]"
-          >
-            <span className="font-semibold text-sm">{sortOption.label}</span>
-            <i className="fas fa-chevron-down text-[0.7rem] ml-auto"></i>
-          </div>
-
-          {sortOpen && (
-            <div className="absolute top-12 right-0 bg-white border border-border-soft rounded-lg shadow-lg w-[160px] z-50 flex flex-col overflow-hidden">
-              {sortOptions.map(opt => (
-                <button
-                  key={opt.id}
-                  onClick={(e) => { e.stopPropagation(); setSortOption(opt); setSortOpen(false); }}
-                  className={`py-3 px-4 text-left border-none text-sm font-semibold cursor-pointer border-b border-border-soft last:border-0 hover:bg-gray-50 ${sortOption.id === opt.id ? 'text-orange-primary' : 'text-dark-text'}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-8">
         <div>
           <h3 className="text-xl font-bold mb-5">Continue Learning</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-            {(summary?.resumeCourse ? [summary.resumeCourse] : mappedCourses.slice(0, 2)).map((course: any, idx) => (
+            {activeCourses.slice(0, 2).map((course: any, idx) => (
               <div key={idx} className="bg-white rounded-2xl p-5 shadow-sm border border-border-soft flex flex-col">
                 <p className="text-xs text-orange-primary font-bold mb-2">
-                  {'lastAccessedModule' in course ? 'On-Demand' : 'Cohort'}
+                  {course.tag}
                 </p>
                 <h4 className="text-lg font-bold mb-4">{course.title}</h4>
                 <div className="h-[120px] rounded-lg bg-cover bg-center mb-4 bg-gray-100 flex items-center justify-center">
-                  <i className={`fas ${'lastAccessedModule' in course ? 'fa-play-circle' : 'fa-users'} text-gray-300 text-4xl`}></i>
+                  <i className={`fas ${course.tag.toLowerCase().includes('on-demand') ? 'fa-play-circle' : 'fa-users'} text-gray-300 text-4xl`}></i>
                 </div>
                 <div className="h-[8px] bg-gray-200 rounded-full w-full mb-2"><div className="h-full bg-[#10B981] rounded-full" style={{ width: `${course.progress}%` }}></div></div>
                 <div className="flex justify-between text-xs font-bold mb-2"><span>Completion %</span><span>{course.progress}%</span></div>
                 <p className="text-orange-primary text-xs font-bold">
-                  {course.progress < 100 ? 'In Progress' : 'Completed'}
+                  In Progress
                 </p>
                 <button 
                   onClick={() => {
                     const target = resolveCourseTarget(course);
-                    if (target) navigate(target);
+                    if (target) setLocation(target);
                   }}
                   className="w-full mt-4 bg-orange-primary text-white py-2 rounded-lg font-bold hover:shadow-md transition-shadow"
                 >
@@ -233,16 +203,16 @@ export function MyCourses() {
                 </button>
               </div>
             ))}
-            {mappedCourses.length === 0 && !isLoading && (
-              <div className="col-span-2 py-8 text-center bg-white rounded-2xl border border-dashed border-border-soft">
-                <p className="text-gray-text font-medium">No courses found matching your criteria.</p>
+            {activeCourses.length === 0 && !isLoading && (
+              <div className="col-span-2 py-8 px-4 text-center bg-white rounded-2xl border border-dashed border-border-soft">
+                <p className="text-gray-text font-medium text-sm">No active courses found in this category.</p>
               </div>
             )}
           </div>
 
-          <h3 className="text-xl font-bold mb-5">All Courses Grid</h3>
+          <h3 className="text-xl font-bold mb-5">Completed Courses</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map(course => (
+            {completedCourses.map(course => (
               <div key={course.id} className="bg-white rounded-2xl p-5 shadow-sm border border-border-soft flex flex-col min-h-[250px] justify-between transition-transform hover:-translate-y-1">
                 <div>
                   <div className="flex justify-between mb-4">
@@ -253,37 +223,42 @@ export function MyCourses() {
                   <p className="text-[0.8rem] text-gray-text leading-relaxed font-medium mb-4">{course.desc}</p>
                 </div>
                 <div>
-                  <div className="h-[6px] bg-gray-200 rounded-full w-full mb-3"><div className="h-full bg-[#10B981] rounded-full" style={{ width: `${course.progress}%` }}></div></div>
-                  <p className="text-[0.7rem] text-gray-text mb-3">{course.lastAccess}</p>
+                  <div className="h-[6px] bg-[#10B981] rounded-full w-full mb-3"></div>
+                  <p className="text-[0.7rem] text-gray-text mb-3">Completed</p>
                   <div className="flex justify-between items-center">
                     <span className={`text-[0.75rem] font-bold px-2 py-1 rounded bg-gray-100 text-gray-700`}>{course.tag}</span>
                     <button 
                       onClick={() => {
                         const target = resolveCourseTarget(course);
-                        if (target) navigate(target);
+                        if (target) setLocation(target);
                       }}
                       className={`bg-orange-primary text-white border-none py-1.5 px-4 text-xs font-bold rounded hover:opacity-90`}
                     >
-                      {course.btnText}
+                      View
                     </button>
                   </div>
                 </div>
               </div>
             ))}
+            {completedCourses.length === 0 && !isLoading && (
+              <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-border-soft">
+                <p className="text-gray-text font-medium">You haven't completed any courses in this category yet.</p>
+              </div>
+            )}
           </div>
         </div>
 
         <aside>
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-border-soft mb-6">
             <h3 className="text-lg font-bold mb-6">Learning Summary</h3>
-            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Total courses</span><span className="text-2xl font-bold font-sans">{mappedCourses.length}</span></div>
+            <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Enrolled courses</span><span className="text-2xl font-bold font-sans">{mappedCourses.length}</span></div>
             <div className="flex justify-between mb-4"><span className="text-gray-text text-sm font-medium">Completed courses</span><span className="text-2xl font-bold font-sans">{mappedCourses.filter(c => c.progress === 100).length}</span></div>
             <p className="text-sm text-gray-text font-semibold mt-4 mb-2">Average progress</p>
             <div className="flex items-end gap-1 h-[60px] opacity-80">
               <div className="flex-1 rounded-t-sm bg-gray-200 h-[40%]"></div>
-              <div className="flex-1 rounded-t-sm bg-dark-teal h-[60%]"></div>
+              <div className="flex-1 rounded-t-sm bg-[#1B3535] h-[60%]"></div>
               <div className="flex-1 rounded-t-sm bg-gray-200 h-[30%]"></div>
-              <div className="flex-1 rounded-t-sm bg-dark-teal h-[80%]"></div>
+              <div className="flex-1 rounded-t-sm bg-[#1B3535] h-[80%]"></div>
               <div className="flex-1 rounded-t-sm bg-gray-200 h-[50%]"></div>
               <div className="flex-1 rounded-t-sm bg-gray-200 h-[90%]"></div>
             </div>
@@ -296,21 +271,21 @@ export function MyCourses() {
                 <img 
                   src={summary.catalog[0].thumbnailUrl || recommendedImage} 
                   alt={summary.catalog[0].title} 
-                  className="w-[70px] h-[70px] rounded-lg object-cover" 
+                  className="w-[80px] h-[80px] rounded-lg object-cover shadow-sm" 
                 />
-                <div>
-                  <h4 className="font-bold text-md leading-tight mb-1">{summary.catalog[0].title}</h4>
-                  <span className="text-[0.65rem] font-bold bg-orange-soft text-orange-primary px-2 py-0.5 rounded">
-                    {summary.catalog[0].category}
+                <div className="flex flex-col justify-center">
+                  <h4 className="font-bold text-md leading-tight mb-2">{summary.catalog[0].title}</h4>
+                  <span className="text-[0.65rem] font-bold bg-orange-soft text-orange-primary px-2 py-1 rounded w-fit">
+                    {summary.catalog[0].category || 'General'}
                   </span>
                 </div>
               </div>
-              <p className="text-sm text-gray-text mb-5 font-medium leading-relaxed">
+              <p className="text-sm text-gray-text mb-6 font-medium leading-relaxed">
                 Enroll now to start your journey in {summary.catalog[0].title}.
               </p>
               <button 
-                onClick={() => navigate('/my-courses')}
-                className="w-full bg-orange-primary text-white font-bold py-2.5 rounded-lg hover:shadow-md transition-shadow"
+                onClick={() => setLocation(`/course/${summary.catalog[0].courseSlug}`)}
+                className="w-full bg-[#E84E36] text-white font-bold py-3 rounded-xl hover:brightness-110 transition-all shadow-md active:scale-95"
               >
                 Join Course
               </button>

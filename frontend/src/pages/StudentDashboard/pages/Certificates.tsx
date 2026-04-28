@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCertificateData, type StudentCertificate } from '../hooks/useCertificateData';
 import { useToast } from "@/hooks/use-toast";
+import { Link } from 'wouter';
 
 export function Certificates() {
   const { data, isLoading, error } = useCertificateData();
@@ -48,7 +49,7 @@ export function Certificates() {
   }, [data?.certificates, searchQuery, activeFilter, sortBy]);
 
   const handleShare = (cert: StudentCertificate) => {
-    const url = `${window.location.origin}/#/course/${cert.courseSlug}/congrats/certificate`;
+    const url = `${window.location.origin}/course/${cert.courseSlug}/congrats/certificate`;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link Copied!",
@@ -83,7 +84,7 @@ export function Certificates() {
   }
 
   return (
-    <div className="-mx-8 -mt-2 -mb-10 min-h-[calc(100vh-85px)] bg-white p-8 pb-20 relative text-sans">
+    <div className="min-h-[calc(100vh-85px)] bg-white p-4 md:p-8 pb-24 relative text-sans">
       <div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto">
         <div className="flex-1 flex flex-col min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-8 gap-4">
@@ -96,18 +97,18 @@ export function Certificates() {
           </div>
 
           {/* Controls Bar */}
-          <div className="flex flex-wrap items-center gap-4 mb-8 bg-white rounded-xl px-4 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-gray-100">
-            <div className="relative flex items-center">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 bg-white rounded-xl px-4 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.05)] border border-gray-100">
+            <div className="relative flex items-center flex-1 sm:flex-none">
               <i className="fas fa-search absolute left-3.5 text-gray-400 text-sm"></i>
               <input 
                 type="text" 
                 placeholder="Search certificates..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-sm w-56 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all font-medium placeholder:text-gray-400 placeholder:font-medium" 
+                className="border border-gray-200 rounded-lg py-2 pl-9 pr-3 text-sm w-full sm:w-56 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20 transition-all font-medium placeholder:text-gray-400 placeholder:font-medium" 
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
               <button 
                 onClick={() => setActiveFilter('all')}
                 className={`rounded-full px-5 py-1.5 text-sm font-bold shadow-sm transition-colors ${activeFilter === 'all' ? 'bg-gray-800 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
@@ -127,11 +128,11 @@ export function Certificates() {
                 Old
               </button>
             </div>
-            <div className="ml-auto flex flex-wrap items-center gap-3">
-              <span className="text-sm text-gray-500 font-medium">Sort by:</span>
+            <div className="flex items-center gap-3 ml-0 sm:ml-auto">
+              <span className="text-sm text-gray-500 font-medium whitespace-nowrap">Sort by:</span>
               <div 
                 onClick={() => setSortBy(sortBy === 'latest' ? 'alpha' : 'latest')}
-                className="border border-gray-300 rounded-lg px-3.5 py-1.5 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50 bg-white font-medium shadow-sm transition-colors text-gray-700"
+                className="border border-gray-300 rounded-lg px-3.5 py-1.5 text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-50 bg-white font-medium shadow-sm transition-colors text-gray-700 flex-1 sm:flex-none"
               >
                 {sortBy === 'latest' ? 'Latest first' : 'Alphabetical'} <i className="fas fa-exchange-alt text-gray-400 text-[0.65rem] text-center ml-1"></i>
               </div>
@@ -176,22 +177,22 @@ export function Certificates() {
                       {cert.issuedAtFormatted} <span className="text-gray-300 mx-0.5">|</span> Visakhapatnam time
                     </p>
                     <div className="flex gap-2 mt-auto">
-                      <a 
-                        href={`/#/course/${cert.courseSlug}/congrats/certificate`}
+                      <Link 
+                        href={`/course/${cert.courseSlug}/congrats/certificate`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="border border-gray-300 rounded-lg px-2.5 py-2 text-[0.75rem] flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors flex-1 text-gray-700 font-bold shadow-sm"
                       >
                         <i className="fas fa-eye text-gray-400"></i> View
-                      </a>
-                      <a 
-                        href={`/#/course/${cert.courseSlug}/congrats/certificate`}
+                      </Link>
+                      <Link 
+                        href={`/course/${cert.courseSlug}/congrats/certificate`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-orange-500 text-white rounded-lg px-2.5 py-2 text-[0.75rem] flex items-center justify-center gap-1.5 hover:bg-orange-600 hover:scale-105 transition-all flex-1 font-bold shadow-sm"
+                        className="bg-orange-primary text-white rounded-lg px-2.5 py-2 text-[0.75rem] flex items-center justify-center gap-1.5 hover:bg-orange-600 hover:scale-105 transition-all flex-1 font-bold shadow-sm"
                       >
                         <i className="fas fa-download"></i> Download
-                      </a>
+                      </Link>
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleShare(cert); }}
                         className="border border-gray-300 rounded-lg px-2.5 py-2 text-[0.75rem] flex items-center justify-center gap-1.5 hover:bg-gray-50 transition-colors flex-1 text-gray-700 font-bold shadow-sm"
@@ -223,7 +224,7 @@ export function Certificates() {
             <button 
               onClick={() => {
                 if (latestCert) {
-                  const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/#/course/' + latestCert.courseSlug + '/congrats/certificate')}`;
+                  const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin + '/course/' + latestCert.courseSlug + '/congrats/certificate')}`;
                   window.open(url, '_blank');
                 }
               }}
