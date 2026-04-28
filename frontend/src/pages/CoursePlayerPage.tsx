@@ -171,6 +171,7 @@ interface SubModule {
   type: ContentType;
   slug?: string;
   moduleNo: number;
+  assessmentId?: string;
   topicPairIndex?: number;
   topicNumber?: number;
   unlocked?: boolean;
@@ -188,9 +189,12 @@ interface Module {
 }
 
 interface QuizSection {
+  assessmentId: string;
   moduleNo: number;
   topicPairIndex: number;
+  topicNumber: number;
   title: string;
+  thresholdPercent?: number;
   unlocked: boolean;
   passed: boolean;
   questionCount: number;
@@ -586,7 +590,11 @@ const CoursePlayerPage: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
   const [isQuizMode, setIsQuizMode] = useState(false);
-  const [selectedSection, setSelectedSection] = useState<{ moduleNo: number; topicPairIndex: number } | null>(null);
+  const [selectedSection, setSelectedSection] = useState<{
+    moduleNo: number;
+    topicPairIndex: number;
+    assessmentId: string;
+  } | null>(null);
 
   const dragInfo = useRef<{
     isDragging: boolean;
@@ -939,9 +947,12 @@ const CoursePlayerPage: React.FC = () => {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const list: QuizSection[] = (data.sections ?? []).map((s: any) => ({
+        assessmentId: s.assessmentId,
         moduleNo: s.moduleNo,
         topicPairIndex: s.topicPairIndex,
-        title: s.title ?? `Module ${s.moduleNo} - Topic pair ${s.topicPairIndex}`,
+        topicNumber: s.topicNumber ?? 0,
+        title: s.title ?? `Module ${s.moduleNo} - Quiz ${s.topicPairIndex}`,
+        thresholdPercent: typeof s.thresholdPercent === "number" ? s.thresholdPercent : undefined,
         unlocked: Boolean(s.unlocked),
         passed: Boolean(s.passed),
         questionCount: s.questionCount ?? 5,
@@ -1014,7 +1025,7 @@ const CoursePlayerPage: React.FC = () => {
     setCohortProjectOpen(false);
   }, []);
 
-  // Hydrate modules with quizzes when lessons/sections change
+  // Hydrate modules with quiz pointers from backend (assessment-based).
   useEffect(() => {
     if (lessons.length === 0) return;
     const grouped = new Map<number, Lesson[]>();
@@ -1051,11 +1062,19 @@ const CoursePlayerPage: React.FC = () => {
       }
       const sectionForModule = sections
         .filter((s) => s.moduleNo === moduleNo)
-        .sort((a, b) => a.topicPairIndex - b.topicPairIndex);
+        .sort((a, b) => {
+          if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+          return a.topicPairIndex - b.topicPairIndex;
+        });
       const modulePassed = sectionForModule.length === 0 || sectionForModule.every((s) => s.passed);
+      const sectionsByTopicNumber = new Map<number, QuizSection[]>();
+      sectionForModule.forEach((section) => {
+        const existing = sectionsByTopicNumber.get(section.topicNumber) ?? [];
+        existing.push(section);
+        sectionsByTopicNumber.set(section.topicNumber, existing);
+      });
 
-      sortedLessons.forEach((lesson, idx) => {
-        const pairIdx = Math.ceil((idx + 1) / 2);
+      sortedLessons.forEach((lesson) => {
         submodules.push({
           id: lesson.topicId,
           title: lesson.topicName,
@@ -1063,19 +1082,23 @@ const CoursePlayerPage: React.FC = () => {
           slug: lesson.slug,
           moduleNo: lesson.moduleNo,
           topicNumber: lesson.topicNumber,
-          topicPairIndex: pairIdx,
           unlocked: true,
         });
-        if ((idx + 1) % 2 === 0) {
+        const attachedSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? []).sort(
+          (a, b) => a.topicPairIndex - b.topicPairIndex,
+        );
+        attachedSections.forEach((section) => {
           submodules.push({
-            id: `quiz-${moduleNo}-${pairIdx}`,
-            title: `Quiz ${pairIdx}`,
+            id: `quiz-${section.assessmentId}`,
+            title: section.title,
             type: "quiz",
             moduleNo,
-            topicPairIndex: pairIdx,
-            unlocked: true,
+            assessmentId: section.assessmentId,
+            topicPairIndex: section.topicPairIndex,
+            topicNumber: section.topicNumber,
+            unlocked: section.unlocked,
           });
-        }
+        });
       });
 
       return {
@@ -1456,7 +1479,7 @@ const CoursePlayerPage: React.FC = () => {
     if (sub.type === "quiz") {
       emitTelemetry(
         "lesson.quiz_select",
-        { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex },
+        { moduleNo: sub.moduleNo, topicPairIndex: sub.topicPairIndex, assessmentId: sub.assessmentId },
         { moduleNo: sub.moduleNo, topicId: null },
       );
     } else if (sub.slug) {
@@ -1469,7 +1492,15 @@ const CoursePlayerPage: React.FC = () => {
     }
     if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
     if (sub.type === "quiz") {
-      void handleStartQuiz(sub.moduleNo, sub.topicPairIndex ?? 1);
+      if (!sub.assessmentId) {
+        toast({
+          variant: "destructive",
+          title: "Quiz unavailable",
+          description: "This assessment pointer is missing. Please refresh.",
+        });
+        return;
+      }
+      void handleStartQuiz(sub.moduleNo, sub.assessmentId, sub.topicPairIndex ?? 1);
     } else if (sub.slug) {
       setIsQuizMode(false);
       setQuizPhase("intro");
@@ -1481,21 +1512,21 @@ const CoursePlayerPage: React.FC = () => {
     }
   };
 
-  const handleStartQuiz = async (moduleNo: number, topicPairIndex: number) => {
+  const handleStartQuiz = async (moduleNo: number, assessmentId: string, topicPairIndex: number) => {
     if (!courseKey) return;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
-    emitTelemetry("quiz.start", { topicPairIndex }, { moduleNo, topicId: null });
+    emitTelemetry("quiz.start", { topicPairIndex, assessmentId }, { moduleNo, topicId: null });
     try {
       const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
         method: "POST",
         credentials: "include",
         headers,
-        body: JSON.stringify({ courseId: courseKey, moduleNo, topicPairIndex, limit: 5 }),
+        body: JSON.stringify({ courseId: courseKey, moduleNo, topicPairIndex, assessmentId, limit: 5 }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setSelectedSection({ moduleNo, topicPairIndex });
+      setSelectedSection({ moduleNo, topicPairIndex, assessmentId: data.assessmentId ?? assessmentId });
       setQuizAttemptId(data.attemptId ?? null);
       setQuizQuestions(data.questions ?? []);
       setAnswers({});

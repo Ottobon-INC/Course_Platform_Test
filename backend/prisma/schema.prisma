@@ -146,6 +146,8 @@ model Course {
   certificates CourseCertificate[]
   draftTopics      DraftTopic[]
   draftContentAssets DraftTopicContentAsset[]
+  assessments CourseAssessment[]
+  draftAssessments DraftCourseAssessment[]
 
   @@map("courses")
 }
@@ -906,4 +908,36 @@ model DraftTopicContentAsset {
   @@index([topicId], map: "idx_draft_topic_content_assets_topic")
   @@index([contentKey], map: "idx_draft_topic_content_assets_key")
   @@map("draft_topic_content_assets")
+}
+
+model CourseAssessment {
+  assessmentId   String   @id @default(dbgenerated("gen_random_uuid()")) @map("assessment_id") @db.Uuid
+  courseId       String   @map("course_id") @db.Uuid
+  moduleNo       Int      @map("module_no")
+  title          String   @map("title")
+  passThresholdPercent Int @map("pass_threshold_percent")
+  questionsJson  Json     @map("questions_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  course         Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+
+  @@index([courseId], map: "idx_course_assessments_course")
+  @@index([courseId, moduleNo], map: "idx_course_assessments_course_module")
+  @@map("course_assessments")
+}
+
+model DraftCourseAssessment {
+  assessmentId   String   @id @default(dbgenerated("gen_random_uuid()")) @map("assessment_id") @db.Uuid
+  courseId       String   @map("course_id") @db.Uuid
+  moduleNo       Int      @map("module_no")
+  title          String   @map("title")
+  passThresholdPercent Int @map("pass_threshold_percent")
+  questionsJson  Json     @map("questions_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  course         Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+
+  @@index([courseId], map: "idx_draft_course_assessments_course")
+  @@index([courseId, moduleNo], map: "idx_draft_course_assessments_course_module")
+  @@map("draft_course_assessments")
 }

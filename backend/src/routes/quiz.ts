@@ -16,9 +16,12 @@ export const quizRouter = express.Router();
 
 const startAttemptSchema = z.object({
   courseId: z.string().min(1),
-  moduleNo: z.coerce.number().int().positive(),
-  topicPairIndex: z.coerce.number().int().positive(),
+  assessmentId: z.string().uuid().optional(),
+  moduleNo: z.coerce.number().int().positive().optional(),
+  topicPairIndex: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(20).optional(),
+}).refine((data) => Boolean(data.assessmentId) || (data.moduleNo != null && data.topicPairIndex != null), {
+  message: "assessmentId or (moduleNo + topicPairIndex) is required",
 });
 
 const submitAttemptSchema = z.object({
@@ -34,9 +37,12 @@ const submitAttemptSchema = z.object({
 
 const questionsQuerySchema = z.object({
   courseId: z.string().min(1),
-  moduleNo: z.coerce.number().int().positive(),
-  topicPairIndex: z.coerce.number().int().positive(),
+  assessmentId: z.string().uuid().optional(),
+  moduleNo: z.coerce.number().int().positive().optional(),
+  topicPairIndex: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(20).optional(),
+}).refine((data) => Boolean(data.assessmentId) || (data.moduleNo != null && data.topicPairIndex != null), {
+  message: "assessmentId or (moduleNo + topicPairIndex) is required",
 });
 
 function getAuthenticatedUserId(req: express.Request): string {
@@ -64,6 +70,7 @@ quizRouter.get(
 
     const questionSet = await fetchQuestionsForQuiz({
       courseId,
+      assessmentId: parsed.data.assessmentId,
       moduleNo: parsed.data.moduleNo,
       topicPairIndex: parsed.data.topicPairIndex,
       limit: parsed.data.limit,
@@ -116,6 +123,7 @@ quizRouter.post(
       const result = await createAttempt({
         userId,
         courseId: resolvedCourseId,
+        assessmentId: parsed.data.assessmentId,
         moduleNo: parsed.data.moduleNo,
         topicPairIndex: parsed.data.topicPairIndex,
         limit: parsed.data.limit,

@@ -298,9 +298,12 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
           Prisma.sql`
             SELECT course_id, COUNT(*)::bigint AS section_count
             FROM (
-              SELECT DISTINCT course_id, module_no, topic_pair_index
-              FROM quiz_questions
-              WHERE course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
+              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
+              FROM topic_content_assets a
+              JOIN topics t ON t.topic_id = a.topic_id
+              WHERE a.content_type = 'quiz'
+                AND a.payload ? 'assessment_id'
+                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
             ) AS sections
             GROUP BY course_id
           `,
@@ -310,25 +313,35 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     const quizSectionPassed = courseIds.length
       ? await prisma.$queryRaw<{ course_id: string; passed_count: number | bigint }[]>(
           Prisma.sql`
-            WITH latest AS (
-              SELECT DISTINCT ON (course_id, module_no, topic_pair_index)
+            WITH sections AS (
+              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
+              FROM topic_content_assets a
+              JOIN topics t ON t.topic_id = a.topic_id
+              WHERE a.content_type = 'quiz'
+                AND a.payload ? 'assessment_id'
+                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
+            ),
+            latest AS (
+              SELECT DISTINCT ON (course_id, assessment_id)
                 course_id,
-                module_no,
-                topic_pair_index,
+                assessment_id::text AS assessment_id_text,
                 status
               FROM quiz_attempts
               WHERE user_id = ${auth.userId}::uuid
                 AND course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
               ORDER BY course_id,
-                       module_no,
-                       topic_pair_index,
+                       assessment_id,
                        completed_at DESC NULLS LAST,
                        updated_at DESC NULLS LAST
             )
-            SELECT course_id, COUNT(*)::bigint AS passed_count
-            FROM latest
-            WHERE status = 'passed'
-            GROUP BY course_id
+            SELECT
+              sections.course_id,
+              COUNT(*) FILTER (WHERE latest.status = 'passed')::bigint AS passed_count
+            FROM sections
+            LEFT JOIN latest
+              ON latest.course_id = sections.course_id
+             AND latest.assessment_id_text = sections.assessment_id_text
+            GROUP BY sections.course_id
           `,
         )
       : [];
