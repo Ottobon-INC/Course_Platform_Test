@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   Code2,
   Lightbulb,
+  User,
   Lock,
   PlayCircle,
   ShieldCheck,
@@ -96,15 +97,19 @@ interface CourseMeta {
   rating: number | null;
   students: number | null;
   badge: string;
+  instructor?: string;
   category?: string;
   promoActive: boolean;
   // Dynamic JSON Fields
   skills_json?: any[];
-  tools_json?: any[];
   reviews_json?: any[];
   faqs_json?: any[];
   companies_json?: any[];
+  tools_json?: any[];
   mentors_json?: any[];
+  overview_bullets?: string[];
+  programme_details?: any[];
+  syllabus_url?: string;
 }
 
 interface TopicApi {
@@ -261,6 +266,7 @@ const CourseDetailsPage = () => {
     students: null,
     badge: DEFAULT_BADGE,
     category: "Hands-on projects",
+    instructor: "Staff Instructor",
     promoActive: false,
   });
 
@@ -296,12 +302,15 @@ const CourseDetailsPage = () => {
                   : null,
               badge: promo?.badge ?? (course?.level ? `${course.level} level` : DEFAULT_BADGE),
               category: course?.category ?? "Hands-on projects",
+              instructor: course?.instructor ?? "Staff Instructor",
               promoActive: Boolean(promo),
               skills_json: course?.skills_json,
-              tools_json: course?.tools_json,
               reviews_json: course?.reviews_json,
               faqs_json: course?.faqs_json,
               companies_json: course?.companies_json,
+              overview_bullets: course?.overview_bullets,
+              programme_details: course?.programme_details,
+              syllabus_url: course?.syllabus_url,
               mentors_json: course?.mentors_json,
             });
           }
@@ -607,7 +616,6 @@ const CourseDetailsPage = () => {
             <a href="#overview" className="cursor-pointer hover:text-[#f8f1e6] transition">Overview</a>
             <a href="#curriculum" className="cursor-pointer hover:text-[#f8f1e6] transition">Curriculum</a>
             <a href="#skills" className="cursor-pointer hover:text-[#f8f1e6] transition">Skills</a>
-            <a href="#tools" className="cursor-pointer hover:text-[#f8f1e6] transition">Tools</a>
             <a href="#mentors" className="cursor-pointer hover:text-[#f8f1e6] transition">Mentors</a>
             <a href="#reviews" className="cursor-pointer hover:text-[#f8f1e6] transition">Reviews</a>
             <a href="#certificate" className="cursor-pointer hover:text-[#f8f1e6] transition">Certificate</a>
@@ -701,6 +709,10 @@ const CourseDetailsPage = () => {
               <Code2 className="h-4 w-4" />
               <span>{courseMeta.category ?? "Hands-on projects"}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span>{courseMeta.instructor}</span>
+            </div>
           </motion.div>
           <div className="mt-6 flex flex-wrap items-center gap-6">
             {!accessStatus ? (
@@ -760,57 +772,52 @@ const CourseDetailsPage = () => {
       <main className="container mx-auto px-6 md:px-12 py-12 space-y-10">
         <section id="overview" className="flex flex-col gap-8 scroll-mt-28">
           <div className="space-y-4 w-full max-w-4xl">
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Interactive build weeks that mirror real client briefs
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Simulation exercises to pressure-test AI features end-to-end
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Mandatory quizzes to unlock each module and earn certificate
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#000000]/80">
-              <Check className="text-[#bf2f1f] h-4 w-4" />
-              Pay only when you’re ready for the completion certificate
-            </div>
+            {courseMeta.overview_bullets && courseMeta.overview_bullets.length > 0 ? (
+              courseMeta.overview_bullets.map((bullet: string, i: number) => (
+                <div key={i} className="flex items-center gap-3 text-sm text-[#000000]/80">
+                  <Check className="text-[#bf2f1f] h-4 w-4" />
+                  {bullet}
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-[#000000]/60 italic">Overview details coming soon...</div>
+            )}
           </div>
         </section>
 
         {/* SECTION A: PROGRAMME DETAILS */}
         <section id="details" className="pt-8">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
-            {[
-              { label: "DURATION", value: "12 Weeks", icon: <Clock size={16} /> },
-              { label: "FORMAT", value: "Cohort-Based", icon: <Laptop size={16} /> },
-              { label: "LEVEL", value: "Advanced", icon: <BarChart3 size={16} /> },
-              { label: "LANGUAGE", value: "English", icon: <Globe size={16} /> },
-              { label: "CERTIFICATE", value: "On Completion", icon: <Award size={16} /> }
-            ].map((item, i) => (
-              <motion.div 
-                key={item.label}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                whileHover={{ 
-                  scale: 1.05,
-                  backgroundColor: "#fff",
-                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)"
-                }}
-                className="bg-white/40 backdrop-blur-md border border-black/5 p-6 rounded-[32px] flex flex-col items-center text-center group cursor-default transition-colors duration-300"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 text-[#bf2f1f] group-hover:bg-[#bf2f1f] group-hover:text-white transition-colors duration-300">
-                  {item.icon}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-[#888] uppercase tracking-[0.2em]">{item.label}</p>
-                  <p className="text-sm font-black text-[#111]">{item.value}</p>
-                </div>
-              </motion.div>
-            ))}
+            {courseMeta.programme_details && courseMeta.programme_details.length > 0 ? (
+              courseMeta.programme_details.map((item: any, i: number) => {
+                const IconMap: Record<string, any> = { Clock, Laptop, BarChart3, Globe, Award };
+                const IconComp = IconMap[item.icon] || Clock;
+                return (
+                <motion.div 
+                  key={item.label}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                  whileHover={{ 
+                    scale: 1.05,
+                    backgroundColor: "#fff",
+                    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)"
+                  }}
+                  className="bg-white/40 backdrop-blur-md border border-black/5 p-6 rounded-[32px] flex flex-col items-center text-center group cursor-default transition-colors duration-300"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 text-[#bf2f1f] group-hover:bg-[#bf2f1f] group-hover:text-white transition-colors duration-300">
+                    <IconComp size={16} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-[#888] uppercase tracking-[0.2em]">{item.label}</p>
+                    <p className="text-sm font-black text-[#111]">{item.value}</p>
+                  </div>
+                </motion.div>
+                )})
+            ) : (
+              <div className="col-span-full text-sm text-[#000000]/60 italic text-center py-4">Programme details coming soon...</div>
+            )}
           </div>
         </section>
 
@@ -906,39 +913,8 @@ const CourseDetailsPage = () => {
           </div>
 
           <div className="space-y-10">
-            {(courseMeta.skills_json || [
-              {
-                title: "Frontend Engineering",
-                skills: [
-                  { name: "React Hooks", icon: "Zap" },
-                  { name: "State Management", icon: "Layers" },
-                  { name: "Routing", icon: "Network" },
-                  { name: "CSS Grid", icon: "Grid" },
-                  { name: "Animations", icon: "Move" }
-                ]
-              },
-              {
-                title: "Backend & Systems",
-                skills: [
-                  { name: "PostgreSQL", icon: "Database" },
-                  { name: "Prisma ORM", icon: "Shield" },
-                  { name: "REST APIs", icon: "Globe" },
-                  { name: "Authentication", icon: "Lock" },
-                  { name: "Edge Functions", icon: "Cpu" }
-                ]
-              },
-              {
-                title: "AI Native Architecture",
-                accent: true,
-                skills: [
-                  { name: "RAG Pipelines", icon: "GitBranch" },
-                  { name: "Vector Embeddings", icon: "Hash" },
-                  { name: "LangChain", icon: "Link" },
-                  { name: "Prompt Structuring", icon: "PenTool" },
-                  { name: "LLM Integration", icon: "Bot" }
-                ]
-              }
-            ]).map((group, i) => {
+            {courseMeta.skills_json && courseMeta.skills_json.length > 0 ? (
+              courseMeta.skills_json.map((group, i) => {
               const IconMap: Record<string, any> = {
                 Zap, Layers, Network, Grid, Move, Database, Shield, Globe, Lock, Cpu, GitBranch, Hash, Link, PenTool, Bot
               };
@@ -986,36 +962,33 @@ const CourseDetailsPage = () => {
                   </div>
                 </div>
               );
-            })}
+            })
+            ) : (
+              <div className="text-sm text-[#000000]/60 italic">Skills roadmap coming soon...</div>
+            )}
           </div>
-        </section>
-
-        {/* SECTION D: TOOLS COVERED */}
-        <section id="tools" className="pt-8 scroll-mt-28">
-          <h2 className="text-2xl font-bold text-[#111] mb-6">Tools Covered</h2>
-          <ToolList tools={courseMeta.tools_json} />
         </section>
 
         {/* SECTION G: MENTORS */}
         <section id="mentors" className="pt-12 scroll-mt-28">
           <h2 className="text-2xl font-bold text-[#111] mb-10">Meet your mentors.</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            {(courseMeta.mentors_json || [
-              { name: "Priya Sharma", role: "AI Systems Architect", company: "Meta", init: "PS" },
-              { name: "Rahul Verma", role: "Senior FullStack Eng", company: "Google", init: "RV" },
-              { name: "Anita Desai", role: "Lead Dev Rel", company: "Vercel", init: "AD" }
-            ]).map((m: any) => (
-              <div key={m.name} className="group flex flex-col items-center text-center transition-all hover:-translate-y-2 cursor-default bg-white p-8 rounded-[32px] border border-black/[0.03] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_15px_40px_rgba(192,57,43,0.12)]">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#111] to-[#333] text-[#f8f1e6] flex items-center justify-center text-3xl font-black shadow-[0_10px_30px_rgba(0,0,0,0.15)] mb-6 group-hover:scale-105 group-hover:shadow-[0_15px_35px_rgba(192,57,43,0.3)] transition-all duration-300">
-                  {m.init}
+            {courseMeta.mentors_json && courseMeta.mentors_json.length > 0 ? (
+              courseMeta.mentors_json.map((m: any) => (
+                <div key={m.name} className="group flex flex-col items-center text-center transition-all hover:-translate-y-2 cursor-default bg-white p-8 rounded-[32px] border border-black/[0.03] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_15px_40px_rgba(192,57,43,0.12)]">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#111] to-[#333] text-[#f8f1e6] flex items-center justify-center text-3xl font-black shadow-[0_10px_30px_rgba(0,0,0,0.15)] mb-6 group-hover:scale-105 group-hover:shadow-[0_15px_35px_rgba(192,57,43,0.3)] transition-all duration-300">
+                    {m.init}
+                  </div>
+                  <h4 className="text-xl font-black text-[#111] tracking-tight">{m.name}</h4>
+                  <div className="mt-2.5 mb-4 bg-[#bf2f1f]/10 border border-[#bf2f1f]/20 text-[#bf2f1f] text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                    {m.company}
+                  </div>
+                  <p className="text-[#888] text-sm font-medium">{m.role}</p>
                 </div>
-                <h4 className="text-xl font-black text-[#111] tracking-tight">{m.name}</h4>
-                <div className="mt-2.5 mb-4 bg-[#bf2f1f]/10 border border-[#bf2f1f]/20 text-[#bf2f1f] text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                  {m.company}
-                </div>
-                <p className="text-[#888] text-sm font-medium">{m.role}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="col-span-full text-sm text-[#000000]/60 italic text-center py-4">Mentors to be announced soon...</div>
+            )}
           </div>
         </section>
 
@@ -1039,32 +1012,32 @@ const CourseDetailsPage = () => {
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {(courseMeta.reviews_json || [
-              { name: "Karthik R.", role: "Software Engineer", comment: "The cohort constraint forced me to actually build things instead of just watching videos.", init: "KR", stars: 5 },
-              { name: "Neha G.", role: "Frontend Developer", comment: "Transitioning to AI-native building was seamless. The Kanban sprints reflect real workflows.", init: "NG", stars: 5 },
-              { name: "Amit T.", role: "Student", comment: "High quality content. The locking mechanism made sure I understood concepts before progressing.", init: "AT", stars: 4 }
-            ]).map((r: any) => (
-              <div key={r.name} className="relative bg-white rounded-2xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between overflow-hidden group hover:-translate-y-1 transition-transform border border-black/[0.03]">
-                <div className="absolute top-0 right-4 text-9xl font-serif text-[#111]/[0.03] leading-none select-none group-hover:text-[#bf2f1f]/5 transition-colors">“</div>
+            {courseMeta.reviews_json && courseMeta.reviews_json.length > 0 ? (
+              courseMeta.reviews_json.map((r: any) => (
+                <div key={r.name} className="relative bg-white rounded-2xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between overflow-hidden group hover:-translate-y-1 transition-transform border border-black/[0.03]">
+                  <div className="absolute top-0 right-4 text-9xl font-serif text-[#111]/[0.03] leading-none select-none group-hover:text-[#bf2f1f]/5 transition-colors">“</div>
 
-                <div className="relative z-10 flex flex-col flex-grow">
-                  <div className="flex items-center gap-1 text-[#bf2f1f] mb-4">
-                    {[...Array(r.stars)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                  <div className="relative z-10 flex flex-col flex-grow">
+                    <div className="flex items-center gap-1 text-[#bf2f1f] mb-4">
+                      {[...Array(r.stars)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                    </div>
+                    <p className="text-[#111] font-medium leading-relaxed mb-8 flex-grow">"{r.comment}"</p>
                   </div>
-                  <p className="text-[#111] font-medium leading-relaxed mb-8 flex-grow">"{r.comment}"</p>
-                </div>
 
-                <div className="relative z-10 flex items-center gap-4 mt-auto">
-                  <div className="w-12 h-12 rounded-full bg-[#111] flex items-center justify-center font-bold text-[#f8f1e6] text-sm flex-shrink-0 shadow-md group-hover:shadow-[0_4px_14px_rgba(192,57,43,0.3)] transition-shadow">
-                    {r.init}
-                  </div>
-                  <div>
-                    <div className="font-bold text-[#111] text-sm tracking-tight">{r.name}</div>
-                    <div className="text-[#888] text-xs font-medium mt-0.5">{r.role}</div>
+                  <div className="relative z-10 flex items-center gap-4 mt-auto">
+                    <div className="w-12 h-12 rounded-full bg-[#111] flex items-center justify-center font-bold text-[#f8f1e6] text-sm flex-shrink-0 shadow-md group-hover:shadow-[0_4px_14px_rgba(192,57,43,0.3)] transition-shadow">
+                      {r.init}
+                    </div>
+                    <div>
+                      <div className="font-bold text-[#111] text-sm tracking-tight">{r.name}</div>
+                      <div className="text-[#888] text-xs font-medium mt-0.5">{r.role}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="col-span-full text-sm text-[#000000]/60 italic text-center py-4">No reviews yet for this course.</div>
+            )}
           </div>
         </section>
 
@@ -1091,7 +1064,18 @@ const CourseDetailsPage = () => {
           <h2 className="text-2xl font-bold text-white">Get the full syllabus.</h2>
           <div className="flex w-full md:w-auto">
             <input type="email" placeholder="Enter your email" className="bg-[#111] border border-[#333] text-white px-4 py-3 outline-none focus:border-[#bf2f1f] w-full md:w-64" />
-            <button className="bg-[#bf2f1f] text-white px-6 py-3 font-bold whitespace-nowrap">Download PDF</button>
+            <button 
+              onClick={() => {
+                if (courseMeta.syllabus_url) {
+                  window.open(courseMeta.syllabus_url, "_blank");
+                } else {
+                  alert("Syllabus download is not available yet.");
+                }
+              }}
+              className="bg-[#bf2f1f] text-white px-6 py-3 font-bold whitespace-nowrap"
+            >
+              Download PDF
+            </button>
           </div>
         </div>
       </section>
@@ -1124,32 +1108,29 @@ const CourseDetailsPage = () => {
         <section id="faqs" className="pt-8 scroll-mt-28">
           <h2 className="text-2xl font-bold text-[#111] mb-6">Frequently asked questions.</h2>
           <div className="divide-y-2 divide-[#000000]/10 border-t-2 border-[#000000]/10 border-b-2">
-            {(courseMeta.faqs_json || [
-              { q: "How does the Lock System work?", a: "The Lock System ensures you master a concept before moving forward. You must score 70% on the quiz." },
-              { q: "Is the certificate valid for jobs?", a: "Yes. Companies recognize the completion certificate due to the strict evaluation standards." },
-              { q: "Can I self-pace the cohort?", a: "No, cohort sprints are timed to emulate real-world engineering environments." },
-              { q: "Do I get lifelong access?", a: "The course components remain accessible, but mentor responses are limited to the cohort duration." },
-              { q: "What are the prerequisites?", a: "Basic understanding of HTML, CSS, and programming fundamentals." },
-              { q: "Is there a refund policy?", a: "Refunds are processed within the first week if you decide the rigor is not for you." }
-            ]).map((faq: any, i: number) => {
-              const isOpen = openFaq === i;
-              return (
-                <div key={i} className="bg-[#f8f1e6]">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : i)}
-                    className="w-full flex items-center justify-between py-4 text-left group"
-                  >
-                    <span className="font-bold text-[#111] group-hover:text-[#bf2f1f] transition">{faq.q}</span>
-                    <ChevronDown className={`h-5 w-5 text-[#bf2f1f] transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  <div className={`transition-all duration-200 ${isOpen ? "max-h-[1000px]" : "max-h-0 overflow-hidden"}`}>
-                    <div className="pb-4 text-[#888] text-sm">
-                      {faq.a}
+            {courseMeta.faqs_json && courseMeta.faqs_json.length > 0 ? (
+              courseMeta.faqs_json.map((faq: any, i: number) => {
+                const isOpen = openFaq === i;
+                return (
+                  <div key={i} className="bg-[#f8f1e6]">
+                    <button
+                      onClick={() => setOpenFaq(isOpen ? null : i)}
+                      className="w-full flex items-center justify-between py-4 text-left group"
+                    >
+                      <span className="font-bold text-[#111] group-hover:text-[#bf2f1f] transition">{faq.q}</span>
+                      <ChevronDown className={`h-5 w-5 text-[#bf2f1f] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <div className={`transition-all duration-200 ${isOpen ? "max-h-[1000px]" : "max-h-0 overflow-hidden"}`}>
+                      <div className="pb-4 text-[#888] text-sm">
+                        {faq.a}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="text-sm text-[#000000]/60 italic py-4">FAQs coming soon...</div>
+            )}
           </div>
         </section>
 
@@ -1386,40 +1367,6 @@ export default CourseDetailsPage;
 
 // --- INLINED COMPONENTS (Formerly in extracted_components) ---
 
-type Tool = {
-  name: string;
-  logo?: string;
-  text?: string;
-  textStyle?: string;
-  imageStyle?: string;
-  textOnly?: boolean;
-  style?: string;
-  isWordmark?: boolean;
-  stackText?: boolean;
-};
-
-const tools: Tool[] = [
-  { name: 'Azure AI', logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/azure/azure-original.svg', imageStyle: 'h-8' },
-  { name: 'Microsoft Copilot', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Microsoft_365_Copilot_Icon.svg', imageStyle: 'h-8' },
-  { name: 'ChatGPT', logo: 'https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg', text: 'ChatGPT', textStyle: 'font-bold text-gray-900 text-xl tracking-tight ml-2', imageStyle: 'h-8' },
-  { name: 'LangChain', logo: 'https://avatars.githubusercontent.com/u/126733250?v=4', text: 'LangChain', textStyle: 'font-bold text-gray-800 text-xl ml-2', imageStyle: 'h-8' },
-  { name: 'Python', logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg', text: 'python', textStyle: 'text-gray-500 font-medium text-2xl tracking-tighter ml-2', imageStyle: 'h-8' },
-  { name: 'Hugging Face', logo: 'https://huggingface.co/front/assets/huggingface_logo-noborder.svg', text: 'Hugging Face', textStyle: 'font-bold text-gray-900 text-lg ml-2', imageStyle: 'h-8' },
-  { name: 'OpenAI', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg', text: 'OpenAI', textStyle: 'font-bold text-black text-2xl tracking-tight ml-2', imageStyle: 'h-9' },
-  { name: 'Streamlit', logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/streamlit/streamlit-original.svg', text: 'Streamlit', textStyle: 'text-gray-700 font-semibold text-lg ml-2', imageStyle: 'h-6' },
-  { name: 'Gradio', logo: 'https://avatars.githubusercontent.com/u/51063788?v=4', text: 'gradio', textStyle: 'text-[#E65C00] font-bold text-2xl ml-2 tracking-tight', imageStyle: 'h-8' },
-  { name: 'Gemini', logo: 'https://cdn.worldvectorlogo.com/logos/gemini-1.svg', isWordmark: true, imageStyle: 'h-8' },
-  { name: 'DALL·E 2', textOnly: true, text: 'DALL·E 2', style: 'bg-black text-white px-3 py-1 font-bold text-sm tracking-widest' },
-  { name: 'Chroma', logo: 'https://avatars.githubusercontent.com/u/108638661?v=4', text: 'Chroma', stackText: true, textStyle: 'text-[10px] font-black text-black tracking-wider mt-1 block', imageStyle: 'h-6' },
-  { name: 'ROUGE', textOnly: true, text: 'ROUGE', style: 'text-gray-600 font-semibold text-2xl uppercase tracking-widest' },
-  { name: 'PyPDF', textOnly: true, text: 'PyPDF', style: 'text-[#0B5C2D] font-black text-2xl tracking-tighter' },
-  { name: 'Python Imaging Library', logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/python/python-original.svg', text: 'Python\nImaging\nLibrary', textStyle: 'text-[9px] font-bold text-gray-700 leading-tight ml-2 whitespace-pre-wrap text-left', imageStyle: 'h-6' },
-  { name: 'PyTorch', logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/pytorch/pytorch-original.svg', text: 'PyTorch', textStyle: 'text-gray-700 font-normal text-xl ml-2', imageStyle: 'h-8' },
-  { name: 'Faiss', logo: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg', text: 'Faiss', stackText: true, textStyle: 'text-[12px] font-bold text-gray-800 mt-1 block', imageStyle: 'h-5' },
-  { name: 'Stable Diffusion', logo: 'https://avatars.githubusercontent.com/u/100555041?v=4', imageStyle: 'h-8' },
-  { name: 'Diffusers', logo: 'https://huggingface.co/front/assets/huggingface_logo-noborder.svg', text: 'Diffusers', textStyle: 'font-bold text-black text-lg ml-2', imageStyle: 'h-8' }
-];
-
 const companies = [
   { name: 'NVIDIA', logo: 'https://www.vectorlogo.zone/logos/nvidia/nvidia-ar21.svg' },
   { name: 'OpenAI', logo: 'https://cdn.worldvectorlogo.com/logos/openai-2.svg' },
@@ -1437,38 +1384,13 @@ const companies = [
   { name: 'SIEMENS', logo: 'https://www.vectorlogo.zone/logos/siemens/siemens-ar21.svg' },
 ];
 
-const ToolList: React.FC<{ tools?: Tool[] }> = ({ tools: dynamicTools }) => {
-  const displayTools = dynamicTools || tools;
-  return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-8 sm:gap-x-12 gap-y-12 sm:gap-y-16 items-center justify-items-center bg-gray-50/30 p-6 sm:p-12 rounded-[24px] sm:rounded-[40px] border border-gray-100">
-        {displayTools.map((tool, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, scale: 0.8 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.05 }}
-            className="flex flex-col items-center justify-center gap-4 group w-full"
-          >
-            {tool.logo ? (
-              <div className="h-12 w-full flex items-center justify-center transition-all duration-500 hover:scale-110">
-                <img src={tool.logo} alt={tool.name} className="max-h-full max-w-full object-contain" />
-              </div>
-            ) : (
-              <div className="h-12 flex items-center justify-center">
-                <span className="text-xl font-black text-[#bf2f1f]/40 uppercase tracking-tighter group-hover:text-[#bf2f1f] transition-colors">{tool.name}</span>
-              </div>
-            )}
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 const CompanyList: React.FC<{ companies?: { name: string; logo: string }[] }> = ({ companies: dynamicCompanies }) => {
-  const displayCompanies = dynamicCompanies || companies;
+  const displayCompanies = dynamicCompanies || [];
+
+  if (displayCompanies.length === 0) {
+    return <div className="text-sm text-[#000000]/60 italic text-center py-4">Companies list coming soon...</div>;
+  }
+
   return (
     <div className="w-full">
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-y-12 sm:gap-y-16 gap-x-8 sm:gap-x-12 items-center">
