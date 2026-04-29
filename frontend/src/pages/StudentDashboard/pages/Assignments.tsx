@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { ASSIGNMENTS_DATA } from '../constants/mockData';
+import { Link } from 'wouter';
 
 export function Assignments() {
   const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'Submitted' | 'Review' | 'Approved'>('All');
+  const [selectedCourse, setSelectedCourse] = useState<string>('All Courses');
+
+  // Extract unique course names for the dropdown
+  const uniqueCourses = Array.from(new Set(ASSIGNMENTS_DATA.map(a => a.courseName)));
 
   const stats = {
     total: ASSIGNMENTS_DATA.length,
@@ -13,12 +18,18 @@ export function Assignments() {
   };
 
   const filteredAssignments = ASSIGNMENTS_DATA.filter(a => {
-    if (activeTab === 'All') return true;
-    if (activeTab === 'Pending') return a.status === 'Pending';
-    if (activeTab === 'Submitted') return a.status === 'Submitted';
-    if (activeTab === 'Review') return a.status === 'Under Review';
-    if (activeTab === 'Approved') return a.status === 'Approved';
-    return true;
+    // 1. Tab filter
+    const matchesTab = 
+      activeTab === 'All' || 
+      (activeTab === 'Pending' && a.status === 'Pending') ||
+      (activeTab === 'Submitted' && a.status === 'Submitted') ||
+      (activeTab === 'Review' && a.status === 'Under Review') ||
+      (activeTab === 'Approved' && a.status === 'Approved');
+    
+    // 2. Course filter
+    const matchesCourse = selectedCourse === 'All Courses' || a.courseName === selectedCourse;
+
+    return matchesTab && matchesCourse;
   });
 
   const getStatusStyle = (status: string) => {
@@ -70,21 +81,38 @@ export function Assignments() {
 
       {/* Tabs & Content */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="flex border-b border-gray-100 px-6 pt-6 overflow-x-auto scrollbar-hide">
-          {(['All', 'Pending', 'Submitted', 'Review', 'Approved'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-4 px-6 text-sm font-bold transition-all relative whitespace-nowrap ${
-                activeTab === tab ? 'text-orange-primary' : 'text-gray-400 hover:text-gray-600'
-              }`}
+        <div className="flex flex-col sm:flex-row items-center justify-between border-b border-gray-100 px-6 py-4 gap-4">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {(['All', 'Pending', 'Submitted', 'Review', 'Approved'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-4 px-6 text-sm font-bold transition-all relative whitespace-nowrap ${
+                  activeTab === tab ? 'text-orange-primary' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                {tab === 'Review' ? 'In Review' : tab}
+                {activeTab === tab && (
+                  <div className="absolute bottom-0 left-0 w-full h-[3px] bg-orange-primary rounded-t-full shadow-[0_-2px_8px_rgba(232,83,31,0.4)]"></div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 w-full sm:w-auto shadow-sm group hover:border-orange-primary/30 transition-all">
+            <i className="fas fa-filter text-gray-300 text-[0.7rem] group-hover:text-orange-primary"></i>
+            <select 
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs font-bold text-gray-600 cursor-pointer w-full sm:w-48 appearance-none"
             >
-              {tab === 'Review' ? 'In Review' : tab}
-              {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-orange-primary rounded-t-full shadow-[0_-2px_8px_rgba(232,83,31,0.4)]"></div>
-              )}
-            </button>
-          ))}
+              <option>All Courses</option>
+              {uniqueCourses.map(course => (
+                <option key={course} value={course}>{course}</option>
+              ))}
+            </select>
+            <i className="fas fa-chevron-down text-gray-300 text-[0.6rem] pointer-events-none group-hover:text-orange-primary"></i>
+          </div>
         </div>
 
         <div className="p-6">
@@ -118,12 +146,12 @@ export function Assignments() {
                   </span>
                   
                   {assignment.status === 'Pending' ? (
-                    <a 
-                      href={`/#/course/${assignment.courseSlug}/learn/start`}
+                    <Link 
+                      href={`/course/${assignment.courseSlug}/learn/start`}
                       className="bg-orange-primary text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-orange-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2 whitespace-nowrap"
                     >
                       Submit Assignment <i className="fas fa-arrow-right text-[0.6rem]"></i>
-                    </a>
+                    </Link>
                   ) : (
                     <button className="border border-gray-200 text-gray-600 px-6 py-2.5 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all whitespace-nowrap">
                       View Details

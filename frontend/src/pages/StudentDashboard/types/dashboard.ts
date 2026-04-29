@@ -1,6 +1,11 @@
 export interface DashboardUser {
   fullName: string;
   email: string;
+  phone: string | null;
+  profilePhotoUrl: string | null;
+  skills: string[];
+  theme: string;
+  language: string;
 }
 
 export interface DashboardStats {

@@ -24,13 +24,45 @@ import CourseDetailsPage from "@/pages/CourseDetailsPage";
 import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
-import StudentDashboardPage from "@/pages/StudentDashboard";
 import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
 import MoreInfoPage from "@/pages/MoreInfoPage";
 import BlogsPage from "@/pages/BlogsPage";
 import BlogDetailPage from "@/pages/BlogDetailPage";
+
+// Student Dashboard Components
+import { Layout as DashboardLayout } from "@/pages/StudentDashboard/components/Layout";
+import { Home as DashboardHome } from "@/pages/StudentDashboard/pages/Home";
+import { MyCourses as DashboardMyCourses } from "@/pages/StudentDashboard/pages/MyCourses";
+import { Leaderboard as DashboardLeaderboard } from "@/pages/StudentDashboard/pages/Leaderboard";
+import { Cohorts as DashboardCohorts } from "@/pages/StudentDashboard/pages/Cohorts";
+import { Assignments as DashboardAssignments } from "@/pages/StudentDashboard/pages/Assignments";
+import DashboardMessages from "@/pages/StudentDashboard/pages/messaging/MessagingModule";
+import { Certificates as DashboardCertificates } from "@/pages/StudentDashboard/pages/Certificates";
+import { Profile as DashboardProfile } from "@/pages/StudentDashboard/pages/Profile";
+import { DRIP_CSS } from "@/pages/StudentDashboard/constants/styles";
+
+function DashboardRoute({ component: Component }: { component: React.ComponentType }) {
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.id = 'student-dashboard-styles';
+    style.textContent = DRIP_CSS;
+    document.head.appendChild(style);
+    return () => {
+      const existingStyle = document.getElementById('student-dashboard-styles');
+      if (existingStyle) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
+
+  return (
+    <DashboardLayout>
+      <Component />
+    </DashboardLayout>
+  );
+}
 
 function Router() {
   return (
@@ -59,23 +91,44 @@ function Router() {
       <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
-      {/* Student Dashboard Routes - Consolidated into the modular system */}
+
+      {/* Student Dashboard Routes - Unified into App.tsx */}
+      <Route path="/student-dashboard">
+        <DashboardRoute component={DashboardHome} />
+      </Route>
+      <Route path="/student_dashboard">
+        <DashboardRoute component={DashboardHome} />
+      </Route>
+      <Route path="/my-courses">
+        <DashboardRoute component={DashboardMyCourses} />
+      </Route>
+      <Route path="/leaderboard">
+        <DashboardRoute component={DashboardLeaderboard} />
+      </Route>
+      <Route path="/assignments">
+        <DashboardRoute component={DashboardAssignments} />
+      </Route>
+      <Route path="/cohorts">
+        <DashboardRoute component={DashboardCohorts} />
+      </Route>
+      <Route path="/messages">
+        <DashboardRoute component={DashboardMessages} />
+      </Route>
+      <Route path="/certificates">
+        <DashboardRoute component={DashboardCertificates} />
+      </Route>
+      <Route path="/profile">
+        <DashboardRoute component={DashboardProfile} />
+      </Route>
+
+      {/* Legacy Dashboard Redirect */}
       <Route path="/dashboard">
         {() => {
           window.location.replace("/student-dashboard");
           return null;
         }}
       </Route>
-      <Route path="/student-dashboard" component={StudentDashboardPage} />
-      <Route path="/student-dashboard/:rest*" component={StudentDashboardPage} />
-      
-      <Route path="/settings" component={StudentDashboardPage} />
-      <Route path="/leaderboard" component={StudentDashboardPage} />
-      <Route path="/assignments" component={StudentDashboardPage} />
-      <Route path="/cohorts" component={StudentDashboardPage} />
-      <Route path="/my-courses" component={StudentDashboardPage} />
-      <Route path="/certificates" component={StudentDashboardPage} />
-      <Route path="/messages" component={StudentDashboardPage} />
+
       <Route path="/auth/callback" component={AuthCallbackPage} />
 
 
@@ -97,20 +150,10 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
   const hadSessionRef = useRef(false);
   const logoutTriggeredRef = useRef(false);
   const shouldHideNavbar =
-    location === "/" ||
     location === "/course" ||
     location.startsWith("/course/") ||
     location.startsWith("/ondemand/") ||
-    location.startsWith("/registration") ||
-    location.startsWith("/blogs") ||
-    location.startsWith("/student-dashboard") ||
-    location === "/settings" ||
-    location === "/leaderboard" ||
-    location === "/assignments" ||
-    location === "/cohorts" ||
-    location === "/my-courses" ||
-    location === "/certificates" ||
-    location === "/messages";
+    location.startsWith("/registration");
 
   useEffect(() => {
     if (typeof window === "undefined") {

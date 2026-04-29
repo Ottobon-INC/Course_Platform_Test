@@ -15,12 +15,30 @@ export async function apiRequest(
   data?: unknown | undefined,
   init?: RequestInit,
 ): Promise<Response> {
-  const body = data ? JSON.stringify(data) : undefined;
+  let token: string | null = null;
+  try {
+    const storedSession = readStoredSession();
+    const session = await ensureSessionFresh(storedSession, { notifyOnFailure: false });
+    token = session?.accessToken ?? null;
+  } catch (error) {
+    console.error("Failed to refresh session for apiRequest", error);
+  }
+
+  if (!token) {
+    token = localStorage.getItem("token") || localStorage.getItem("jwt");
+  }
+
+  const isFormData = data instanceof FormData;
+  const body = isFormData ? data : (data ? JSON.stringify(data) : undefined);
   const { headers: initHeaders, ...restInit } = init ?? {};
   const mergedHeaders = new Headers(initHeaders as HeadersInit | undefined);
 
-  if (body && !mergedHeaders.has("Content-Type")) {
+  if (!isFormData && body && !mergedHeaders.has("Content-Type")) {
     mergedHeaders.set("Content-Type", "application/json");
+  }
+
+  if (token) {
+    mergedHeaders.set("Authorization", `Bearer ${token}`);
   }
 
   const res = await fetch(buildApiUrl(path), {

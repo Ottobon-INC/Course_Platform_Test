@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
 
 export function Cohorts() {
@@ -117,7 +117,7 @@ export function Cohorts() {
 
 /* ─── Active Cohort Card ─── */
 function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const [showProjectModal, setShowProjectModal] = React.useState(false);
   const project = cohort.project;
   const hasProject = project && typeof project === 'object' && (project.title || (project as any).name);
@@ -234,7 +234,7 @@ function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
             </p>
           </div>
           <button
-            onClick={() => navigate('/messages?tab=team')}
+            onClick={() => setLocation('/messages?tab=team')}
             className="w-full bg-dark-teal text-white text-sm font-bold py-2.5 rounded-xl hover:brightness-110 transition-all shadow-md flex items-center justify-center gap-2"
           >
             <i className="fas fa-external-link-alt text-xs opacity-70" /> Open Cohort Chat
@@ -247,7 +247,7 @@ function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
         <button
           onClick={() => {
             if (cohort.courseSlug) {
-              navigate(`/course/${cohort.courseSlug}/learn/start`);
+              setLocation(`/course/${cohort.courseSlug}/learn/start`);
             }
           }}
           className="bg-orange-primary text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:shadow-lg transition-all shadow-md"
@@ -257,7 +257,7 @@ function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
         <button
           onClick={() => {
             if (cohort.courseSlug) {
-              navigate(`/course/${cohort.courseSlug}/learn/start`);
+              setLocation(`/course/${cohort.courseSlug}/learn/start`);
             }
           }}
           className="bg-white border border-border-soft text-dark-text text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2"

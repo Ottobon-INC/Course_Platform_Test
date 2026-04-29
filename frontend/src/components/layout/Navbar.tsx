@@ -37,8 +37,19 @@ const Navbar: React.FC<NavbarProps> = ({
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [location, setLocation] = useLocation();
 
-    // Check if we are on the tutor page to conditionally hide elements
+    // Check if we are on dashboard routes to hide certain elements
+    const isDashboard = location.startsWith('/student-dashboard') || 
+                       location.startsWith('/student_dashboard') || 
+                       location.startsWith('/profile') || 
+                       location.startsWith('/my-courses') || 
+                       location.startsWith('/cohorts') || 
+                       location.startsWith('/assignments') || 
+                       location.startsWith('/leaderboard') || 
+                       location.startsWith('/messages') || 
+                       location.startsWith('/certificates');
     const isTutorPage = location === '/become-a-tutor';
+    const hideApplyTutor = isDashboard || isTutorPage;
+    const hideNavLinks = isTutorPage; // Links are only hidden on the actual tutor landing page
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -70,24 +81,24 @@ const Navbar: React.FC<NavbarProps> = ({
 
     return (
         <motion.nav
-            className={`fixed top-0 left-0 right-0 z-50 bg-retro-bg/95 backdrop-blur-md shadow-sm py-3 transition-colors duration-300`}
+            className={`fixed top-0 left-0 right-0 z-[100] ${isDashboard ? 'bg-[#FFFDD0] border-b border-retro-sage/20 shadow-md' : 'bg-retro-bg/95 backdrop-blur-md shadow-sm'} py-2 md:py-3 transition-all duration-300`}
             initial={{ y: 0 }}
             animate={{ y: 0 }}
         >
-            <div className="w-full px-6 md:px-12 flex justify-between items-center">
-                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation('/')}>
-                    <div className="w-9 h-9 bg-retro-sage rounded-lg transform rotate-45 shadow-lg shadow-retro-sage/50 shrink-0 flex items-center justify-center">
-                        <span className="-rotate-45 text-white font-bold text-xs">OL</span>
+            <div className="w-full px-4 md:px-12 flex justify-between items-center">
+                <div className="flex items-center gap-2 md:gap-3 cursor-pointer" onClick={() => setLocation('/')}>
+                    <div className="w-7 h-7 md:w-9 md:h-9 bg-retro-sage rounded-lg transform rotate-45 shadow-lg shadow-retro-sage/50 shrink-0 flex items-center justify-center">
+                        <span className="-rotate-45 text-white font-bold text-[10px] md:text-xs">OL</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-2xl text-retro-teal tracking-tighter leading-none">Ottolearn</span>
-                        <span className="text-[10px] text-retro-salmon font-bold uppercase tracking-wider mt-0.5">
+                        <span className="font-bold text-lg md:text-2xl text-retro-teal tracking-tighter leading-none">Ottolearn</span>
+                        <span className="text-[8px] md:text-[10px] text-retro-salmon font-bold uppercase tracking-wider mt-0.5 max-w-[150px] md:max-w-none">
                             Inspired by Harvard Method of Teaching
                         </span>
                     </div>
                 </div>
 
-                {!isTutorPage && (
+                {!hideNavLinks && (
                     <div className="hidden md:flex gap-8 font-medium text-retro-teal/80 items-center">
                         <button
                             onClick={() => setLocation('/our-courses/cohort')}
@@ -119,7 +130,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 )}
 
                 <div className="flex items-center gap-3">
-                    {!isTutorPage && (
+                    {!hideApplyTutor && (
                         <button
                             onClick={onApplyTutor}
                             className="hidden md:inline-flex bg-white text-retro-teal border-2 border-retro-teal px-6 py-2 rounded-full font-medium hover:bg-retro-teal hover:text-white transition-all hover:shadow-lg hover:scale-105 active:scale-95 duration-200"
@@ -221,7 +232,7 @@ const Navbar: React.FC<NavbarProps> = ({
                         className="md:hidden px-6 pt-3 pb-6"
                     >
                         <div className="flex flex-col gap-3 rounded-2xl border border-retro-sage/30 bg-white/90 p-4 shadow-lg">
-                            {!isTutorPage && (
+                            {!hideNavLinks && (
                                 <>
                                     <button
                                         onClick={() => {
@@ -267,7 +278,7 @@ const Navbar: React.FC<NavbarProps> = ({
                                     })}
                                 </>
                             )}
-                            {!isTutorPage && (
+                            {!hideApplyTutor && (
                                 <button
                                     onClick={onApplyTutor}
                                     className="w-full mt-2 text-center bg-retro-teal text-white py-2 rounded-lg font-bold"
