@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useLocation } from 'wouter';
 import { ArrowRight, MessageSquare, Clock, Calendar } from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { CoursePromoCard } from '@/components/blog/CoursePromoCard';
 import { buildApiUrl } from '@/lib/api';
@@ -68,7 +66,6 @@ const BlogsPage: React.FC = () => {
   useBlogListingSEO();
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const fetchBlogs = async () => {
@@ -91,7 +88,6 @@ const BlogsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-retro-bg flex flex-col">
-      <Navbar onApplyTutor={() => setLocation('/become-a-tutor')} />
       <div className="pt-[72px]" /> {/* Spacer for fixed Navbar */}
 
       <main className="flex-1">
@@ -141,7 +137,7 @@ const BlogsPage: React.FC = () => {
                       viewport={{ once: true }}
                       transition={{ delay: index % 3 * 0.1 }}
                       whileHover={{ y: -8 }}
-                      onClick={() => setLocation(getBlogPath(blog))}
+                      onClick={() => window.location.href = getBlogPath(blog)}
                       className="bg-white rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-retro-sage/10 group flex flex-col h-full cursor-pointer"
                     >
                       <div className="h-56 overflow-hidden relative">
@@ -190,7 +186,7 @@ const BlogsPage: React.FC = () => {
                            <button 
                              onClick={(e) => {
                                e.stopPropagation();
-                               setLocation(getBlogPath(blog));
+                               window.location.href = getBlogPath(blog);
                              }}
                              className="text-retro-salmon font-bold text-sm flex items-center gap-1.5 group-hover:gap-2.5 transition-all"
                            >

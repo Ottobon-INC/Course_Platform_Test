@@ -36,7 +36,6 @@ import { Layout as DashboardLayout } from "@/pages/StudentDashboard/components/L
 import { Home as DashboardHome } from "@/pages/StudentDashboard/pages/Home";
 import { MyCourses as DashboardMyCourses } from "@/pages/StudentDashboard/pages/MyCourses";
 import { Leaderboard as DashboardLeaderboard } from "@/pages/StudentDashboard/pages/Leaderboard";
-import { Cohorts as DashboardCohorts } from "@/pages/StudentDashboard/pages/Cohorts";
 import { Assignments as DashboardAssignments } from "@/pages/StudentDashboard/pages/Assignments";
 import DashboardMessages from "@/pages/StudentDashboard/pages/messaging/MessagingModule";
 import { Certificates as DashboardCertificates } from "@/pages/StudentDashboard/pages/Certificates";
@@ -107,9 +106,6 @@ function Router() {
       </Route>
       <Route path="/assignments">
         <DashboardRoute component={DashboardAssignments} />
-      </Route>
-      <Route path="/cohorts">
-        <DashboardRoute component={DashboardCohorts} />
       </Route>
       <Route path="/messages">
         <DashboardRoute component={DashboardMessages} />

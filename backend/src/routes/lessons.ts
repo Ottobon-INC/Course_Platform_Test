@@ -679,8 +679,16 @@ lessonsRouter.put(
 
     const existing = await prisma.topicProgress.findUnique({
       where: { userId_topicId: { userId: auth.userId, topicId: topic.topicId } },
-      select: { completedAt: true },
+      select: { completedAt: true, isCompleted: true },
     });
+
+    // Award points if this is a new completion
+    if (shouldComplete && !existing?.isCompleted) {
+      await prisma.user.update({
+        where: { userId: auth.userId },
+        data: { totalPoints: { increment: 100 } }
+      });
+    }
 
     const completedAt = shouldComplete ? existing?.completedAt ?? now : null;
 

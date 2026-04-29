@@ -19,6 +19,8 @@ model User {
   skills       String[]       @default([]) @map("skills")
   theme        String         @default("dark") @map("theme")
   language     String         @default("English") @map("language")
+  totalPoints  Int            @default(0) @map("total_points")
+  previousRank Int?           @map("previous_rank")
   cartItems    CartItem[]
   cartLines    CartLine[]
   enrollments  Enrollment[]

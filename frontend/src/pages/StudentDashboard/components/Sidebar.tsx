@@ -18,7 +18,6 @@ export function Sidebar() {
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/student-dashboard' },
     { icon: BookOpen, label: 'My Courses', path: '/my-courses' },
-    { icon: Users, label: 'Cohorts', path: '/cohorts' },
     { icon: CheckSquare, label: 'Assignments', path: '/assignments' },
     { icon: Trophy, label: 'Leaderboard', path: '/leaderboard' },
     { icon: MessageSquare, label: 'Messages', path: '/messages' },
@@ -30,10 +29,10 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop Sidebar (Left Floating) */}
-      <aside className="fixed left-4 top-[110px] bottom-10 w-[90px] bg-white rounded-[40px] shadow-2xl border border-retro-sage/20 hidden md:flex flex-col items-center py-8 z-50">
+      <aside className="fixed left-4 top-[110px] bottom-10 w-[90px] bg-white rounded-[40px] shadow-2xl border border-retro-sage/20 hidden md:flex flex-col items-center justify-between py-12 z-50">
         {/* Profile Image as Top Link */}
         <Link href="/profile">
-          <div className="group relative mb-8 cursor-pointer">
+          <div className="group relative cursor-pointer">
             <div className={`w-14 h-14 rounded-full border-2 transition-all duration-300 overflow-hidden shadow-md ${location === '/profile' ? 'border-retro-salmon scale-110 shadow-retro-salmon/20' : 'border-white hover:border-retro-salmon/50'}`}>
               <img
                 src={profilePhoto}
@@ -49,7 +48,6 @@ export function Sidebar() {
         </Link>
 
         {/* Navigation Items */}
-        <div className="flex-1 flex flex-col gap-6">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location === item.path;
@@ -69,7 +67,6 @@ export function Sidebar() {
               </Link>
             );
           })}
-        </div>
 
         {/* Logout Link */}
         <button
@@ -77,7 +74,7 @@ export function Sidebar() {
             localStorage.clear();
             window.location.href = '/';
           }}
-          className="group relative mt-auto"
+          className="group relative"
         >
           <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-red-500 hover:bg-red-50 transition-all duration-300 shadow-sm">
             <LogOut size={22} />

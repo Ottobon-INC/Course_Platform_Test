@@ -1,13 +1,32 @@
 import React from 'react';
 import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
+import { useLeaderboardData } from '../hooks/useLeaderboardData';
 
-export function Cohorts() {
+export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { data, isLoading, error } = useCohortData();
+  const [selectedCourse, setSelectedCourse] = React.useState<string | null>(null);
+
+  const { activeCohorts = [], completedCohorts = [], stats } = data || {};
+
+  // Extract unique course names
+  const allCourseNames = React.useMemo(() => {
+    const names = new Set<string>();
+    activeCohorts.forEach(c => names.add(c.courseName));
+    completedCohorts.forEach(c => names.add(c.courseName));
+    return Array.from(names);
+  }, [activeCohorts, completedCohorts]);
+
+  // Set default selection
+  React.useEffect(() => {
+    if (!selectedCourse && allCourseNames.length > 0) {
+      setSelectedCourse(allCourseNames[0]);
+    }
+  }, [allCourseNames, selectedCourse]);
 
   if (isLoading) {
     return (
-      <div className="animate-fade-in relative z-0 pb-16 flex items-center justify-center min-h-[400px]">
+      <div className={`${!hideSidebar ? 'animate-fade-in relative z-0 pb-16' : ''} flex items-center justify-center min-h-[400px]`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-dark-teal border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-400 font-medium">Loading your cohorts…</p>
@@ -18,7 +37,7 @@ export function Cohorts() {
 
   if (error) {
     return (
-      <div className="animate-fade-in relative z-0 pb-16">
+      <div className={!hideSidebar ? 'animate-fade-in relative z-0 pb-16' : ''}>
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
           <i className="fas fa-exclamation-circle text-red-400 text-2xl mb-2" />
           <p className="text-red-600 font-medium">Failed to load cohort data. Please try again later.</p>
@@ -27,18 +46,49 @@ export function Cohorts() {
     );
   }
 
-  const { activeCohorts = [], completedCohorts = [], stats } = data || {};
   const hasNoCohorts = activeCohorts.length === 0 && completedCohorts.length === 0;
 
+  // Filter lists based on selection
+  const filteredActive = selectedCourse 
+    ? activeCohorts.filter(c => c.courseName === selectedCourse)
+    : activeCohorts;
+  const filteredCompleted = selectedCourse 
+    ? completedCohorts.filter(c => c.courseName === selectedCourse)
+    : completedCohorts;
+
   return (
-    <div className="animate-fade-in relative z-0 pb-16">
-      <div className="mb-8">
-        <p className="text-gray-500 mt-1 font-medium">Collaborate, build, and learn with your team</p>
-        <p className="text-sm text-gray-400 mt-2 font-bold">
-          {stats?.activeCount ?? 0} Active Cohort{(stats?.activeCount ?? 0) !== 1 ? 's' : ''}
-          {' | '}
-          {stats?.completedCount ?? 0} Completed
-        </p>
+    <div className={!hideSidebar ? 'animate-fade-in relative z-0 pb-16' : ''}>
+      <div className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <p className="text-gray-500 mt-1 font-medium">Collaborate, build, and learn with your team</p>
+          <p className="text-sm text-gray-400 mt-2 font-bold">
+            {stats?.activeCount ?? 0} Active Cohort{(stats?.activeCount ?? 0) !== 1 ? 's' : ''}
+            {' | '}
+            {stats?.completedCount ?? 0} Completed
+          </p>
+        </div>
+
+        {allCourseNames.length > 0 && (
+          <div className="flex flex-col gap-1.5 min-w-[240px]">
+            <label className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+              <i className="fas fa-filter text-dark-teal" /> Switch Cohort Course
+            </label>
+            <div className="relative">
+              <select 
+                value={selectedCourse || ''} 
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full bg-white border border-border-soft rounded-xl px-4 py-2.5 text-sm font-bold text-dark-text shadow-sm focus:outline-none focus:ring-2 focus:ring-dark-teal/20 appearance-none cursor-pointer"
+              >
+                {allCourseNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                <i className="fas fa-chevron-down text-xs" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {hasNoCohorts ? (
@@ -50,16 +100,16 @@ export function Cohorts() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-8">
+        <div className={hideSidebar ? "w-full" : "grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-8"}>
           {/* Main content */}
           <div className="flex flex-col gap-8">
             {/* Active Cohorts */}
-            {activeCohorts.length > 0 && (
+            {filteredActive.length > 0 && (
               <section>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <i className="fas fa-users text-dark-teal" /> Active Cohort{activeCohorts.length > 1 ? 's' : ''}
+                  <i className="fas fa-users text-dark-teal" /> Active Cohort{filteredActive.length > 1 ? 's' : ''}
                 </h2>
-                {activeCohorts.map((cohort) => (
+                {filteredActive.map((cohort) => (
                   <ActiveCohortCard key={cohort.cohortId} cohort={cohort} />
                 ))}
               </section>
@@ -68,50 +118,96 @@ export function Cohorts() {
             {/* Previous Cohorts — always visible */}
             <section>
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <i className="fas fa-history text-dark-teal" /> Previous Cohort{completedCohorts.length !== 1 ? 's' : ''}
+                <i className="fas fa-history text-dark-teal" /> Previous Cohort{filteredCompleted.length !== 1 ? 's' : ''}
               </h2>
-              {completedCohorts.length > 0 ? (
+              {filteredCompleted.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {completedCohorts.map((cohort) => (
+                  {filteredCompleted.map((cohort) => (
                     <CompletedCohortCard key={cohort.cohortId} cohort={cohort} />
                   ))}
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm p-8 border border-border-soft text-center">
                   <i className="fas fa-folder-open text-gray-200 text-3xl mb-3" />
-                  <p className="text-sm text-gray-400 font-medium">No previous cohorts</p>
+                  <p className="text-sm text-gray-400 font-medium">No previous cohorts for this course</p>
                 </div>
               )}
             </section>
           </div>
 
           {/* Sidebar */}
-          <div className="flex flex-col gap-8">
-            {/* Upcoming Sessions — placeholder (no DB table exists) */}
-            <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft">
-              <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
-                <i className="fas fa-calendar-day text-orange-primary opacity-70" /> Upcoming Sessions
-              </h3>
-              <div className="flex flex-col items-center py-4 text-center">
-                <i className="fas fa-calendar-check text-gray-200 text-3xl mb-3" />
-                <p className="text-xs text-gray-400 font-medium">No scheduled sessions</p>
-              </div>
-            </section>
-
-            {/* Top Performer — placeholder (no leaderboard table exists) */}
-            <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft">
-              <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
-                <i className="fas fa-star text-yellow-500 opacity-70" /> Cohort Top Performer
-              </h3>
-              <div className="flex flex-col items-center py-4 text-center">
-                <i className="fas fa-trophy text-gray-200 text-3xl mb-3" />
-                <p className="text-xs text-gray-400 font-medium">Coming soon</p>
-              </div>
-            </section>
-          </div>
+          {!hideSidebar && (
+            <div className="flex flex-col gap-8">
+              <UpcomingSessions />
+              <CohortTopPerformer />
+            </div>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Cohort Sidebar Components ─── */
+
+export function UpcomingSessions() {
+  return (
+    <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft">
+      <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
+        <i className="fas fa-calendar-day text-orange-primary opacity-70" /> Upcoming Sessions
+      </h3>
+      <div className="flex flex-col items-center py-4 text-center">
+        <i className="fas fa-calendar-check text-gray-200 text-3xl mb-3" />
+        <p className="text-xs text-gray-400 font-medium">No scheduled sessions</p>
+      </div>
+    </section>
+  );
+}
+
+export function CohortTopPerformer() {
+  const { topUsers, isLoading } = useLeaderboardData();
+  const topPerformer = topUsers?.[0];
+
+  return (
+    <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft overflow-hidden group hover:border-orange-primary/30 transition-all">
+      <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
+        <i className="fas fa-star text-yellow-500 opacity-70 group-hover:scale-110 transition-transform" /> Cohort Top Performer
+      </h3>
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center py-4 gap-2 animate-pulse">
+          <div className="w-12 h-12 bg-gray-100 rounded-full" />
+          <div className="w-20 h-3 bg-gray-100 rounded" />
+        </div>
+      ) : topPerformer ? (
+        <div className="flex flex-col items-center py-2 text-center animate-fade-in">
+          <div className="relative mb-4">
+             <i className="fas fa-crown text-yellow-400 absolute -top-4 left-1/2 -translate-x-1/2 text-xl drop-shadow-sm animate-bounce" />
+             {topPerformer.avatar ? (
+                <img src={topPerformer.avatar} className="w-16 h-16 rounded-full border-4 border-orange-soft object-cover shadow-md" alt="Top Performer" />
+             ) : (
+                <div className="w-16 h-16 rounded-full bg-orange-soft flex items-center justify-center border-4 border-white shadow-sm">
+                   <i className="fas fa-user text-orange-primary text-2xl" />
+                </div>
+             )}
+             <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm scale-90">
+                <i className="fas fa-trophy text-[0.7rem]" />
+             </div>
+          </div>
+          <h4 className="font-black text-dark-text text-sm leading-tight mb-1">{topPerformer.name}</h4>
+          <p className="text-[0.65rem] font-black text-orange-primary uppercase tracking-widest">{topPerformer.score.toLocaleString()} Points</p>
+          
+          <div className="mt-4 pt-4 border-t border-gray-50 w-full">
+            <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest">Global Rank #1</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-4 text-center">
+          <i className="fas fa-trophy text-gray-200 text-3xl mb-3" />
+          <p className="text-xs text-gray-400 font-medium">Coming soon</p>
+        </div>
+      )}
+    </section>
   );
 }
 

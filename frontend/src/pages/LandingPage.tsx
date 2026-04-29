@@ -9,9 +9,6 @@ import { useLocation } from 'wouter';
 import { buildApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { readStoredSession } from '@/utils/session';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import Navbar from '@/components/layout/Navbar';
 import HeroCarousel, { HeroVariant } from '@/components/landing/HeroCarousel';
 import LandingChatBot from '@/components/LandingChatBot';
 import { TransformationSection } from '@/components/landing/TransformationSection';
@@ -1250,11 +1247,6 @@ function LandingPage() {
   const handleApplyTutor = () => setLocation('/become-a-tutor');
 
   const handleLogin = () => {
-    trackEvent('auth_login_initiate', { source: 'navbar' });
-    if (session?.accessToken) {
-      setLocation('/student-dashboard');
-      return;
-    }
     const homeRedirect = '/student-dashboard';
     sessionStorage.setItem("postLoginRedirect", homeRedirect);
     const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
@@ -1316,14 +1308,6 @@ function LandingPage() {
     setLocation(`/courses?q=${encodeURIComponent(term.trim())}`);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('session');
-    localStorage.removeItem('user');
-    localStorage.setItem('isAuthenticated', 'false');
-    setIsAuthenticated(false);
-    setUser(null);
-    setLocation('/');
-  };
 
   const handleViewCurriculum = () => {
     const el = document.getElementById('courses');
@@ -1343,13 +1327,6 @@ function LandingPage() {
       <SectionNav />
       {/* Mobile Sticky CTA */}
       <MobileStickyCTA onEnroll={() => handleEnroll(undefined, undefined, 'mobile_sticky')} />
-      <Navbar
-        onLogin={handleLogin}
-        isAuthenticated={isAuthenticated}
-        user={user ?? undefined}
-        onLogout={handleLogout}
-        onApplyTutor={handleApplyTutor}
-      />
       <HeroCarousel
         onEnroll={() => handleEnroll(undefined, undefined, 'hero')}
         onSearch={handleSearchCourses}
