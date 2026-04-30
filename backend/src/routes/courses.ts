@@ -37,6 +37,7 @@ const courseSelect = {
     }
   },
   tutors: {
+    where: { isActive: true },
     select: {
       role: true,
       tutor: {

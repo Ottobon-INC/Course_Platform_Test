@@ -235,15 +235,6 @@ const CourseDetailsPage = () => {
   const [, setLocation] = useLocation();
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const skillsRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: skillsRef,
-    offset: ["start end", "end start"]
-  });
-
-  const masteryProgress = useTransform(scrollYProgress, [0.3, 0.7], [0, 100]);
-  const masteryPercentage = useTransform(masteryProgress, (v) => Math.min(Math.max(v, 0), 100));
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedModules, setExpandedModules] = useState<number[]>([1]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -316,7 +307,7 @@ const CourseDetailsPage = () => {
           }
         }
 
-        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics`));
+        const res = await fetch(buildApiUrl(`/api/lessons/courses/${courseId}/topics?outline=true`));
         if (!res.ok) {
           throw new Error("Failed to load course topics");
         }
@@ -588,7 +579,6 @@ const CourseDetailsPage = () => {
   return (
     <div className="min-h-screen bg-[#f8f1e6] text-[#000000] font-sans relative">
       <style>{`
-         html { scroll-behavior: smooth; }
          @keyframes fade-in {
             from { opacity: 0; }
             to { opacity: 1; }
