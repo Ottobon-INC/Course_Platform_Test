@@ -224,7 +224,7 @@ export function Profile() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-6 px-0.5">System Preferences</label>
 
-            <div className="flex items-center justify-between mb-6 pb-6 border-b border-gray-50">
+            <div className="flex items-center justify-between">
               <span className="text-[0.85rem] font-bold text-gray-600">Theme mode</span>
               <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
                 <button
@@ -239,23 +239,6 @@ export function Profile() {
                 >
                   <i className="fas fa-moon text-[0.6rem]"></i> Dark
                 </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[0.7rem] text-gray-500 font-bold mb-2.5 px-0.5">Language</label>
-              <div className="relative group">
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full h-11 border border-gray-200 rounded-xl px-4 py-1 text-sm font-medium bg-white appearance-none cursor-pointer focus:border-orange-primary outline-none transition-all shadow-sm"
-                >
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>French</option>
-                  <option>German</option>
-                </select>
-                <i className="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 text-xs pointer-events-none group-hover:text-orange-primary transition-colors"></i>
               </div>
             </div>
           </div>

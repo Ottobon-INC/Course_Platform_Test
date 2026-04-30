@@ -21,11 +21,11 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [allowMultiple, setAllowMultiple] = useState(false);
-  
+
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
-  
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
@@ -40,20 +40,20 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
 
   const filteredMentions = currentMembers
     .filter(m => m.id !== currentUserId) // Exclude current user
-    .filter(m => 
-      m.full_name.toLowerCase().includes(mentionQuery) || 
+    .filter(m =>
+      m.full_name.toLowerCase().includes(mentionQuery) ||
       m.email.toLowerCase().includes(mentionQuery)
     ).slice(0, 5);
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setMessageInput(val);
-    
+
     // Save draft
     if (selectedConversation?.id) {
       setDrafts(prev => ({ ...prev, [selectedConversation.id]: val }));
     }
-    
+
     // Suggestion logic
     const cursor = e.target.selectionStart;
     const textBefore = val.substring(0, cursor);
@@ -189,8 +189,8 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
           {showMentions && filteredMentions.length > 0 && (
             <div className="msg-mention-list">
               {filteredMentions.map((user, i) => (
-                <div 
-                  key={user.id} 
+                <div
+                  key={user.id}
                   className={`msg-mention-item ${i === mentionIndex ? "active" : ""}`}
                   onClick={() => insertMention(user)}
                 >
@@ -200,7 +200,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
               ))}
             </div>
           )}
-          
+
           <div className="msg-input-box">
             <label className="msg-attach-btn" style={{ cursor: "pointer" }}>
               <Paperclip size={18} />

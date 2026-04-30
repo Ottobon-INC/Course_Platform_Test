@@ -74,4 +74,6 @@ export interface DashboardSummary {
   completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
   catalog: DashboardCatalogCourse[];
+  dynamicTasks: Array<{ id: number; text: string; checked: boolean }>;
+  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assignment' | 'workshop' }>;
 }

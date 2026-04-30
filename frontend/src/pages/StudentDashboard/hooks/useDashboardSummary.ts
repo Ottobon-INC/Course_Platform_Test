@@ -9,6 +9,8 @@ import { DashboardSummary } from '../types/dashboard';
 export function useDashboardSummary() {
   const query = useQuery<DashboardSummary>({
     queryKey: ['/api/dashboard/summary'],
+    staleTime: 30000, // 30 seconds
+    refetchOnMount: true
   });
 
   if (query.data) {

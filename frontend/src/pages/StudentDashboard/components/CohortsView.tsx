@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
 import { useLeaderboardData } from '../hooks/useLeaderboardData';
+import { SessionRecordings } from './SessionRecordings';
 
 export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { data, isLoading, error } = useCohortData();
@@ -138,7 +139,6 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
           {/* Sidebar */}
           {!hideSidebar && (
             <div className="flex flex-col gap-8">
-              <UpcomingSessions />
               <CohortTopPerformer />
             </div>
           )}
@@ -150,19 +150,6 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
 
 /* ─── Cohort Sidebar Components ─── */
 
-export function UpcomingSessions() {
-  return (
-    <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft">
-      <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
-        <i className="fas fa-calendar-day text-orange-primary opacity-70" /> Upcoming Sessions
-      </h3>
-      <div className="flex flex-col items-center py-4 text-center">
-        <i className="fas fa-calendar-check text-gray-200 text-3xl mb-3" />
-        <p className="text-xs text-gray-400 font-medium">No scheduled sessions</p>
-      </div>
-    </section>
-  );
-}
 
 export function CohortTopPerformer() {
   const { topUsers, isLoading } = useLeaderboardData();
@@ -375,6 +362,9 @@ function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
           />
         </div>
       </div>
+
+      {/* Session Recordings Gallery */}
+      <SessionRecordings />
 
       {/* Project Details Modal */}
       {showProjectModal && hasProject && project && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import { useLocation } from 'wouter';
-import { CohortsView, UpcomingSessions, CohortTopPerformer } from '../components/CohortsView';
+import { CohortsView, CohortTopPerformer } from '../components/CohortsView';
 import cohortIcon from '@/assets/html_css.png';
 import onDemandIcon from '@/assets/js_sql.png';
 import workshopIcon from '@/assets/uiux.png';
@@ -322,7 +322,6 @@ export function MyCourses() {
           )}
           {activeFilter === 'Cohorts' && (
             <div className="flex flex-col gap-6 mt-6">
-              <UpcomingSessions />
               <CohortTopPerformer />
             </div>
           )}

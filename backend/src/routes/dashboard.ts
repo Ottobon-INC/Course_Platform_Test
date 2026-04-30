@@ -65,6 +65,8 @@ type DashboardSummary = {
   }>;
   completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
+  dynamicTasks: Array<{ id: number; text: string; checked: boolean }>;
+  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assessment' | 'workshop' }>;
 };
 
 const formatDate = (value: Date | null | undefined): string | null => {
@@ -145,20 +147,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       return;
     }
 
-    const [enrollments, cohortMemberships, approvedCohortRegistrations, completedCertificates] = await Promise.all([
-      prisma.enrollment.findMany({
-        where: { userId: auth.userId },
-        include: {
-          course: {
-            select: {
-              courseId: true,
-              courseName: true,
-              slug: true,
-              category: true,
-            },
-          },
-        },
-      }),
+    const [cohortMemberships, approvedCohortRegistrations, completedCertificates] = await Promise.all([
       prisma.cohortMember.findMany({
         where: {
           OR: [
@@ -261,16 +250,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     });
 
     const cohortEntries = Array.from(cohortEntryById.values());
-    const cohortCourseIds = new Set(cohortEntries.map((entry) => entry.courseId));
-
-    const onDemandEnrollments = enrollments.filter((enrollment) => !cohortCourseIds.has(enrollment.courseId));
-
-    const courseIds = Array.from(
-      new Set([
-        ...enrollments.map((enrollment) => enrollment.courseId),
-        ...cohortEntries.map((entry) => entry.courseId),
-      ]),
-    );
+    const courseIds = Array.from(new Set(cohortEntries.map((entry) => entry.courseId)));
 
     const progressRows = courseIds.length
       ? await prisma.topicProgress.findMany({
@@ -378,7 +358,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       return latest;
     }, null);
 
-    const cohorts = cohortEntries.map((entry) => {
+    const cohortsList = cohortEntries.map((entry) => {
       const courseId = entry.courseId;
       const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
       const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
@@ -401,25 +381,8 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       };
     });
 
-    const onDemand = onDemandEnrollments.map((enrollment) => {
-      const courseId = enrollment.courseId;
-      const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
-      const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
-      const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
-      const latest = latestByCourse.get(courseId);
-      const lastLessonSlug = latest ? slugify(latest.topicName) : null;
-      const lastAccessedModule = latest
-        ? `Module ${latest.moduleNo}: ${latest.topicName}`
-        : "Getting started";
-      return {
-        id: enrollment.courseId,
-        title: enrollment.course.courseName,
-        courseSlug: enrollment.course.slug ?? null,
-        progress,
-        lastAccessedModule,
-        lastLessonSlug,
-      };
-    });
+    const cohorts = cohortsList.filter(c => c.status !== 'Completed');
+    const onDemand = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
 
     const workshopRegistrations = await prisma.registration.findMany({
       where: {
@@ -528,6 +491,25 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         programType: cert.programType
       })),
       upcoming,
+      dynamicTasks: [
+        { 
+          id: 1, 
+          text: resumeCourse ? `Continue ${resumeCourse.title}` : "Explore new courses", 
+          checked: !!resumeCourse && resumeCourse.progress > 0 
+        },
+        { 
+          id: 2, 
+          text: resumeCourse ? `Complete ${resumeCourse.lastAccessedModule.split(': ')[1] || 'next topic'}` : "Start your first lesson", 
+          checked: false 
+        },
+        { id: 3, text: "Check Cohort Community", checked: true }
+      ],
+      urgentTasks: (cohorts.length > 0 ? [
+        { id: 1, time: "9:00 AM", text: `Review ${cohorts[0].title} Materials`, type: 'assignment' as const },
+        { id: 2, time: "Today", text: `Complete ${cohorts[0].lastAccessedModule.split(': ')[0]}`, type: 'quiz' as const }
+      ] : [
+        { id: 1, time: "Flexible", text: "Start your first module", type: 'assignment' as const }
+      ])
     };
 
     res.status(200).json(payload);
