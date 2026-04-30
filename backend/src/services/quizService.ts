@@ -816,6 +816,26 @@ export async function submitAttempt(params: {
   );
 
   if (passed) {
+    // 1. Award points if this is the first time passing this specific assessment
+    const previousPassed = await prisma.$queryRaw<{ count: number | bigint }[]>(
+      Prisma.sql`
+        SELECT COUNT(*)::bigint AS count
+        FROM quiz_attempts
+        WHERE user_id = ${userId}::uuid
+          AND assessment_id = ${attempt.assessment_id}::uuid
+          AND status = 'passed'
+          AND attempt_id != ${attemptId}::uuid
+      `
+    );
+
+    if (Number(previousPassed[0]?.count ?? 0) === 0) {
+      await prisma.user.update({
+        where: { userId },
+        data: { totalPoints: { increment: 200 } }
+      });
+    }
+
+    // 2. Check if the whole module is now passed
     const modulePassed = await isModuleFullyPassed({
       userId,
       courseId: attempt.course_id,

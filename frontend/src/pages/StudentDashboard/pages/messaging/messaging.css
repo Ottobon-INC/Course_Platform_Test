@@ -31,14 +31,14 @@
 .msg-container {
   display: flex;
   background: white;
-  height: calc(100vh - 72px) !important;
-  /* Adjusted for dash header */
+  height: calc(100vh - 130px) !important;
+  /* Account for header and content padding */
   overflow: hidden !important;
-  overflow-x: hidden !important;
   position: relative;
   width: 100%;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
 }
 
 /* ── Category Sidebar ── */
@@ -231,7 +231,8 @@
 .msg-wrapper-bubble-actions {
   display: flex;
   align-items: center;
-  gap: 8px; /* Near to message */
+  gap: 8px;
+  /* Near to message */
   width: fit-content;
 }
 
@@ -285,6 +286,7 @@
 .received .msg-emoji-picker-container {
   left: 0;
 }
+
 .msg-read-receipts-stack {
   display: flex;
   flex-direction: row;
@@ -295,14 +297,15 @@
 }
 
 .msg-read-avatar-overlapping {
-  width: 20px; /* Slightly larger than the 18px avatar for the border */
+  width: 20px;
+  /* Slightly larger than the 18px avatar for the border */
   height: 20px;
   flex-shrink: 0;
   border: 1.5px solid white;
   border-radius: 50%;
   background: white;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   margin-left: -6px;
   transition: transform 0.2s;
   cursor: pointer;
@@ -330,8 +333,15 @@
 }
 
 @keyframes msg-read-appear {
-  from { opacity: 0; transform: translateY(-4px) scale(0.8); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── Message Bubble Adjustments ── */
@@ -636,6 +646,7 @@
     max-width: 100%;
     min-width: unset;
   }
+
   .poll-msg-container {
     max-width: 95% !important;
   }

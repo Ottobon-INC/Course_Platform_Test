@@ -9,14 +9,12 @@ export function Home() {
   const { data: summary, isLoading } = useDashboardSummary();
   const { summary: leaderboardSummary } = useLeaderboardData();
   const [, setLocation] = useLocation();
-  const [tasks, setTasks] = useState([
-    { id: 1, text: 'Complete Quiz', checked: true },
-    { id: 2, text: 'Submit Project', checked: true },
-    { id: 3, text: 'Join Workshop', checked: false },
-  ]);
+  const tasks = summary?.dynamicTasks || [];
+  const urgentTasks = summary?.urgentTasks || [];
 
   const toggleTask = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, checked: !t.checked } : t));
+    // Note: Assuming logic to update state is handled by API/Hooks in a real app, 
+    // or this function would need a mutation method.
   };
 
   const resolveLearnPath = (courseSlug: string | null | undefined, lessonSlug?: string | null) => {
@@ -41,7 +39,7 @@ export function Home() {
   return (
     <div className="animate-fade-in pb-10">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
-        <div className="col-span-1 md:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col sm:flex-row justify-between relative overflow-hidden">
+        <div className="col-span-1 md:col-span-9 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col sm:flex-row justify-between relative overflow-hidden">
           <div className="z-10 relative">
             <h2 className="text-2xl font-bold mb-2">
               {resumeCourse ? `Resume: ${resumeCourse.title}` : "Today's Focus"}
@@ -111,26 +109,10 @@ export function Home() {
             </div>
           )}
         </div>
-
-        <div className="col-span-1 sm:col-span-6 md:col-span-3 bg-[#3E2723] text-white p-6 rounded-2xl shadow-sm relative overflow-hidden">
-          <h3 className="text-xl font-bold mb-2 flex items-center gap-2"><i className="fas fa-bullhorn"></i> Announcements</h3>
-          <p className="text-sm opacity-80 mb-6">Special cards for announcements</p>
-          <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl mb-4">
-            <h4 className="font-bold mb-1">Exam Schedule Update</h4>
-            <p className="text-xs opacity-80 leading-relaxed">Final exams for React module have been rescheduled to next Friday.</p>
-          </div>
-          <div className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] p-4 rounded-xl">
-            <h4 className="font-bold mb-1">New Career Workshop</h4>
-            <p className="text-xs opacity-80 leading-relaxed">Join us on Monday for a deep dive into portfolio building.</p>
-          </div>
-          <button className="bg-transparent border-none text-white text-sm font-bold mt-4 cursor-pointer hover:underline">
-            Read More &rarr;
-          </button>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="col-span-1 md:col-span-12 lg:col-span-7">
+        <div className="col-span-1 md:col-span-12 lg:col-span-9">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Active Courses</h3>
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>
@@ -178,38 +160,18 @@ export function Home() {
 
         <div className="col-span-1 sm:col-span-6 lg:col-span-3">
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft h-full">
-            <h3 className="text-[1.1rem] font-bold mb-1">Leaderboard</h3>
-            <p className="text-xs text-gray-text mb-5">Upcoming Sessions</p>
-            <div className="flex flex-col gap-4 relative">
-              <div className="absolute left-[3px] top-2 bottom-2 w-px bg-border-soft z-0"></div>
-              <div className="pl-4 relative">
-                <div className="absolute left-[1px] top-1.5 w-1.5 h-1.5 rounded-full bg-orange-primary z-10"></div>
-                <p className="text-sm font-bold">10:00 AM</p>
-                <p className="text-sm text-gray-text leading-tight mt-1">React State Management Q&A</p>
-              </div>
-              <div className="pl-4 relative">
-                <div className="absolute left-[1px] top-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 z-10"></div>
-                <p className="text-sm font-bold">2:00 PM</p>
-                <p className="text-sm text-gray-text leading-tight mt-1">Career Planning Workshop</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-span-1 sm:col-span-6 lg:col-span-2">
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft h-full">
             <h3 className="text-sm text-[#DC2626] font-bold flex items-center gap-2 mb-4">
               <i className="fas fa-exclamation-triangle"></i> Urgent tasks today
             </h3>
             <div className="flex flex-col gap-3">
-              <div className="bg-[#FEF2F2] p-3 rounded-r-md border-l-4 border-[#DC2626]">
-                <p className="text-xs font-bold text-[#DC2626] mb-1">10:00 AM</p>
-                <p className="text-xs font-semibold">PM! Exam React Quiz&</p>
-              </div>
-              <div className="bg-white p-3 rounded-r-md border-l-4 border-orange-primary shadow-sm border-t border-b border-r border-[#f3f4f6]">
-                <p className="text-xs font-bold text-orange-primary mb-1">2:00 PM</p>
-                <p className="text-xs font-semibold">PM Career Planning Workshop</p>
-              </div>
+              {urgentTasks.length > 0 ? urgentTasks.map((task) => (
+                <div key={task.id} className={`p-3 rounded-r-md border-l-4 ${task.type === 'quiz' ? 'bg-[#FEF2F2] border-[#DC2626]' : 'bg-white border-orange-primary shadow-sm border-t border-b border-r border-[#f3f4f6]'}`}>
+                  <p className={`text-xs font-bold mb-1 ${task.type === 'quiz' ? 'text-[#DC2626]' : 'text-orange-primary'}`}>{task.time}</p>
+                  <p className="text-xs font-semibold">{task.text}</p>
+                </div>
+              )) : (
+                <p className="text-xs text-gray-text text-center py-4">No urgent tasks for today!</p>
+              )}
             </div>
           </div>
         </div>

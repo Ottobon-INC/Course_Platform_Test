@@ -497,10 +497,10 @@ export default function ChatWindow({
                         {!msg.is_deleted && msg.attachments && msg.attachments.length > 0 && (
                           <div className="msg-message-attachments">
                             {msg.attachments.map((att) => {
-                              const resolvedUrl = att.drive_item_id 
-                                ? buildApiUrl(`/api/messaging/attachments/${att.drive_item_id}/content`) 
+                              const resolvedUrl = att.drive_item_id
+                                ? buildApiUrl(`/api/messaging/attachments/${att.drive_item_id}/content`)
                                 : buildApiUrl(att.url);
-                                
+
                               return isImageFile(att.file_name) && !resolvedUrl.includes('sharepoint.com') ? (
                                 <div key={att.id} className="msg-attachment-image-container">
                                   <img
