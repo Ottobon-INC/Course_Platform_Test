@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
-import { verifyAccessToken } from "./sessionService.js";
-import * as messageService from "./messageService.js";
+import { verifyAccessToken } from "./sessionService";
+import * as messageService from "./messageService";
 
 export function setupMessageSocket(io: Server) {
   io.use((socket, next) => {

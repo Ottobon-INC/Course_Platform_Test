@@ -1,5 +1,5 @@
 import { CP_ConversationType, Prisma } from "@prisma/client";
-import { prisma } from "./prisma.js";
+import { prisma } from "./prisma";
 
 export type CreateMessageInput = {
   conversationId: string;
