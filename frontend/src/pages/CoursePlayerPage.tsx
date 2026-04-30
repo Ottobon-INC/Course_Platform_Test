@@ -76,7 +76,7 @@ const normalizeVideoUrl = (rawUrl?: string | null) => {
 
 type ContentBlock = {
   id?: string;
-  type: "text" | "image" | "video" | "ppt";
+  type: "text" | "image" | "video" | "ppt" | "quiz";
   data?: Record<string, unknown>;
 };
 
@@ -97,7 +97,13 @@ const parseContentBlocks = (raw?: string | null): ContentBlockPayload | null => 
         if (!entry || typeof entry !== "object") return null;
         const node = entry as Record<string, unknown>;
         const rawType = typeof node.type === "string" ? node.type : "";
-        if (rawType !== "text" && rawType !== "image" && rawType !== "video" && rawType !== "ppt") return null;
+        if (
+          rawType !== "text" &&
+          rawType !== "image" &&
+          rawType !== "video" &&
+          rawType !== "ppt" &&
+          rawType !== "quiz"
+        ) return null;
         return {
           id: typeof node.id === "string" ? node.id : undefined,
           type: rawType as ContentBlock["type"],
@@ -218,6 +224,18 @@ interface QuizAttemptResult {
   passed: boolean;
   thresholdPercent: number;
 }
+
+type InlineQuizPhase = "intro" | "loading" | "active" | "submitting" | "result" | "error";
+
+type InlineQuizRuntime = {
+  assessmentId: string;
+  phase: InlineQuizPhase;
+  attemptId: string | null;
+  questions: QuizQuestion[];
+  answers: Record<string, string>;
+  result: QuizAttemptResult | null;
+  errorMessage: string | null;
+};
 
 type ChatMessage = {
   id: string;
@@ -590,6 +608,7 @@ const CoursePlayerPage: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<QuizAttemptResult | null>(null);
   const [isQuizMode, setIsQuizMode] = useState(false);
+  const [inlineQuizStateByKey, setInlineQuizStateByKey] = useState<Record<string, InlineQuizRuntime>>({});
   const [selectedSection, setSelectedSection] = useState<{
     moduleNo: number;
     topicPairIndex: number;
@@ -691,6 +710,10 @@ const CoursePlayerPage: React.FC = () => {
       setChatOpen(false);
     }
     lastActiveTopicIdRef.current = currentTopicId;
+  }, [activeLesson?.topicId]);
+
+  useEffect(() => {
+    setInlineQuizStateByKey({});
   }, [activeLesson?.topicId]);
 
   useLayoutEffect(() => {
@@ -1599,6 +1622,158 @@ const CoursePlayerPage: React.FC = () => {
     }
   };
 
+  const setInlineQuizState = useCallback(
+    (runtimeKey: string, next: InlineQuizRuntime | ((current: InlineQuizRuntime | null) => InlineQuizRuntime)) => {
+      setInlineQuizStateByKey((prev) => {
+        const current = prev[runtimeKey] ?? null;
+        const resolved = typeof next === "function" ? (next as (value: InlineQuizRuntime | null) => InlineQuizRuntime)(current) : next;
+        return { ...prev, [runtimeKey]: resolved };
+      });
+    },
+    [],
+  );
+
+  const startInlineQuiz = useCallback(
+    async (runtimeKey: string, assessmentId: string, moduleNo: number | null) => {
+      if (!courseKey) return;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+
+      setInlineQuizState(runtimeKey, {
+        assessmentId,
+        phase: "loading",
+        attemptId: null,
+        questions: [],
+        answers: {},
+        result: null,
+        errorMessage: null,
+      });
+
+      emitTelemetry(
+        "quiz.start",
+        { assessmentId, mode: "inline" },
+        { moduleNo, topicId: activeLesson?.topicId ?? null },
+      );
+
+      try {
+        const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({ courseId: courseKey, assessmentId, limit: 5 }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setInlineQuizState(runtimeKey, {
+          assessmentId: data.assessmentId ?? assessmentId,
+          phase: "active",
+          attemptId: data.attemptId ?? null,
+          questions: data.questions ?? [],
+          answers: {},
+          result: null,
+          errorMessage: null,
+        });
+      } catch (error) {
+        setInlineQuizState(runtimeKey, {
+          assessmentId,
+          phase: "error",
+          attemptId: null,
+          questions: [],
+          answers: {},
+          result: null,
+          errorMessage: error instanceof Error ? error.message : "Unable to start quiz.",
+        });
+      }
+    },
+    [activeLesson?.topicId, courseKey, emitTelemetry, session?.accessToken, setInlineQuizState],
+  );
+
+  const selectInlineQuizAnswer = useCallback(
+    (runtimeKey: string, questionId: string, optionId: string) => {
+      setInlineQuizState(runtimeKey, (current) => {
+        const base: InlineQuizRuntime = current ?? {
+          assessmentId: "",
+          phase: "intro",
+          attemptId: null,
+          questions: [],
+          answers: {},
+          result: null,
+          errorMessage: null,
+        };
+        return {
+          ...base,
+          answers: {
+            ...base.answers,
+            [questionId]: optionId,
+          },
+        };
+      });
+    },
+    [setInlineQuizState],
+  );
+
+  const submitInlineQuiz = useCallback(
+    async (runtimeKey: string, moduleNo: number | null) => {
+      const current = inlineQuizStateByKey[runtimeKey];
+      if (!current?.attemptId) return;
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
+      const payload = Object.entries(current.answers).map(([questionId, optionId]) => ({ questionId, optionId }));
+
+      setInlineQuizState(runtimeKey, {
+        ...current,
+        phase: "submitting",
+        errorMessage: null,
+      });
+
+      try {
+        const res = await fetch(buildApiUrl(`/api/quiz/attempts/${current.attemptId}/submit`), {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({ answers: payload }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const base = data?.result ?? {};
+        const result: QuizAttemptResult = {
+          correctCount: base.correctCount ?? 0,
+          totalQuestions: base.totalQuestions ?? current.questions.length,
+          scorePercent: base.scorePercent ?? 0,
+          passed: Boolean(base.passed),
+          thresholdPercent: base.thresholdPercent ?? PASSING_PERCENT_THRESHOLD,
+        };
+
+        emitTelemetry(
+          result.passed ? "quiz.pass" : "quiz.fail",
+          {
+            scorePercent: result.scorePercent,
+            correctCount: result.correctCount,
+            totalQuestions: result.totalQuestions,
+            mode: "inline",
+          },
+          { moduleNo, topicId: activeLesson?.topicId ?? null },
+        );
+
+        setInlineQuizState(runtimeKey, {
+          ...current,
+          phase: "result",
+          result,
+          errorMessage: null,
+        });
+        void fetchSections();
+      } catch (error) {
+        setInlineQuizState(runtimeKey, {
+          ...current,
+          phase: "active",
+          errorMessage: error instanceof Error ? error.message : "Unable to submit quiz.",
+        });
+      }
+    },
+    [activeLesson?.topicId, emitTelemetry, fetchSections, inlineQuizStateByKey, session?.accessToken, setInlineQuizState],
+  );
+
   const handleSendChat = useCallback(
     async (options?: { suggestion?: PromptSuggestion }) => {
       const suggestion = options?.suggestion ?? null;
@@ -2389,6 +2564,153 @@ const CoursePlayerPage: React.FC = () => {
           continue;
         }
 
+        if (block.type === "quiz") {
+          const assessmentId =
+            typeof data?.assessment_id === "string"
+              ? data.assessment_id.trim()
+              : typeof data?.assessmentId === "string"
+                ? data.assessmentId.trim()
+                : "";
+
+          if (!assessmentId) {
+            output.push(
+              <div key={key} className="rounded-2xl border border-[#f6d2cc] bg-[#fff5f3] px-4 py-3 text-sm text-[#8b2d20]">
+                Assessment pointer missing for this quiz block.
+              </div>,
+            );
+            continue;
+          }
+
+          if (variant === "widget") {
+            output.push(
+              <div key={key} className="rounded-2xl border border-[#e8e1d8] bg-white px-4 py-3 text-sm text-[#4a4845]">
+                Quiz available in lesson view.
+              </div>,
+            );
+            continue;
+          }
+
+          const runtimeKey = `${activeLesson?.topicId ?? "topic"}:${key}:${assessmentId}`;
+          const runtime = inlineQuizStateByKey[runtimeKey] ?? {
+            assessmentId,
+            phase: "intro" as InlineQuizPhase,
+            attemptId: null,
+            questions: [],
+            answers: {},
+            result: null,
+            errorMessage: null,
+          };
+          const unresolvedCount = runtime.questions.filter((question) => !runtime.answers[question.questionId]).length;
+          const canSubmit = runtime.questions.length > 0 && unresolvedCount === 0 && runtime.phase !== "submitting";
+
+          output.push(
+            <div key={key} className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-[#f4ece3] px-4 py-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[#4a4845]/70 font-semibold">Topic Assessment</p>
+                  <h4 className="text-base font-bold text-[#000000]">
+                    {typeof data?.title === "string" && data.title.trim() ? data.title.trim() : "Knowledge Check"}
+                  </h4>
+                </div>
+                <span className="text-xs text-[#4a4845]/70">
+                  Pass {typeof data?.passThresholdPercent === "number" ? data.passThresholdPercent : PASSING_PERCENT_THRESHOLD}%
+                </span>
+              </div>
+              <div className="p-4 space-y-4">
+                {runtime.phase === "intro" && (
+                  <button
+                    type="button"
+                    onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                    className="inline-flex items-center rounded-lg bg-[#bf2f1f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a62619] transition"
+                  >
+                    Start Assessment
+                  </button>
+                )}
+
+                {runtime.phase === "loading" && (
+                  <p className="text-sm text-[#4a4845]">Loading questions...</p>
+                )}
+
+                {(runtime.phase === "active" || runtime.phase === "submitting") && (
+                  <div className="space-y-5">
+                    {runtime.questions.map((question, questionIndex) => (
+                      <div key={question.questionId} className="space-y-2">
+                        <p className="text-sm font-semibold text-[#1f2937]">
+                          {questionIndex + 1}. {question.prompt}
+                        </p>
+                        <div className="grid gap-2">
+                          {question.options.map((option) => {
+                            const selected = runtime.answers[question.questionId] === option.optionId;
+                            return (
+                              <button
+                                type="button"
+                                key={option.optionId}
+                                onClick={() => selectInlineQuizAnswer(runtimeKey, question.questionId, option.optionId)}
+                                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                                  selected
+                                    ? "border-[#bf2f1f] bg-[#fff1ee] text-[#000000]"
+                                    : "border-[#e5e7eb] bg-white hover:border-[#bf2f1f]/60"
+                                }`}
+                              >
+                                {option.text}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-[#4a4845]">
+                        {unresolvedCount > 0 ? `${unresolvedCount} question(s) left` : "Ready to submit"}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!canSubmit}
+                        onClick={() => void submitInlineQuiz(runtimeKey, activeLesson?.moduleNo ?? null)}
+                        className="inline-flex items-center rounded-lg bg-[#000000] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {runtime.phase === "submitting" ? "Submitting..." : "Submit"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {runtime.phase === "result" && runtime.result && (
+                  <div className="space-y-3">
+                    <p className={`text-sm font-semibold ${runtime.result.passed ? "text-[#0f7a45]" : "text-[#bf2f1f]"}`}>
+                      {runtime.result.passed ? "Passed" : "Not passed"} - Score {runtime.result.scorePercent}%
+                    </p>
+                    <p className="text-xs text-[#4a4845]">
+                      Correct: {runtime.result.correctCount} / {runtime.result.totalQuestions}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                      className="inline-flex items-center rounded-lg border border-[#000000] px-4 py-2 text-sm font-semibold text-[#000000] hover:bg-[#f8f1e6]"
+                    >
+                      Retake
+                    </button>
+                  </div>
+                )}
+
+                {runtime.phase === "error" && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-[#bf2f1f]">{runtime.errorMessage ?? "Unable to start assessment."}</p>
+                    <button
+                      type="button"
+                      onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                      className="inline-flex items-center rounded-lg border border-[#bf2f1f] px-4 py-2 text-sm font-semibold text-[#bf2f1f] hover:bg-[#fff1ee]"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>,
+          );
+          continue;
+        }
+
         if (block.type === "ppt") {
           const rawUrl = typeof data?.url === "string" ? data.url : "";
           const pptUrl = buildOfficeViewerUrl(rawUrl);
@@ -2423,12 +2745,18 @@ const CoursePlayerPage: React.FC = () => {
       return output;
     },
     [
+      activeLesson?.moduleNo,
+      activeLesson?.topicId,
       activeLesson?.topicName,
       blockVideoMaxHeightClass,
       firstBlockIsVideo,
       firstTextBlockIndex,
+      inlineQuizStateByKey,
       isReadingMode,
       renderStudyHeader,
+      selectInlineQuizAnswer,
+      startInlineQuiz,
+      submitInlineQuiz,
     ],
   );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";

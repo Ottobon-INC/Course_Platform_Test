@@ -80,7 +80,7 @@ type ContentLayoutPayload = {
   blocks: ContentLayoutBlock[];
 };
 
-const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt"]);
+const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt", "quiz"]);
 
 function getOptionalAuthUserId(req: Request): string | null {
   const authHeader = req.headers.authorization;
