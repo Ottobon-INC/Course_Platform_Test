@@ -3,6 +3,7 @@ import avatarImage from '@/assets/avatar.png';
 import { useProfile } from '../hooks/useProfile';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
+import { logoutAndRedirect } from '@/utils/session';
 
 export function Profile() {
   const { data, isLoading, updateProfile, isUpdating, updatePhoto, isUploading } = useProfile();
@@ -52,6 +53,14 @@ export function Profile() {
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please select an image smaller than 2MB.",
+        });
+        return;
+      }
       try {
         await updatePhoto(file);
         toast({
@@ -137,6 +146,7 @@ export function Profile() {
                 >
                   Change
                 </button>
+                <p className="text-[0.6rem] text-gray-400 mt-2 font-medium">Max size: 2MB</p>
               </div>
 
               <div className="flex flex-col gap-4 flex-1">
@@ -255,9 +265,12 @@ export function Profile() {
             <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-6 px-0.5">Account Actions</label>
 
             <div className="flex flex-col gap-3">
-              <a href="/" className="w-full bg-red-50 text-[#F87171] border border-red-100 rounded-xl py-3 text-sm font-bold transition-all hover:bg-red-100 flex items-center justify-center gap-2">
+              <button 
+                onClick={() => logoutAndRedirect('/')}
+                className="w-full bg-red-50 text-[#F87171] border border-red-100 rounded-xl py-3 text-sm font-bold transition-all hover:bg-red-100 flex items-center justify-center gap-2"
+              >
                 <i className="fas fa-sign-out-alt"></i> Logout
-              </a>
+              </button>
             </div>
           </div>
         </div>

@@ -71,7 +71,7 @@ export interface DashboardSummary {
   cohorts: DashboardCohort[];
   onDemand: DashboardOnDemand[];
   workshops: DashboardWorkshop[];
-  completed: Array<{ title: string; date: string }>;
+  completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
   catalog: DashboardCatalogCourse[];
 }

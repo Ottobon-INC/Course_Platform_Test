@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useDashboardSummary } from '../hooks/useDashboardSummary';
+import { useLeaderboardData } from '../hooks/useLeaderboardData';
 import { useLocation } from 'wouter';
 import illustrationImage from '@/assets/illustration.png';
 import avatarImage from '@/assets/avatar.png';
 
 export function Home() {
   const { data: summary, isLoading } = useDashboardSummary();
+  const { summary: leaderboardSummary } = useLeaderboardData();
   const [, setLocation] = useLocation();
   const [tasks, setTasks] = useState([
     { id: 1, text: 'Complete Quiz', checked: true },
@@ -231,7 +233,7 @@ export function Home() {
                   <p className="text-[0.65rem] text-gray-text font-bold mb-2">{course.category}</p>
                 </div>
                 <button 
-                  onClick={() => setLocation('/my-courses')}
+                  onClick={() => setLocation('/our-courses/cohort')}
                   className="mt-4 text-xs font-bold w-full bg-white border border-border-soft rounded-lg py-2 hover:border-orange-primary transition-colors shadow-sm text-dark-text"
                 >
                   Join Course
@@ -241,27 +243,43 @@ export function Home() {
           </div>
         </div>
 
-        <div className="col-span-1 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col relative justify-center items-center">
+        <div 
+          className="col-span-1 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col relative justify-center items-center cursor-pointer hover:border-orange-primary transition-all group"
+          onClick={() => setLocation('/leaderboard')}
+        >
           <div className="w-full flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold">Your Rank</h3>
-            <i className="fas fa-trophy text-orange-primary opacity-80"></i>
+            <i className="fas fa-trophy text-orange-primary opacity-80 group-hover:scale-110 transition-transform"></i>
           </div>
           <div className="flex items-end justify-center gap-2 h-[80px] mb-4 w-full flex-grow">
-            <div className="flex flex-col items-center">
-              <img src={avatarImage} className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
-              <div className="w-8 h-10 bg-gray-200 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-text">2</div>
+            {/* Third Place */}
+            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 3 ? 'scale-110' : 'opacity-60'}`}>
+              <div className="w-8 h-7 bg-gray-100 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-400">3</div>
             </div>
-            <div className="flex flex-col items-center">
-              <i className="fas fa-crown text-orange-primary mb-1 text-[0.8rem]"></i>
-              <img src={avatarImage} className="w-[36px] h-[36px] rounded-full border-2 border-orange-primary shadow-sm -mb-2 z-10" />
+            {/* First Place */}
+            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 1 ? 'scale-110' : 'opacity-60'}`}>
+              <i className="fas fa-crown text-orange-primary mb-1 text-[0.8rem] animate-bounce"></i>
               <div className="w-10 h-14 bg-orange-soft rounded-t-md flex items-end justify-center pb-1.5 text-sm font-bold text-orange-primary border border-orange-primary">1</div>
             </div>
-            <div className="flex flex-col items-center">
-              <img src={avatarImage} className="w-[30px] h-[30px] rounded-full border-2 border-white shadow-sm -mb-2 z-10" />
-              <div className="w-8 h-7 bg-gray-200 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-text">3</div>
+            {/* Second Place */}
+            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 2 ? 'scale-110' : 'opacity-60'}`}>
+              <div className="w-8 h-10 bg-gray-100 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-400">2</div>
             </div>
           </div>
-          <p className="text-[0.75rem] font-bold text-center text-dark-text opacity-90"><i className="fas fa-medal text-orange-primary mr-1"></i> Top 5% this week!</p>
+          
+          <div className="text-center">
+            <div className="text-3xl font-black text-dark-text mb-1">
+              #{leaderboardSummary?.rank ?? '-'}
+            </div>
+            <p className="text-[0.7rem] font-bold text-gray-500 uppercase tracking-tighter">
+              Current Standing
+            </p>
+          </div>
+
+          <div className="mt-4 w-full pt-4 border-t border-gray-50 flex items-center justify-between">
+            <span className="text-[0.65rem] font-black text-dark-teal uppercase">{leaderboardSummary?.totalPoints.toLocaleString()} PTS</span>
+            <span className="text-[0.65rem] font-black text-orange-primary uppercase">{leaderboardSummary?.streak} DAY STREAK</span>
+          </div>
         </div>
 
         <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
@@ -270,20 +288,35 @@ export function Home() {
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-2 px-2 custom-scrollbar flex-grow">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="min-w-[150px] flex-shrink-0 border border-border-soft rounded-xl overflow-hidden flex flex-col group cursor-pointer hover:shadow-md transition-shadow bg-white">
-                <div className="h-[70px] bg-[linear-gradient(135deg,#10B981_0%,#047857_100%)] flex items-center justify-center relative overflow-hidden text-center mx-1 mt-1 rounded-t-lg">
-                  <i className="fab fa-python text-white text-4xl opacity-10 absolute right-[-5px] bottom-[-5px] transform rotate-[15deg]"></i>
-                  <i className="fas fa-certificate text-white text-2xl drop-shadow-sm"></i>
+            {summary?.completed && summary.completed.length > 0 ? (
+              summary.completed.map((cert) => (
+                <div key={cert.id} className="min-w-[150px] flex-shrink-0 border border-border-soft rounded-xl overflow-hidden flex flex-col group cursor-pointer hover:shadow-md transition-shadow bg-white">
+                  <div className={`h-[70px] flex items-center justify-center relative overflow-hidden text-center mx-1 mt-1 rounded-t-lg ${
+                    cert.programType === 'cohort' ? 'bg-[linear-gradient(135deg,#FF5F1F_0%,#E8531F_100%)]' : 'bg-[linear-gradient(135deg,#10B981_0%,#047857_100%)]'
+                  }`}>
+                    <i className={`fas ${cert.programType === 'cohort' ? 'fa-users' : 'fa-play-circle'} text-white text-4xl opacity-10 absolute right-[-5px] bottom-[-5px] transform rotate-[15deg]`}></i>
+                    <i className="fas fa-certificate text-white text-2xl drop-shadow-sm"></i>
+                  </div>
+                  <div className="px-3 py-4 flex-grow flex flex-col items-center text-center">
+                    <h5 className="text-[0.7rem] font-bold leading-snug mb-3 text-dark-text opacity-90">{cert.title} Certificate</h5>
+                    <button 
+                      onClick={() => setLocation('/certificates')}
+                      className="mt-auto text-[0.65rem] font-bold text-gray-500 bg-white border border-gray-200 rounded-md px-3 py-1.5 group-hover:border-orange-primary group-hover:text-orange-primary group-hover:bg-orange-soft hover:shadow-sm w-full transition-all flex justify-center items-center gap-1.5 whitespace-nowrap"
+                    >
+                      View / Download
+                    </button>
+                  </div>
                 </div>
-                <div className="px-3 py-4 flex-grow flex flex-col items-center text-center">
-                  <h5 className="text-[0.7rem] font-bold leading-snug mb-3 text-dark-text opacity-90">Python for Data Science Certificate</h5>
-                  <button className="mt-auto text-[0.65rem] font-bold text-[#047857] bg-white border border-gray-200 rounded-md px-3 py-1.5 group-hover:border-[#047857] group-hover:bg-[#F0FDF4] hover:shadow-sm w-full transition-all flex justify-center items-center gap-1.5 whitespace-nowrap">
-                    View / Download
-                  </button>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center w-full py-4 text-center">
+                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                  <i className="fas fa-award text-gray-200 text-xl"></i>
                 </div>
+                <p className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">No certificates yet</p>
+                <p className="text-[0.6rem] text-gray-300 mt-1">Complete a course to earn one!</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

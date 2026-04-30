@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LeaderboardRow, RECENT_ACTIVITIES, ActivityItemType } from '../constants/mockData';
+import { RECENT_ACTIVITIES, ActivityItemType } from '../constants/mockData';
+import { useLeaderboardData, LeaderboardUser } from '../hooks/useLeaderboardData';
 import avatarImage from '@/assets/avatar.png';
 
 function ActivityItem({ activity }: { activity: ActivityItemType }) {
@@ -131,210 +132,223 @@ function FilterBar({ view, setView }: { view: string, setView: (v: 'score' | 'ac
   );
 }
 
-function EnhancedLeaderboardRow({ row }: { row: LeaderboardRow }) {
-  return (
-    <tr className={`group transition-colors hover:bg-gray-50 ${row.isCurrentUser ? 'bg-[#FEF2F2] border-l-4 border-orange-primary hover:bg-[#FEF2F2]' : ''}`}>
-      <td className={`py-5 px-4 border-b border-border-soft ${row.isCurrentUser ? 'border-b-[#FCA5A5]' : ''}`}>
-        <span className={row.rankClass}>{row.rank}</span>
-      </td>
-      <td className={`py-5 px-4 border-b border-border-soft ${row.isCurrentUser ? 'border-b-[#FCA5A5]' : ''}`}>
-        <div className="flex items-center gap-3">
-          {row.name.includes('Alex') ? (
-            <img src={avatarImage} className="w-[30px] h-[30px] rounded-full" style={{ opacity: row.opacity }} alt="Avatar" />
-          ) : row.name.includes('Name / Team') ? (
-            <img src={avatarImage} className="w-[30px] h-[30px] rounded-full grayscale" alt="Avatar" />
-          ) : (
-            <div className="w-[30px] h-[30px] rounded-full bg-gray-200"></div>
-          )}
-          <span className={`font-bold ${row.isCurrentUser ? 'text-dark-text font-extrabold' : row.nameColor}`}>{row.name}</span>
-        </div>
-      </td>
-      <td className={`py-5 px-4 border-b border-border-soft ${row.isCurrentUser ? 'border-b-[#FCA5A5]' : ''}`}>
-        <strong className={row.isCurrentUser ? 'text-orange-primary' : 'text-dark-text'}>{row.score}</strong>
-      </td>
-      <td className={`py-5 px-4 border-b border-border-soft ${row.isCurrentUser ? 'border-b-[#FCA5A5]' : ''}`}>
-        <div className="h-[6px] bg-gray-200 rounded-full w-full overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${row.progress}%`, backgroundColor: row.isCurrentUser ? 'var(--orange-primary)' : '#047857' }}></div>
-        </div>
-      </td>
-    </tr>
-  );
-}
+
 
 export function Leaderboard() {
-  const [view, setView] = useState<'score' | 'activity'>('score');
+  const { summary, isLoading } = useLeaderboardData();
 
-  const tableData: LeaderboardRow[] = [
-    { rank: '1', rankClass: 'text-gray-text', name: 'David Kim', score: '5,800 pts', progress: 95, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 12, movement: 'neutral', badges: ['Super', 'Fast'] },
-    { rank: '2', rankClass: 'text-gray-text', name: 'Sarah Lee', score: '5,200 pts', progress: 90, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 9, movement: 'up', badges: ['Elite'] },
-    { rank: '3', rankClass: 'text-gray-text', name: 'Kenjiro Tanaka', score: '4,900 pts', progress: 85, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 5, movement: 'down', badges: ['Active'] },
-    { rank: '4', rankClass: 'text-gray-text', name: 'Mana Kazai', score: '4,800 pts', progress: 80, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 3, movement: 'up', badges: ['Newbie'] },
-    { rank: '5', rankClass: 'text-orange-primary', name: 'Alex Johnson', score: '2,450 pts', progress: 50, isCurrentUser: true, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 15, movement: 'up', badges: ['MVP', 'Early Bird'] },
-    { rank: '6', rankClass: 'text-gray-text', name: 'James Wilson', score: '2,100 pts', progress: 45, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 2, movement: 'down', badges: [] },
-    { rank: '7', rankClass: 'text-gray-text', name: 'Emma Davis', score: '1,950 pts', progress: 30, isCurrentUser: false, opacity: 1, nameColor: 'text-dark-text', avatar: avatarImage, streak: 1, movement: 'neutral', badges: [] },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-primary"></div>
+      </div>
+    );
+  }
+
+  const rankChange = (summary?.previousRank ?? summary?.rank ?? 0) - (summary?.rank ?? 0);
+  const comparisonPercent = summary ? Math.round((summary.totalPoints / Math.max(summary.classAverage * 2, 5000)) * 100) : 0;
+  const avgPercent = summary ? Math.round((summary.classAverage / Math.max(summary.classAverage * 2, 5000)) * 100) : 50;
 
   return (
     <div className="animate-fade-in relative z-0">
       <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-8">
         <div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-6">
-            <p className="text-gray-text mb-6">Track your performance and compete with others</p>
-            <div className="flex gap-4">
-              <span className="bg-transparent border border-border-soft text-dark-text px-4 py-1.5 rounded-full text-sm font-bold">Your Rank: #5</span>
-              <span className="bg-transparent border border-border-soft text-dark-text px-4 py-1.5 rounded-full text-sm font-bold">Top 10% of learners</span>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-8">
+            <h2 className="text-2xl font-extrabold text-dark-text mb-2">My Performance</h2>
+            <p className="text-gray-text">Detailed analysis of your growth and achievements in your cohorts</p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-border-soft mb-8 relative overflow-hidden group">
+            <div className="absolute -right-8 -top-8 w-32 h-32 bg-orange-soft rounded-full blur-3xl opacity-50 group-hover:opacity-80 transition-opacity" />
+            
+            <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+              <i className="fas fa-trophy text-orange-primary" /> Your Current Standing
+            </h3>
+            
+            <div className="flex flex-wrap items-center justify-between gap-8">
+              <div className="flex items-center gap-8">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-orange-primary/10 rounded-full animate-pulse" />
+                  <span className="relative text-7xl font-black text-orange-primary leading-none">#{summary?.rank}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-400 text-[0.65rem] font-bold uppercase tracking-widest mb-1">Active Learner</span>
+                  <span className="text-3xl font-black text-dark-text">{summary?.fullName}</span>
+                  <div className="flex gap-2 mt-2">
+                    <span className="bg-green-50 text-green-600 text-[0.65rem] font-black px-2.5 py-1 rounded-lg border border-green-100 uppercase tracking-tight">
+                      Active Streak: {summary?.streak} Days
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <span className="text-gray-400 text-[0.65rem] font-bold uppercase tracking-widest block mb-1">Total Points Earned</span>
+                <div className="text-5xl font-black text-dark-text leading-tight mb-2 tracking-tighter">
+                  {summary?.totalPoints.toLocaleString()} <span className="text-lg font-bold text-gray-300">PTS</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 bg-dark-teal/5 text-dark-teal text-xs font-bold px-3 py-1.5 rounded-full">
+                  <i className="fas fa-chart-line" />
+                  You're ahead of <span className="font-black">{Math.min(99, 100 - (summary?.rank ?? 1))} %</span> of all learners
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-12 pt-8 border-t border-gray-50">
+              <div className="flex justify-between items-end mb-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">Performance Comparison</span>
+                  <span className="text-sm font-bold text-dark-text">Your Score vs. Class Average</span>
+                </div>
+                <div className="flex gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-sm bg-dark-teal" />
+                    <span className="text-xs font-bold text-gray-500">You ({summary?.totalPoints.toLocaleString()} pts)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <div className="w-1 h-4 bg-gray-300 rounded-full" />
+                    <span className="text-xs font-bold">Avg ({summary?.classAverage.toLocaleString()} pts)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="h-4 bg-gray-100 rounded-full relative overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-dark-teal to-emerald-400 rounded-full transition-all duration-1000 shadow-sm" 
+                  style={{ width: `${Math.min(100, (summary?.totalPoints ?? 0) / (Math.max(summary?.classAverage ?? 1, 1000) * 1.5) * 100)}%` }}
+                />
+                <div 
+                  className="absolute top-0 bottom-0 w-[2px] bg-red-400 shadow-sm z-10 transition-all duration-1000" 
+                  style={{ left: `${Math.min(100, (summary?.classAverage ?? 0) / (Math.max(summary?.classAverage ?? 1, 1000) * 1.5) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[0.7rem] text-gray-400 mt-4 font-medium italic">
+                * Based on real-time activity and topic completion metrics.
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mb-6 text-lg font-bold">
-            Individual Leaderboard
-            <label className="relative inline-block w-11 h-6 ml-2">
-              <input type="checkbox" defaultChecked className="opacity-0 w-0 h-0 peer" />
-              <span className="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 transition duration-400 rounded-full peer-checked:bg-dark-teal before:absolute before:content-[''] before:h-[18px] before:w-[18px] before:left-[3px] before:bottom-[3px] before:bg-white before:transition before:duration-400 before:rounded-full before:shadow-sm peer-checked:before:translate-x-[20px]"></span>
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft hover:border-orange-primary/20 transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-orange-soft flex items-center justify-center text-orange-primary mb-4 group-hover:scale-110 transition-transform">
+                <i className="fas fa-bullseye text-xl" />
+              </div>
+              <h4 className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest mb-1">Target Milestone</h4>
+              <p className="text-lg font-black text-dark-text mb-2">
+                {summary?.nextMilestoneRank ? `Next Rank: #${summary.nextMilestoneRank}` : 'Top Rank Reached!'}
+              </p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-orange-primary h-full transition-all duration-1000" 
+                  style={{ width: summary?.pointsToNextMilestone === 0 ? '100%' : `${Math.max(10, 100 - (summary?.pointsToNextMilestone ?? 0) / 5)}%` }} 
+                />
+              </div>
+              <p className="text-[0.7rem] text-gray-500 mt-3 font-bold">
+                {summary?.pointsToNextMilestone && summary.pointsToNextMilestone > 0 
+                  ? `Earn ${summary.pointsToNextMilestone.toLocaleString()} more points to climb up!` 
+                  : 'You are leading the tier! Keep it up!'}
+              </p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft hover:border-dark-teal/20 transition-all group">
+              <div className="w-12 h-12 rounded-xl bg-dark-teal/5 flex items-center justify-center text-dark-teal mb-4 group-hover:scale-110 transition-transform">
+                <i className="fas fa-graduation-cap text-xl" />
+              </div>
+              <h4 className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest mb-1">Course Progress</h4>
+              <p className="text-lg font-black text-dark-text mb-2">Mastery Level: {Math.min(100, Math.round((summary?.totalPoints ?? 0) / 100))}%</p>
+              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className="bg-dark-teal h-full transition-all duration-1000" 
+                  style={{ width: `${Math.min(100, Math.round((summary?.totalPoints ?? 0) / 100))}%` }} 
+                />
+              </div>
+              <p className="text-[0.7rem] text-gray-500 mt-3 font-bold">Your skill level is growing fast!</p>
+            </div>
           </div>
 
-          <FilterBar view={view} setView={setView} />
-
-          {view === 'score' ? (
-            <>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-6">
-                <h3 className="text-lg font-bold mb-6">🔥 1. User Rank Highlight</h3>
-                <div className="flex flex-wrap items-center justify-between gap-6">
-                  <div className="flex items-center gap-6">
-                    <span className="text-6xl font-extrabold text-orange-primary leading-none">#5</span>
-                    <img src={avatarImage} alt="Alex" className="w-[60px] h-[60px] rounded-full" />
-                    <span className="text-2xl font-extrabold">Alex Johnson</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-gray-text text-sm font-medium">Score:</span>
-                    <div className="text-4xl font-extrabold leading-tight mb-1">2,450 PTS</div>
-                    <div className="text-sm text-gray-text">You're ahead of <span className="font-extrabold text-dark-text">80%</span> of learners</div>
-                  </div>
-                </div>
-                <div className="mt-8">
-                  <div className="flex justify-between text-sm font-bold mb-2">
-                    <span className="text-dark-teal">User vs. average</span>
-                    <span className="text-gray-text relative -left-[10%]">Average</span>
-                  </div>
-                  <div className="h-3 bg-gray-200 rounded-full relative">
-                    <div className="h-full bg-dark-teal rounded-full w-[80%]"></div>
-                    <div className="absolute left-[50%] top-[-8px] bottom-[-8px] w-[3px] bg-gray-400 rounded-full z-10"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-6">
-                <h3 className="text-lg font-bold mb-8">🏆 Top Performers</h3>
-                <div className="flex justify-around text-center items-end pt-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-[45px] h-[45px] rounded-full flex items-center justify-center text-2xl -mb-5 z-10 shadow-md text-white bg-gradient-to-br from-gray-200 to-gray-400"><i className="fas fa-medal"></i></div>
-                    <div className="w-[65px] h-[65px] rounded-full bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center"><i className="fas fa-user-astronaut text-3xl text-gray-400 mt-2"></i></div>
-                    <span className="text-[0.85rem] text-gray-text mt-3 font-medium">Name</span>
-                    <span className="font-extrabold text-lg mb-1">Sarah Lee</span>
-                    <span className="font-extrabold text-orange-primary text-lg">5,200 PTS</span>
-                  </div>
-
-                  <div className="flex flex-col items-center -translate-y-5">
-                    <div className="w-[45px] h-[45px] rounded-full flex items-center justify-center text-2xl -mb-5 z-10 shadow-md text-[#713F12] bg-gradient-to-br from-[#FDE047] to-[#EAB308]"><i className="fas fa-crown"></i></div>
-                    <div className="w-[75px] h-[75px] rounded-full bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center"><i className="fas fa-user-ninja text-4xl text-gray-400 mt-3"></i></div>
-                    <span className="text-[0.85rem] text-gray-text mt-3 font-medium">Name</span>
-                    <span className="font-extrabold text-xl mb-1">David Kim</span>
-                    <span className="font-extrabold text-orange-primary text-xl">5,800 PTS</span>
-                  </div>
-
-                  <div className="flex flex-col items-center">
-                    <div className="w-[45px] h-[45px] rounded-full flex items-center justify-center text-2xl -mb-5 z-10 shadow-md text-white bg-gradient-to-br from-[#FDBA74] to-[#D97706]"><i className="fas fa-medal"></i></div>
-                    <div className="w-[65px] h-[65px] rounded-full bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center"><i className="fas fa-user-graduate text-3xl text-gray-400 mt-2"></i></div>
-                    <span className="text-[0.85rem] text-gray-text mt-3 font-medium">Name</span>
-                    <span className="font-extrabold text-lg mb-1">Kenjiro Tanaka</span>
-                    <span className="font-extrabold text-orange-primary text-lg">4,900 PTS</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm border border-border-soft overflow-hidden pr-2">
-                <div className="overflow-y-auto max-h-[450px] custom-scrollbar px-6 mb-6">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-white sticky top-0 z-10">
-                      <tr>
-                        <th className="py-4 px-4 border-b-2 border-border-soft text-gray-text font-semibold text-sm uppercase tracking-wide w-[10%]">Rank</th>
-                        <th className="py-4 px-4 border-b-2 border-border-soft text-gray-text font-semibold text-sm uppercase tracking-wide w-[40%]">Participant</th>
-                        <th className="py-4 px-4 border-b-2 border-border-soft text-gray-text font-semibold text-sm uppercase tracking-wide w-[20%]">Score</th>
-                        <th className="py-4 px-4 border-b-2 border-border-soft text-gray-text font-semibold text-sm uppercase tracking-wide w-[30%]">Progress</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {tableData.map((row, i) => (
-                        <EnhancedLeaderboardRow key={i} row={row} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft">
-              <h3 className="text-lg font-bold mb-6">Activity Timeline</h3>
-              <div className="space-y-6">
-                {RECENT_ACTIVITIES.map((activity) => (
-                  <div key={activity.id} className="flex gap-4 group cursor-pointer items-start">
-                    <img src={activity.avatar} className="w-10 h-10 rounded-full border-2 border-white shadow-sm" alt="User" />
-                    <div>
-                      <p className="text-[0.85rem] leading-snug">
-                        <span className="font-bold text-dark-text">{activity.user}</span>
-                        <span className="text-gray-500 ml-1.5">{activity.action}</span>
-                      </p>
-                      <span className="text-[0.7rem] text-gray-400 font-bold mt-1 uppercase tracking-tight">{activity.timestamp}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Top Performers table removed as requested */}
         </div>
 
         <aside>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-6">
-            <h3 className="text-lg font-bold mb-6">📊 Performance Insights</h3>
-            <h4 className="text-sm font-medium text-gray-text mb-4 uppercase tracking-wider">Insights</h4>
+          <div className="bg-white p-7 rounded-[2rem] shadow-sm border border-border-soft mb-8 hover:shadow-md transition-all">
+            <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+              <i className="fas fa-chart-pie text-dark-teal" /> Performance Insights
+            </h3>
 
-            <div className="flex justify-between items-center py-3 border-b border-border-soft">
-              <span className="font-semibold text-dark-text">Rank change</span>
-              <span className="font-bold text-[#047857]"><i className="fas fa-arrow-up"></i> 2 positions</span>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-border-soft">
-              <span className="font-semibold text-dark-text">Recent activity</span>
-              <span className="font-medium text-sm">Completed 3 assignments</span>
-            </div>
-            <div className="flex justify-between items-center py-3">
-              <span className="font-semibold text-dark-text">Improvement tips</span>
-              <span className="font-medium text-sm">Target Top 3</span>
+            <div className="space-y-6">
+              <div className="flex justify-between items-center py-4 border-b border-gray-50">
+                <span className="font-bold text-gray-500 text-sm">Rank change</span>
+                <span className={`font-black px-3 py-1 rounded-lg border flex items-center gap-1 ${
+                  rankChange >= 0 ? 'text-[#047857] bg-green-50 border-green-100' : 'text-red-500 bg-red-50 border-red-100'
+                }`}>
+                  <i className={`fas fa-arrow-${rankChange >= 0 ? 'up' : 'down'} text-xs`} /> 
+                  {Math.abs(rankChange)} positions
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-4 border-b border-gray-50">
+                <span className="font-bold text-gray-500 text-sm">Learning Velocity</span>
+                <span className="font-black text-dark-text">
+                  {summary && summary.totalPoints > 2000 ? 'Excellent' : 'Steady'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-4">
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-gray-500 text-sm">Recent Accomplishment</span>
+                  <span className="text-xs font-bold text-orange-primary">
+                    Maintained {summary?.streak} day streak!
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <p className="text-[0.65rem] text-gray-400 mt-8 text-center font-bold uppercase tracking-widest opacity-60">Visakhapatnam time: Updated Oct 26</p>
+            <p className="text-[0.65rem] text-gray-300 mt-8 text-center font-bold uppercase tracking-widest">
+              Last Updated: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft">
-            <h3 className="text-lg font-bold mb-6">🏅 Achievements</h3>
+          <div className="bg-white p-7 rounded-[2rem] shadow-sm border border-border-soft hover:shadow-md transition-all">
+            <h3 className="text-lg font-bold mb-8 flex items-center gap-2">
+              <i className="fas fa-award text-yellow-500" /> Your Achievements
+            </h3>
 
-            <div className="flex justify-between text-center mt-2">
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-[60px] h-[60px] rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center text-3xl mb-3 shadow-sm shadow-[#FEF3C7]"><i className="fas fa-star"></i></div>
-                <span className="text-[0.8rem] font-bold text-dark-text leading-tight">Top Performer</span>
-              </div>
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-[60px] h-[60px] rounded-full bg-orange-soft text-orange-primary flex items-center justify-center text-3xl mb-3 shadow-sm shadow-orange-soft"><i className="fas fa-stopwatch"></i></div>
-                <span className="text-[0.8rem] font-bold text-dark-text leading-tight">Fast Learner</span>
-              </div>
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-[60px] h-[60px] rounded-full bg-orange-soft text-orange-primary flex items-center justify-center text-3xl mb-3 shadow-sm shadow-orange-soft"><i className="fas fa-star-half-alt"></i></div>
-                <span className="text-[0.8rem] font-bold text-dark-text leading-tight">Consistency Star</span>
+            <div className="grid grid-cols-2 gap-4">
+              {summary && summary.totalPoints > 1000 && (
+                <div className="flex flex-col items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 group">
+                  <div className="w-14 h-14 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center text-2xl mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i className="fas fa-star" />
+                  </div>
+                  <span className="text-[0.7rem] font-black text-dark-text text-center leading-tight uppercase tracking-tighter">Top Performer</span>
+                </div>
+              )}
+              {summary && summary.streak > 7 && (
+                <div className="flex flex-col items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 group">
+                  <div className="w-14 h-14 rounded-full bg-orange-soft text-orange-primary flex items-center justify-center text-2xl mb-3 shadow-inner group-hover:scale-110 transition-transform">
+                    <i className="fas fa-bolt" />
+                  </div>
+                  <span className="text-[0.7rem] font-black text-dark-text text-center leading-tight uppercase tracking-tighter">Fast Learner</span>
+                </div>
+              )}
+              <div className="flex flex-col items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 group col-span-2 mt-2">
+                <div className="flex items-center gap-4 w-full">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-inner group-hover:rotate-12 transition-transform ${
+                    summary && summary.streak > 0 ? 'bg-dark-teal/10 text-dark-teal' : 'bg-gray-100 text-gray-300'
+                  }`}>
+                    <i className="fas fa-fire" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[0.7rem] font-black text-dark-text uppercase tracking-tighter">Consistency Star</span>
+                    <span className="text-[0.6rem] text-gray-400 font-bold">{summary?.streak} Day Streak</span>
+                  </div>
+                </div>
               </div>
             </div>
+            
+            <button className="w-full mt-8 py-3 text-[0.75rem] font-black text-gray-400 border-2 border-dashed border-gray-200 rounded-xl hover:border-orange-primary/30 hover:text-orange-primary transition-all">
+              View All Badges
+            </button>
           </div>
         </aside>
       </div>
     </div>
   );
 }
+

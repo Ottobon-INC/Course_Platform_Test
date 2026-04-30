@@ -1,9 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { Users, MessageSquare, Sparkles, CheckCircle, Bot, LifeBuoy } from 'lucide-react';
-import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { useLocation } from 'wouter';
 
 // --- Types & Data ---
 
@@ -99,7 +97,6 @@ const TimelineItem: React.FC<{ step: Step; index: number }> = ({ step, index }) 
 // --- Page Component ---
 
 const MethodologyPage: React.FC = () => {
-    const [location, setLocation] = useLocation();
     const ref = useRef<HTMLDivElement>(null);
     const { scrollYProgress } = useScroll({
         target: ref,
@@ -118,7 +115,6 @@ const MethodologyPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-retro-bg animate-fadeIn">
-            <Navbar onApplyTutor={() => setLocation('/become-a-tutor')} />
             <div className="pt-[72px]" /> {/* Spacer for fixed Navbar */}
 
             <section ref={ref} className="py-20 relative overflow-hidden">

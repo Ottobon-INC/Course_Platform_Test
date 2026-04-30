@@ -63,7 +63,7 @@ type DashboardSummary = {
     thumbnailUrl: string | null;
     programType: "cohort" | "ondemand" | "workshop";
   }>;
-  completed: Array<{ title: string; date: string }>;
+  completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
 };
 
@@ -145,7 +145,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       return;
     }
 
-    const [enrollments, cohortMemberships, approvedCohortRegistrations] = await Promise.all([
+    const [enrollments, cohortMemberships, approvedCohortRegistrations, completedCertificates] = await Promise.all([
       prisma.enrollment.findMany({
         where: { userId: auth.userId },
         include: {
@@ -212,6 +212,10 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             },
           },
         },
+      }),
+      prisma.courseCertificate.findMany({
+        where: { userId: auth.userId },
+        orderBy: { issuedAt: "desc" },
       }),
     ]);
 
@@ -516,7 +520,13 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       onDemand,
       workshops,
       catalog,
-      completed: [],
+      completed: completedCertificates.map(cert => ({
+        id: cert.certificateId,
+        title: cert.courseTitle,
+        date: formatDate(cert.issuedAt) || "Recently",
+        courseId: cert.courseId,
+        programType: cert.programType
+      })),
       upcoming,
     };
 

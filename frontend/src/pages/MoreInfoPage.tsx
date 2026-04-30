@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'wouter';
 import {
     GraduationCap,
     Award,
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import certificateHero from '@/Certificate.png';
-import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 
 // Define the content structure for each topic
@@ -206,7 +204,6 @@ const CertificationSection = () => {
 
 const MoreInfoPage: React.FC = () => {
     const [topic, setTopic] = useState<string | null>(null);
-    const [, setLocation] = useLocation();
 
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
@@ -232,7 +229,6 @@ const MoreInfoPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-retro-bg flex flex-col font-sans">
-            <Navbar onApplyTutor={() => setLocation('/become-a-tutor')} />
 
             <main className="flex-grow pt-[80px]">
                 {/* Dynamic Content Rendering */}

@@ -3,7 +3,6 @@ import { useRoute, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Linkedin, Facebook, Link as LinkIcon, ArrowRight, Award, BookOpen, Instagram, Check } from 'lucide-react';
 import { buildApiUrl } from '@/lib/api';
-import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { SlideInPromo } from '@/components/blog/SlideInPromo';
 
@@ -185,7 +184,6 @@ const BlogDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] font-sans selection:bg-retro-salmon/20 selection:text-retro-salmon">
-      <Navbar />
       
       {/* Article Header & Title Section */}
       <div className="max-w-4xl mx-auto px-6 pt-32 pb-16 md:pt-40 md:pb-24">
