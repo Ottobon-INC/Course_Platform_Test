@@ -361,6 +361,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             const response = await submitRegistration(payload);
             const registrationId =
                 response?.registration?.registrationId ?? `local-${Date.now()}`;
+            const responsePaymentMode = response?.registration?.paymentMode;
 
             onSubmit({
                 ...formData,
@@ -372,6 +373,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                     formData.yearOfPassing === "Other" ? formData.otherYearOfPassing : "",
                 branch: resolvedBranch ?? "",
                 otherBranch: formData.branch === "Other" ? formData.otherBranch : "",
+                ...(responsePaymentMode ? { paymentMode: responsePaymentMode } : {}),
             });
         } catch (error) {
             console.error("Error submitting registration:", error);
@@ -398,6 +400,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         <div className="animate-fadeIn">
             <div className="card max-w-4xl mx-auto">
                 <div className="mb-8">
+                    {/* Change Course button removed as users arrive directly from CDP
                     {onBack && (
                         <button
                             onClick={(e) => {
@@ -422,6 +425,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                             Change Course
                         </button>
                     )}
+                    */}
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                         {getProgramTitle()}
                     </h2>

@@ -90,6 +90,7 @@ function Router() {
       <Route path="/ondemand/:id/congrats/feedback" component={CongratsFeedbackPage} />
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
+      <Route path="/ondemand/:id" component={CourseDetailsPage} />
 
       {/* Student Dashboard Routes - Unified into App.tsx */}
       <Route path="/student-dashboard">

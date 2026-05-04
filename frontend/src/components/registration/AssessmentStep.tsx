@@ -136,7 +136,18 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 plan: studentData.plan || null,
             }
 
-            await submitRegistration(payload)
+            const response = await submitRegistration(payload)
+            const registrationId = response?.registration?.registrationId
+            const responsePaymentMode = response?.registration?.paymentMode
+
+            // Pass registration info back so parent can generate payment code if needed
+            if (registrationId) {
+                // Store registrationId in studentData for use by parent
+                studentData.id = registrationId
+                if (responsePaymentMode) {
+                    studentData.paymentMode = responsePaymentMode
+                }
+            }
             onSubmit(answers)
         } catch (error) {
             console.error('Submission error:', error)

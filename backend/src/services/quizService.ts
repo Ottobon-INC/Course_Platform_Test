@@ -604,7 +604,7 @@ export async function fetchQuestionsForQuiz(params: {
   topicPairIndex?: number;
   limit?: number;
 }) {
-  let assessmentId = params.assessmentId;
+  let assessmentId: string | undefined | null = params.assessmentId;
   if (!assessmentId && params.moduleNo && params.topicPairIndex) {
     assessmentId = await resolveAssessmentIdFromLegacy({
       courseId: params.courseId,
@@ -644,7 +644,7 @@ export async function createAttempt(params: {
 }> {
   await ensureUserExists(params.userId);
 
-  let assessmentId = params.assessmentId;
+  let assessmentId: string | undefined | null = params.assessmentId;
   if (!assessmentId && params.moduleNo && params.topicPairIndex) {
     assessmentId = await resolveAssessmentIdFromLegacy({
       courseId: params.courseId,

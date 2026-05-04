@@ -14,6 +14,7 @@ export type CourseOffering = {
   showSlots: boolean;
   slotsJson?: any;
   qrImageUrl?: string | null;
+  paymentMode?: string;
   course?: {
     courseId: string;
     courseName: string;
@@ -112,6 +113,26 @@ export async function submitPayment(registrationId: string, payload: {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `Payment submission failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function generatePaymentCode(registrationId: string): Promise<{ paymentCode: string; alreadyGenerated: boolean }> {
+  const stored = readStoredSession();
+  const session = await ensureSessionFresh(stored, { notifyOnFailure: false });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+
+  const res = await fetch(buildApiUrl(`/api/registrations/${registrationId}/generate-payment-code`), {
+    method: "POST",
+    headers,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Failed to generate payment code (${res.status})`);
   }
   return res.json();
 }

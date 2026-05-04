@@ -230,9 +230,11 @@ const ProtocolModal: React.FC<ProtocolModalProps> = ({ isOpen, onClose, onAccept
   );
 };
 
-const CourseDetailsPage = () => {
-  const { id: courseId } = useParams<{ id: string }>();
-  const [, setLocation] = useLocation();
+const CourseDetailsPage = (props: any) => {
+  const paramsHook = useParams<{ id: string }>();
+  const courseId = props.params?.id || paramsHook?.id;
+  const [locationPath, setLocation] = useLocation();
+  const programType = locationPath.startsWith("/workshop") ? "workshop" : locationPath.startsWith("/ondemand") ? "ondemand" : "cohort";
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -265,7 +267,7 @@ const CourseDetailsPage = () => {
     let mounted = true;
     const loadCourse = async () => {
       try {
-        const courseRes = await fetch(buildApiUrl(`/api/courses/${courseId}`));
+        const courseRes = await fetch(buildApiUrl(`/api/courses/${courseId}?programType=${programType}`));
         if (courseRes.ok) {
           const payload = await courseRes.json();
           if (mounted) {
@@ -276,14 +278,13 @@ const CourseDetailsPage = () => {
               typeof course?.priceCents === "number" && Number.isFinite(course.priceCents)
                 ? course.priceCents
                 : null;
-            const promo = slug && typeof slug === "string" ? PROMO_PRICING[slug] : undefined;
-            const displayPriceCents = promo?.priceCents ?? normalizedPrice;
-            const compareAtFromPromo =
-              promo?.compareAtCents ?? (normalizedPrice ? Math.round(normalizedPrice * 1.8) : null);
+            const displayPriceCents = normalizedPrice;
+            const apiCompareAt = typeof course?.compareAtCents === "number" && course.compareAtCents > 0 ? course.compareAtCents : null;
+            const compareAtCents = apiCompareAt ?? (normalizedPrice ? Math.round(normalizedPrice * 1.8) : null);
             setCourseMeta({
               subtitle: course?.description ?? DEFAULT_SUBTITLE,
               displayPriceCents,
-              compareAtCents: compareAtFromPromo,
+              compareAtCents: compareAtCents,
               originalPriceCents: normalizedPrice,
               rating:
                 typeof course?.rating === "number" && Number.isFinite(course.rating) ? course.rating : null,
@@ -291,10 +292,10 @@ const CourseDetailsPage = () => {
                 typeof course?.students === "number" && Number.isFinite(course.students)
                   ? course.students
                   : null,
-              badge: promo?.badge ?? (course?.level ? `${course.level} level` : DEFAULT_BADGE),
+              badge: course?.level ? `${course.level} level` : DEFAULT_BADGE,
               category: course?.category ?? "Hands-on projects",
               instructor: course?.instructor ?? "Staff Instructor",
-              promoActive: Boolean(promo),
+              promoActive: false,
               skills_json: course?.skills_json,
               reviews_json: course?.reviews_json,
               faqs_json: course?.faqs_json,
@@ -407,7 +408,7 @@ const CourseDetailsPage = () => {
         }
       } else if (!accessStatus.hasApplied) {
         // We do not hardcode the slug, using courseId which represents the current course directly
-        setLocation(`/registration/cohort/${courseId}`);
+        setLocation(`/registration/${programType}/${courseId}`);
       }
     }
   }, [accessStatus, loading, courseId, setLocation, firstLessonSlug]);
@@ -527,6 +528,23 @@ const CourseDetailsPage = () => {
   };
 
   const navigateToPlayer = () => {
+    if (programType === "workshop") {
+      toast({
+        title: "Registration Complete",
+        description: "You have already registered for this workshop. Please check your email.",
+      });
+      return;
+    }
+    
+    if (programType === "ondemand") {
+      if (firstLessonSlug) {
+        setLocation(`/ondemand/${courseId}/learn/${firstLessonSlug}`);
+      } else {
+        setLocation(`/ondemand/${courseId}/learn/start`);
+      }
+      return;
+    }
+
     if (firstLessonSlug) {
       setLocation(`/course/${courseId}/learn/${firstLessonSlug}`);
     } else {
@@ -560,7 +578,13 @@ const CourseDetailsPage = () => {
       const result = await checkCohortEligibility();
       setEnrolling(false);
       if (result.allowed) {
-        setIsModalOpen(true);
+        if (programType === "cohort") {
+          setIsModalOpen(true);
+        } else {
+          navigateToPlayer();
+        }
+      } else {
+        setLocation(`/registration/${programType}/${courseId}`);
       }
     })();
   };
@@ -723,17 +747,17 @@ const CourseDetailsPage = () => {
               <button
                 className="bg-[#bf2f1f] hover:bg-[#a62619] text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition active:scale-95"
                 onClick={() => {
-                  setLocation(`/registration/cohort/${courseId}`);
+                  setLocation(`/registration/${programType}/${courseId}`);
                 }}
               >
-                Apply for Cohort
+                {programType === "cohort" ? "Apply for Cohort" : "Register Now"}
               </button>
             ) : !accessStatus.isApprovedMember ? (
               <button
                 disabled
                 className="bg-[#4a4845] text-white px-6 py-3 rounded-lg font-semibold shadow-inner cursor-not-allowed opacity-90"
               >
-                Application is under review
+                {programType === "cohort" ? "Application is under review" : "Registration pending"}
               </button>
             ) : (
               <button
@@ -894,12 +918,14 @@ const CourseDetailsPage = () => {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-black/5 pb-6">
             <div>
               <h2 className="text-3xl font-black text-[#111] tracking-tight">Competency Roadmap</h2>
-              <p className="text-sm text-[#4a4845] mt-1">Foundational and advanced skills covered in the cohort.</p>
+              <p className="text-sm text-[#4a4845] mt-1">Foundational and advanced skills covered in the {programType === "cohort" ? "cohort" : programType === "workshop" ? "workshop" : "program"}.</p>
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#bf2f1f]">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#bf2f1f] animate-pulse" />
-              Live Curriculum
-            </div>
+            {programType !== "ondemand" && (
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#bf2f1f]">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#bf2f1f] animate-pulse" />
+                Live Curriculum
+              </div>
+            )}
           </div>
 
           <div className="space-y-10">
