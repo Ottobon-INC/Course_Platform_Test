@@ -381,8 +381,8 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       };
     });
 
-    const cohorts = cohortsList.filter(c => c.status !== 'Completed');
-    const onDemand = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
+    const cohorts = cohortsList.filter(c => c.status !== "Completed");
+    const onDemand: DashboardSummary["onDemand"] = [];
 
     const workshopRegistrations = await prisma.registration.findMany({
       where: {
@@ -464,6 +464,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
           }
         : null;
 
+    const urgentTasks: DashboardSummary["urgentTasks"] = cohorts.length > 0
+      ? [
+          { id: 1, time: "9:00 AM", text: `Review ${cohorts[0].title} Materials`, type: "assessment" },
+          { id: 2, time: "Today", text: `Complete ${cohorts[0].lastAccessedModule.split(": ")[0]}`, type: "quiz" },
+        ]
+      : [
+          { id: 1, time: "Flexible", text: "Start your first module", type: "assessment" },
+        ];
+
     const payload: DashboardSummary = {
       user: {
         fullName: user.fullName,
@@ -504,12 +513,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         },
         { id: 3, text: "Check Cohort Community", checked: true }
       ],
-      urgentTasks: (cohorts.length > 0 ? [
-        { id: 1, time: "9:00 AM", text: `Review ${cohorts[0].title} Materials`, type: 'assignment' as const },
-        { id: 2, time: "Today", text: `Complete ${cohorts[0].lastAccessedModule.split(': ')[0]}`, type: 'quiz' as const }
-      ] : [
-        { id: 1, time: "Flexible", text: "Start your first module", type: 'assignment' as const }
-      ])
+      urgentTasks,
     };
 
     res.status(200).json(payload);
