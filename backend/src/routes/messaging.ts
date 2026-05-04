@@ -8,6 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import * as messagingService from "../services/messagingService";
 import { uploadToOneDrive, getOneDriveContent } from "../utils/oneDrive";
 import { env } from "../config/env";
+import jwt from "jsonwebtoken";
 
 export const messagingRouter = express.Router();
 
@@ -29,6 +30,49 @@ messagingRouter.get(
   }),
 );
 
+messagingRouter.get(
+  "/public/download",
+  asyncHandler(async (req, res) => {
+    const token = req.query.token as string;
+    if (!token) {
+      res.status(401).json({ message: "Missing token" });
+      return;
+    }
+
+    try {
+      const decoded = jwt.verify(token, env.jwtSecret) as { url: string };
+      let targetUrl = decoded.url;
+
+      if (!targetUrl) {
+        res.status(400).json({ message: "Invalid token payload" });
+        return;
+      }
+
+      // Handle local uploads (fallback storage)
+      if (targetUrl.startsWith("/uploads/")) {
+        const filePath = path.join(process.cwd(), targetUrl);
+        res.download(filePath);
+        return;
+      }
+
+      // Handle proxy URLs from OneDrive
+      if (targetUrl.startsWith("/messaging/attachments/") || targetUrl.includes("/api/messaging/attachments/")) {
+        const driveItemId = targetUrl.split("/attachments/")[1].split("/content")[0];
+        const { buffer, mimeType } = await getOneDriveContent(driveItemId);
+        res.setHeader("Content-Type", mimeType);
+        res.setHeader("Content-Disposition", "inline");
+        res.send(buffer);
+        return;
+      }
+
+      // If it's an external URL, attempt to proxy or redirect
+      res.redirect(targetUrl);
+    } catch (err) {
+      res.status(401).json({ message: "Invalid or expired token" });
+    }
+  })
+);
+
 messagingRouter.use(requireAuth);
 
 messagingRouter.get(
@@ -39,6 +83,28 @@ messagingRouter.get(
     const conversations = await messagingService.getConversationsForUser(auth.userId, cohortId);
     res.status(200).json({ conversations });
   }),
+);
+
+messagingRouter.post(
+  "/attachments/preview-url",
+  asyncHandler(async (req, res) => {
+    const auth = (req as AuthenticatedRequest).auth!;
+    const url = req.body.url;
+    
+    if (!url) {
+      res.status(400).json({ message: "Missing url" });
+      return;
+    }
+
+    // Generate a short-lived JWT (valid for 15 minutes)
+    const token = jwt.sign({ url }, env.jwtSecret, { expiresIn: "15m" });
+    
+    // Create the public-facing URL
+    // Append a fake .docx extension to trick Microsoft Office Viewer into accepting the URL structure
+    const publicUrl = `${req.protocol}://${req.get('host')}/api/messaging/public/download?token=${token}&ext=.docx`;
+    
+    res.status(200).json({ previewUrl: publicUrl });
+  })
 );
 
 messagingRouter.get(

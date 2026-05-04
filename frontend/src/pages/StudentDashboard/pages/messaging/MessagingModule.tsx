@@ -414,6 +414,36 @@ export default function MessagingModule() {
     }
   }, [conversations, headers, fetchConversations, selectedCohortId]);
 
+  const forwardableConversations = useMemo(() => {
+    const isCurrentUserAdmin = session?.role === "tutor" || session?.role === "admin";
+    const currentBatch = selectedCourseTitle && courseGroups[selectedCourseTitle] 
+      ? courseGroups[selectedCourseTitle].find(b => b.id === selectedCohortId) 
+      : null;
+    const currentBatchNo = currentBatch?.batchNo;
+
+    return conversations.filter(c => {
+      if (c.type === "broadcast") return isCurrentUserAdmin;
+      if (c.type === "team") return (c as any).cohortId === selectedCohortId;
+      if (c.type === "dm") {
+        const otherUser = c.otherUser || c.members?.find((m: any) => (m.id || m.user_id) !== currentUserId);
+        if (!otherUser) return false;
+        
+        const role = otherUser.role || "student";
+        if (isCurrentUserAdmin || role === "tutor" || role === "admin") return true;
+
+        const orgUser = orgUsers.find(u => {
+          const orgId = u.id || u.user_id;
+          const otherId = otherUser.id || (otherUser as any).user_id;
+          return orgId && otherId && orgId === otherId;
+        });
+
+        if (!orgUser) return false;
+        return (orgUser as any).batch_no === currentBatchNo;
+      }
+      return false;
+    });
+  }, [conversations, selectedCohortId, orgUsers, currentUserId, session?.role, selectedCourseTitle, courseGroups]);
+
   return (
     <div className={`msg-container ${mobileView === "chat" ? "chat-active" : ""}`}>
       <MessagingSidebar
@@ -452,7 +482,7 @@ export default function MessagingModule() {
           onDeleteForEveryone={handleDeleteForEveryone}
           onPinMessage={handlePinMessage}
           onBackToList={handleBackToList}
-          conversations={conversations}
+          conversations={forwardableConversations}
           onForward={handleForward}
           onAddMemberToConversation={handleAddMemberToConversation}
           onRenameConversation={handleRenameConversation}

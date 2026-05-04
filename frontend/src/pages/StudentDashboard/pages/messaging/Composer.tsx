@@ -159,7 +159,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
       <div className="msg-composer">
         {/* Reply Context */}
         {replyingTo && (
-          <div style={{ padding: "8px 12px", background: "#f3f4f6", borderLeft: "3px solid #006BFF", marginBottom: 8, borderRadius: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ padding: "8px 12px", background: "#f3f4f6", borderLeft: "3px solid #E64833", marginBottom: 8, borderRadius: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>Replying to {replyingTo.sender_name}</div>
               <div style={{ fontSize: 13, color: "#1f2937" }}>{replyingTo.content.substring(0, 50)}{replyingTo.content.length > 50 ? "..." : ""}</div>
@@ -276,7 +276,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
                 <label style={{ position: "relative", display: "inline-block", width: 40, height: 22 }}>
                   <input type="checkbox" checked={allowMultiple} onChange={(e) => setAllowMultiple(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
                   <span style={{
-                    position: "absolute", cursor: "pointer", inset: 0, background: allowMultiple ? "#006BFF" : "#cbd5e1", borderRadius: 22, transition: "0.2s",
+                    position: "absolute", cursor: "pointer", inset: 0, background: allowMultiple ? "#E64833" : "#cbd5e1", borderRadius: 22, transition: "0.2s",
                   }}>
                     <span style={{ position: "absolute", content: '""', height: 16, width: 16, left: allowMultiple ? 20 : 3, bottom: 3, background: "white", borderRadius: "50%", transition: "0.2s" }} />
                   </span>
@@ -288,7 +288,7 @@ export default function Composer({ selectedConversation, replyingTo, setReplying
                 Cancel
               </button>
               <button
-                style={{ flex: 1, padding: 10, borderRadius: 6, border: "none", background: "#EBF3FF", color: "#0f172a", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+                style={{ flex: 1, padding: 10, borderRadius: 6, border: "none", background: "#FBE9D0", color: "#1F2937", fontWeight: 700, cursor: "pointer", fontSize: 13 }}
                 onClick={handleSendPoll}
                 disabled={!pollQuestion.trim() || pollOptions.filter((o) => o.trim()).length < 2}
               >

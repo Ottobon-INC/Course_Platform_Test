@@ -261,7 +261,7 @@ export default function ChatWindow({
       {selectionMode && (
         <div className="msg-selection-bar" style={{
           padding: "10px 20px",
-          background: "#006BFF",
+          background: "#E64833",
           color: "white",
           display: "flex",
           justifyContent: "space-between",
@@ -344,7 +344,7 @@ export default function ChatWindow({
           <button onClick={() => setShowAddMemberModal(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "1px solid #10b981", background: "white", cursor: "pointer", fontSize: 12, color: "#059669", fontWeight: 600 }}>
             <UserPlus size={14} /> Add Member
           </button>
-          <button onClick={() => setShowRenameModal(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "1px solid #006BFF", background: "white", cursor: "pointer", fontSize: 12, color: "#006BFF", fontWeight: 600 }}>
+          <button onClick={() => setShowRenameModal(true)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "1px solid #E64833", background: "white", cursor: "pointer", fontSize: 12, color: "#E64833", fontWeight: 600 }}>
             <Edit2 size={14} /> Rename
           </button>
           <button style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "1px solid #ef4444", background: "white", cursor: "pointer", fontSize: 12, color: "#dc2626", fontWeight: 600 }}>
@@ -375,7 +375,7 @@ export default function ChatWindow({
       <div className="msg-messages-container" ref={messagesContainerRef}>
         {messages.length === 0 ? (
           <div className="msg-empty-state">
-            <MessageCircle size={44} style={{ opacity: 0.4, color: "#006BFF" }} />
+            <MessageCircle size={44} style={{ opacity: 0.4, color: "#E64833" }} />
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
@@ -426,8 +426,8 @@ export default function ChatWindow({
                         width: 20,
                         height: 20,
                         borderRadius: 4,
-                        border: `2px solid ${selectedMessageIds.includes(msg.id) ? "#006BFF" : "#cbd5e1"}`,
-                        background: selectedMessageIds.includes(msg.id) ? "#006BFF" : "transparent",
+                        border: `2px solid ${selectedMessageIds.includes(msg.id) ? "#E64833" : "#cbd5e1"}`,
+                        background: selectedMessageIds.includes(msg.id) ? "#E64833" : "transparent",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -454,7 +454,7 @@ export default function ChatWindow({
                       <div className="msg-reply-context" style={{
                         padding: "5px 10px",
                         background: "rgba(0,0,0,0.05)",
-                        borderLeft: `2px solid ${isSent ? "#006BFF" : "#cbd5e1"}`,
+                        borderLeft: `2px solid ${isSent ? "#E64833" : "#cbd5e1"}`,
                         marginBottom: 4,
                         borderRadius: "8px 8px 2px 2px",
                         fontSize: 11,
@@ -552,8 +552,24 @@ export default function ChatWindow({
                           {parseDateBypass(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           {isSent && (
                             <span className="msg-status-tick">
-                              <Check size={10} style={{ marginLeft: 2, display: "inline-block", color: (msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) ? "#006BFF" : "inherit" }} />
-                              {(msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) && <Check size={10} style={{ marginLeft: -6, display: "inline-block", color: "#006BFF" }} />}
+                              <Check 
+                                size={10} 
+                                style={{ 
+                                  marginLeft: 2, 
+                                  display: "inline-block", 
+                                  color: (msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) ? "#E64833" : "inherit" 
+                                }} 
+                              />
+                              {(msg.status === "delivered" || msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) && (
+                                <Check 
+                                  size={10} 
+                                  style={{ 
+                                    marginLeft: -6, 
+                                    display: "inline-block", 
+                                    color: (msg.status === "seen" || (msg.seen_by && msg.seen_by.length > 0)) ? "#E64833" : "inherit" 
+                                  }} 
+                                />
+                              )}
                             </span>
                           )}
                         </div>
@@ -632,7 +648,7 @@ export default function ChatWindow({
       )}
       {showForwardModal && forwardingMessage && (
         <ForwardModal
-          conversations={conversations}
+          conversations={isCurrentUserAdmin ? conversations : conversations.filter((c) => c.type !== "broadcast")}
           onClose={() => { setShowForwardModal(false); setForwardingMessage(null); }}
           onForward={(targetId) => {
             // If in selection mode, forward all selected messages
