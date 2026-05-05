@@ -128,12 +128,13 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 sessionTime: studentData.sessionTime || null,
                 mode: studentData.mode || null,
                 referredBy: studentData.referredBy || null,
-                status: "assessed",
+                status: "pending",
                 answersJson: answers,
                 questionsSnapshot: questions,
                 assessmentSubmittedAt: new Date().toISOString(),
                 durationSeconds,
                 plan: studentData.plan || null,
+                cohortId: studentData.cohortId || null,
             }
 
             const response = await submitRegistration(payload)
@@ -426,7 +427,7 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                         </svg>
                         Previous
                     </button>
-
+ 
                     {/* Next OR Submit */}
                     {isLastQuestion ? (
                         <button

@@ -25,9 +25,11 @@ export interface StudentData {
     compareAtPriceCents?: number // Added
     showSlots?: boolean // Added
     slots?: any[]       // Added
+    cohorts?: any[]     // Added
     qrImageUrl?: string // Added
     paymentMode?: 'direct' | 'email_code' | 'none' // Added
     paymentCode?: string // Added
+    cohortId?: string    // Added
 }
 
 export interface RegistrationFormData {
@@ -49,6 +51,7 @@ export interface RegistrationFormData {
     referredBy: string
     programType: 'cohort' | 'ondemand' | 'workshop' // Added
     plan?: string         // Added
+    cohortId?: string     // Added
 }
 
 export type FormErrors = Record<string, string>
@@ -99,6 +102,7 @@ export interface RegistrationStepProps {
     onBack?: () => void
     assessmentRequired?: boolean
     slots?: any[]
+    cohorts?: any[]     // Added
     showSlots?: boolean
 }
 
@@ -134,6 +138,7 @@ export interface CourseOffering {
     applicationRequired: boolean;
     showSlots: boolean;
     slotsJson: any; // Changed from slotsJson?: any;
+    cohorts?: any[]; // Added
     qrImageUrl?: string | null;
     paymentMode?: string;
     course: {

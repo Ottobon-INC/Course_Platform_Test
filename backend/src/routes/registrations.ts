@@ -81,7 +81,7 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         course: true,
         cohorts: {
           where: { isActive: true },
-          select: { priceCents: true, compareAtPriceCents: true }
+          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
         }
       },
       orderBy: { createdAt: "asc" },
@@ -120,6 +120,7 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         paymentMode: offering.paymentMode,
         programmeDetails: offering.programmeDetails,
         course: offering.course,
+        cohorts: offering.cohorts || [],
       };
     });
 
@@ -185,6 +186,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       questionsSnapshot,
       assessmentSubmittedAt,
       plan,
+      cohortId,
     } = req.body ?? {};
     const authUserId = getOptionalAuthUserId(req);
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
@@ -218,18 +220,18 @@ registrationsRouter.post("/", async (req, res, next) => {
         select: { userId: true, email: true },
       });
 
-      if (!authUser) {
-        return res.status(401).json({ error: "Authenticated user not found" });
+      if (authUser) {
+        if (normalizeEmail(authUser.email) !== normalizedEmail) {
+          return res.status(400).json({
+            error: "Authenticated account email does not match registration email",
+          });
+        }
+        resolvedUserId = authUser.userId;
       }
+      // If authUserId was provided but user record wasn't found, we'll fall back to email lookup
+    }
 
-      if (normalizeEmail(authUser.email) !== normalizedEmail) {
-        return res.status(400).json({
-          error: "Authenticated account email does not match registration email",
-        });
-      }
-
-      resolvedUserId = authUser.userId;
-    } else {
+    if (!resolvedUserId) {
       const matchedUser = await prisma.user.findFirst({
         where: {
           email: {
@@ -266,15 +268,16 @@ registrationsRouter.post("/", async (req, res, next) => {
       collegeName: resolvedIsCollegeStudent ? collegeName : null,
       yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
       branch: resolvedIsCollegeStudent ? branch : null,
-      referredBy: referredBy || null,
-      selectedSlot: selectedSlot || null,
-      sessionTime: sessionTime || null,
-      mode: mode || null,
-      status: status || (existing ? existing.status : "new"),
-      answersJson: answersJson || null,
-      questionsSnapshot: questionsSnapshot || null,
-      assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : null,
-      plan: plan || null,
+      referredBy: referredBy || (existing?.referredBy) || null,
+      selectedSlot: selectedSlot || (existing?.selectedSlot) || null,
+      sessionTime: sessionTime || (existing?.sessionTime) || null,
+      mode: mode || (existing?.mode) || null,
+      status: status || (existing ? existing.status : "pending"),
+      answersJson: answersJson || (existing?.answersJson) || null,
+      questionsSnapshot: questionsSnapshot || (existing?.questionsSnapshot) || null,
+      assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : (existing?.assessmentSubmittedAt),
+      plan: plan || (existing?.plan) || null,
+      cohortId: cohortId || (existing?.cohortId) || null,
     };
 
     const registration = existing
@@ -328,7 +331,7 @@ registrationsRouter.post("/:id/generate-payment-code", async (req, res, next) =>
       where: { registrationId },
       data: {
         paymentCode,
-        status: "payment_pending",
+        status: "pending",
       },
     });
 

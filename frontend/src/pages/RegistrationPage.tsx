@@ -44,7 +44,8 @@ const defaultRegistrationData: StudentData = {
     programType: 'cohort',
     specificCourse: '',
     plan: '',
-    assessmentRequired: true
+    assessmentRequired: true,
+    cohorts: []
 }
 
 function RegistrationPage() {
@@ -144,6 +145,7 @@ function RegistrationPage() {
                                     compareAtPriceCents: matched.compareAtPriceCents,
                                     showSlots: matched.showSlots,
                                     slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
+                                    cohorts: matched.cohorts || [],
                                     qrImageUrl: matched.qrImageUrl ?? undefined,
                                     paymentMode: (matched.paymentMode as any) || 'direct',
                                 }));
@@ -181,6 +183,7 @@ function RegistrationPage() {
                                         priceCents: undefined,
                                         showSlots: true,
                                         slots: [],
+                                        cohorts: [],
                                         qrImageUrl: undefined,
                                     }
                                 })
@@ -211,6 +214,7 @@ function RegistrationPage() {
             compareAtPriceCents: selection.compareAtPriceCents,
             showSlots: selection.showSlots,
             slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : [],
+            cohorts: (selection as any).cohorts || [],
             qrImageUrl: selection.qrImageUrl ?? undefined,
             paymentMode: (selection.paymentMode as any) || 'direct',
         }))
@@ -332,6 +336,7 @@ function RegistrationPage() {
                                 goBack(1);
                             }}
                             slots={registrationData.slots || []}
+                            cohorts={registrationData.cohorts || []}
                             showSlots={registrationData.showSlots ?? true}
                             assessmentRequired={registrationData.assessmentRequired !== false}
                         />

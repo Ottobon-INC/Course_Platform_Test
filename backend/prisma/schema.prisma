@@ -204,7 +204,7 @@ model Registration {
   sessionTime           String?        @map("session_time")
   mode                  String?        @map("mode")
   plan                  String?        @map("plan")
-  status                String         @default("new") @map("status")
+  status                String         @default("pending") @map("status")
   answersJson           Json?          @map("answers_json")
   questionsSnapshot     Json?          @map("questions_snapshot")
   assessmentSubmittedAt DateTime?      @map("assessment_submitted_at")

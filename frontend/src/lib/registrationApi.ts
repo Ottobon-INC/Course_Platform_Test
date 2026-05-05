@@ -20,6 +20,7 @@ export type CourseOffering = {
     courseName: string;
     slug: string;
   };
+  cohorts?: any[];
 };
 
 export async function fetchActiveProgramTypes(): Promise<{ activeTypes: string[] }> {
