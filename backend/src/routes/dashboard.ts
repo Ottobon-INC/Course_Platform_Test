@@ -66,7 +66,7 @@ type DashboardSummary = {
   completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
   dynamicTasks: Array<{ id: number; text: string; checked: boolean }>;
-  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assessment' | 'workshop' }>;
+  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assessment' | 'workshop' | 'assignment' }>;
 };
 
 const formatDate = (value: Date | null | undefined): string | null => {
@@ -382,7 +382,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     });
 
     const cohorts = cohortsList.filter(c => c.status !== 'Completed');
-    const onDemand = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
+    const onDemand: DashboardSummary['onDemand'] = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
 
     const workshopRegistrations = await prisma.registration.findMany({
       where: {

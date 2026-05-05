@@ -38,9 +38,10 @@ export async function getAccessToken() {
   return accessToken;
 }
 
-export async function uploadToOneDrive(filename: string, buffer: Buffer, mimeType: string) {
+export async function uploadToOneDrive(filename: string, buffer: Buffer, mimeType: string, customFolder?: string) {
   const token = await getAccessToken();
-  const { userId, folder } = env.oneDrive;
+  const { userId, folder: defaultFolder } = env.oneDrive;
+  const targetFolder = customFolder || defaultFolder;
   
   if (!userId) {
     throw new Error("USER_ID (OneDrive owner) not configured");
@@ -48,7 +49,7 @@ export async function uploadToOneDrive(filename: string, buffer: Buffer, mimeTyp
 
   // 1. Upload the file
   const uploadBody = Uint8Array.from(buffer);
-  const uploadUrl = `https://graph.microsoft.com/v1.0/users/${userId}/drive/root:/${folder}/${filename}:/content`;
+  const uploadUrl = `https://graph.microsoft.com/v1.0/users/${userId}/drive/root:/${targetFolder}/${filename}:/content`;
   const uploadRes = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
