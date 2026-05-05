@@ -14,7 +14,7 @@ export const assignmentsRouter = express.Router();
  * Proxy route to stream SharePoint/OneDrive content for assignments
  * Replicates the messaging module's attachment proxy workflow
  */
-assignmentsRouter.get("/attachments/:driveItemId/content", async (req, res) => {
+assignmentsRouter.get("/attachments/:driveItemId/content", requireAuth, async (req, res) => {
   try {
     const { driveItemId } = req.params;
     const { buffer, mimeType } = await getOneDriveContent(driveItemId);
@@ -220,11 +220,6 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
     // 3. Format response with status
     const formattedAssignments = assignments.map(a => {
       const submission = a.submissions[0] || null;
-      let finalStatus = submission ? submission.status.toLowerCase() : "pending";
-      if (finalStatus === "reviewed") {
-        finalStatus = (submission?.pointsAwarded !== null && submission?.pointsAwarded !== undefined) ? "approved" : "rejected";
-      }
-
       return {
         assignmentId: a.assignmentId,
         courseId: a.courseId,
@@ -234,7 +229,7 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
         body: a.body,
         dueDate: a.dueAt,
         programType: a.offering?.programType || "cohort",
-        status: finalStatus,
+        status: submission ? submission.status : "pending",
         submissionId: submission ? submission.submissionId : null,
         submittedAt: submission ? submission.submittedAt : null,
         reviewedAt: submission ? submission.reviewedAt : null,
