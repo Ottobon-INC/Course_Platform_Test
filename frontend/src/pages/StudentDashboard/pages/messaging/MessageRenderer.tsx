@@ -22,7 +22,7 @@ function TextRenderer({ message }: { message: Message }) {
                 href={part}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: "#006BFF", textDecoration: "underline", fontWeight: 500, wordBreak: "break-all" }}
+                style={{ color: "#E64833", textDecoration: "underline", fontWeight: 500, wordBreak: "break-all" }}
               >
                 {part}
               </a>

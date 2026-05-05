@@ -730,6 +730,7 @@ function formatConversation(
       content: string;
       createdAt: Date;
       senderId: string;
+      attachments: import("@prisma/client").Prisma.JsonValue | null;
     }>;
   },
   currentUserId: string,
@@ -763,6 +764,7 @@ function formatConversation(
             content: lastMessage.content,
             sender_id: lastMessage.senderId,
             created_at: lastMessage.createdAt.toISOString(),
+            attachments: lastMessage.attachments ? toAttachmentList(lastMessage.attachments) : [],
           },
         ]
       : [],
@@ -902,7 +904,22 @@ export async function getConversationHistory(
     },
   });
 
-  return messages.map((message) => formatMessage(message));
+  const seenStates = await prisma.cpMessageSeen.findMany({
+    where: { conversationId },
+    include: { lastSeenMessage: { select: { createdAt: true } } },
+  });
+
+  return messages.map((message) => {
+    const formatted = formatMessage(message) as any;
+    const messageTime = message.createdAt.getTime();
+    const isSeen = seenStates.some(
+      (s) =>
+        s.userId !== message.senderId &&
+        s.lastSeenMessage.createdAt.getTime() >= messageTime,
+    );
+    formatted.status = isSeen ? "seen" : "sent";
+    return formatted;
+  });
 }
 
 export async function getMessageById(messageId: string) {

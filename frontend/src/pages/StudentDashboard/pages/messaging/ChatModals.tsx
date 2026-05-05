@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Shield, UserMinus, UserPlus, Download, Copy, Check, Search } from "lucide-react";
 import UserAvatar from "./UserAvatar";
+import { apiRequest } from "@/lib/queryClient";
 import type { MsgUser, Message, PollVote, ReactionData } from "./types";
 
 /* ═══════════════════════════════════════════
@@ -16,6 +17,28 @@ export function DocumentViewerModal({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [signedPreviewUrl, setSignedPreviewUrl] = React.useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = React.useState(false);
+
+  React.useEffect(() => {
+    if (fileName && ["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(fileName.split(".").pop()?.toLowerCase() || "")) {
+      setLoadingPreview(true);
+      apiRequest('POST', '/api/messaging/attachments/preview-url', { url })
+      .then(res => res.json())
+      .then(data => {
+        if (data.previewUrl) {
+          // view.officeapps requires absolute URLs
+          const absoluteUrl = data.previewUrl.startsWith("http") ? data.previewUrl : window.location.origin + data.previewUrl;
+          setSignedPreviewUrl(absoluteUrl);
+        }
+        setLoadingPreview(false);
+      })
+      .catch((err) => {
+        console.error("Preview URL generation failed", err);
+        setLoadingPreview(false);
+      });
+    }
+  }, [url, fileName]);
   const isImage = (f: string | undefined, urlStr: string) => {
     if (!f || urlStr.includes('sharepoint.com') || urlStr.includes('1drv.ms')) return false;
     const ext = f.split(".").pop()?.toLowerCase();
@@ -25,6 +48,12 @@ export function DocumentViewerModal({
   const isPdf = (f: string | undefined, urlStr: string) => {
     if (!f || urlStr.includes('sharepoint.com') || urlStr.includes('1drv.ms')) return false;
     return f.toLowerCase().endsWith(".pdf");
+  };
+
+  const isOfficeDoc = (f: string | undefined, urlStr: string) => {
+    if (!f) return false;
+    const ext = f.split(".").pop()?.toLowerCase();
+    return ["doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext || "");
   };
 
   const isVideo = (f: string | undefined) => {
@@ -105,11 +134,11 @@ export function DocumentViewerModal({
   return (
     <div className="msg-modal-overlay" onClick={onClose}>
       <div className="msg-modal-content" onClick={(e) => e.stopPropagation()} style={{
-        maxWidth: (isImage(fileName, url) || isVideo(fileName)) ? "min(1400px, 95vw)" : 560,
+        maxWidth: (isImage(fileName, url) || isVideo(fileName)) ? "min(1400px, 95vw)" : "min(1200px, 95vw)",
         maxHeight: "95vh",
         display: "flex",
         flexDirection: "column",
-        width: (isImage(fileName, url) || isVideo(fileName)) ? "fit-content" : "560px",
+        width: (isImage(fileName, url) || isVideo(fileName)) ? "fit-content" : (isPdf(fileName, url) || isOfficeDoc(fileName, url)) ? "1000px" : "560px",
         margin: "0 auto"
       }}>
         <div className="msg-modal-header" style={{ flexShrink: 0 }}>
@@ -130,13 +159,13 @@ export function DocumentViewerModal({
             )}
             <button
               onClick={() => window.open(url, "_blank")}
-              style={{ background: "white", border: "1px solid #006BFF", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#006BFF" }}
+              style={{ background: "white", border: "1px solid #E64833", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#E64833" }}
             >
               Open in New Tab
             </button>
             <button
               onClick={handleDownload}
-              style={{ background: "#EBF3FF", border: "none", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#006BFF", textDecoration: "none" }}
+              style={{ background: "#FBE9D0", border: "none", borderRadius: 6, padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#E64833", textDecoration: "none" }}
             >
               <Download size={14} /> Download
             </button>
@@ -146,12 +175,12 @@ export function DocumentViewerModal({
         <div className="msg-modal-body" style={{
           textAlign: "center",
           padding: 0,
-          background: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName)) ? "#000" : "white",
+          background: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName) || isOfficeDoc(fileName, url)) ? "#000" : "white",
           overflow: "auto",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          minHeight: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName)) ? "82vh" : "200px"
+          minHeight: (isImage(fileName, url) || isPdf(fileName, url) || isVideo(fileName) || isOfficeDoc(fileName, url)) ? "82vh" : "200px"
         }}>
           {isImage(fileName, url) ? (
             <div style={{ padding: 12, display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
@@ -176,6 +205,21 @@ export function DocumentViewerModal({
                 style={{ maxWidth: "100%", maxHeight: "82vh", borderRadius: 4 }}
               />
             </div>
+          ) : isOfficeDoc(fileName, url) ? (
+            loadingPreview ? (
+              <div style={{ padding: 40, color: "#64748b", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ width: 24, height: 24, border: "2px solid #E64833", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: 12 }} />
+                Generating secure preview link...
+              </div>
+            ) : signedPreviewUrl ? (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedPreviewUrl)}`}
+                title={fileName}
+                style={{ width: "100%", height: "82vh", border: "none", backgroundColor: "white" }}
+              />
+            ) : (
+              <div style={{ padding: 40, color: "#ef4444" }}>Failed to generate secure preview link</div>
+            )
           ) : isPdf(fileName, url) ? (
             <iframe
               src={`${url}#view=FitH`}
@@ -187,7 +231,7 @@ export function DocumentViewerModal({
               <div
                 onClick={() => window.open(url, "_blank")}
                 style={{
-                  border: "2px dashed #006BFF33",
+                  border: "2px dashed #E6483333",
                   borderRadius: 12,
                   padding: "32px",
                   cursor: "pointer",
@@ -195,8 +239,8 @@ export function DocumentViewerModal({
                   transition: "all 0.2s"
                 }}
               >
-                <Download size={32} color="#006BFF" />
-                <div style={{ marginTop: 12, fontWeight: 700, color: "#006BFF" }}>Click here to view/download {fileName}</div>
+                <Download size={32} color="#E64833" />
+                <div style={{ marginTop: 12, fontWeight: 700, color: "#E64833" }}>Click here to view/download {fileName}</div>
               </div>
               <div style={{ marginTop: 16, fontSize: 13, color: "#94a3b8" }}>{isExternal ? "Redirecting to external storage..." : url}</div>
             </div>
@@ -248,8 +292,8 @@ export function ReactionDetailsModal({
                 padding: "5px 10px",
                 borderRadius: 16,
                 border: "none",
-                background: activeTab === tab ? "#eff6ff" : "transparent",
-                color: activeTab === tab ? "#2563eb" : "#64748b",
+                background: activeTab === tab ? "#FBE9D0" : "transparent",
+                color: activeTab === tab ? "#E64833" : "#64748b",
                 fontWeight: 500,
                 fontSize: 12,
                 cursor: "pointer",
@@ -367,7 +411,7 @@ export function MembersModal({
                 gap: 10,
                 padding: "10px 16px",
                 borderBottom: "1px solid #f3f4f6",
-                background: user.is_admin ? "#eff6ff" : "transparent",
+                background: user.is_admin ? "#FBE9D0" : "transparent",
               }}
             >
               <UserAvatar user={user} size={36} />
@@ -378,7 +422,7 @@ export function MembersModal({
                     <span style={{ fontSize: 10, color: "#6b7280" }}>(You)</span>
                   )}
                   {user.is_admin && (
-                    <span style={{ fontSize: 9, padding: "1px 5px", background: "#EBF3FF", color: "#0f172a", borderRadius: 3, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    <span style={{ fontSize: 9, padding: "1px 5px", background: "#FBE9D0", color: "#1F2937", borderRadius: 3, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
                       <Shield size={9} /> ADMIN
                     </span>
                   )}
@@ -392,7 +436,7 @@ export function MembersModal({
                       <UserMinus size={10} /> Demote
                     </button>
                   ) : (
-                    <button onClick={() => onPromote?.(user.id || user.user_id!)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #006BFF", background: "white", cursor: "pointer", fontSize: 10, color: "#006BFF", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
+                    <button onClick={() => onPromote?.(user.id || user.user_id!)} style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #E64833", background: "white", cursor: "pointer", fontSize: 10, color: "#E64833", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
                       <Shield size={10} /> Admin
                     </button>
                   )}
@@ -451,7 +495,7 @@ export function AddMemberModal({
                   <div style={{ fontWeight: 500, fontSize: 13 }}>{user.full_name || user.email}</div>
                   <div style={{ fontSize: 11, color: "#6b7280", textTransform: "capitalize" }}>{user.role}</div>
                 </div>
-                <UserPlus size={16} style={{ color: "#006BFF" }} />
+                <UserPlus size={16} style={{ color: "#E64833" }} />
               </div>
             ))
           )}
@@ -499,7 +543,7 @@ export function RenameGroupModal({
             <button
               onClick={() => name.trim() && onRename(name)}
               disabled={!name.trim()}
-              style={{ flex: 1, padding: 10, background: name.trim() ? "#EBF3FF" : "#d1d5db", color: "#0f172a", border: "none", borderRadius: 8, cursor: name.trim() ? "pointer" : "not-allowed", fontWeight: 600, fontSize: 13 }}
+              style={{ flex: 1, padding: 10, background: name.trim() ? "#FBE9D0" : "#d1d5db", color: "#1F2937", border: "none", borderRadius: 8, cursor: name.trim() ? "pointer" : "not-allowed", fontWeight: 600, fontSize: 13 }}
             >
               Rename
             </button>

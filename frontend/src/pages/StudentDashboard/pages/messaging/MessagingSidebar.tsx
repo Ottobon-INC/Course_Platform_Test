@@ -132,7 +132,9 @@ export default function MessagingSidebar({
 
         <div className="msg-conv-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0 }}>Communications</h2>
+            <h2 style={{ fontSize: 14, fontWeight: 800, color: "var(--dash-teal)", margin: 0, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              Communications
+            </h2>
           </div>
           <div className="msg-search-box">
             <Search size={16} style={{ color: "#94a3b8" }} />
@@ -180,7 +182,13 @@ export default function MessagingSidebar({
               );
 
               // Pull the latest message and timestamp from conversation_indexes or messages
-              const lastMessage = conv?.conversation_indexes?.[0]?.last_message || conv?.messages?.[0]?.content || (conv as any)?.last_message || "";
+              let lastMessage = conv?.conversation_indexes?.[0]?.last_message || conv?.messages?.[0]?.content || (conv as any)?.last_message || "";
+              if (!lastMessage && conv?.messages?.[0]?.attachments && conv.messages[0].attachments.length > 0) {
+                const att = conv.messages[0].attachments[0] as any;
+                const ext = att.file_name?.split('.').pop()?.toLowerCase() || "";
+                const isImage = att.mime_type?.startsWith('image/') || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
+                lastMessage = isImage ? "📷 Photo" : "📎 File";
+              }
               const lastMessageAt = conv?.conversation_indexes?.[0]?.last_message_at || conv?.messages?.[0]?.created_at || (conv as any)?.last_message_at || "";
               const unseenCount = conv ? (lastReadTimes as any)[conv.id] || 0 : 0;
               const isUnread = unseenCount > 0;
@@ -197,14 +205,25 @@ export default function MessagingSidebar({
                   <div className="msg-conv-info">
                     <div className="msg-conv-name">{user.full_name || user.email}</div>
                     <div className="msg-conv-preview">
-                      {!isUnread && lastMessage && (
-                        <span className="msg-seen-indicator">
-                          <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
-                            <path d="M11.071 0.929L4.5 7.5L1.929 4.929" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M14.071 0.929L7.5 7.5L6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      )}
+                      {(() => {
+                        const lastMsg = conv?.messages?.[0];
+                        const isSentByMe = lastMsg?.sender_id === currentUserId;
+                        const isSeen = lastMsg?.status === "seen" || (lastMsg?.seen_by && lastMsg.seen_by.length > 0);
+                        const isDelivered = lastMsg?.status === "delivered";
+
+                        if (!isSentByMe || !lastMsg) return null;
+
+                        return (
+                          <span className="msg-seen-indicator" style={{ color: isSeen ? "#E64833" : "inherit" }}>
+                            <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
+                              <path d="M11.071 0.929L4.5 7.5L1.929 4.929" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {(isSeen || isDelivered) && (
+                                <path d="M14.071 0.929L7.5 7.5L6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              )}
+                            </svg>
+                          </span>
+                        );
+                      })()}
                       {lastMessage || (conv ? "No messages yet" : (user.role || "Student"))}
                     </div>
                   </div>
@@ -226,7 +245,13 @@ export default function MessagingSidebar({
             filteredConversations.map((conv) => {
               const unseenCount = (lastReadTimes as any)[conv.id] || 0;
               const isUnread = unseenCount > 0;
-              const lastMessage = conv.messages?.[0]?.content || (conv as any).last_message || "";
+              let lastMessage = conv.messages?.[0]?.content || (conv as any).last_message || "";
+              if (!lastMessage && conv.messages?.[0]?.attachments && conv.messages[0].attachments.length > 0) {
+                const att = conv.messages[0].attachments[0] as any;
+                const ext = att.file_name?.split('.').pop()?.toLowerCase() || "";
+                const isImage = att.mime_type?.startsWith('image/') || ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext);
+                lastMessage = isImage ? "📷 Photo" : "📎 File";
+              }
 
               return (
                 <div key={conv.id} className={`msg-conv-item ${selectedConversation?.id === conv.id ? "active" : ""}`} onClick={() => onSelectConversation(conv)}>
@@ -242,14 +267,25 @@ export default function MessagingSidebar({
                   <div className="msg-conv-info">
                     <div className="msg-conv-name">{conv.name || "Conversation"}</div>
                     <div className="msg-conv-preview">
-                      {!isUnread && lastMessage && (
-                        <span className="msg-seen-indicator">
-                          <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
-                            <path d="M11.071 0.929L4.5 7.5L1.929 4.929" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M14.071 0.929L7.5 7.5L6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      )}
+                      {(() => {
+                        const lastMsg = conv.messages?.[0];
+                        const isSentByMe = lastMsg?.sender_id === currentUserId;
+                        const isSeen = lastMsg?.status === "seen" || (lastMsg?.seen_by && lastMsg.seen_by.length > 0);
+                        const isDelivered = lastMsg?.status === "delivered";
+
+                        if (!isSentByMe || !lastMsg) return null;
+
+                        return (
+                          <span className="msg-seen-indicator" style={{ color: isSeen ? "#E64833" : "inherit" }}>
+                            <svg width="14" height="10" viewBox="0 0 16 11" fill="none">
+                              <path d="M11.071 0.929L4.5 7.5L1.929 4.929" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {(isSeen || isDelivered) && (
+                                <path d="M14.071 0.929L7.5 7.5L6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              )}
+                            </svg>
+                          </span>
+                        );
+                      })()}
                       {lastMessage || "No messages yet"}
                     </div>
                   </div>

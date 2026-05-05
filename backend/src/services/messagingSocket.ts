@@ -150,8 +150,28 @@ export function setupMessagingSocket(io: Server): void {
           messageId,
           seenAt: new Date().toISOString(),
         });
+        socket.to(`conv:${conversationId}`).emit("status_update", {
+          messageId,
+          status: "seen",
+        });
       } catch {
         // Ignore unauthorized read-marker events.
+      }
+    });
+
+    socket.on("message_delivered", async (data: { conversationId: string; messageId: string }) => {
+      const conversationId = typeof data?.conversationId === "string" ? data.conversationId : "";
+      const messageId = typeof data?.messageId === "string" ? data.messageId : "";
+      if (!conversationId || !messageId) return;
+
+      try {
+        await messagingService.ensureConversationMembership(conversationId, userId);
+        socket.to(`conv:${conversationId}`).emit("status_update", {
+          messageId,
+          status: "delivered",
+        });
+      } catch {
+        // Ignore unauthorized events
       }
     });
 

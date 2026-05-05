@@ -131,6 +131,17 @@ export function useMessaging(selectedConversation: Conversation | null) {
         const msgs = data.messages.reverse();
         setMessages(msgs);
         
+        // Auto-mark the latest message as read when history is loaded
+        if (msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg.sender_id !== session?.userId) {
+            socketRef.current?.emit("mark_as_read", { 
+              conversationId: convId, 
+              messageId: lastMsg.id 
+            });
+          }
+        }
+        
         // Parse reactions and poll votes from history
         const loadedReactions: MessageReactions = {};
         const loadedVotes: AllPollVotes = {};
@@ -272,6 +283,11 @@ export function useMessaging(selectedConversation: Conversation | null) {
           [msg.conversation_id]: (prev[msg.conversation_id] || 0) + 1,
         }));
       }
+
+      // Automatically acknowledge delivery back to sender
+      if (msg.sender_id !== session?.userId) {
+        socket.emit("message_delivered", { conversationId: msg.conversation_id, messageId: msg.id });
+      }
       
       // Update the last message in the sidebar list
       setConversations((prev) => 
@@ -321,6 +337,16 @@ export function useMessaging(selectedConversation: Conversation | null) {
     socket.on("message_deleted", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     socket.on("message_pinned", (msg: Message) => setMessages(p => p.map(m => m.id === msg.id ? msg : m)));
     
+    socket.on("status_update", (data: { messageId: string, status: string }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === data.messageId
+            ? { ...m, status: data.status as any }
+            : m
+        )
+      );
+    });
+    
     socket.on("reactions_updated", (data: { messageId: string, reactions: any }) => {
       setMessageReactions(p => ({ ...p, [data.messageId]: data.reactions }));
     });
@@ -343,6 +369,18 @@ export function useMessaging(selectedConversation: Conversation | null) {
     if (selectedConversationId) {
       fetchHistory(selectedConversationId);
       socketRef.current?.emit("join_conversation", selectedConversationId);
+
+      // Also trigger mark_as_read for the current conversation state if available
+      const conv = conversations.find(c => c.id === selectedConversationId);
+      const lastMsgId = conv?.messages?.[0]?.id || (conv as any)?.last_message_id;
+      const lastSenderId = conv?.conversation_indexes?.[0]?.last_sender_id || (conv as any)?.last_sender_id;
+      
+      if (lastMsgId && lastSenderId && lastSenderId !== session?.userId) {
+        socketRef.current?.emit("mark_as_read", { 
+          conversationId: selectedConversationId, 
+          messageId: lastMsgId 
+        });
+      }
     }
     return () => {
       if (selectedConversationId) {
