@@ -8,7 +8,7 @@ import SuccessStep from '@/components/registration/SuccessStep'
 import CourseSelection from '@/components/registration/CourseSelection'
 import SpecificCourseSelection from '@/components/registration/SpecificCourseSelection'
 import { StudentData, Answer } from '@/types/registration'
-import { fetchOfferings } from '@/lib/registrationApi'
+import { fetchOfferings, generatePaymentCode } from '@/lib/registrationApi'
 import PaymentStep from '@/components/registration/PaymentStep'
 
 const STORAGE_KEY = 'ottolearn_reg_draft'
@@ -19,6 +19,12 @@ const toRouteSlug = (value: string): string =>
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
+
+const trimOrNull = (value?: string | null): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+};
 
 const defaultRegistrationData: StudentData = {
     offeringId: '',
@@ -118,12 +124,13 @@ function RegistrationPage() {
                 console.log(`Resolving course for slug: ${normalizedRequestedSlug}, current: ${currentSlug}`);
                 const resolveSlug = async () => {
                     try {
-                        const offeringsData = await fetchOfferings({ courseSlug: normalizedRequestedSlug });
+                        const offeringsData = await fetchOfferings({ programType });
 
                         if (offeringsData?.offerings) {
                             const matched = offeringsData.offerings.find((o) => {
-                                const offeringSlug = toRouteSlug(o.course?.slug || o.title || '')
-                                return o.isActive && o.programType === programType && offeringSlug === normalizedRequestedSlug
+                                return o.isActive && o.programType === programType && toRouteSlug(o.title || '') === normalizedRequestedSlug
+                            }) || offeringsData.offerings.find((o) => {
+                                return o.isActive && o.programType === programType && toRouteSlug(o.course?.slug || '') === normalizedRequestedSlug
                             }) || offeringsData.offerings.find((o) => o.isActive && o.programType === programType)
 
                             if (matched) {
@@ -134,15 +141,18 @@ function RegistrationPage() {
                                     programType: programType,
                                     assessmentRequired: matched.assessmentRequired,
                                     priceCents: matched.priceCents,
+                                    compareAtPriceCents: matched.compareAtPriceCents,
                                     showSlots: matched.showSlots,
                                     slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
-                                    qrImageUrl: matched.qrImageUrl ?? undefined
+                                    qrImageUrl: matched.qrImageUrl ?? undefined,
+                                    paymentMode: (matched.paymentMode as any) || 'direct',
                                 }));
 
                                 // If user is on assessment page but course doesn't require it, redirect to success/payment
                                 if (matched.assessmentRequired === false && matchAssessment) {
                                     const slug = toRouteSlug(matched.course?.slug || matched.title || '')
-                                    if (matched.priceCents > 0) {
+                                    const mode = matched.paymentMode || 'direct'
+                                    if (mode === 'direct') {
                                         setLocation(`/registration/${programType}/${slug}/payment`)
                                     } else {
                                         setLocation(`/registration/${programType}/${slug}/success`)
@@ -190,7 +200,7 @@ function RegistrationPage() {
         setLocation(`/registration/${type}`)
     }
 
-    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, routeSlug?: string, assessmentRequired?: boolean, priceCents?: number, showSlots?: boolean, slotsJson?: any, qrImageUrl?: string | null }) => {
+    const handleSpecificCourseSelect = (selection: { offeringId: string; title: string, routeSlug?: string, assessmentRequired?: boolean, priceCents?: number, compareAtPriceCents?: number, showSlots?: boolean, slotsJson?: any, qrImageUrl?: string | null, paymentMode?: string }) => {
         console.log("Course Selected:", selection);
         setRegistrationData(prev => ({
             ...prev,
@@ -198,9 +208,11 @@ function RegistrationPage() {
             specificCourse: selection.title,
             assessmentRequired: selection.assessmentRequired,
             priceCents: selection.priceCents,
+            compareAtPriceCents: selection.compareAtPriceCents,
             showSlots: selection.showSlots,
             slots: Array.isArray(selection.slotsJson) ? selection.slotsJson : [],
-            qrImageUrl: selection.qrImageUrl ?? undefined
+            qrImageUrl: selection.qrImageUrl ?? undefined,
+            paymentMode: (selection.paymentMode as any) || 'direct',
         }))
         const slug = selection.routeSlug || toRouteSlug(selection.title)
         setLocation(`/registration/${programType}/${slug}`)
@@ -210,21 +222,19 @@ function RegistrationPage() {
         // Update state first
         setRegistrationData(prev => ({ ...prev, ...data }));
         
-        // Compute navigation target using the most reliable current values
-        // programType is the constant from line 100 which is derived from URL/State
-        // Use param from URL if possible, otherwise state
         const currentProgramType = successParams?.programType || paymentParams?.programType || assessmentParams?.programType || courseParams?.programType || programTypeParams?.programType || programType || registrationData.programType;
         const currentSpecificCourse = data.specificCourse || registrationData.specificCourse;
         const slug = successParams?.courseSlug || paymentParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug || toRouteSlug(currentSpecificCourse || '');
         
-        // Try to get assessmentRequired from state or data
         const assessmentRequired = data.assessmentRequired !== undefined ? data.assessmentRequired : registrationData.assessmentRequired;
-        const priceCents = data.priceCents !== undefined ? data.priceCents : registrationData.priceCents;
+        const paymentMode = data.paymentMode || registrationData.paymentMode || 'direct';
         
         if (assessmentRequired === false) {
-            if ((priceCents || 0) > 0) {
+            // No assessment — go to payment or success based on paymentMode
+            if (paymentMode === 'direct') {
                 setLocation(`/registration/${currentProgramType}/${slug}/payment`);
             } else {
+                // email_code or none — skip in-app payment
                 setLocation(`/registration/${currentProgramType}/${slug}/success`);
             }
         } else {
@@ -232,15 +242,30 @@ function RegistrationPage() {
         }
     }
 
-    const handleAssessmentSubmit = (answers: Answer): void => {
+    const handleAssessmentSubmit = async (answers: Answer): Promise<void> => {
         setAssessmentAnswers(answers);
         const slug = successParams?.courseSlug || paymentParams?.courseSlug || assessmentParams?.courseSlug || courseParams?.courseSlug || toRouteSlug(registrationData.specificCourse || '');
         const currentProgramType = registrationData.programType || programType;
+        const paymentMode = registrationData.paymentMode || 'direct';
         
-        if ((registrationData.priceCents || 0) > 0) {
+        if (paymentMode === 'direct') {
+            // On-Demand: go to in-app payment step
             setLocation(`/registration/${currentProgramType}/${slug}/payment`);
+        } else if (paymentMode === 'email_code') {
+            // Cohort/Workshop: generate payment code, then go to success
+            try {
+                const regId = registrationData.id?.toString() || '';
+                if (regId) {
+                    const { paymentCode } = await generatePaymentCode(regId);
+                    setRegistrationData(prev => ({ ...prev, paymentCode }));
+                }
+            } catch (err) {
+                console.error('Failed to generate payment code:', err);
+            }
+            localStorage.removeItem(STORAGE_KEY);
+            setLocation(`/registration/${currentProgramType}/${slug}/success`);
         } else {
-            // Clear localStorage on success
+            // none: no payment needed
             localStorage.removeItem(STORAGE_KEY);
             setLocation(`/registration/${currentProgramType}/${slug}/success`);
         }

@@ -16,8 +16,9 @@ const courseSelect = {
   courseId: true,
   courseName: true,
   description: true,
-  priceCents: true,
-  slug: true,
+   priceCents: true,
+   compareAtPriceCents: true,
+   slug: true,
   category: true,
   level: true,
   rating: true,
@@ -32,8 +33,14 @@ const courseSelect = {
   createdAt: true,
   offerings: {
     select: {
-      programType: true,
-      programmeDetails: true,
+       programType: true,
+       priceCents: true,
+       compareAtPriceCents: true,
+       programmeDetails: true,
+       cohorts: {
+         where: { isActive: true },
+         select: { priceCents: true, compareAtPriceCents: true }
+       }
     }
   },
   tutors: {
@@ -52,11 +59,48 @@ const courseSelect = {
 
 type CourseRecord = Prisma.CourseGetPayload<{ select: typeof courseSelect }>;
 
-function mapCourse(course: CourseRecord) {
-  const priceCents = course.priceCents ?? 0;
+function mapCourse(course: CourseRecord, programType?: string) {
   const createdAt = course.createdAt instanceof Date ? course.createdAt : new Date(course.createdAt ?? Date.now());
 
+  let determinedPriceCents = 0;
+  let determinedCompareAtPriceCents = 0;
+
   const cohortOffering = course.offerings?.find(o => o.programType === "cohort");
+  const onDemandOffering = course.offerings?.find(o => o.programType === "ondemand");
+  const workshopOffering = course.offerings?.find(o => o.programType === "workshop");
+
+  if (programType) {
+    const targetOffering = course.offerings?.find(o => o.programType === programType);
+    if (targetOffering) {
+      if (programType === "cohort") {
+        const activeCohort = targetOffering.cohorts?.[0];
+        determinedPriceCents = activeCohort?.priceCents ?? targetOffering.priceCents ?? course.priceCents ?? 0;
+        determinedCompareAtPriceCents = activeCohort?.compareAtPriceCents ?? targetOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+      } else {
+        determinedPriceCents = targetOffering.priceCents ?? course.priceCents ?? 0;
+        determinedCompareAtPriceCents = targetOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+      }
+    } else {
+      determinedPriceCents = course.priceCents ?? 0;
+      determinedCompareAtPriceCents = course.compareAtPriceCents ?? 0;
+    }
+  } else {
+    // Legacy fallback behavior
+    if (cohortOffering) {
+      const activeCohort = cohortOffering.cohorts?.[0];
+      determinedPriceCents = activeCohort?.priceCents ?? cohortOffering.priceCents ?? course.priceCents ?? 0;
+      determinedCompareAtPriceCents = activeCohort?.compareAtPriceCents ?? cohortOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+    } else if (onDemandOffering) {
+      determinedPriceCents = onDemandOffering.priceCents ?? course.priceCents ?? 0;
+      determinedCompareAtPriceCents = onDemandOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+    } else if (workshopOffering) {
+      determinedPriceCents = workshopOffering.priceCents ?? course.priceCents ?? 0;
+      determinedCompareAtPriceCents = workshopOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+    } else {
+      determinedPriceCents = course.priceCents ?? 0;
+      determinedCompareAtPriceCents = course.compareAtPriceCents ?? 0;
+    }
+  }
 
   const mentorsJson = course.tutors?.map(t => {
     const nameParts = t.tutor.displayName.trim().split(" ");
@@ -77,8 +121,9 @@ function mapCourse(course: CourseRecord) {
     slug: course.slug,
     title: course.courseName,
     description: course.description,
-    price: Math.round(priceCents / 100),
-    priceCents,
+    price: Math.round(determinedPriceCents / 100),
+    priceCents: determinedPriceCents,
+    compareAtCents: determinedCompareAtPriceCents,
     category: course.category,
     level: course.level,
     rating: course.rating,
@@ -124,7 +169,7 @@ coursesRouter.get(
     });
 
     res.status(200).json({
-      courses: courses.map(mapCourse),
+      courses: courses.map(c => mapCourse(c)),
     });
   }),
 );
@@ -149,7 +194,8 @@ coursesRouter.get(
       return;
     }
 
-    res.status(200).json({ course: mapCourse(course) });
+    const programType = req.query.programType as string | undefined;
+    res.status(200).json({ course: mapCourse(course, programType) });
   }),
 );
 

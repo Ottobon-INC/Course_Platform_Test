@@ -1,6 +1,30 @@
+import { useState } from 'react'
 import { SuccessStepProps } from '@/types/registration'
 
 const SuccessStep = ({ studentData }: SuccessStepProps) => {
+    const [copied, setCopied] = useState(false)
+    const isEmailCodeFlow = studentData.paymentMode === 'email_code'
+
+    const handleCopyCode = async () => {
+        if (studentData.paymentCode) {
+            try {
+                await navigator.clipboard.writeText(studentData.paymentCode)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+            } catch {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea')
+                textarea.value = studentData.paymentCode
+                document.body.appendChild(textarea)
+                textarea.select()
+                document.execCommand('copy')
+                document.body.removeChild(textarea)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+            }
+        }
+    }
+
     return (
         <div className="animate-fadeIn">
             <div className="card max-w-2xl mx-auto text-center">
@@ -44,6 +68,8 @@ const SuccessStep = ({ studentData }: SuccessStepProps) => {
                     </p>
                 )}
 
+                {/* The payment code and instructions are intentionally omitted here as they are sent via email */}
+
                 {/* Content Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
                     {/* What Happens Next - Compact */}
@@ -54,7 +80,11 @@ const SuccessStep = ({ studentData }: SuccessStepProps) => {
                             </svg>
                             What Happens Next?
                         </h3>
-                        {studentData.programType === 'cohort' ? (
+                        {isEmailCodeFlow ? (
+                            <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                                You will be receiving the payment instructions via email with a unique code. Please check and follow the instructions carefully.
+                            </p>
+                        ) : studentData.programType === 'cohort' ? (
                             <p className="text-sm text-gray-700 leading-relaxed font-medium">
                                 Thank you for registering! You will receive the cohort details, including the schedule and access link, on your registered email shortly.
                             </p>

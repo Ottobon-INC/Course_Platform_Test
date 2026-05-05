@@ -54,6 +54,13 @@ const formatWorkshopDuration = (durationMinutes?: number | null): string => {
     return `${hours}H Workshop`;
 };
 
+const toRouteSlug = (value: string): string =>
+    value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
 const CharacteristicCard: React.FC<{ title: string; text: string }> = ({ title, text }) => (
     <div className="p-8 bg-white border border-[#90AEAD]/20 rounded-xl hover:border-[#E64833]/30 transition-colors shadow-sm">
         <h3 className="text-lg font-bold text-[#244855] mb-3">{title}</h3>
@@ -220,7 +227,7 @@ const WorkshopPage: React.FC = () => {
                             duration: formatWorkshopDuration(course.durationMinutes),
                             image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_WORKSHOP_IMAGES[index % FALLBACK_WORKSHOP_IMAGES.length],
                             description,
-                            route: "/registration/workshop",
+                            route: `/registration/workshop/${toRouteSlug(title)}`,
                         };
                     });
 
@@ -397,12 +404,12 @@ const WorkshopPage: React.FC = () => {
                             {workshopsError}
                         </div>
                     ) : filteredUpcomingWorkshops.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {filteredUpcomingWorkshops.map((workshop, i) => (
-                                <div key={workshop.id || i} className="group bg-white rounded-[1.5rem] border border-[#90AEAD]/20 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-[transform,shadow] duration-300 flex flex-col h-full ring-1 ring-[#90AEAD]/10 overflow-hidden transform-gpu">
+                                <div key={workshop.id || i} className="group bg-white rounded-[1.5rem] border border-slate-200 shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ring-1 ring-slate-100/50 overflow-hidden">
                                     {/* Image & Content */}
                                     <div className="relative h-[220px] flex-shrink-0 overflow-hidden">
-                                        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/70 to-transparent z-10" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-[#1A1C2E] via-[#1A1C2E]/80 to-transparent z-10" />
                                         <img
                                             src={workshop.image}
                                             alt={workshop.title}
@@ -411,16 +418,16 @@ const WorkshopPage: React.FC = () => {
                                         <div className="absolute inset-0 z-20 p-6 flex flex-col justify-end">
                                             <div className="mb-3">
                                                 <span className={`px-2.5 py-0.5 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider rounded-md border ${workshop.duration.includes('2H')
-                                                    ? 'bg-blue-50/80 text-blue-700 border-blue-100'
-                                                    : 'bg-orange-50/80 text-orange-700 border-orange-100'
+                                                    ? 'bg-white/20 text-white border-white/20'
+                                                    : 'bg-white/20 text-white border-white/20'
                                                     }`}>
                                                     {workshop.duration}
                                                 </span>
                                             </div>
-                                            <h3 className="text-lg font-bold text-[#244855] mb-2 leading-tight">
+                                            <h3 className="text-lg font-bold text-white mb-2 leading-tight">
                                                 {workshop.title}
                                             </h3>
-                                            <p className="text-[#244855]/70 text-xs leading-relaxed line-clamp-2">
+                                            <p className="text-slate-200 text-xs leading-relaxed line-clamp-2">
                                                 {workshop.description}
                                             </p>
                                         </div>
@@ -431,10 +438,10 @@ const WorkshopPage: React.FC = () => {
                                         <div className="mt-auto">
                                             <button
                                                 onClick={() => setLocation(workshop.route)}
-                                                className="w-full px-6 py-3 bg-[#E64833] hover:bg-[#D53F2B] text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                                className="w-full px-6 py-3 bg-[#1A1C2E] group-hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
                                             >
-                                                View Workshop
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                Register Now
+                                                <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>
                                             </button>

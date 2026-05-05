@@ -22,9 +22,12 @@ export interface StudentData {
     assessmentRequired?: boolean // Added
     applicationRequired?: boolean // Added
     priceCents?: number // Added
+    compareAtPriceCents?: number // Added
     showSlots?: boolean // Added
     slots?: any[]       // Added
     qrImageUrl?: string // Added
+    paymentMode?: 'direct' | 'email_code' | 'none' // Added
+    paymentCode?: string // Added
 }
 
 export interface RegistrationFormData {
@@ -126,11 +129,13 @@ export interface CourseOffering {
     programType: 'cohort' | 'ondemand' | 'workshop';
     isActive: boolean;
     priceCents: number;
+    compareAtPriceCents?: number; // Added
     assessmentRequired: boolean;
     applicationRequired: boolean;
     showSlots: boolean;
     slotsJson: any; // Changed from slotsJson?: any;
     qrImageUrl?: string | null;
+    paymentMode?: string;
     course: {
         courseId: string;
         courseName: string;
