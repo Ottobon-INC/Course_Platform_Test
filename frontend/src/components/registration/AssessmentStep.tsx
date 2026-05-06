@@ -128,15 +128,27 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                 sessionTime: studentData.sessionTime || null,
                 mode: studentData.mode || null,
                 referredBy: studentData.referredBy || null,
-                status: "assessed",
+                status: "pending",
                 answersJson: answers,
                 questionsSnapshot: questions,
                 assessmentSubmittedAt: new Date().toISOString(),
                 durationSeconds,
                 plan: studentData.plan || null,
+                cohortId: studentData.cohortId || null,
             }
 
-            await submitRegistration(payload)
+            const response = await submitRegistration(payload)
+            const registrationId = response?.registration?.registrationId
+            const responsePaymentMode = response?.registration?.paymentMode
+
+            // Pass registration info back so parent can generate payment code if needed
+            if (registrationId) {
+                // Store registrationId in studentData for use by parent
+                studentData.id = registrationId
+                if (responsePaymentMode) {
+                    studentData.paymentMode = responsePaymentMode
+                }
+            }
             onSubmit(answers)
         } catch (error) {
             console.error('Submission error:', error)
@@ -415,7 +427,7 @@ const AssessmentStep = ({ onSubmit, studentData }: AssessmentStepProps) => {
                         </svg>
                         Previous
                     </button>
-
+ 
                     {/* Next OR Submit */}
                     {isLastQuestion ? (
                         <button

@@ -12,6 +12,8 @@ interface SpecificCourseSelectionProps {
         showSlots?: boolean;
         slotsJson?: any;
         qrImageUrl?: string | null;
+        paymentMode?: string;
+        cohorts?: any[];
     }) => void
     onBack: () => void
     courseSlug?: string
@@ -27,6 +29,8 @@ type OfferingCard = {
     showSlots?: boolean
     slotsJson?: any
     qrImageUrl?: string | null
+    paymentMode?: string
+    cohorts?: any[]
     disabled?: boolean
 }
 
@@ -53,7 +57,9 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                         applicationRequired: o.applicationRequired ?? false,
                         showSlots: o.showSlots ?? true,
                         slotsJson: o.slotsJson,
-                        qrImageUrl: o.qrImageUrl ?? null
+                        qrImageUrl: o.qrImageUrl ?? null,
+                        paymentMode: o.paymentMode ?? 'direct',
+                        cohorts: o.cohorts || []
                     }))
                 setOfferings(filtered)
             } catch (error) {
@@ -77,7 +83,9 @@ const SpecificCourseSelection = ({ programType, onSelect, onBack, courseSlug = '
                 priceCents: selected.priceCents,
                 showSlots: selected.showSlots,
                 slotsJson: selected.slotsJson,
-                qrImageUrl: selected.qrImageUrl
+                qrImageUrl: selected.qrImageUrl,
+                paymentMode: selected.paymentMode,
+                cohorts: selected.cohorts
             })
         }
     }

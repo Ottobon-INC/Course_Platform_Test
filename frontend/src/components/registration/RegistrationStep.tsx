@@ -18,7 +18,7 @@ const PROFILE_OPTIONS = [
     { value: "general", label: "General" },
 ] as const;
 
-const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], showSlots = true, assessmentRequired = true }: RegistrationStepProps & { slots?: any[], showSlots?: boolean, assessmentRequired?: boolean }) => {
+const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], cohorts = [], showSlots = true, assessmentRequired = true }: RegistrationStepProps & { slots?: any[], cohorts?: any[], showSlots?: boolean, assessmentRequired?: boolean }) => {
     const session = readStoredSession();
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
@@ -41,6 +41,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         referredBy: "",
         programType: programType,
         plan: "",
+        cohortId: "",
     });
 
     useEffect(() => {
@@ -242,12 +243,29 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         }
 
         if (name === "selectedSlot") {
-            const slot = slots.find((s: any) => s.name === value);
-            setFormData(prev => ({
-                ...prev,
-                selectedSlot: value,
-                sessionTime: slot?.time || ""
-            }));
+            if (programType === "cohort") {
+                const cohort = cohorts.find((c: any) => c.cohortId === value);
+                const dateStr = cohort?.startsAt ? new Date(cohort.startsAt).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                }) : "";
+                
+                setFormData(prev => ({
+                    ...prev,
+                    selectedSlot: dateStr,
+                    cohortId: value,
+                    plan: cohort?.priceCents ? (cohort.priceCents / 100).toString() : prev.plan
+                }));
+            } else {
+                const slot = slots.find((s: any) => s.name === value);
+                setFormData(prev => ({
+                    ...prev,
+                    selectedSlot: value,
+                    sessionTime: slot?.time || ""
+                }));
+            }
+
             if (errors.selectedSlot) {
                 setErrors(prev => ({ ...prev, selectedSlot: "" }));
             }
@@ -312,7 +330,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
             selectedSlot: programType === "cohort" || programType === "workshop",
             sessionTime: programType === "cohort" || programType === "workshop",
             mode: programType === "cohort" || programType === "workshop",
-            plan: programType === "workshop",
+            plan: programType === "workshop" || programType === "cohort",
         });
 
         if (!validateForm()) {
@@ -355,12 +373,15 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 sessionTime: (programType === "cohort" || programType === "workshop") ? formData.sessionTime : null,
                 mode: (programType === "cohort" || programType === "workshop") ? formData.mode : null,
                 referredBy: formData.referredBy || null,
-                plan: programType === "workshop" ? formData.plan : null,
+                plan: (programType === "workshop" || programType === "cohort") ? formData.plan : null,
+                cohortId: programType === "cohort" ? formData.cohortId : null,
+                status: "pending",
             };
 
             const response = await submitRegistration(payload);
             const registrationId =
                 response?.registration?.registrationId ?? `local-${Date.now()}`;
+            const responsePaymentMode = response?.registration?.paymentMode;
 
             onSubmit({
                 ...formData,
@@ -372,6 +393,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                     formData.yearOfPassing === "Other" ? formData.otherYearOfPassing : "",
                 branch: resolvedBranch ?? "",
                 otherBranch: formData.branch === "Other" ? formData.otherBranch : "",
+                ...(responsePaymentMode ? { paymentMode: responsePaymentMode } : {}),
             });
         } catch (error) {
             console.error("Error submitting registration:", error);
@@ -398,6 +420,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         <div className="animate-fadeIn">
             <div className="card max-w-4xl mx-auto">
                 <div className="mb-8">
+                    {/* Change Course button removed as users arrive directly from CDP
                     {onBack && (
                         <button
                             onClick={(e) => {
@@ -422,6 +445,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                             Change Course
                         </button>
                     )}
+                    */}
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                         {getProgramTitle()}
                     </h2>
@@ -702,7 +726,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                         </div>
                     )}
 
-                    {(programType === "cohort" || programType === "workshop") && showSlots && slots.length > 0 && (
+                    {(programType === "cohort" || programType === "workshop") && showSlots && (programType === "cohort" ? cohorts.length > 0 : slots.length > 0) && (
                         <>
                             <div>
                                 <label htmlFor="selectedSlot" className="label">
@@ -712,7 +736,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                 <select
                                     id="selectedSlot"
                                     name="selectedSlot"
-                                    value={formData.selectedSlot}
+                                    value={programType === "cohort" ? (formData as any).cohortId : formData.selectedSlot}
                                     onChange={handleChange}
                                     onBlur={handleBlur}
                                     className={`input-field ${touched.selectedSlot && errors.selectedSlot
@@ -721,11 +745,23 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                         }`}
                                 >
                                     <option value="">Select your preferred date/slot</option>
-                                    {slots.map((slot: any) => (
-                                        <option key={slot.id} value={slot.name}>
-                                            {slot.name} {slot.time ? `(${slot.time})` : ""}
-                                        </option>
-                                    ))}
+                                    {programType === "cohort" ? (
+                                        cohorts.map((cohort: any) => (
+                                            <option key={cohort.cohortId} value={cohort.cohortId}>
+                                                {new Date(cohort.startsAt).toLocaleDateString('en-IN', {
+                                                    day: 'numeric',
+                                                    month: 'long',
+                                                    year: 'numeric'
+                                                })}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        slots.map((slot: any) => (
+                                            <option key={slot.id} value={slot.name}>
+                                                {slot.name} {slot.time ? `(${slot.time})` : ""}
+                                            </option>
+                                        ))
+                                    )}
                                 </select>
                                 {touched.selectedSlot && errors.selectedSlot && (
                                     <p className="error-text">{errors.selectedSlot}</p>
@@ -761,7 +797,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                         </>
                     )}
 
-                    {programType === "workshop" && (
+                    {(programType === "workshop" || programType === "cohort") && (
                         <div>
                             <label className="label">
                                 Course Price <span className="text-gray-400 font-normal ml-1">(Automatic)</span>
@@ -771,7 +807,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                     One-time payment
                                 </span>
                                 <span className="text-orange-600 font-black text-xl">
-                                    ₹{priceCents !== undefined ? priceCents / 100 : '---'}
+                                    ₹{formData.plan !== "" ? formData.plan : (priceCents !== undefined ? priceCents / 100 : '---')}
                                 </span>
                             </div>
                             <input type="hidden" name="plan" value={formData.plan} />

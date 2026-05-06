@@ -4,6 +4,7 @@ import { verifyAccessToken } from "../services/sessionService";
 import { resolveCourseId } from "../services/courseResolutionService";
 import multer from "multer";
 import { supabase } from "../services/supabase";
+import { generateUniquePaymentCode } from "../utils/paymentCode";
 
 export const registrationsRouter = express.Router();
 
@@ -70,16 +71,57 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
       }
     }
 
-    const offerings = await prisma.courseOffering.findMany({
+    const rawOfferings = await prisma.courseOffering.findMany({
       where: {
         ...(resolvedCourseId ? { courseId: resolvedCourseId } : {}),
         isActive: true,
         ...(programType ? { programType: programType as any } : {}),
       },
       include: {
-        course: true
+        course: true,
+        cohorts: {
+          where: { isActive: true },
+          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+        }
       },
       orderBy: { createdAt: "asc" },
+    });
+
+    const offerings = rawOfferings.map((offering) => {
+      let determinedPriceCents = offering.priceCents;
+      let determinedCompareAtPriceCents = offering.compareAtPriceCents;
+      
+      if (offering.programType === "cohort") {
+        const activeCohort = offering.cohorts?.[0];
+        if (activeCohort && activeCohort.priceCents != null) {
+          determinedPriceCents = activeCohort.priceCents;
+          determinedCompareAtPriceCents = activeCohort.compareAtPriceCents ?? offering.compareAtPriceCents;
+        } else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+          determinedPriceCents = offering.course.priceCents;
+          determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+        }
+      } else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+        determinedPriceCents = offering.course.priceCents;
+        determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+      }
+
+      return {
+        offeringId: offering.offeringId,
+        courseId: offering.courseId,
+        title: offering.title,
+        programType: offering.programType,
+        priceCents: determinedPriceCents,
+        compareAtPriceCents: determinedCompareAtPriceCents,
+        isActive: offering.isActive,
+        assessmentRequired: offering.assessmentRequired,
+        showSlots: offering.showSlots,
+        slotsJson: offering.slotsJson,
+        qrImageUrl: offering.qrImageUrl,
+        paymentMode: offering.paymentMode,
+        programmeDetails: offering.programmeDetails,
+        course: offering.course,
+        cohorts: offering.cohorts || [],
+      };
     });
 
     return res.json({ offerings });
@@ -144,6 +186,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       questionsSnapshot,
       assessmentSubmittedAt,
       plan,
+      cohortId,
     } = req.body ?? {};
     const authUserId = getOptionalAuthUserId(req);
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
@@ -177,18 +220,18 @@ registrationsRouter.post("/", async (req, res, next) => {
         select: { userId: true, email: true },
       });
 
-      if (!authUser) {
-        return res.status(401).json({ error: "Authenticated user not found" });
+      if (authUser) {
+        if (normalizeEmail(authUser.email) !== normalizedEmail) {
+          return res.status(400).json({
+            error: "Authenticated account email does not match registration email",
+          });
+        }
+        resolvedUserId = authUser.userId;
       }
+      // If authUserId was provided but user record wasn't found, we'll fall back to email lookup
+    }
 
-      if (normalizeEmail(authUser.email) !== normalizedEmail) {
-        return res.status(400).json({
-          error: "Authenticated account email does not match registration email",
-        });
-      }
-
-      resolvedUserId = authUser.userId;
-    } else {
+    if (!resolvedUserId) {
       const matchedUser = await prisma.user.findFirst({
         where: {
           email: {
@@ -211,6 +254,10 @@ registrationsRouter.post("/", async (req, res, next) => {
       },
     });
 
+    if (existing && ["paid", "completed", "enrolled"].includes(existing.status)) {
+      return res.status(400).json({ error: "You have already registered and paid for this course." });
+    }
+
     const payload = {
       offeringId,
       userId: resolvedUserId,
@@ -221,15 +268,16 @@ registrationsRouter.post("/", async (req, res, next) => {
       collegeName: resolvedIsCollegeStudent ? collegeName : null,
       yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
       branch: resolvedIsCollegeStudent ? branch : null,
-      referredBy: referredBy || null,
-      selectedSlot: selectedSlot || null,
-      sessionTime: sessionTime || null,
-      mode: mode || null,
-      status: status || "new",
-      answersJson: answersJson || null,
-      questionsSnapshot: questionsSnapshot || null,
-      assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : null,
-      plan: plan || null,
+      referredBy: referredBy || (existing?.referredBy) || null,
+      selectedSlot: selectedSlot || (existing?.selectedSlot) || null,
+      sessionTime: sessionTime || (existing?.sessionTime) || null,
+      mode: mode || (existing?.mode) || null,
+      status: status || (existing ? existing.status : "pending"),
+      answersJson: answersJson || (existing?.answersJson) || null,
+      questionsSnapshot: questionsSnapshot || (existing?.questionsSnapshot) || null,
+      assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : (existing?.assessmentSubmittedAt),
+      plan: plan || (existing?.plan) || null,
+      cohortId: cohortId || (existing?.cohortId) || null,
     };
 
     const registration = existing
@@ -239,12 +287,67 @@ registrationsRouter.post("/", async (req, res, next) => {
       })
       : await prisma.registration.create({ data: payload });
 
-    return res.status(existing ? 200 : 201).json({ registration });
+    // Enrich response with paymentMode so frontend knows which flow to use
+    const enrichedRegistration = {
+      ...registration,
+      paymentMode: offering.paymentMode,
+      qrImageUrl: offering.qrImageUrl,
+      priceCents: offering.priceCents,
+    };
+
+    return res.status(existing ? 200 : 201).json({ registration: enrichedRegistration });
   } catch (error: any) {
     return next(error);
   }
 });
 
+// ─── Generate Unique Payment Code (for email_code flow) ───
+registrationsRouter.post("/:id/generate-payment-code", async (req, res, next) => {
+  try {
+    const registrationId = req.params.id;
+
+    const registration = await prisma.registration.findUnique({
+      where: { registrationId },
+      include: { offering: true },
+    });
+
+    if (!registration) {
+      return res.status(404).json({ error: "Registration not found" });
+    }
+
+    // If code already exists, return it (idempotent)
+    if (registration.paymentCode) {
+      return res.status(200).json({
+        paymentCode: registration.paymentCode,
+        alreadyGenerated: true,
+      });
+    }
+
+    // Generate unique code
+    const paymentCode = await generateUniquePaymentCode();
+
+    // Store on registration
+    await prisma.registration.update({
+      where: { registrationId },
+      data: {
+        paymentCode,
+        status: "pending",
+      },
+    });
+
+    // The code is successfully generated and stored. 
+    // Email sending is deferred to the admin dashboard.
+
+    return res.status(200).json({
+      paymentCode,
+      alreadyGenerated: false,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// ─── Direct Payment (screenshot upload for On-Demand flow) ───
 registrationsRouter.post("/:id/payment", upload.single("screenshot"), async (req, res, next) => {
   try {
     const registrationId = req.params.id;

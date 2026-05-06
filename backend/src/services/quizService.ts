@@ -604,13 +604,14 @@ export async function fetchQuestionsForQuiz(params: {
   topicPairIndex?: number;
   limit?: number;
 }) {
-  let assessmentId = params.assessmentId;
+  let assessmentId: string | undefined | null = params.assessmentId;
   if (!assessmentId && params.moduleNo && params.topicPairIndex) {
-    assessmentId = await resolveAssessmentIdFromLegacy({
+    const resolvedAssessmentId = await resolveAssessmentIdFromLegacy({
       courseId: params.courseId,
       moduleNo: params.moduleNo,
       topicPairIndex: params.topicPairIndex,
     });
+    assessmentId = resolvedAssessmentId ?? undefined;
   }
 
   if (!assessmentId) return [];
@@ -644,13 +645,14 @@ export async function createAttempt(params: {
 }> {
   await ensureUserExists(params.userId);
 
-  let assessmentId = params.assessmentId;
+  let assessmentId: string | undefined | null = params.assessmentId;
   if (!assessmentId && params.moduleNo && params.topicPairIndex) {
-    assessmentId = await resolveAssessmentIdFromLegacy({
+    const resolvedAssessmentId = await resolveAssessmentIdFromLegacy({
       courseId: params.courseId,
       moduleNo: params.moduleNo,
       topicPairIndex: params.topicPairIndex,
     });
+    assessmentId = resolvedAssessmentId ?? undefined;
   }
 
   if (!assessmentId) {

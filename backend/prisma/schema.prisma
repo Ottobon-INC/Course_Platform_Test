@@ -135,6 +135,7 @@ model Course {
   companiesJson    Json?   @map("companies_json")
   overviewBullets  Json?   @map("overview_bullets")
   syllabusUrl      String? @map("syllabus_url")
+  compareAtPriceCents Int? @map("compare_at_price_cents")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   cartLines   CartLine[]
@@ -173,7 +174,9 @@ model CourseOffering {
   slotsJson           Json?        @map("slots_json")
   showSlots           Boolean      @default(true) @map("show_slots")
   qrImageUrl          String?      @map("qr_image_url")
+  paymentMode         String       @default("direct") @map("payment_mode")
   programmeDetails    Json?        @map("programme_details")
+  compareAtPriceCents Int?         @map("compare_at_price_cents")
   createdAt           DateTime     @default(now()) @map("created_at")
   updatedAt           DateTime     @default(now()) @updatedAt @map("updated_at")
   course              Course       @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
@@ -204,10 +207,12 @@ model Registration {
   sessionTime           String?        @map("session_time")
   mode                  String?        @map("mode")
   plan                  String?        @map("plan")
-  status                String         @default("new") @map("status")
+  status                String         @default("pending") @map("status")
   answersJson           Json?          @map("answers_json")
   questionsSnapshot     Json?          @map("questions_snapshot")
   assessmentSubmittedAt DateTime?      @map("assessment_submitted_at")
+  paymentCode           String?        @unique @map("payment_code")
+  paymentEmailSentAt    DateTime?      @map("payment_email_sent_at")
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
   offering              CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
@@ -231,7 +236,8 @@ model CoursePayment {
   
   // Payment Details
   transactionId  String      @map("transaction_id")
-  screenshotUrl  String      @map("screenshot_url")
+  screenshotUrl  String?     @map("screenshot_url")
+  paymentCode    String?     @map("payment_code")
   status         String      @default("pending") @map("status") // pending, verified, rejected
   amountCents    Int?        @map("amount_cents")
   
@@ -278,6 +284,8 @@ model Cohort {
   isActive  Boolean       @default(true) @map("is_active")
   startsAt  DateTime?     @map("starts_at")
   endsAt    DateTime?     @map("ends_at")
+  priceCents Int?         @map("price_cents")
+  compareAtPriceCents Int? @map("compare_at_price_cents")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
   offering  CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
