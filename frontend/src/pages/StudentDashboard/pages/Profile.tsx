@@ -4,11 +4,11 @@ import { useProfile } from '../hooks/useProfile';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
 import { logoutAndRedirect } from '@/utils/session';
-
+import { useTheme } from '@/contexts/ThemeContext';
 
 export function Profile() {
   const { data, isLoading, updateProfile, isUpdating, updatePhoto, isUploading } = useProfile();
-
+  const { theme } = useTheme();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,7 +34,7 @@ export function Profile() {
       await updateProfile({
         phone,
         skills,
-
+        theme,
         language
       });
       toast({
