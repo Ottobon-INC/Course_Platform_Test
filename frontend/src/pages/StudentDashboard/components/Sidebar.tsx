@@ -6,6 +6,7 @@ import {
   Users, 
   CheckSquare, 
   Trophy, 
+  Video,
   MessageSquare, 
   Award, 
   LogOut 
@@ -18,6 +19,7 @@ export function Sidebar() {
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/student-dashboard' },
     { icon: BookOpen, label: 'My Courses', path: '/my-courses' },
+    { icon: Video, label: 'Live Sessions', path: '/live-sessions' },
     { icon: CheckSquare, label: 'Assignments', path: '/assignments' },
     { icon: Trophy, label: 'Leaderboard', path: '/leaderboard' },
     { icon: MessageSquare, label: 'Messages', path: '/messages' },

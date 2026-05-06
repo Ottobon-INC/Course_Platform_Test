@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
 import { useLeaderboardData } from '../hooks/useLeaderboardData';
-import { SessionRecordings } from './SessionRecordings';
 
 export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { data, isLoading, error } = useCohortData();
@@ -363,8 +362,6 @@ function ActiveCohortCard({ cohort }: { cohort: ActiveCohort }) {
         </div>
       </div>
 
-      {/* Session Recordings Gallery */}
-      <SessionRecordings />
 
       {/* Project Details Modal */}
       {showProjectModal && hasProject && project && (

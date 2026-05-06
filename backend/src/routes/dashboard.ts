@@ -178,6 +178,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         where: {
           cohortId: { not: null },
           offering: { programType: "cohort" },
+          status: "verified",
           OR: [
             { userId: auth.userId },
             { email: { equals: user.email, mode: "insensitive" } },
@@ -382,7 +383,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     });
 
     const cohorts = cohortsList.filter(c => c.status !== 'Completed');
-    const onDemand = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
+    const onDemand: DashboardSummary["onDemand"] = []; // Since everything is now in cohorts, onDemand is handled via cohort status/type if needed
 
     const workshopRegistrations = await prisma.registration.findMany({
       where: {

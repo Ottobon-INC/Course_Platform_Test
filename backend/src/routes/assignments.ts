@@ -14,7 +14,7 @@ export const assignmentsRouter = express.Router();
  * Proxy route to stream SharePoint/OneDrive content for assignments
  * Replicates the messaging module's attachment proxy workflow
  */
-assignmentsRouter.get("/attachments/:driveItemId/content", requireAuth, async (req, res) => {
+assignmentsRouter.get("/attachments/:driveItemId/content", async (req, res) => {
   try {
     const { driveItemId } = req.params;
     const { buffer, mimeType } = await getOneDriveContent(driveItemId);

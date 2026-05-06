@@ -4,9 +4,11 @@ import { useProfile } from '../hooks/useProfile';
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from 'lucide-react';
 import { logoutAndRedirect } from '@/utils/session';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export function Profile() {
   const { data, isLoading, updateProfile, isUpdating, updatePhoto, isUploading } = useProfile();
+  const { theme } = useTheme();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -15,7 +17,6 @@ export function Profile() {
   const [phone, setPhone] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [language, setLanguage] = useState('English');
 
   useEffect(() => {
@@ -24,7 +25,6 @@ export function Profile() {
       setEmail(data.user.email);
       setPhone(data.user.phone || '');
       setSkills(data.user.skills || []);
-      setTheme(data.user.theme as 'light' | 'dark' || 'dark');
       setLanguage(data.user.language || 'English');
     }
   }, [data]);
@@ -116,31 +116,31 @@ export function Profile() {
             <div className="flex flex-col md:flex-row gap-6 mb-6">
               <div className="flex flex-col items-center flex-shrink-0">
                 <div className="relative group">
-                  <img 
-                    src={data?.user.profilePhotoUrl || avatarImage} 
-                    alt={fullName} 
-                    className="w-[80px] h-[80px] rounded-full object-cover border-4 border-gray-50 shadow-sm" 
+                  <img
+                    src={data?.user.profilePhotoUrl || avatarImage}
+                    alt={fullName}
+                    className="w-[80px] h-[80px] rounded-full object-cover border-4 border-gray-50 shadow-sm"
                   />
                   {isUploading && (
                     <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-white" />
                     </div>
                   )}
-                  <div 
+                  <div
                     onClick={() => fileInputRef.current?.click()}
                     className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     <i className="fas fa-camera text-white"></i>
                   </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
                     onChange={handlePhotoChange}
                   />
                 </div>
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="bg-gray-800 text-white text-[0.65rem] font-bold rounded-lg px-3 py-1.5 mt-3 hover:bg-black transition-colors uppercase tracking-wider"
                 >
@@ -180,7 +180,7 @@ export function Profile() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleSaveChanges}
               disabled={isUpdating}
               className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white font-extrabold rounded-xl py-3.5 text-sm transition-all transform hover:-translate-y-0.5 shadow-md flex items-center justify-center gap-2"
@@ -189,8 +189,11 @@ export function Profile() {
               Save Changes
             </button>
           </div>
+        </div>
 
-          {/* Card 2 — Learning Preferences */}
+        {/* COLUMN 2 — Preferences & Account */}
+        <div className="flex flex-col gap-6">
+          {/* Card 1 — Learning Preferences */}
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-4 px-0.5">Learning Preferences</label>
             <div className="flex flex-wrap gap-2 mb-5">
@@ -216,39 +219,13 @@ export function Profile() {
               <i className="fas fa-plus absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 text-xs group-hover:text-orange-primary transition-colors"></i>
             </div>
           </div>
-        </div>
-
-        {/* COLUMN 2 — System & Account */}
-        <div className="flex flex-col gap-6">
-          {/* Card 1 — System Preferences */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-            <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-6 px-0.5">System Preferences</label>
-
-            <div className="flex items-center justify-between">
-              <span className="text-[0.85rem] font-bold text-gray-600">Theme mode</span>
-              <div className="bg-gray-100 p-1.5 rounded-2xl flex items-center gap-1 shadow-inner">
-                <button
-                  onClick={() => setTheme('light')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-[0.7rem] font-extrabold transition-all ${theme === 'light' ? 'bg-white text-dark-text shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  <i className="fas fa-sun text-[0.6rem]"></i> Light
-                </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-[0.7rem] font-extrabold transition-all ${theme === 'dark' ? 'bg-gray-800 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                  <i className="fas fa-moon text-[0.6rem]"></i> Dark
-                </button>
-              </div>
-            </div>
-          </div>
 
           {/* Card 2 — Account Actions */}
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <label className="block text-[0.7rem] text-gray-400 font-extrabold uppercase tracking-widest mb-6 px-0.5">Account Actions</label>
 
             <div className="flex flex-col gap-3">
-              <button 
+              <button
                 onClick={() => logoutAndRedirect('/')}
                 className="w-full bg-red-50 text-[#F87171] border border-red-100 rounded-xl py-3 text-sm font-bold transition-all hover:bg-red-100 flex items-center justify-center gap-2"
               >
