@@ -129,6 +129,8 @@ function RegistrationPage() {
 
                         if (offeringsData?.offerings) {
                             const matched = offeringsData.offerings.find((o) => {
+                                return o.isActive && o.programType === programType && o.offeringId === requestedSlug
+                            }) || offeringsData.offerings.find((o) => {
                                 return o.isActive && o.programType === programType && toRouteSlug(o.title || '') === normalizedRequestedSlug
                             }) || offeringsData.offerings.find((o) => {
                                 return o.isActive && o.programType === programType && toRouteSlug(o.course?.slug || '') === normalizedRequestedSlug

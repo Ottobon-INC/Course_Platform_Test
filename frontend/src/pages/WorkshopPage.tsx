@@ -227,7 +227,7 @@ const WorkshopPage: React.FC = () => {
                             duration: formatWorkshopDuration(course.durationMinutes),
                             image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_WORKSHOP_IMAGES[index % FALLBACK_WORKSHOP_IMAGES.length],
                             description,
-                            route: `/registration/workshop/${toRouteSlug(title)}`,
+                            route: `/workshop/${toRouteSlug(title)}`,
                         };
                     });
 
@@ -440,7 +440,7 @@ const WorkshopPage: React.FC = () => {
                                                 onClick={() => setLocation(workshop.route)}
                                                 className="w-full px-6 py-3 bg-[#1A1C2E] group-hover:bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2"
                                             >
-                                                Register Now
+                                                View Details
                                                 <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                                                 </svg>

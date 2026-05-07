@@ -130,6 +130,104 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
   }
 });
 
+registrationsRouter.get("/offerings/:id", async (req, res, next) => {
+  try {
+    const idOrSlug = req.params.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    let offeringId: string | null = null;
+
+    if (uuidRegex.test(idOrSlug)) {
+      offeringId = idOrSlug;
+    } else {
+      // Try to resolve as course slug first
+      const resolvedCourseId = await resolveCourseId(idOrSlug);
+      if (resolvedCourseId) {
+        const off = await prisma.courseOffering.findFirst({
+          where: { courseId: resolvedCourseId, programType: "workshop", isActive: true },
+          select: { offeringId: true }
+        });
+        offeringId = off?.offeringId ?? null;
+      }
+      
+      // If still not found, try to resolve by slugifying active workshop titles
+      if (!offeringId) {
+        const activeWorkshops = await prisma.courseOffering.findMany({
+          where: { programType: "workshop", isActive: true },
+          select: { offeringId: true, title: true }
+        });
+        
+        const toRouteSlug = (value: string): string =>
+          value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+          
+        const matched = activeWorkshops.find(w => w.title && toRouteSlug(w.title) === idOrSlug);
+        if (matched) {
+          offeringId = matched.offeringId;
+        }
+      }
+    }
+
+    if (!offeringId) {
+      return res.status(404).json({ error: "Offering not found" });
+    }
+
+    const offering = await prisma.courseOffering.findUnique({
+      where: { offeringId },
+      include: {
+        course: true,
+        cohorts: {
+          where: { isActive: true },
+          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+        }
+      }
+    });
+
+    if (!offering) {
+      return res.status(404).json({ error: "Offering not found" });
+    }
+
+    let determinedPriceCents = offering.priceCents;
+    let determinedCompareAtPriceCents = offering.compareAtPriceCents;
+    
+    if (offering.programType === "cohort") {
+      const activeCohort = offering.cohorts?.[0];
+      if (activeCohort && activeCohort.priceCents != null) {
+        determinedPriceCents = activeCohort.priceCents;
+        determinedCompareAtPriceCents = activeCohort.compareAtPriceCents ?? offering.compareAtPriceCents;
+      } else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+        determinedPriceCents = offering.course.priceCents;
+        determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+      }
+    } else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+      determinedPriceCents = offering.course.priceCents;
+      determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+    }
+
+    return res.json({ 
+      offering: {
+        offeringId: offering.offeringId,
+        courseId: offering.courseId,
+        title: offering.title,
+        description: offering.description,
+        programType: offering.programType,
+        priceCents: determinedPriceCents,
+        compareAtPriceCents: determinedCompareAtPriceCents,
+        isActive: offering.isActive,
+        assessmentRequired: offering.assessmentRequired,
+        showSlots: offering.showSlots,
+        slotsJson: offering.slotsJson,
+        qrImageUrl: offering.qrImageUrl,
+        paymentMode: offering.paymentMode,
+        programmeDetails: offering.programmeDetails,
+        course: offering.course,
+        cohorts: offering.cohorts || [],
+      }
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 registrationsRouter.get("/assessment-questions", async (req, res, next) => {
   try {
     const offeringId = typeof req.query.offeringId === "string" ? req.query.offeringId : undefined;

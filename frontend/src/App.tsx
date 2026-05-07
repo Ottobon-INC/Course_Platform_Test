@@ -24,6 +24,7 @@ import CourseDetailsPage from "@/pages/CourseDetailsPage";
 import CohortPage from "@/pages/CohortPage";
 import OnDemandPage from "@/pages/OnDemandPage";
 import WorkshopPage from "@/pages/WorkshopPage";
+import WorkshopDetailsPage from "@/pages/WorkshopDetailsPage";
 import RegistrationPage from "@/pages/RegistrationPage";
 
 import MethodologyPage from "@/pages/MethodologyPage";
@@ -91,6 +92,13 @@ function Router() {
       <Route path="/ondemand/:id/congrats" component={CongratsPage} />
       <Route path="/course/:id" component={CourseDetailsPage} />
       <Route path="/ondemand/:id" component={CourseDetailsPage} />
+      <Route path="/workshop/:id" component={WorkshopDetailsPage} />
+      <Route path="/workshop">
+        {() => {
+          window.location.replace("/our-courses/workshops");
+          return null;
+        }}
+      </Route>
 
       {/* Student Dashboard Routes - Unified into App.tsx */}
       <Route path="/student-dashboard">
