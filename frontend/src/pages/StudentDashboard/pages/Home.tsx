@@ -160,8 +160,9 @@ export function Home() {
 
         <div className="col-span-1 sm:col-span-6 lg:col-span-3">
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft h-full">
-            <h3 className="text-sm text-[#DC2626] font-bold flex items-center gap-2 mb-4">
-              <i className="fas fa-exclamation-triangle"></i> Urgent tasks today
+            <h3 className={`text-sm font-bold flex items-center gap-2 mb-4 ${urgentTasks.length > 0 ? 'text-[#DC2626]' : 'text-green-600'}`}>
+              <i className={`fas ${urgentTasks.length > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'}`}></i> 
+              {urgentTasks.length > 0 ? 'Urgent tasks today' : 'All caught up!'}
             </h3>
             <div className="flex flex-col gap-3">
               {urgentTasks.length > 0 ? urgentTasks.map((task) => (
@@ -170,7 +171,12 @@ export function Home() {
                   <p className="text-xs font-semibold">{task.text}</p>
                 </div>
               )) : (
-                <p className="text-xs text-gray-text text-center py-4">No urgent tasks for today!</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-3">
+                    <i className="fas fa-sparkles text-green-500"></i>
+                  </div>
+                  <p className="text-xs text-gray-text font-medium">You've completed all your daily tasks. Great job!</p>
+                </div>
               )}
             </div>
           </div>
