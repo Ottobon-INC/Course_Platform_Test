@@ -1594,7 +1594,7 @@
   }
 
   .msg-composer {
-    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 10px 12px calc(85px + env(safe-area-inset-bottom));
   }
 
   .msg-thread-info h3 {

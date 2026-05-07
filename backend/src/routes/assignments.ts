@@ -220,6 +220,11 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
     // 3. Format response with status
     const formattedAssignments = assignments.map(a => {
       const submission = a.submissions[0] || null;
+      let finalStatus = submission ? submission.status.toLowerCase() : "pending";
+      if (finalStatus === "reviewed") {
+        finalStatus = (submission?.pointsAwarded !== null && submission?.pointsAwarded !== undefined) ? "approved" : "rejected";
+      }
+
       return {
         assignmentId: a.assignmentId,
         courseId: a.courseId,
@@ -229,7 +234,7 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
         body: a.body,
         dueDate: a.dueAt,
         programType: a.offering?.programType || "cohort",
-        status: submission ? submission.status : "pending",
+        status: finalStatus,
         submissionId: submission ? submission.submissionId : null,
         submittedAt: submission ? submission.submittedAt : null,
         reviewedAt: submission ? submission.reviewedAt : null,
