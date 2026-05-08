@@ -17,7 +17,7 @@ model User {
   createdAt    DateTime       @default(now()) @map("created_at")
   profilePhotoUrl String?      @map("profile_photo_url")
   skills       String[]       @default([]) @map("skills")
-  theme        String         @default("dark") @map("theme")
+
   language     String         @default("English") @map("language")
   totalPoints  Int            @default(0) @map("total_points")
   previousRank Int?           @map("previous_rank")

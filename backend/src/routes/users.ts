@@ -38,7 +38,7 @@ usersRouter.get(
         phone: true,
         profilePhotoUrl: true,
         skills: true,
-        theme: true,
+
         language: true,
         createdAt: true,
       },
@@ -57,7 +57,7 @@ usersRouter.get(
         phone: user.phone,
         profilePhotoUrl: user.profilePhotoUrl,
         skills: user.skills,
-        theme: user.theme,
+
         language: user.language,
         createdAt: user.createdAt.toISOString(),
       },
@@ -70,13 +70,13 @@ usersRouter.patch(
   requireAuth,
   asyncHandler(async (req, res) => {
     const auth = (req as AuthenticatedRequest).auth!;
-    const { phone, skills, theme, language } = req.body;
+    const { phone, skills, language } = req.body;
 
     // We only allow updating these specific fields
     const updateData: any = {};
     if (phone !== undefined) updateData.phone = phone;
     if (skills !== undefined) updateData.skills = skills;
-    if (theme !== undefined) updateData.theme = theme;
+
     if (language !== undefined) updateData.language = language;
 
     const user = await prisma.user.update({
@@ -90,7 +90,7 @@ usersRouter.patch(
         id: user.userId,
         phone: user.phone,
         skills: user.skills,
-        theme: user.theme,
+
         language: user.language,
       },
     });

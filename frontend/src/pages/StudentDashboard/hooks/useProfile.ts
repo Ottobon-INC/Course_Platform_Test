@@ -8,7 +8,7 @@ export interface UserProfile {
   phone: string | null;
   profilePhotoUrl: string | null;
   skills: string[];
-  theme: string;
+
   language: string;
   createdAt: string;
 }
