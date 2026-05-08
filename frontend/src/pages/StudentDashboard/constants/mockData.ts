@@ -35,8 +35,8 @@ export const RECENT_ACTIVITIES: ActivityItemType[] = [
 export const ASSIGNMENTS_DATA = [
   {
     id: 1,
-    courseName: "Full Stack Web Development",
-    courseSlug: "full-stack-web-development",
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
     title: "Build a Portfolio with React",
     deadline: "Oct 30, 2025",
     status: "Pending",
@@ -45,8 +45,8 @@ export const ASSIGNMENTS_DATA = [
   },
   {
     id: 2,
-    courseName: "UI/UX Design Mastery",
-    courseSlug: "ui-ux-design-mastery",
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
     title: "High-Fidelity Wireframes",
     deadline: "Oct 25, 2025",
     status: "Under Review",
@@ -55,8 +55,8 @@ export const ASSIGNMENTS_DATA = [
   },
   {
     id: 3,
-    courseName: "Advanced JavaScript (Frontend)",
-    courseSlug: "advanced-javascript",
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
     title: "Async/Await Quiz",
     deadline: "Oct 20, 2025",
     status: "Approved",
@@ -65,8 +65,8 @@ export const ASSIGNMENTS_DATA = [
   },
   {
     id: 4,
-    courseName: "React & Next.js Mastery",
-    courseSlug: "react-nextjs-mastery",
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
     title: "Next.js API Routes",
     deadline: "Nov 05, 2025",
     status: "Pending",
@@ -75,13 +75,23 @@ export const ASSIGNMENTS_DATA = [
   },
   {
     id: 5,
-    courseName: "Full Stack Web Development",
-    courseSlug: "full-stack-web-development",
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
     title: "Database Normalization Task",
     deadline: "Oct 18, 2025",
     status: "Submitted",
     type: "Homework",
     description: "Normalize the given schema to 3rd Normal Form."
+  },
+  {
+    id: 6,
+    courseName: "AI Native FullStack Developer",
+    courseSlug: "ai-native-fullstack-developer",
+    title: "State Management Quiz",
+    deadline: "Oct 15, 2025",
+    status: "Rejected",
+    type: "Quiz",
+    description: "Failed to meet the minimum passing score."
   }
 ];
 

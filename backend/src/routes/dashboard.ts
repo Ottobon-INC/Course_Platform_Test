@@ -1,5 +1,5 @@
 import express from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma, Topic } from "@prisma/client";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { prisma } from "../services/prisma";
 
@@ -66,7 +66,7 @@ type DashboardSummary = {
   completed: Array<{ id: string; title: string; date: string; courseId: string; programType: string }>;
   upcoming: Array<{ id: string; title: string; releaseDate: string; category: string }>;
   dynamicTasks: Array<{ id: number; text: string; checked: boolean }>;
-  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assessment' | 'workshop' }>;
+  urgentTasks: Array<{ id: number; time: string; text: string; type: 'quiz' | 'assessment' | 'workshop' | 'assignment' }>;
 };
 
 const formatDate = (value: Date | null | undefined): string | null => {
@@ -178,6 +178,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         where: {
           cohortId: { not: null },
           offering: { programType: "cohort" },
+          status: "verified",
           OR: [
             { userId: auth.userId },
             { email: { equals: user.email, mode: "insensitive" } },
@@ -272,21 +273,49 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         })
       : [];
 
-    const latestByCourse = new Map<string, { updatedAt: Date; moduleNo: number; topicName: string }>();
-
+    const latestByCourse = new Map<string, Topic>();
     progressRows.forEach((row) => {
-      if (!row.topic?.courseId) {
-        return;
+      // row.topic exists because of our select/include pattern
+      const topic = row.topic as unknown as Topic;
+      if (topic && !latestByCourse.has(topic.courseId)) {
+        latestByCourse.set(topic.courseId, topic);
       }
-      const courseId = row.topic.courseId;
+    });
 
-      const currentLatest = latestByCourse.get(courseId);
-      if (!currentLatest || row.updatedAt > currentLatest.updatedAt) {
-        latestByCourse.set(courseId, {
-          updatedAt: row.updatedAt,
-          moduleNo: row.topic.moduleNo,
-          topicName: row.topic.topicName,
-        });
+    // --- ENHANCED PROGRESS LOGIC: Calculate "True Next Lesson" for all courses ---
+    const allCourseTopics = courseIds.length
+      ? await prisma.topic.findMany({
+          where: { courseId: { in: courseIds } },
+          orderBy: [{ moduleNo: 'asc' }, { topicNumber: 'asc' }]
+        })
+      : [];
+
+    const passedModulesRows = courseIds.length
+      ? await prisma.$queryRaw<{ course_id: string, module_no: number }[]>(
+          Prisma.sql`SELECT course_id, module_no FROM module_progress WHERE user_id = ${auth.userId}::uuid AND course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))}) AND quiz_passed = TRUE`
+        )
+      : [];
+
+    const passedModulesByCourse = new Map<string, Set<number>>();
+    passedModulesRows.forEach(row => {
+      const set = passedModulesByCourse.get(row.course_id) ?? new Set<number>();
+      set.add(row.module_no);
+      passedModulesByCourse.set(row.course_id, set);
+    });
+
+    const completedTopicIds = new Set(progressRows.filter(p => p.isCompleted).map(p => p.topicId));
+    
+    const nextTopicByCourse = new Map<string, Topic>();
+    courseIds.forEach(courseId => {
+      const courseTopics = allCourseTopics.filter(t => t.courseId === courseId);
+      const passedNos = passedModulesByCourse.get(courseId) ?? new Set<number>();
+      
+      const next = courseTopics.find(t => 
+        !completedTopicIds.has(t.topicId) && 
+        !passedNos.has(t.moduleNo)
+      );
+      if (next) {
+        nextTopicByCourse.set(courseId, next);
       }
     });
 
@@ -364,13 +393,19 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
       const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
       const latest = latestByCourse.get(courseId);
-      const lastLessonSlug = latest ? slugify(latest.topicName) : null;
-      const lastAccessedModule = latest
-        ? `Module ${latest.moduleNo}: ${latest.topicName}`
+      const nextTopic = nextTopicByCourse.get(courseId);
+      
+      // Prioritize the NEXT topic for the resume button, fallback to last activity
+      const displayTopic = nextTopic || latest;
+      
+      const lastLessonSlug = displayTopic ? slugify(displayTopic.topicName) : null;
+      const lastAccessedModule = displayTopic
+        ? `Module ${displayTopic.moduleNo}: ${displayTopic.topicName}`
         : "Getting started";
       return {
         id: entry.cohortId,
         title: entry.courseName,
+        courseId: entry.courseId,
         courseSlug: entry.courseSlug,
         lastLessonSlug,
         lastAccessedModule,
@@ -381,8 +416,82 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       };
     });
 
-    const cohorts = cohortsList.filter(c => c.status !== "Completed");
+    const cohorts = cohortsList.filter(c => c.status !== 'Completed');
     const onDemand: DashboardSummary["onDemand"] = [];
+
+    // --- LOGICALLY DYNAMIC TASKS START ---
+    
+    // 1. Fetch all assignments and projects specifically for the user's batch
+    const batchFilters = cohorts.map(c => ({
+      cohortId: c.id,
+      batchNo: c.batchNo
+    }));
+
+    const [assignments, submissions, cohortProjects] = await Promise.all([
+      prisma.assignment.findMany({
+        where: {
+          OR: [
+            ...batchFilters,
+            { isOnDemand: true, courseId: { in: courseIds } }
+          ]
+        },
+        orderBy: { dueAt: 'asc' }
+      }),
+      prisma.assignmentSubmission.findMany({
+        where: { userId: auth.userId }
+      }),
+      prisma.cohortBatchProject.findMany({
+        where: {
+          OR: batchFilters
+        }
+      })
+    ]);
+
+    const submittedAssignmentIds = new Set(submissions.map(s => s.assignmentId));
+    
+    // 2. Identify active next topics from our pre-calculated map
+    const activeNextTopics = cohorts.map(cohort => {
+      const topic = nextTopicByCourse.get(cohort.courseId);
+      return topic ? { ...topic, cohortId: cohort.id, courseTitle: cohort.title } : null;
+    }).filter((t): t is (Exclude<typeof t, null>) => t !== null);
+
+    // 3. Construct Dynamic Urgent Tasks
+    const dynamicUrgentTasks: DashboardSummary["urgentTasks"] = [];
+    let taskIdCounter = 1;
+
+    // Priority: Assignments > Quizzes/Lessons > Projects
+    assignments.forEach(assignment => {
+      if (!submittedAssignmentIds.has(assignment.assignmentId)) {
+        dynamicUrgentTasks.push({
+          id: taskIdCounter++,
+          time: assignment.dueAt ? formatDate(assignment.dueAt)! : "Soon",
+          text: `Submit Assignment: ${assignment.title}`,
+          type: "assignment"
+        });
+      }
+    });
+
+    activeNextTopics.forEach(topic => {
+      if (dynamicUrgentTasks.length < 5) {
+        dynamicUrgentTasks.push({
+          id: taskIdCounter++,
+          time: "Next Step",
+          text: `Complete ${topic.contentType === 'quiz' ? 'Quiz' : 'Lesson'}: ${topic.topicName}`,
+          type: topic.contentType === 'quiz' ? 'quiz' : 'assessment'
+        });
+      }
+    });
+
+    cohortProjects.forEach(project => {
+      dynamicUrgentTasks.push({
+        id: taskIdCounter++,
+        time: "Project",
+        text: `Work on Project: ${(project.payload as any)?.title || 'Final Project'}`,
+        type: "workshop"
+      });
+    });
+
+    const urgentTasks = dynamicUrgentTasks.slice(0, 4);
 
     const workshopRegistrations = await prisma.registration.findMany({
       where: {
@@ -444,34 +553,23 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       }))
       .slice(0, 3);
 
-    const resumeCourse = onDemand.length
-      ? {
-          id: onDemand[0].id,
-          courseSlug: onDemand[0].courseSlug ?? null,
-          title: onDemand[0].title,
-          progress: onDemand[0].progress,
-          lastAccessedModule: onDemand[0].lastAccessedModule,
-          lastLessonSlug: onDemand[0].lastLessonSlug ?? null,
-        }
-      : cohorts.length
-        ? {
-            id: cohorts[0].id,
-            courseSlug: cohorts[0].courseSlug ?? null,
-            title: cohorts[0].title,
-            progress: cohorts[0].progress,
-            lastAccessedModule: cohorts[0].lastAccessedModule,
-            lastLessonSlug: cohorts[0].lastLessonSlug ?? null,
-          }
-        : null;
+    // 4. Update Resume Logic
+    const resumeCourse = cohorts.length > 0 ? cohorts[0] : null;
+    const currentNextTopic = activeNextTopics.find(t => t?.cohortId === resumeCourse?.id);
 
-    const urgentTasks: DashboardSummary["urgentTasks"] = cohorts.length > 0
-      ? [
-          { id: 1, time: "9:00 AM", text: `Review ${cohorts[0].title} Materials`, type: "assessment" },
-          { id: 2, time: "Today", text: `Complete ${cohorts[0].lastAccessedModule.split(": ")[0]}`, type: "quiz" },
-        ]
-      : [
-          { id: 1, time: "Flexible", text: "Start your first module", type: "assessment" },
-        ];
+    const dynamicTasks = [
+      { 
+        id: 1, 
+        text: resumeCourse ? `Continue ${resumeCourse.title}` : "Explore new courses", 
+        checked: !!resumeCourse && resumeCourse.progress > 0 
+      },
+      { 
+        id: 2, 
+        text: currentNextTopic ? `Next: ${currentNextTopic.topicName}` : (resumeCourse ? "Course Completed!" : "Start your first lesson"), 
+        checked: false 
+      },
+      { id: 3, text: "Check Cohort Community", checked: true }
+    ];
 
     const payload: DashboardSummary = {
       user: {
@@ -487,7 +585,14 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         sessionsThisWeek: computeSessionsThisWeek(cohortEntries.map((entry) => ({ startsAt: entry.startsAt }))),
         lastActiveAt: lastActivity ? lastActivity.toISOString() : null,
       },
-      resumeCourse,
+      resumeCourse: resumeCourse ? {
+        id: resumeCourse.id,
+        courseSlug: resumeCourse.courseSlug,
+        title: resumeCourse.title,
+        progress: resumeCourse.progress,
+        lastAccessedModule: resumeCourse.lastAccessedModule,
+        lastLessonSlug: currentNextTopic ? slugify(currentNextTopic.topicName) : resumeCourse.lastLessonSlug,
+      } : null,
       cohorts,
       onDemand,
       workshops,
@@ -500,19 +605,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         programType: cert.programType
       })),
       upcoming,
-      dynamicTasks: [
-        { 
-          id: 1, 
-          text: resumeCourse ? `Continue ${resumeCourse.title}` : "Explore new courses", 
-          checked: !!resumeCourse && resumeCourse.progress > 0 
-        },
-        { 
-          id: 2, 
-          text: resumeCourse ? `Complete ${resumeCourse.lastAccessedModule.split(': ')[1] || 'next topic'}` : "Start your first lesson", 
-          checked: false 
-        },
-        { id: 3, text: "Check Cohort Community", checked: true }
-      ],
+      dynamicTasks,
       urgentTasks,
     };
 

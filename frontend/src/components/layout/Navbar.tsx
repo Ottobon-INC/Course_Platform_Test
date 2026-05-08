@@ -42,6 +42,7 @@ const Navbar: React.FC<NavbarProps> = ({
                        location.startsWith('/student_dashboard') || 
                        location.startsWith('/profile') || 
                        location.startsWith('/my-courses') || 
+                       location.startsWith('/live-sessions') || 
                        location.startsWith('/cohorts') || 
                        location.startsWith('/assignments') || 
                        location.startsWith('/leaderboard') || 

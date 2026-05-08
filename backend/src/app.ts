@@ -28,6 +28,7 @@ import { sitemapRouter } from "./routes/sitemap";
 import { messagingRouter } from "./routes/messaging";
 import { studentCohortsRouter } from "./routes/studentCohorts";
 import { studentCertificatesRouter } from "./routes/studentCertificates";
+import { assignmentsRouter } from "./routes/assignments";
 
 export function createApp(): Express {
   const app = express();
@@ -119,6 +120,7 @@ app.use("/student", studentCertificatesRouter);
   apiRouter.use("/messaging", messagingRouter);
   apiRouter.use("/student", studentCohortsRouter);
 apiRouter.use("/student", studentCertificatesRouter);
+apiRouter.use("/assignments", assignmentsRouter);
   app.use("/api", apiRouter);
 
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

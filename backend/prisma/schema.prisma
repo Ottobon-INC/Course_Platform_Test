@@ -44,6 +44,7 @@ model User {
   cpDeletedMessages CpMessageDeletedForUser[]
   cpMessageReactions CpMessageReaction[]
   cpPollVotes CpPollVote[]
+  assignmentSubmissions AssignmentSubmission[]
 
   @@map("users")
 }
@@ -155,6 +156,7 @@ model Course {
   draftContentAssets DraftTopicContentAsset[]
   assessments CourseAssessment[]
   draftAssessments DraftCourseAssessment[]
+  assignments      Assignment[]
 
   @@map("courses")
 }
@@ -181,6 +183,7 @@ model CourseOffering {
   cohorts             Cohort[]
   registrations       Registration[]
   assessment          AssessmentQuestion?
+  assignments         Assignment[]
 
   @@unique([courseId, programType, title], map: "uq_course_offering_course_program_title")
   @@index([courseId], map: "idx_course_offering_course")
@@ -954,4 +957,45 @@ model DraftCourseAssessment {
   @@index([courseId], map: "idx_draft_course_assessments_course")
   @@index([courseId, moduleNo], map: "idx_draft_course_assessments_course_module")
   @@map("draft_course_assessments")
+}
+
+model Assignment {
+  assignmentId String    @id @default(dbgenerated("gen_random_uuid()")) @map("assignment_id") @db.Uuid
+  courseId     String    @map("course_id") @db.Uuid
+  moduleNo     Int       @map("module_no")
+  title        String
+  body         Json      @map("body")
+  dueAt        DateTime? @map("due_at")
+  userId       String?   @map("user_id") @db.Uuid
+  cohortId     String?   @map("cohort_id") @db.Uuid
+  batchNo      Int?      @map("batch_no")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  isOnDemand   Boolean   @default(false) @map("is_on_demand")
+  offeringId   String?   @map("offering_id") @db.Uuid
+
+  // Relations
+  course      Course                 @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  offering    CourseOffering?        @relation(fields: [offeringId], references: [offeringId], onDelete: SetNull)
+  submissions AssignmentSubmission[]
+
+  @@map("cp_assignments")
+}
+
+model AssignmentSubmission {
+  submissionId      String    @id @default(dbgenerated("gen_random_uuid()")) @map("submission_id") @db.Uuid
+  assignmentId      String    @map("assignment_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  status            String    @default("submitted")
+  submissionContent Json?     @map("submission_content")
+  tutorFeedback     String?   @map("tutor_feedback") @db.Text
+  pointsAwarded     Int?      @map("points_awarded")
+  submittedAt       DateTime  @default(now()) @map("submitted_at")
+  reviewedAt        DateTime? @map("reviewed_at")
+
+  // Relations
+  assignment Assignment @relation(fields: [assignmentId], references: [assignmentId], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("cp_assignment_submissions")
 }

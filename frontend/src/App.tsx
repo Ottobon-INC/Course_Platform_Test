@@ -41,6 +41,8 @@ import { Assignments as DashboardAssignments } from "@/pages/StudentDashboard/pa
 import DashboardMessages from "@/pages/StudentDashboard/pages/messaging/MessagingModule";
 import { Certificates as DashboardCertificates } from "@/pages/StudentDashboard/pages/Certificates";
 import { Profile as DashboardProfile } from "@/pages/StudentDashboard/pages/Profile";
+import { LiveSessions as DashboardLiveSessions } from "@/pages/StudentDashboard/pages/LiveSessions";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DRIP_CSS } from "@/pages/StudentDashboard/constants/styles";
 
 function DashboardRoute({ component: Component }: { component: React.ComponentType }) {
@@ -109,6 +111,9 @@ function Router() {
       </Route>
       <Route path="/my-courses">
         <DashboardRoute component={DashboardMyCourses} />
+      </Route>
+      <Route path="/live-sessions">
+        <DashboardRoute component={DashboardLiveSessions} />
       </Route>
       <Route path="/leaderboard">
         <DashboardRoute component={DashboardLeaderboard} />
@@ -205,33 +210,35 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ScrollToTop />
-        <Toaster />
-        {!shouldHideNavbar && (
-          <Navbar
-            onLogin={() => {
-              const homeRedirect = '/student-dashboard';
-              sessionStorage.setItem("postLoginRedirect", homeRedirect);
-              // Use buildApiUrl to ensure we target the correct backend port (4000)
-              const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
-              window.location.href = target;
-            }}
-            onApplyTutor={() => window.location.href = '/become-a-tutor'}
-            isAuthenticated={isAuthenticated}
-            user={user ?? undefined}
-            onLogout={() => {
-              localStorage.removeItem('session');
-              localStorage.removeItem('user');
-              localStorage.setItem('isAuthenticated', 'false');
-              setIsAuthenticated(false);
-              setUser(null);
-              window.location.href = '/';
-            }}
-          />
-        )}
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <ScrollToTop />
+          <Toaster />
+          {!shouldHideNavbar && (
+            <Navbar
+              onLogin={() => {
+                const homeRedirect = '/student-dashboard';
+                sessionStorage.setItem("postLoginRedirect", homeRedirect);
+                // Use buildApiUrl to ensure we target the correct backend port (4000)
+                const target = `${buildApiUrl('/auth/google')}?redirect=${encodeURIComponent(homeRedirect)}`;
+                window.location.href = target;
+              }}
+              onApplyTutor={() => window.location.href = '/become-a-tutor'}
+              isAuthenticated={isAuthenticated}
+              user={user ?? undefined}
+              onLogout={() => {
+                localStorage.removeItem('session');
+                localStorage.removeItem('user');
+                localStorage.setItem('isAuthenticated', 'false');
+                setIsAuthenticated(false);
+                setUser(null);
+                window.location.href = '/';
+              }}
+            />
+          )}
+          <Router />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

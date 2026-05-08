@@ -1557,6 +1557,10 @@
     display: flex;
   }
 
+  .msg-conv-list {
+    padding-bottom: calc(85px + env(safe-area-inset-bottom));
+  }
+
   .msg-main-area {
     display: none;
     width: 100%;
@@ -1585,7 +1589,7 @@
   }
 
   .msg-composer {
-    padding: 10px 12px;
+    padding: 10px 12px calc(85px + env(safe-area-inset-bottom));
   }
 
   .msg-thread-info h3 {

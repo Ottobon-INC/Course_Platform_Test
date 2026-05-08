@@ -25,6 +25,7 @@ const envSchema = z.object({
   TENANT_ID: z.string().optional(),
   USER_ID: z.string().optional(),
   ONEDRIVE_FOLDER: z.string().optional(),
+  ONEDRIVE_ASSIGNMENTS_FOLDER: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -61,5 +62,6 @@ export const env = {
     tenantId: parsed.data.TENANT_ID,
     userId: parsed.data.USER_ID,
     folder: parsed.data.ONEDRIVE_FOLDER || "messaging",
+    assignmentsFolder: parsed.data.ONEDRIVE_ASSIGNMENTS_FOLDER || "Assignments",
   },
 };
