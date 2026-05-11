@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import QuizCard from '@/components/QuizCard';
 import AssessmentResults from '@/components/AssessmentResults';
-import ThemeToggle from '@/components/ThemeToggle';
+
 import { useToast } from '@/hooks/use-toast';
 import { BookOpen, Clock, Users, Award } from 'lucide-react';
 import { AssessmentQuestion, Course } from '@/types/content';
@@ -208,7 +208,7 @@ export default function AssessmentPage() {
             <div className="flex items-center space-x-4">
               <h1 className="text-xl font-semibold" data-testid="title-header">Assessment Results</h1>
             </div>
-            <ThemeToggle />
+
           </div>
         </header>
 
@@ -235,7 +235,7 @@ export default function AssessmentPage() {
             <h1 className="text-xl font-semibold" data-testid="title-header">Course Assessment</h1>
             <Badge variant="secondary" data-testid="badge-difficulty">{course?.difficulty || 'Intermediate'}</Badge>
           </div>
-          <ThemeToggle />
+
         </div>
       </header>
 

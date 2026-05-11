@@ -4,7 +4,7 @@ export interface DashboardUser {
   phone: string | null;
   profilePhotoUrl: string | null;
   skills: string[];
-  theme: string;
+
   language: string;
 }
 

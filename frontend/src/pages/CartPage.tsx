@@ -8,7 +8,7 @@ import type { CartItem, CartResponse } from '@/types/cart';
 import type { StoredSession } from '@/types/session';
 import { buildApiUrl } from '@/lib/api';
 import { ShoppingCart, Trash2, Star, Clock, Users, CreditCard, Home, PartyPopper, CheckCircle2 } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle'; // Import ThemeToggle
+
 import { SiteLayout } from '@/components/layout/SiteLayout';
 
 const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/start';
@@ -297,7 +297,7 @@ export default function CartPage() {
             <Home className="mr-2 h-4 w-4" />
             Back to Home
           </Button>
-          <ThemeToggle />
+
         </div>
       </div>
 

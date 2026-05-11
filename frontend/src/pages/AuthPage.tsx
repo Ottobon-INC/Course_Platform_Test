@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Sparkles, Award, Star, BookOpen } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
+
 
 const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/start';
 
@@ -127,7 +127,7 @@ export default function AuthPage() {
           <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             LearnHub
           </h1>
-          <ThemeToggle />
+
         </div>
       </header>
 

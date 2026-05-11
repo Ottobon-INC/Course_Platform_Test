@@ -130,140 +130,7 @@ body {
 }
 
 
-/* DARK THEME */
-.dark {
-  --button-outline: rgba(255, 255, 255, .10);
-  --badge-outline: rgba(255, 255, 255, .05);
 
-  --opaque-button-border-intensity: 9;
-  /* In terms of percentages */
-
-  /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(255, 255, 255, .04);
-  --elevate-2: rgba(255, 255, 255, .09);
-
-  --background: 220 13% 9%;
-
-  --foreground: 220 15% 92%;
-
-  --border: 220 12% 18%;
-
-  --card: 220 13% 11%;
-
-  --card-foreground: 220 15% 92%;
-
-  --card-border: 220 12% 20%;
-
-  --sidebar: 220 13% 13%;
-
-  --sidebar-foreground: 220 15% 92%;
-
-  --sidebar-border: 220 12% 22%;
-
-  --sidebar-primary: 220 85% 60%;
-
-  --sidebar-primary-foreground: 220 15% 95%;
-
-  --sidebar-accent: 220 13% 15%;
-
-  --sidebar-accent-foreground: 220 15% 88%;
-
-  --sidebar-ring: 220 85% 60%;
-
-  --popover: 220 13% 15%;
-
-  --popover-foreground: 220 15% 92%;
-
-  --popover-border: 220 12% 25%;
-
-  --primary: 220 85% 60%;
-
-  --primary-foreground: 220 15% 95%;
-
-  --secondary: 220 13% 17%;
-
-  --secondary-foreground: 220 15% 88%;
-
-  --muted: 220 12% 16%;
-
-  --muted-foreground: 220 15% 65%;
-
-  --accent: 220 15% 18%;
-
-  --accent-foreground: 220 15% 85%;
-
-  --destructive: 0 75% 55%;
-
-  --destructive-foreground: 0 15% 95%;
-
-  --input: 220 15% 35%;
-  --ring: 220 85% 60%;
-  --chart-1: 142 76% 45%;
-  --chart-2: 220 85% 60%;
-  --chart-3: 38 88% 58%;
-  --chart-4: 280 72% 62%;
-  --chart-5: 15 75% 65%;
-
-  /* Course card gradients for dark theme */
-  --gradient-ai-ml-from: 280 40% 25%;
-  --gradient-ai-ml-to: 320 40% 30%;
-  --gradient-frontend-from: 200 45% 25%;
-  --gradient-frontend-to: 180 45% 30%;
-  --gradient-python-from: 120 35% 25%;
-  --gradient-python-to: 140 40% 30%;
-  --gradient-javascript-from: 45 50% 30%;
-  --gradient-javascript-to: 25 45% 35%;
-  --gradient-devops-from: 250 40% 25%;
-  --gradient-devops-to: 270 45% 30%;
-  --gradient-default-from: 210 15% 20%;
-  --gradient-default-to: 220 20% 25%;
-
-  --retro-teal: 36 72 85;
-  --retro-salmon: 230 72 51;
-  --retro-brown: 135 79 65;
-  --retro-cyan: 144 174 173;
-  --retro-bg: 24 24 24;
-  --retro-sage: 216 234 211;
-  --retro-yellow: 245 158 11;
-
-  --font-sans: Inter, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: JetBrains Mono, monospace;
-  --radius: .5rem;
-  /* 8px */
-  --shadow-2xs: 0px 2px 0px 0px hsl(220 10% 5% / 0.05);
-  --shadow-xs: 0px 2px 0px 0px hsl(220 10% 5% / 0.08);
-  --shadow-sm: 0px 2px 0px 0px hsl(220 10% 5% / 0.08), 0px 1px 2px -1px hsl(220 10% 5% / 0.12);
-  --shadow: 0px 2px 0px 0px hsl(220 10% 5% / 0.08), 0px 1px 2px -1px hsl(220 10% 5% / 0.12);
-  --shadow-md: 0px 2px 0px 0px hsl(220 10% 5% / 0.12), 0px 2px 4px -1px hsl(220 10% 5% / 0.16);
-  --shadow-lg: 0px 2px 0px 0px hsl(220 10% 5% / 0.16), 0px 4px 6px -1px hsl(220 10% 5% / 0.20);
-  --shadow-xl: 0px 2px 0px 0px hsl(220 10% 5% / 0.20), 0px 8px 10px -1px hsl(220 10% 5% / 0.24);
-  --shadow-2xl: 0px 2px 0px 0px hsl(220 10% 5% / 0.24);
-  --tracking-normal: 0em;
-  --spacing: 0.25rem;
-
-  /* Automatically computed borders */
-  --sidebar-primary-border: hsl(var(--sidebar-primary));
-  --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --sidebar-accent-border: hsl(var(--sidebar-accent));
-  --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --primary-border: hsl(var(--primary));
-  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --secondary-border: hsl(var(--secondary));
-  --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --muted-border: hsl(var(--muted));
-  --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --accent-border: hsl(var(--accent));
-  --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-
-  --destructive-border: hsl(var(--destructive));
-  --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
-}
 
 @layer base {
   * {
@@ -276,11 +143,7 @@ body {
   }
 
   html {
-    color-scheme: light dark;
-  }
-
-  html.dark {
-    color-scheme: dark;
+    color-scheme: light;
   }
 }
 
@@ -335,9 +198,7 @@ body {
   /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
    * buttons/badges can remove the automatic brightness adjustment on interactions
    * and program their own. */
-  .no-default-hover-elevate {}
 
-  .no-default-active-elevate {}
 
 
   /**
@@ -491,79 +352,7 @@ body {
     padding: 0;
   }
 
-  /* Dark theme overrides for prose */
-  .prose.dark\:prose-invert {
-    color: hsl(var(--foreground));
-  }
 
-  .prose.dark\:prose-invert h1,
-  .prose.dark\:prose-invert h2,
-  .prose.dark\:prose-invert h3,
-  .prose.dark\:prose-invert h4 {
-    color: hsl(var(--foreground));
-    font-weight: 600;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-  }
-
-  .prose.dark\:prose-invert h1 {
-    font-size: 1.5em;
-  }
-
-  .prose.dark\:prose-invert h2 {
-    font-size: 1.25em;
-  }
-
-  .prose.dark\:prose-invert h3 {
-    font-size: 1.1em;
-  }
-
-  .prose.dark\:prose-invert p {
-    color: hsl(var(--foreground) / 0.9);
-    margin-top: 0.75em;
-    margin-bottom: 0.75em;
-  }
-
-  .prose.dark\:prose-invert ul,
-  .prose.dark\:prose-invert ol {
-    color: hsl(var(--foreground) / 0.9);
-    padding-left: 1.5em;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-  }
-
-  .prose.dark\:prose-invert li {
-    margin-top: 0.25em;
-    margin-bottom: 0.25em;
-  }
-
-  .prose.dark\:prose-invert strong {
-    color: hsl(var(--foreground));
-    font-weight: 600;
-  }
-
-  .prose.dark\:prose-invert code {
-    color: hsl(var(--primary));
-    background-color: hsl(var(--muted));
-    padding: 0.2em 0.4em;
-    border-radius: 0.25rem;
-    font-size: 0.875em;
-  }
-
-  .prose.dark\:prose-invert pre {
-    background-color: hsl(var(--muted));
-    color: hsl(var(--foreground));
-    padding: 1em;
-    border-radius: 0.5rem;
-    overflow-x: auto;
-    margin-top: 1em;
-    margin-bottom: 1em;
-  }
-
-  .prose.dark\:prose-invert pre code {
-    background-color: transparent;
-    padding: 0;
-  }
 
   /* Dashboard Animations */
   @keyframes fadeInUp {

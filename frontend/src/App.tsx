@@ -42,7 +42,7 @@ import DashboardMessages from "@/pages/StudentDashboard/pages/messaging/Messagin
 import { Certificates as DashboardCertificates } from "@/pages/StudentDashboard/pages/Certificates";
 import { Profile as DashboardProfile } from "@/pages/StudentDashboard/pages/Profile";
 import { LiveSessions as DashboardLiveSessions } from "@/pages/StudentDashboard/pages/LiveSessions";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+
 import { DRIP_CSS } from "@/pages/StudentDashboard/constants/styles";
 
 function DashboardRoute({ component: Component }: { component: React.ComponentType }) {
@@ -210,7 +210,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
+
         <TooltipProvider>
           <ScrollToTop />
           <Toaster />
@@ -238,7 +238,7 @@ function App({ isAuthenticated, user, setIsAuthenticated, setUser }: any) {
           )}
           <Router />
         </TooltipProvider>
-      </ThemeProvider>
+
     </QueryClientProvider>
   );
 }

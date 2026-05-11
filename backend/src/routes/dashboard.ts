@@ -10,7 +10,7 @@ type DashboardSummary = {
     phone: string | null;
     profilePhotoUrl: string | null;
     skills: string[];
-    theme: string;
+
     language: string;
   };
   stats: {
@@ -137,7 +137,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         phone: true,
         profilePhotoUrl: true,
         skills: true,
-        theme: true,
+
         language: true
       },
     });
@@ -260,10 +260,12 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             topic: { courseId: { in: courseIds } },
           },
           select: {
+            topicId: true,
             isCompleted: true,
             updatedAt: true,
             topic: {
               select: {
+                topicId: true,
                 courseId: true,
                 moduleNo: true,
                 topicName: true,
@@ -578,7 +580,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         phone: user.phone,
         profilePhotoUrl: user.profilePhotoUrl,
         skills: user.skills,
-        theme: user.theme,
+
         language: user.language,
       },
       stats: {

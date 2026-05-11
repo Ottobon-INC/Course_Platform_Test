@@ -1527,10 +1527,15 @@
     /* Site header height */
     left: 0;
     width: 100vw;
-    height: calc(100svh - 73px);
+    height: calc(100svh - 73px) !important;
     border-radius: 0;
     z-index: 40;
     margin: 0;
+    transition: z-index 0.2s ease;
+  }
+
+  .msg-container.chat-active {
+    z-index: 105; /* Covers the floating sidebar pill */
   }
 
   .msg-category-sidebar {
@@ -1589,7 +1594,7 @@
   }
 
   .msg-composer {
-    padding: 10px 12px calc(85px + env(safe-area-inset-bottom));
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
   }
 
   .msg-thread-info h3 {
