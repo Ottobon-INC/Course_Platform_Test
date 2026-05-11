@@ -1,4 +1,4 @@
-# Course Platform - Full Project Documentation
+# Course Platform Application - Full Project Documentation
 
 Version: January 2026 monorepo snapshot (frontend + backend + shared assets)
 
