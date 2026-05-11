@@ -623,7 +623,7 @@ const CourseDetailsPage = (props: any) => {
               <ChevronLeft size={18} /> Home
             </button>
             <div className="text-2xl font-extrabold text-[#f8f1e6] tracking-tight">
-              Meta<span className="text-[#bf2f1f]">Learn</span>
+              Otto<span className="text-[#bf2f1f]">learn</span>
             </div>
           </div>
           <div className="hidden md:flex gap-6 text-[#f8f1e6]/70 text-sm font-medium relative pb-2 -mb-2">
@@ -1074,27 +1074,7 @@ const CourseDetailsPage = (props: any) => {
 
       </main>
 
-      {/* SECTION F: DOWNLOAD SYLLABUS */}
-      <section className="bg-[#000000] py-12 border-y border-[#222]">
-        <div className="container mx-auto px-6 md:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
-          <h2 className="text-2xl font-bold text-white">Get the full syllabus.</h2>
-          <div className="flex w-full md:w-auto">
-            <input type="email" placeholder="Enter your email" className="bg-[#111] border border-[#333] text-white px-4 py-3 outline-none focus:border-[#bf2f1f] w-full md:w-64" />
-            <button 
-              onClick={() => {
-                if (courseMeta.syllabus_url) {
-                  window.open(courseMeta.syllabus_url, "_blank");
-                } else {
-                  alert("Syllabus download is not available yet.");
-                }
-              }}
-              className="bg-[#bf2f1f] text-white px-6 py-3 font-bold whitespace-nowrap"
-            >
-              Download PDF
-            </button>
-          </div>
-        </div>
-      </section>
+
 
       <main className="container mx-auto px-6 md:px-12 py-12 space-y-10">
 

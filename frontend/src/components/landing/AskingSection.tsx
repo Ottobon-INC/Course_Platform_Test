@@ -60,10 +60,9 @@ const ProblemBlock: React.FC = () => {
     restDelta: 0.001,
   });
 
-  // blur: 4px (foggy) → 0px (sharp)
-  const blurPx = useTransform(smoothProgress, [0, 1], [4, 0]);
-  // opacity: 0.50 → 1
-  const opacity = useTransform(smoothProgress, [0, 1], [0.5, 1]);
+  // Fixed to 0 blur and 1 opacity for visibility
+  const blurPx = 0;
+  const opacity = 1;
 
   return (
     <div ref={ref} className="relative mb-20">
@@ -103,9 +102,7 @@ const ProblemBlock: React.FC = () => {
         {/* Scroll-driven blur+opacity wrapper (CSS filter, GPU-composited) */}
         <motion.div
           style={{
-            filter: useTransform(blurPx, (v) => `blur(${v}px)`),
             opacity,
-            willChange: 'filter, opacity',
           }}
           className="relative z-10"
         >

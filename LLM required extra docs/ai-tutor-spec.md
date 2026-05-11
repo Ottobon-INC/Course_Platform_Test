@@ -63,7 +63,7 @@ This spec captures the exact AI tutor pipeline used in `backend/src/routes/assis
 
 ## 8) LLM prompting rules
 System prompt (answer):
-- "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material."
+- "You are OttoLearn's AI mentor. Answer with warmth and clarity using only the provided course material."
 
 Response constraints (from prompt builder):
 - Use provided contexts only.

@@ -120,7 +120,7 @@ const PAGE_CONTENT: PageContentSeed[] = [
   {
     slug: "about",
     title: "Learning that moves careers forward",
-    subtitle: "MetaLearn blends industry projects, senior mentors, and adaptive AI guidance so learners build skills with confidence.",
+    subtitle: "OttoLearn blends industry projects, senior mentors, and adaptive AI guidance so learners build skills with confidence.",
     heroImage: "https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80",
     sections: {
       stats: [

@@ -78,7 +78,7 @@ async function runChatCompletionStream(options: {
 
 export async function generateAnswerFromContext(prompt: string): Promise<string> {
   return runChatCompletion({
-    systemPrompt: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
+    systemPrompt: "You are OttoLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
     userPrompt: prompt,
   });
 }
@@ -88,7 +88,7 @@ export async function generateAnswerFromContextStream(
   onToken: (token: string) => void,
 ): Promise<string> {
   return runChatCompletionStream({
-    systemPrompt: "You are MetaLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
+    systemPrompt: "You are OttoLearn's AI mentor. Answer with warmth and clarity using only the provided course material.",
     userPrompt: prompt,
     onToken,
   });
@@ -156,7 +156,7 @@ export async function summarizeConversation(options: {
 export async function generateTutorCopilotAnswer(prompt: string): Promise<string> {
   return runChatCompletion({
     systemPrompt:
-      "You are MetaLearn's tutor analytics copilot. Use only the provided learner roster and stats. Call out concrete numbers, " +
+      "You are OttoLearn's tutor analytics copilot. Use only the provided learner roster and stats. Call out concrete numbers, " +
       "flag at-risk learners, and keep responses concise (3-5 sentences). If information is missing, say so directly.",
     userPrompt: prompt,
     temperature: 0.15,
