@@ -31,16 +31,8 @@ usersRouter.get(
 
     const user = await prisma.user.findUnique({
       where: { userId: auth.userId },
-      select: {
-        userId: true,
-        email: true,
-        fullName: true,
-        phone: true,
-        profilePhotoUrl: true,
-        skills: true,
-
-        language: true,
-        createdAt: true,
+      include: {
+        studentProfile: true
       },
     });
 
@@ -57,9 +49,17 @@ usersRouter.get(
         phone: user.phone,
         profilePhotoUrl: user.profilePhotoUrl,
         skills: user.skills,
-
         language: user.language,
         createdAt: user.createdAt.toISOString(),
+        studentProfile: user.studentProfile ? {
+          fullName: user.studentProfile.fullName,
+          collegeName: user.studentProfile.collegeName,
+          branch: user.studentProfile.branch,
+          yearOfPassing: user.studentProfile.yearOfPassing,
+          isCollegeStudent: user.studentProfile.isCollegeStudent,
+          totalPoints: user.studentProfile.totalPoints,
+          previousRank: user.studentProfile.previousRank
+        } : null
       },
     });
   }),
@@ -70,18 +70,37 @@ usersRouter.patch(
   requireAuth,
   asyncHandler(async (req, res) => {
     const auth = (req as AuthenticatedRequest).auth!;
-    const { phone, skills, language } = req.body;
+    const { phone, skills, language, collegeName, branch, yearOfPassing, isCollegeStudent } = req.body;
 
-    // We only allow updating these specific fields
     const updateData: any = {};
     if (phone !== undefined) updateData.phone = phone;
     if (skills !== undefined) updateData.skills = skills;
-
     if (language !== undefined) updateData.language = language;
+
+    // Academic updates go to StudentProfile
+    const studentUpdate: any = {};
+    if (collegeName !== undefined) studentUpdate.collegeName = collegeName;
+    if (branch !== undefined) studentUpdate.branch = branch;
+    if (yearOfPassing !== undefined) studentUpdate.yearOfPassing = yearOfPassing;
+    if (isCollegeStudent !== undefined) studentUpdate.isCollegeStudent = isCollegeStudent;
 
     const user = await prisma.user.update({
       where: { userId: auth.userId },
-      data: updateData,
+      data: {
+        ...updateData,
+        ...(Object.keys(studentUpdate).length > 0 ? {
+          studentProfile: {
+            upsert: {
+              create: {
+                ...studentUpdate,
+                fullName: (await prisma.user.findUnique({ where: { userId: auth.userId }, select: { fullName: true } }))?.fullName || ""
+              },
+              update: studentUpdate
+            }
+          }
+        } : {})
+      },
+      include: { studentProfile: true }
     });
 
     res.status(200).json({
@@ -90,8 +109,8 @@ usersRouter.patch(
         id: user.userId,
         phone: user.phone,
         skills: user.skills,
-
         language: user.language,
+        studentProfile: user.studentProfile
       },
     });
   }),

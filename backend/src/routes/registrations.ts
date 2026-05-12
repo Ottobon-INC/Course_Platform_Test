@@ -385,6 +385,28 @@ registrationsRouter.post("/", async (req, res, next) => {
       })
       : await prisma.registration.create({ data: payload });
 
+    // Sync to StudentProfile if we have a userId
+    if (resolvedUserId) {
+      await prisma.studentProfile.upsert({
+        where: { userId: resolvedUserId },
+        create: {
+          userId: resolvedUserId,
+          collegeName: resolvedIsCollegeStudent ? collegeName : null,
+          branch: resolvedIsCollegeStudent ? branch : null,
+          yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
+          isCollegeStudent: resolvedIsCollegeStudent,
+          fullName: fullName
+        },
+        update: {
+          collegeName: resolvedIsCollegeStudent ? collegeName : null,
+          branch: resolvedIsCollegeStudent ? branch : null,
+          yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
+          isCollegeStudent: resolvedIsCollegeStudent,
+          fullName: fullName
+        }
+      });
+    }
+
     // Enrich response with paymentMode so frontend knows which flow to use
     const enrichedRegistration = {
       ...registration,

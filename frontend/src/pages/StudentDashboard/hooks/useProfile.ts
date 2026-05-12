@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
+export interface StudentProfile {
+  fullName: string | null;
+  collegeName: string | null;
+  branch: string | null;
+  yearOfPassing: string | null;
+  isCollegeStudent: boolean | null;
+  totalPoints: number;
+  previousRank: number | null;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -8,9 +18,9 @@ export interface UserProfile {
   phone: string | null;
   profilePhotoUrl: string | null;
   skills: string[];
-
   language: string;
   createdAt: string;
+  studentProfile: StudentProfile | null;
 }
 
 export interface UserProfileResponse {

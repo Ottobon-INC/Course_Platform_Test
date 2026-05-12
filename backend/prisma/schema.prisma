@@ -45,8 +45,33 @@ model User {
   cpMessageReactions CpMessageReaction[]
   cpPollVotes CpPollVote[]
   assignmentSubmissions AssignmentSubmission[]
+  studentProfile StudentProfile?
 
   @@map("users")
+}
+
+model StudentProfile {
+  profileId        String   @id @default(dbgenerated("gen_random_uuid()")) @map("profile_id") @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  user             User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  // Identity
+  fullName         String?  @map("full_name")
+
+  // Academic Details
+  collegeName      String?  @map("college_name")
+  branch           String?  @map("branch")
+  yearOfPassing    String?  @map("year_of_passing")
+  isCollegeStudent Boolean? @map("is_college_student")
+
+  // Gamification (Mirrored for Phase A)
+  totalPoints      Int      @default(0) @map("total_points")
+  previousRank     Int?     @map("previous_rank")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("student_profiles")
 }
 
 enum Role {

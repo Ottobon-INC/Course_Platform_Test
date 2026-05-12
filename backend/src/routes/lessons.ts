@@ -686,7 +686,12 @@ lessonsRouter.put(
     if (shouldComplete && !existing?.isCompleted) {
       await prisma.user.update({
         where: { userId: auth.userId },
-        data: { totalPoints: { increment: 100 } }
+        data: { 
+          totalPoints: { increment: 100 },
+          studentProfile: {
+            update: { totalPoints: { increment: 100 } }
+          }
+        }
       });
     }
 

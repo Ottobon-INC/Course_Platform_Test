@@ -131,14 +131,8 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { userId: auth.userId },
-      select: { 
-        fullName: true, 
-        email: true,
-        phone: true,
-        profilePhotoUrl: true,
-        skills: true,
-        theme: true,
-        language: true
+      include: { 
+        studentProfile: true
       },
     });
 
@@ -582,6 +576,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         skills: user.skills,
         theme: user.theme,
         language: user.language,
+        studentProfile: user.studentProfile ? {
+          fullName: user.studentProfile.fullName,
+          collegeName: user.studentProfile.collegeName,
+          branch: user.studentProfile.branch,
+          yearOfPassing: user.studentProfile.yearOfPassing,
+          isCollegeStudent: user.studentProfile.isCollegeStudent,
+          totalPoints: user.studentProfile.totalPoints,
+          previousRank: user.studentProfile.previousRank
+        } : null
       },
       stats: {
         sessionsThisWeek: computeSessionsThisWeek(cohortEntries.map((entry) => ({ startsAt: entry.startsAt }))),

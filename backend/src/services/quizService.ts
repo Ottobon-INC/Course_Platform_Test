@@ -833,7 +833,12 @@ export async function submitAttempt(params: {
     if (Number(previousPassed[0]?.count ?? 0) === 0) {
       await prisma.user.update({
         where: { userId },
-        data: { totalPoints: { increment: 200 } }
+        data: { 
+          totalPoints: { increment: 200 },
+          studentProfile: {
+            update: { totalPoints: { increment: 200 } }
+          }
+        }
       });
     }
 
