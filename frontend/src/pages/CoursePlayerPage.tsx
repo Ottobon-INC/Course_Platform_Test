@@ -2215,11 +2215,13 @@ const CoursePlayerPage: React.FC = () => {
     if (ttsWordSpanRef.current?.parentNode) {
       const span = ttsWordSpanRef.current;
       const parent = span.parentNode;
-      while (span.firstChild) {
-        parent.insertBefore(span.firstChild, span);
+      if (parent) {
+        while (span.firstChild) {
+          parent.insertBefore(span.firstChild, span);
+        }
+        parent.removeChild(span);
+        parent.normalize();
       }
-      parent.removeChild(span);
-      parent.normalize();
       ttsWordSpanRef.current = null;
     }
     if (ttsActiveIndexRef.current !== null) {
@@ -2257,11 +2259,13 @@ const CoursePlayerPage: React.FC = () => {
     if (ttsWordSpanRef.current?.parentNode) {
       const span = ttsWordSpanRef.current;
       const parent = span.parentNode;
-      while (span.firstChild) {
-        parent.insertBefore(span.firstChild, span);
+      if (parent) {
+        while (span.firstChild) {
+          parent.insertBefore(span.firstChild, span);
+        }
+        parent.removeChild(span);
+        parent.normalize();
       }
-      parent.removeChild(span);
-      parent.normalize();
       ttsWordSpanRef.current = null;
     }
 
@@ -2304,7 +2308,7 @@ const CoursePlayerPage: React.FC = () => {
     const span = document.createElement("span");
     span.className = "tts-word";
     span.textContent = wordNode.textContent ?? "";
-    wordNode.parentNode.replaceChild(span, wordNode);
+    wordNode.parentNode?.replaceChild(span, wordNode);
     ttsWordSpanRef.current = span;
   }, []);
 

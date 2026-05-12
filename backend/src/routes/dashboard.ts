@@ -138,12 +138,12 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       return;
     }
 
-    const user = await prisma.user.findUnique({
+    const user: any = await prisma.user.findUnique({
       where: { userId: auth.userId },
       include: { 
         studentProfile: true
       },
-    });
+    } as any);
 
     if (!user) {
       res.status(404).json({ message: "User not found" });
@@ -324,66 +324,74 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       }
     });
 
-    const quizSectionTotals = courseIds.length
-      ? await prisma.$queryRaw<{ course_id: string; section_count: number | bigint }[]>(
-          Prisma.sql`
-            SELECT course_id, COUNT(*)::bigint AS section_count
-            FROM (
-              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
-              FROM topic_content_assets a
-              JOIN topics t ON t.topic_id = a.topic_id
-              WHERE a.content_type = 'quiz'
-                AND a.payload ? 'assessment_id'
-                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
-            ) AS sections
-            GROUP BY course_id
-          `,
-        )
-      : [];
+    // --- ENHANCED PROGRESS LOGIC: Unified Topic + Assignment Calculation ---
+    const [totalTopicsByCourse, completedTopicsByCourse, totalAssignmentsByCourse, submittedAssignmentsByCourse] = await Promise.all([
+      // 1. Total Topics per Course
+      prisma.topic.groupBy({
+        by: ['courseId'],
+        where: { courseId: { in: courseIds } },
+        _count: { topicId: true }
+      }),
+      // 2. Completed Topics per User per Course
+      prisma.topicProgress.groupBy({
+        by: ['topicId'],
+        where: {
+          userId: auth.userId,
+          isCompleted: true,
+          topic: { courseId: { in: courseIds } }
+        },
+        _count: { topicId: true }
+      }),
+      // 3. Total Assignments for the user's Cohorts/Batches
+      prisma.assignment.findMany({
+        where: {
+          OR: [
+            ...cohortEntries.map(c => ({
+              cohortId: c.cohortId,
+              batchNo: c.batchNo
+            })),
+            { isOnDemand: true, courseId: { in: courseIds } }
+          ]
+        }
+      }),
+      // 4. User's Assignment Submissions
+      prisma.assignmentSubmission.findMany({
+        where: {
+          userId: auth.userId,
+          assignment: {
+            OR: [
+              ...cohortEntries.map(c => ({
+                cohortId: c.cohortId,
+                batchNo: c.batchNo
+              })),
+              { isOnDemand: true, courseId: { in: courseIds } }
+            ]
+          }
+        },
+        include: { assignment: true }
+      })
+    ]);
 
-    const quizSectionPassed = courseIds.length
-      ? await prisma.$queryRaw<{ course_id: string; passed_count: number | bigint }[]>(
-          Prisma.sql`
-            WITH sections AS (
-              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
-              FROM topic_content_assets a
-              JOIN topics t ON t.topic_id = a.topic_id
-              WHERE a.content_type = 'quiz'
-                AND a.payload ? 'assessment_id'
-                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
-            ),
-            latest AS (
-              SELECT DISTINCT ON (course_id, assessment_id)
-                course_id,
-                assessment_id::text AS assessment_id_text,
-                status
-              FROM quiz_attempts
-              WHERE user_id = ${auth.userId}::uuid
-                AND course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql`${id}::uuid`))})
-              ORDER BY course_id,
-                       assessment_id,
-                       completed_at DESC NULLS LAST,
-                       updated_at DESC NULLS LAST
-            )
-            SELECT
-              sections.course_id,
-              COUNT(*) FILTER (WHERE latest.status = 'passed')::bigint AS passed_count
-            FROM sections
-            LEFT JOIN latest
-              ON latest.course_id = sections.course_id
-             AND latest.assessment_id_text = sections.assessment_id_text
-            GROUP BY sections.course_id
-          `,
-        )
-      : [];
+    // Map counts for easy lookup
+    const topicTotalMap = new Map(totalTopicsByCourse.map(r => [r.courseId, r._count.topicId]));
+    
+    // For completed topics, we need to map the grouped results back to courseIds
+    const topicCompletedMap = new Map<string, number>();
+    progressRows.filter(p => p.isCompleted).forEach(p => {
+      const cid = (p.topic as any).courseId;
+      topicCompletedMap.set(cid, (topicCompletedMap.get(cid) || 0) + 1);
+    });
 
-    const totalSectionsByCourse = new Map<string, number>(
-      quizSectionTotals.map((row) => [row.course_id, Number(row.section_count) || 0]),
-    );
+    const assignmentTotalMap = new Map<string, number>();
+    totalAssignmentsByCourse.forEach(a => {
+      assignmentTotalMap.set(a.courseId, (assignmentTotalMap.get(a.courseId) || 0) + 1);
+    });
 
-    const passedSectionsByCourse = new Map<string, number>(
-      quizSectionPassed.map((row) => [row.course_id, Number(row.passed_count) || 0]),
-    );
+    const assignmentSubmittedMap = new Map<string, number>();
+    submittedAssignmentsByCourse.forEach(s => {
+      const cid = s.assignment.courseId;
+      assignmentSubmittedMap.set(cid, (assignmentSubmittedMap.get(cid) || 0) + 1);
+    });
 
     const lastActivity = progressRows.reduce<Date | null>((latest, row) => {
       if (!latest || row.updatedAt > latest) {
@@ -394,9 +402,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
 
     const cohortsList = cohortEntries.map((entry) => {
       const courseId = entry.courseId;
-      const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
-      const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
-      const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
+      const totalTopics = topicTotalMap.get(courseId) || 0;
+      const completedTopics = topicCompletedMap.get(courseId) || 0;
+      const totalAssignments = assignmentTotalMap.get(courseId) || 0;
+      const submittedAssignments = assignmentSubmittedMap.get(courseId) || 0;
+
+      const grandTotal = totalTopics + totalAssignments;
+      const grandCompleted = completedTopics + submittedAssignments;
+
+      const progress = grandTotal === 0 ? 0 : Math.round((grandCompleted / grandTotal) * 100);
       const latest = latestByCourse.get(courseId);
       const nextTopic = nextTopicByCourse.get(courseId);
       
@@ -576,23 +590,24 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
       { id: 3, text: "Check Cohort Community", checked: true }
     ];
 
+    const u = user as any;
     const payload: DashboardSummary = {
       user: {
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        profilePhotoUrl: user.profilePhotoUrl,
-        skills: user.skills,
+        fullName: u.fullName,
+        email: u.email,
+        phone: u.phone,
+        profilePhotoUrl: u.profilePhotoUrl,
+        skills: u.skills,
         theme: "light",
-        language: user.language,
-        studentProfile: user.studentProfile ? {
-          fullName: user.studentProfile.fullName,
-          collegeName: user.studentProfile.collegeName,
-          branch: user.studentProfile.branch,
-          yearOfPassing: user.studentProfile.yearOfPassing,
-          isCollegeStudent: user.studentProfile.isCollegeStudent,
-          totalPoints: user.studentProfile.totalPoints,
-          previousRank: user.studentProfile.previousRank
+        language: u.language,
+        studentProfile: u.studentProfile ? {
+          fullName: u.studentProfile.fullName,
+          collegeName: u.studentProfile.collegeName,
+          branch: u.studentProfile.branch,
+          yearOfPassing: u.studentProfile.yearOfPassing,
+          isCollegeStudent: u.studentProfile.isCollegeStudent,
+          totalPoints: u.studentProfile.totalPoints,
+          previousRank: u.studentProfile.previousRank
         } : null
       },
       stats: {

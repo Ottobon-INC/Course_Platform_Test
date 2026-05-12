@@ -190,7 +190,7 @@ export function MyCourses() {
             <>
               <h3 className="text-xl font-bold mb-5">Continue Learning</h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-                {activeCourses.slice(0, 2).map((course: any, idx) => (
+                {activeCourses.map((course: any, idx) => (
                   <div key={idx} className="bg-white rounded-2xl p-5 shadow-sm border border-border-soft flex flex-col">
                     <p className="text-xs text-orange-primary font-bold mb-2">
                       {course.tag}

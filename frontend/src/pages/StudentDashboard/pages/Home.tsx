@@ -33,7 +33,7 @@ export function Home() {
   }
 
   const resumeCourse = summary?.resumeCourse;
-  const activeCourses = [...(summary?.cohorts || []), ...(summary?.onDemand || [])].slice(0, 2);
+  const activeCourses = [...(summary?.cohorts || []), ...(summary?.onDemand || [])];
   const nextWorkshops = summary?.workshops || [];
 
   return (
@@ -115,10 +115,15 @@ export function Home() {
         <div className="col-span-1 md:col-span-12 lg:col-span-9">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Active Courses</h3>
-            <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>
+            <button 
+              onClick={() => setLocation('/my-courses')}
+              className="font-semibold text-orange-primary hover:underline text-sm bg-transparent border-none cursor-pointer"
+            >
+              View All
+            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {activeCourses.map((course, idx) => (
+            {activeCourses.slice(0, 2).map((course, idx) => (
               <div key={course.id} className="bg-white p-5 rounded-2xl shadow-sm border border-border-soft flex flex-col">
                 <div className="flex gap-2 mb-4">
                   <span className="text-xs font-bold text-orange-primary bg-orange-soft px-2 py-1 rounded-md">
