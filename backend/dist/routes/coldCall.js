@@ -8,7 +8,7 @@ const ACTIVE_MEMBER_STATUS = "active";
 const normalizeEmail = (value) => value.trim().toLowerCase();
 const resolveCohortMembership = async (courseId, userId) => {
     const cohorts = await prisma.cohort.findMany({
-        where: { courseId, isActive: true },
+        where: { isActive: true, offering: { courseId } },
         select: { cohortId: true, name: true },
     });
     if (cohorts.length === 0) {

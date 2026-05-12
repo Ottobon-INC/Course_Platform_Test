@@ -53,7 +53,7 @@ export async function askCourseAssistant(options) {
             };
         }
         const prompt = buildPrompt({
-            courseTitle: options.courseTitle ?? "MetaLearn Course",
+            courseTitle: options.courseTitle ?? "OttoLearn Course",
             question: sanitizedQuestion,
             contexts,
             summary: options.summary ?? null,

@@ -8,7 +8,7 @@ const listActiveCohorts = async (courseId) => {
         return [];
     }
     return prisma.cohort.findMany({
-        where: { courseId, isActive: true },
+        where: { isActive: true, offering: { courseId } },
         select: { cohortId: true, name: true },
     });
 };
@@ -58,16 +58,16 @@ export const checkCohortAccessForUser = async (userId, courseId, activeCohorts) 
         },
         select: { memberId: true, userId: true, email: true },
     });
-    if (!member) {
-        return { allowed: false, status: 403, message: COHORT_ACCESS_DENIED_MESSAGE };
+    if (member) {
+        if (!member.userId || member.email !== normalizedEmail) {
+            await prisma.cohortMember.update({
+                where: { memberId: member.memberId },
+                data: { userId, email: normalizedEmail },
+            });
+        }
+        return { allowed: true };
     }
-    if (!member.userId || member.email !== normalizedEmail) {
-        await prisma.cohortMember.update({
-            where: { memberId: member.memberId },
-            data: { userId, email: normalizedEmail },
-        });
-    }
-    return { allowed: true };
+    return { allowed: false, status: 403, message: COHORT_ACCESS_DENIED_MESSAGE };
 };
 export const checkCohortAccessFromRequest = async (req, courseId) => {
     const activeCohorts = await listActiveCohorts(courseId);

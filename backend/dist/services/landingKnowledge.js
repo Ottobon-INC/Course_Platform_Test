@@ -32,14 +32,18 @@ export async function getLandingResouceContext() {
                 name: true,
                 startsAt: true,
                 endsAt: true,
-                course: { select: { courseName: true } }
+                offering: {
+                    select: {
+                        course: { select: { courseName: true } }
+                    }
+                }
             },
             take: 3
         })
     ]);
     const courseSection = courses.map(c => `- Course: "${c.courseName}" (${c.category})\n  Desc: ${(c.description || "").substring(0, 100)}...\n  Level: ${c.level || "Beginner"} • Rating: ${Number(c.rating ?? 0).toFixed(1)}`).join("\n");
     const offeringSection = offerings.map(o => `- ${o.programType.toUpperCase()}: "${o.title}" - $${(o.priceCents / 100).toFixed(2)}`).join("\n");
-    const cohortSection = cohorts.map(c => `- Cohort: "${c.name}" (${c.course.courseName}) starts ${c.startsAt?.toDateString()}`).join("\n");
+    const cohortSection = cohorts.map(c => `- Cohort: "${c.name}" (${c.offering.course.courseName}) starts ${c.startsAt?.toDateString()}`).join("\n");
     return `
 LATEST DB DATA:
 ### COURSES

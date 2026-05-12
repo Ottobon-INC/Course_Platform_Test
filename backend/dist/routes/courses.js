@@ -5,9 +5,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { ensureEnrollment } from "../services/enrollmentService";
 import { verifyAccessToken } from "../services/sessionService";
 import { checkCohortAccessForUser } from "../services/cohortAccess";
-const LEGACY_COURSE_SLUGS = {
-    "ai-native-fullstack-developer": "f26180b2-5dda-495a-a014-ae02e63f172f",
-};
+import { resolveCourseId as resolveCanonicalCourseId } from "../services/courseResolutionService";
 const coursesRouter = express.Router();
 const ACTIVE_MEMBER_STATUS = "active";
 const normalizeEmail = (value) => value.trim().toLowerCase();
@@ -16,65 +14,137 @@ const courseSelect = {
     courseName: true,
     description: true,
     priceCents: true,
+    compareAtPriceCents: true,
     slug: true,
+    category: true,
+    level: true,
+    rating: true,
+    students: true,
+    heroVideoUrl: true,
+    skillsJson: true,
+    reviewsJson: true,
+    faqsJson: true,
+    companiesJson: true,
+    overviewBullets: true,
+    syllabusUrl: true,
     createdAt: true,
+    offerings: {
+        select: {
+            programType: true,
+            priceCents: true,
+            compareAtPriceCents: true,
+            programmeDetails: true,
+            cohorts: {
+                where: { isActive: true },
+                select: { priceCents: true, compareAtPriceCents: true }
+            }
+        }
+    },
+    tutors: {
+        where: { isActive: true },
+        select: {
+            role: true,
+            tutor: {
+                select: {
+                    displayName: true,
+                    bio: true,
+                }
+            }
+        }
+    }
 };
-function mapCourse(course) {
-    const priceCents = course.priceCents ?? 0;
+function mapCourse(course, programType) {
     const createdAt = course.createdAt instanceof Date ? course.createdAt : new Date(course.createdAt ?? Date.now());
+    let determinedPriceCents = 0;
+    let determinedCompareAtPriceCents = 0;
+    const cohortOffering = course.offerings?.find(o => o.programType === "cohort");
+    const onDemandOffering = course.offerings?.find(o => o.programType === "ondemand");
+    const workshopOffering = course.offerings?.find(o => o.programType === "workshop");
+    if (programType) {
+        const targetOffering = course.offerings?.find(o => o.programType === programType);
+        if (targetOffering) {
+            if (programType === "cohort") {
+                const activeCohort = targetOffering.cohorts?.[0];
+                determinedPriceCents = activeCohort?.priceCents ?? targetOffering.priceCents ?? course.priceCents ?? 0;
+                determinedCompareAtPriceCents = activeCohort?.compareAtPriceCents ?? targetOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+            }
+            else {
+                determinedPriceCents = targetOffering.priceCents ?? course.priceCents ?? 0;
+                determinedCompareAtPriceCents = targetOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+            }
+        }
+        else {
+            determinedPriceCents = course.priceCents ?? 0;
+            determinedCompareAtPriceCents = course.compareAtPriceCents ?? 0;
+        }
+    }
+    else {
+        // Legacy fallback behavior
+        if (cohortOffering) {
+            const activeCohort = cohortOffering.cohorts?.[0];
+            determinedPriceCents = activeCohort?.priceCents ?? cohortOffering.priceCents ?? course.priceCents ?? 0;
+            determinedCompareAtPriceCents = activeCohort?.compareAtPriceCents ?? cohortOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+        }
+        else if (onDemandOffering) {
+            determinedPriceCents = onDemandOffering.priceCents ?? course.priceCents ?? 0;
+            determinedCompareAtPriceCents = onDemandOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+        }
+        else if (workshopOffering) {
+            determinedPriceCents = workshopOffering.priceCents ?? course.priceCents ?? 0;
+            determinedCompareAtPriceCents = workshopOffering.compareAtPriceCents ?? course.compareAtPriceCents ?? 0;
+        }
+        else {
+            determinedPriceCents = course.priceCents ?? 0;
+            determinedCompareAtPriceCents = course.compareAtPriceCents ?? 0;
+        }
+    }
+    const mentorsJson = course.tutors?.map(t => {
+        const nameParts = t.tutor.displayName.trim().split(" ");
+        const init = nameParts.length > 1
+            ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+            : nameParts[0].substring(0, 2).toUpperCase();
+        return {
+            name: t.tutor.displayName,
+            role: t.role,
+            company: t.tutor.bio || "Instructor",
+            init
+        };
+    }) || [];
     return {
         id: course.courseId,
         slug: course.slug,
         title: course.courseName,
         description: course.description,
-        price: Math.round(priceCents / 100),
-        priceCents,
+        price: Math.round(determinedPriceCents / 100),
+        priceCents: determinedPriceCents,
+        compareAtCents: determinedCompareAtPriceCents,
+        category: course.category,
+        level: course.level,
+        rating: course.rating,
+        students: course.students,
+        heroVideoUrl: course.heroVideoUrl,
+        skills_json: course.skillsJson,
+        reviews_json: course.reviewsJson,
+        faqs_json: course.faqsJson,
+        companies_json: course.companiesJson,
+        overview_bullets: course.overviewBullets,
+        syllabus_url: course.syllabusUrl,
+        mentors_json: mentorsJson,
+        instructor: mentorsJson.length > 0 ? mentorsJson[0].name : "Staff Instructor",
+        programme_details: cohortOffering?.programmeDetails ?? course.offerings?.[0]?.programmeDetails,
         createdAt: createdAt.toISOString(),
     };
 }
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function resolveCourseIdOrError(courseKeyRaw) {
     const courseKey = courseKeyRaw?.trim();
     if (!courseKey) {
         return { errorStatus: 400, errorMessage: "Course identifier is required" };
     }
-    if (uuidRegex.test(courseKey)) {
-        return { courseId: courseKey };
-    }
-    let decodedKey;
-    try {
-        decodedKey = decodeURIComponent(courseKey).trim();
-    }
-    catch {
-        decodedKey = courseKey.trim();
-    }
-    const normalizedSlug = decodedKey.toLowerCase();
-    const aliasMatch = LEGACY_COURSE_SLUGS[normalizedSlug];
-    if (aliasMatch) {
-        return { courseId: aliasMatch };
-    }
-    const normalizedName = decodedKey.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
-    const searchNames = Array.from(new Set([decodedKey, normalizedName]
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0)));
-    if (searchNames.length === 0) {
-        return { errorStatus: 400, errorMessage: "Course identifier is required" };
-    }
-    const courseRecord = await prisma.course.findFirst({
-        where: {
-            OR: searchNames.map((name) => ({
-                courseName: {
-                    equals: name,
-                    mode: "insensitive",
-                },
-            })),
-        },
-        select: { courseId: true },
-    });
-    if (!courseRecord) {
+    const resolvedCourseId = await resolveCanonicalCourseId(courseKey);
+    if (!resolvedCourseId) {
         return { errorStatus: 404, errorMessage: "Course not found" };
     }
-    return { courseId: courseRecord.courseId };
+    return { courseId: resolvedCourseId };
 }
 coursesRouter.get("/", asyncHandler(async (_req, res) => {
     const courses = await prisma.course.findMany({
@@ -82,7 +152,7 @@ coursesRouter.get("/", asyncHandler(async (_req, res) => {
         orderBy: [{ createdAt: "asc" }],
     });
     res.status(200).json({
-        courses: courses.map(mapCourse),
+        courses: courses.map(c => mapCourse(c)),
     });
 }));
 coursesRouter.get("/:courseKey", asyncHandler(async (req, res) => {
@@ -100,7 +170,8 @@ coursesRouter.get("/:courseKey", asyncHandler(async (req, res) => {
         res.status(404).json({ message: "Course not found" });
         return;
     }
-    res.status(200).json({ course: mapCourse(course) });
+    const programType = req.query.programType;
+    res.status(200).json({ course: mapCourse(course, programType) });
 }));
 coursesRouter.post("/:courseKey/enroll", requireAuth, asyncHandler(async (req, res) => {
     const resolved = await resolveCourseIdOrError(req.params.courseKey);
@@ -168,21 +239,29 @@ coursesRouter.get("/:courseKey/access-status", asyncHandler(async (req, res) => 
     const cohortIdentityFilter = normalizedEmail
         ? [{ userId }, { email: { equals: normalizedEmail, mode: "insensitive" } }]
         : [{ userId }];
-    const [registration, member] = await Promise.all([
+    const [activeCohort, registration, member, enrollment] = await Promise.all([
+        prisma.cohort.findFirst({
+            where: { isActive: true, offering: { courseId: resolved.courseId } },
+            select: { cohortId: true },
+        }),
         prisma.registration.findFirst({
             where: {
                 offering: { courseId: resolved.courseId, programType: "cohort" },
                 OR: registrationIdentityFilter,
             },
-            select: { registrationId: true, userId: true, email: true },
+            select: { registrationId: true, userId: true, email: true, cohortId: true },
         }),
         prisma.cohortMember.findFirst({
             where: {
                 status: ACTIVE_MEMBER_STATUS,
-                cohort: { courseId: resolved.courseId },
+                cohort: { offering: { courseId: resolved.courseId } },
                 OR: cohortIdentityFilter,
             },
             select: { memberId: true, userId: true, email: true },
+        }),
+        prisma.enrollment.findFirst({
+            where: { userId, courseId: resolved.courseId },
+            select: { enrollmentId: true },
         }),
     ]);
     if (normalizedEmail) {
@@ -201,10 +280,15 @@ coursesRouter.get("/:courseKey/access-status", asyncHandler(async (req, res) => 
                 : Promise.resolve(),
         ]);
     }
+    const courseHasActiveCohorts = Boolean(activeCohort);
+    const hasApplied = courseHasActiveCohorts
+        ? Boolean(registration) || Boolean(member)
+        : Boolean(enrollment);
+    const isApprovedMember = courseHasActiveCohorts ? Boolean(member) : Boolean(enrollment);
     res.status(200).json({
         isAuthenticated: true,
-        hasApplied: Boolean(registration),
-        isApprovedMember: Boolean(member),
+        hasApplied,
+        isApprovedMember,
     });
 }));
 export { coursesRouter };

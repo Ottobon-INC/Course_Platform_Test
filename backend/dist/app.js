@@ -22,6 +22,10 @@ import { dashboardRouter } from "./routes/dashboard";
 import { certificatesRouter } from "./routes/certificates";
 import { blogsRouter } from "./routes/blogs";
 import { sitemapRouter } from "./routes/sitemap";
+import { messagingRouter } from "./routes/messaging";
+import { studentCohortsRouter } from "./routes/studentCohorts";
+import { studentCertificatesRouter } from "./routes/studentCertificates";
+import { assignmentsRouter } from "./routes/assignments";
 export function createApp() {
     const app = express();
     const allowedOrigins = env.frontendAppUrls;
@@ -69,6 +73,9 @@ export function createApp() {
     app.use("/dashboard", dashboardRouter);
     app.use("/certificates", certificatesRouter);
     app.use("/blogs", blogsRouter);
+    app.use("/messaging", messagingRouter);
+    app.use("/student", studentCohortsRouter);
+    app.use("/student", studentCertificatesRouter);
     // SEO — Sitemap & Robots (served directly, no /api prefix needed)
     app.use("/sitemap.xml", sitemapRouter);
     app.get("/robots.txt", (_req, res) => {
@@ -96,6 +103,10 @@ export function createApp() {
     apiRouter.use("/dashboard", dashboardRouter);
     apiRouter.use("/certificates", certificatesRouter);
     apiRouter.use("/blogs", blogsRouter);
+    apiRouter.use("/messaging", messagingRouter);
+    apiRouter.use("/student", studentCohortsRouter);
+    apiRouter.use("/student", studentCertificatesRouter);
+    apiRouter.use("/assignments", assignmentsRouter);
     app.use("/api", apiRouter);
     app.use((err, _req, res, _next) => {
         console.error("Unhandled error", err);

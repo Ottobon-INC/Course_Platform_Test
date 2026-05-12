@@ -12,6 +12,15 @@ type DashboardSummary = {
     skills: string[];
     theme: string;
     language: string;
+    studentProfile: {
+      fullName: string | null;
+      collegeName: string | null;
+      branch: string | null;
+      yearOfPassing: string | null;
+      isCollegeStudent: boolean | null;
+      totalPoints: number;
+      previousRank: number | null;
+    } | null;
   };
   stats: {
     sessionsThisWeek: number;
@@ -574,7 +583,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         phone: user.phone,
         profilePhotoUrl: user.profilePhotoUrl,
         skills: user.skills,
-        theme: user.theme,
+        theme: "light",
         language: user.language,
         studentProfile: user.studentProfile ? {
           fullName: user.studentProfile.fullName,

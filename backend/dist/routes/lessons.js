@@ -50,7 +50,7 @@ function normalizeVideoUrl(url) {
         return trimmed;
     }
 }
-const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt"]);
+const SUPPORTED_BLOCK_TYPES = new Set(["text", "image", "video", "ppt", "quiz"]);
 function getOptionalAuthUserId(req) {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
@@ -273,15 +273,49 @@ lessonsRouter.get("/courses/:courseKey/topics", asyncHandler(async (req, res) =>
         res.status(404).json({ message: "Course not found" });
         return;
     }
+    const outlineOnly = typeof req.query.outline === "string" && req.query.outline === "true";
+    if (outlineOnly) {
+        const topics = await prisma.topic.findMany({
+            where: { courseId: resolvedCourseId },
+            orderBy: [{ moduleNo: "asc" }, { topicNumber: "asc" }],
+            select: {
+                topicId: true,
+                courseId: true,
+                moduleNo: true,
+                moduleName: true,
+                topicNumber: true,
+                topicName: true,
+                contentType: true,
+                isPreview: true,
+            },
+        });
+        res.status(200).json({
+            topics: topics.map((topic) => ({
+                ...topic,
+                videoUrl: null,
+                textContent: null,
+                pptUrl: null,
+                simulation: null,
+            })),
+        });
+        return;
+    }
     const accessDecision = await checkCohortAccessFromRequest(req, resolvedCourseId);
     if (!accessDecision.allowed) {
         res.status(accessDecision.status).json({ message: accessDecision.message });
         return;
     }
     const userId = getOptionalAuthUserId(req);
-    const personaProfile = userId
-        ? await ensurePersonaProfile({ userId, courseId: resolvedCourseId })
-        : null;
+    let personaProfile = null;
+    if (userId) {
+        try {
+            personaProfile = await ensurePersonaProfile({ userId, courseId: resolvedCourseId });
+        }
+        catch (error) {
+            // Never block course outline rendering on persona profile persistence issues.
+            console.warn("Unable to resolve persona profile; falling back to default content assets.", error);
+        }
+    }
     const personaKey = personaProfile?.personaKey ?? null;
     const topics = await prisma.topic.findMany({
         where: { courseId: resolvedCourseId },
@@ -512,8 +546,20 @@ lessonsRouter.put("/:lessonId/progress", requireAuth, asyncHandler(async (req, r
     const now = new Date();
     const existing = await prisma.topicProgress.findUnique({
         where: { userId_topicId: { userId: auth.userId, topicId: topic.topicId } },
-        select: { completedAt: true },
+        select: { completedAt: true, isCompleted: true },
     });
+    // Award points if this is a new completion
+    if (shouldComplete && !existing?.isCompleted) {
+        await prisma.user.update({
+            where: { userId: auth.userId },
+            data: {
+                totalPoints: { increment: 100 },
+                studentProfile: {
+                    update: { totalPoints: { increment: 100 } }
+                }
+            }
+        });
+    }
     const completedAt = shouldComplete ? existing?.completedAt ?? now : null;
     const record = await prisma.topicProgress.upsert({
         where: { userId_topicId: { userId: auth.userId, topicId: topic.topicId } },

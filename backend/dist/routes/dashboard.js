@@ -56,26 +56,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         }
         const user = await prisma.user.findUnique({
             where: { userId: auth.userId },
-            select: { fullName: true, email: true },
+            include: {
+                studentProfile: true
+            },
         });
         if (!user) {
             res.status(404).json({ message: "User not found" });
             return;
         }
-        const [enrollments, cohortMemberships] = await Promise.all([
-            prisma.enrollment.findMany({
-                where: { userId: auth.userId },
-                include: {
-                    course: {
-                        select: {
-                            courseId: true,
-                            courseName: true,
-                            slug: true,
-                            category: true,
-                        },
-                    },
-                },
-            }),
+        const [cohortMemberships, approvedCohortRegistrations, completedCertificates] = await Promise.all([
             prisma.cohortMember.findMany({
                 where: {
                     OR: [
@@ -86,25 +75,85 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
                 include: {
                     cohort: {
                         include: {
-                            course: {
-                                select: {
-                                    courseId: true,
-                                    courseName: true,
-                                    slug: true,
-                                    category: true,
+                            offering: {
+                                include: {
+                                    course: {
+                                        select: {
+                                            courseId: true,
+                                            courseName: true,
+                                            slug: true,
+                                            category: true,
+                                        },
+                                    },
                                 },
                             },
                         },
                     },
                 },
             }),
+            prisma.registration.findMany({
+                where: {
+                    cohortId: { not: null },
+                    offering: { programType: "cohort" },
+                    status: "verified",
+                    OR: [
+                        { userId: auth.userId },
+                        { email: { equals: user.email, mode: "insensitive" } },
+                    ],
+                },
+                include: {
+                    cohort: {
+                        include: {
+                            offering: {
+                                include: {
+                                    course: {
+                                        select: {
+                                            courseId: true,
+                                            courseName: true,
+                                            slug: true,
+                                            category: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            }),
+            prisma.courseCertificate.findMany({
+                where: { userId: auth.userId },
+                orderBy: { issuedAt: "desc" },
+            }),
         ]);
-        const cohortCourseIds = new Set(cohortMemberships.map((membership) => membership.cohort.courseId));
-        const onDemandEnrollments = enrollments.filter((enrollment) => !cohortCourseIds.has(enrollment.courseId));
-        const courseIds = Array.from(new Set([
-            ...enrollments.map((enrollment) => enrollment.courseId),
-            ...cohortMemberships.map((membership) => membership.cohort.courseId),
-        ]));
+        const cohortEntryById = new Map();
+        cohortMemberships.forEach((membership) => {
+            cohortEntryById.set(membership.cohort.cohortId, {
+                cohortId: membership.cohort.cohortId,
+                batchNo: membership.batchNo,
+                startsAt: membership.cohort.startsAt,
+                endsAt: membership.cohort.endsAt,
+                courseId: membership.cohort.offering.courseId,
+                courseName: membership.cohort.offering.course.courseName,
+                courseSlug: membership.cohort.offering.course.slug ?? null,
+            });
+        });
+        approvedCohortRegistrations.forEach((registration) => {
+            const cohort = registration.cohort;
+            if (!cohort || cohortEntryById.has(cohort.cohortId)) {
+                return;
+            }
+            cohortEntryById.set(cohort.cohortId, {
+                cohortId: cohort.cohortId,
+                batchNo: 1,
+                startsAt: cohort.startsAt,
+                endsAt: cohort.endsAt,
+                courseId: cohort.offering.courseId,
+                courseName: cohort.offering.course.courseName,
+                courseSlug: cohort.offering.course.slug ?? null,
+            });
+        });
+        const cohortEntries = Array.from(cohortEntryById.values());
+        const courseIds = Array.from(new Set(cohortEntries.map((entry) => entry.courseId)));
         const progressRows = courseIds.length
             ? await prisma.topicProgress.findMany({
                 where: {
@@ -112,10 +161,12 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
                     topic: { courseId: { in: courseIds } },
                 },
                 select: {
+                    topicId: true,
                     isCompleted: true,
                     updatedAt: true,
                     topic: {
                         select: {
+                            topicId: true,
                             courseId: true,
                             moduleNo: true,
                             topicName: true,
@@ -126,51 +177,84 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             : [];
         const latestByCourse = new Map();
         progressRows.forEach((row) => {
-            if (!row.topic?.courseId) {
-                return;
+            // row.topic exists because of our select/include pattern
+            const topic = row.topic;
+            if (topic && !latestByCourse.has(topic.courseId)) {
+                latestByCourse.set(topic.courseId, topic);
             }
-            const courseId = row.topic.courseId;
-            const currentLatest = latestByCourse.get(courseId);
-            if (!currentLatest || row.updatedAt > currentLatest.updatedAt) {
-                latestByCourse.set(courseId, {
-                    updatedAt: row.updatedAt,
-                    moduleNo: row.topic.moduleNo,
-                    topicName: row.topic.topicName,
-                });
+        });
+        // --- ENHANCED PROGRESS LOGIC: Calculate "True Next Lesson" for all courses ---
+        const allCourseTopics = courseIds.length
+            ? await prisma.topic.findMany({
+                where: { courseId: { in: courseIds } },
+                orderBy: [{ moduleNo: 'asc' }, { topicNumber: 'asc' }]
+            })
+            : [];
+        const passedModulesRows = courseIds.length
+            ? await prisma.$queryRaw(Prisma.sql `SELECT course_id, module_no FROM module_progress WHERE user_id = ${auth.userId}::uuid AND course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql `${id}::uuid`))}) AND quiz_passed = TRUE`)
+            : [];
+        const passedModulesByCourse = new Map();
+        passedModulesRows.forEach(row => {
+            const set = passedModulesByCourse.get(row.course_id) ?? new Set();
+            set.add(row.module_no);
+            passedModulesByCourse.set(row.course_id, set);
+        });
+        const completedTopicIds = new Set(progressRows.filter(p => p.isCompleted).map(p => p.topicId));
+        const nextTopicByCourse = new Map();
+        courseIds.forEach(courseId => {
+            const courseTopics = allCourseTopics.filter(t => t.courseId === courseId);
+            const passedNos = passedModulesByCourse.get(courseId) ?? new Set();
+            const next = courseTopics.find(t => !completedTopicIds.has(t.topicId) &&
+                !passedNos.has(t.moduleNo));
+            if (next) {
+                nextTopicByCourse.set(courseId, next);
             }
         });
         const quizSectionTotals = courseIds.length
             ? await prisma.$queryRaw(Prisma.sql `
             SELECT course_id, COUNT(*)::bigint AS section_count
             FROM (
-              SELECT DISTINCT course_id, module_no, topic_pair_index
-              FROM quiz_questions
-              WHERE course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql `${id}::uuid`))})
+              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
+              FROM topic_content_assets a
+              JOIN topics t ON t.topic_id = a.topic_id
+              WHERE a.content_type = 'quiz'
+                AND a.payload ? 'assessment_id'
+                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql `${id}::uuid`))})
             ) AS sections
             GROUP BY course_id
           `)
             : [];
         const quizSectionPassed = courseIds.length
             ? await prisma.$queryRaw(Prisma.sql `
-            WITH latest AS (
-              SELECT DISTINCT ON (course_id, module_no, topic_pair_index)
+            WITH sections AS (
+              SELECT DISTINCT t.course_id, (a.payload->>'assessment_id') AS assessment_id_text
+              FROM topic_content_assets a
+              JOIN topics t ON t.topic_id = a.topic_id
+              WHERE a.content_type = 'quiz'
+                AND a.payload ? 'assessment_id'
+                AND t.course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql `${id}::uuid`))})
+            ),
+            latest AS (
+              SELECT DISTINCT ON (course_id, assessment_id)
                 course_id,
-                module_no,
-                topic_pair_index,
+                assessment_id::text AS assessment_id_text,
                 status
               FROM quiz_attempts
               WHERE user_id = ${auth.userId}::uuid
                 AND course_id IN (${Prisma.join(courseIds.map((id) => Prisma.sql `${id}::uuid`))})
               ORDER BY course_id,
-                       module_no,
-                       topic_pair_index,
+                       assessment_id,
                        completed_at DESC NULLS LAST,
                        updated_at DESC NULLS LAST
             )
-            SELECT course_id, COUNT(*)::bigint AS passed_count
-            FROM latest
-            WHERE status = 'passed'
-            GROUP BY course_id
+            SELECT
+              sections.course_id,
+              COUNT(*) FILTER (WHERE latest.status = 'passed')::bigint AS passed_count
+            FROM sections
+            LEFT JOIN latest
+              ON latest.course_id = sections.course_id
+             AND latest.assessment_id_text = sections.assessment_id_text
+            GROUP BY sections.course_id
           `)
             : [];
         const totalSectionsByCourse = new Map(quizSectionTotals.map((row) => [row.course_id, Number(row.section_count) || 0]));
@@ -181,47 +265,98 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             }
             return latest;
         }, null);
-        const cohorts = cohortMemberships.map((membership) => {
-            const courseId = membership.cohort.courseId;
+        const cohortsList = cohortEntries.map((entry) => {
+            const courseId = entry.courseId;
             const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
             const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
             const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
             const latest = latestByCourse.get(courseId);
-            const lastLessonSlug = latest ? slugify(latest.topicName) : null;
-            const lastAccessedModule = latest
-                ? `Module ${latest.moduleNo}: ${latest.topicName}`
+            const nextTopic = nextTopicByCourse.get(courseId);
+            // Prioritize the NEXT topic for the resume button, fallback to last activity
+            const displayTopic = nextTopic || latest;
+            const lastLessonSlug = displayTopic ? slugify(displayTopic.topicName) : null;
+            const lastAccessedModule = displayTopic
+                ? `Module ${displayTopic.moduleNo}: ${displayTopic.topicName}`
                 : "Getting started";
             return {
-                id: membership.cohort.cohortId,
-                title: membership.cohort.course.courseName,
-                courseSlug: membership.cohort.course.slug ?? null,
+                id: entry.cohortId,
+                title: entry.courseName,
+                courseId: entry.courseId,
+                courseSlug: entry.courseSlug,
                 lastLessonSlug,
                 lastAccessedModule,
-                status: computeStatus(membership.cohort.startsAt, membership.cohort.endsAt),
+                status: computeStatus(entry.startsAt, entry.endsAt),
                 progress,
-                nextSessionDate: formatDateTime(membership.cohort.startsAt),
-                batchNo: membership.batchNo,
+                nextSessionDate: formatDateTime(entry.startsAt),
+                batchNo: entry.batchNo,
             };
         });
-        const onDemand = onDemandEnrollments.map((enrollment) => {
-            const courseId = enrollment.courseId;
-            const totalSections = totalSectionsByCourse.get(courseId) ?? 0;
-            const passedSections = passedSectionsByCourse.get(courseId) ?? 0;
-            const progress = totalSections === 0 ? 0 : Math.round((passedSections / totalSections) * 100);
-            const latest = latestByCourse.get(courseId);
-            const lastLessonSlug = latest ? slugify(latest.topicName) : null;
-            const lastAccessedModule = latest
-                ? `Module ${latest.moduleNo}: ${latest.topicName}`
-                : "Getting started";
-            return {
-                id: enrollment.courseId,
-                title: enrollment.course.courseName,
-                courseSlug: enrollment.course.slug ?? null,
-                progress,
-                lastAccessedModule,
-                lastLessonSlug,
-            };
+        const cohorts = cohortsList.filter(c => c.status !== 'Completed');
+        const onDemand = [];
+        // --- LOGICALLY DYNAMIC TASKS START ---
+        // 1. Fetch all assignments and projects specifically for the user's batch
+        const batchFilters = cohorts.map(c => ({
+            cohortId: c.id,
+            batchNo: c.batchNo
+        }));
+        const [assignments, submissions, cohortProjects] = await Promise.all([
+            prisma.assignment.findMany({
+                where: {
+                    OR: [
+                        ...batchFilters,
+                        { isOnDemand: true, courseId: { in: courseIds } }
+                    ]
+                },
+                orderBy: { dueAt: 'asc' }
+            }),
+            prisma.assignmentSubmission.findMany({
+                where: { userId: auth.userId }
+            }),
+            prisma.cohortBatchProject.findMany({
+                where: {
+                    OR: batchFilters
+                }
+            })
+        ]);
+        const submittedAssignmentIds = new Set(submissions.map(s => s.assignmentId));
+        // 2. Identify active next topics from our pre-calculated map
+        const activeNextTopics = cohorts.map(cohort => {
+            const topic = nextTopicByCourse.get(cohort.courseId);
+            return topic ? { ...topic, cohortId: cohort.id, courseTitle: cohort.title } : null;
+        }).filter((t) => t !== null);
+        // 3. Construct Dynamic Urgent Tasks
+        const dynamicUrgentTasks = [];
+        let taskIdCounter = 1;
+        // Priority: Assignments > Quizzes/Lessons > Projects
+        assignments.forEach(assignment => {
+            if (!submittedAssignmentIds.has(assignment.assignmentId)) {
+                dynamicUrgentTasks.push({
+                    id: taskIdCounter++,
+                    time: assignment.dueAt ? formatDate(assignment.dueAt) : "Soon",
+                    text: `Submit Assignment: ${assignment.title}`,
+                    type: "assignment"
+                });
+            }
         });
+        activeNextTopics.forEach(topic => {
+            if (dynamicUrgentTasks.length < 5) {
+                dynamicUrgentTasks.push({
+                    id: taskIdCounter++,
+                    time: "Next Step",
+                    text: `Complete ${topic.contentType === 'quiz' ? 'Quiz' : 'Lesson'}: ${topic.topicName}`,
+                    type: topic.contentType === 'quiz' ? 'quiz' : 'assessment'
+                });
+            }
+        });
+        cohortProjects.forEach(project => {
+            dynamicUrgentTasks.push({
+                id: taskIdCounter++,
+                time: "Project",
+                text: `Work on Project: ${project.payload?.title || 'Final Project'}`,
+                type: "workshop"
+            });
+        });
+        const urgentTasks = dynamicUrgentTasks.slice(0, 4);
         const workshopRegistrations = await prisma.registration.findMany({
             where: {
                 userId: auth.userId,
@@ -277,41 +412,67 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
             category: offering.course.category ?? "Learning",
         }))
             .slice(0, 3);
-        const resumeCourse = onDemand.length
-            ? {
-                id: onDemand[0].id,
-                courseSlug: onDemand[0].courseSlug ?? null,
-                title: onDemand[0].title,
-                progress: onDemand[0].progress,
-                lastAccessedModule: onDemand[0].lastAccessedModule,
-                lastLessonSlug: onDemand[0].lastLessonSlug ?? null,
-            }
-            : cohorts.length
-                ? {
-                    id: cohorts[0].id,
-                    courseSlug: cohorts[0].courseSlug ?? null,
-                    title: cohorts[0].title,
-                    progress: cohorts[0].progress,
-                    lastAccessedModule: cohorts[0].lastAccessedModule,
-                    lastLessonSlug: cohorts[0].lastLessonSlug ?? null,
-                }
-                : null;
+        // 4. Update Resume Logic
+        const resumeCourse = cohorts.length > 0 ? cohorts[0] : null;
+        const currentNextTopic = activeNextTopics.find(t => t?.cohortId === resumeCourse?.id);
+        const dynamicTasks = [
+            {
+                id: 1,
+                text: resumeCourse ? `Continue ${resumeCourse.title}` : "Explore new courses",
+                checked: !!resumeCourse && resumeCourse.progress > 0
+            },
+            {
+                id: 2,
+                text: currentNextTopic ? `Next: ${currentNextTopic.topicName}` : (resumeCourse ? "Course Completed!" : "Start your first lesson"),
+                checked: false
+            },
+            { id: 3, text: "Check Cohort Community", checked: true }
+        ];
         const payload = {
             user: {
                 fullName: user.fullName,
                 email: user.email,
+                phone: user.phone,
+                profilePhotoUrl: user.profilePhotoUrl,
+                skills: user.skills,
+                theme: "light",
+                language: user.language,
+                studentProfile: user.studentProfile ? {
+                    fullName: user.studentProfile.fullName,
+                    collegeName: user.studentProfile.collegeName,
+                    branch: user.studentProfile.branch,
+                    yearOfPassing: user.studentProfile.yearOfPassing,
+                    isCollegeStudent: user.studentProfile.isCollegeStudent,
+                    totalPoints: user.studentProfile.totalPoints,
+                    previousRank: user.studentProfile.previousRank
+                } : null
             },
             stats: {
-                sessionsThisWeek: computeSessionsThisWeek(cohortMemberships.map((m) => ({ startsAt: m.cohort.startsAt }))),
+                sessionsThisWeek: computeSessionsThisWeek(cohortEntries.map((entry) => ({ startsAt: entry.startsAt }))),
                 lastActiveAt: lastActivity ? lastActivity.toISOString() : null,
             },
-            resumeCourse,
+            resumeCourse: resumeCourse ? {
+                id: resumeCourse.id,
+                courseSlug: resumeCourse.courseSlug,
+                title: resumeCourse.title,
+                progress: resumeCourse.progress,
+                lastAccessedModule: resumeCourse.lastAccessedModule,
+                lastLessonSlug: currentNextTopic ? slugify(currentNextTopic.topicName) : resumeCourse.lastLessonSlug,
+            } : null,
             cohorts,
             onDemand,
             workshops,
             catalog,
-            completed: [],
+            completed: completedCertificates.map(cert => ({
+                id: cert.certificateId,
+                title: cert.courseTitle,
+                date: formatDate(cert.issuedAt) || "Recently",
+                courseId: cert.courseId,
+                programType: cert.programType
+            })),
             upcoming,
+            dynamicTasks,
+            urgentTasks,
         };
         res.status(200).json(payload);
     }

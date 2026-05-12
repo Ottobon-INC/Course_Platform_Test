@@ -35,51 +35,47 @@ const upload = multer({
 });
 
 // POST /api/assignments/upload
-assignmentsRouter.post("/upload", requireAuth, async (req, res) => {
+assignmentsRouter.post("/upload", requireAuth, upload.single("file"), async (req, res) => {
   try {
-    upload.single("file")(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: err.message || "Upload failed" });
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: "No file uploaded" });
+      return;
+    }
+
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 80) || "file";
+    const filename = `${Date.now()}-${crypto.randomUUID()}-${base}${ext}`;
+
+    // Try OneDrive if configured
+    if (env.oneDrive.clientId && env.oneDrive.clientSecret && env.oneDrive.tenantId) {
+      try {
+        const driveData = await uploadToOneDrive(filename, file.buffer, file.mimetype, env.oneDrive.assignmentsFolder);
+        const proxyUrl = `/assignments/attachments/${driveData.drive_item_id}/content`;
+        
+        res.status(200).json({
+          fileName: file.originalname,
+          fileUrl: proxyUrl,
+          driveItemId: driveData.drive_item_id,
+          size: file.size,
+          mimeType: file.mimetype
+        });
+        return;
+      } catch (err) {
+        console.error("OneDrive upload failed for assignment, falling back to local:", err);
       }
+    }
 
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
+    // Fallback to local storage
+    const uploadDir = path.join(process.cwd(), "uploads", "assignments");
+    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.writeFile(path.join(uploadDir, filename), file.buffer);
 
-      const ext = path.extname(file.originalname);
-      const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, "-").slice(0, 80) || "file";
-      const filename = `${Date.now()}-${crypto.randomUUID()}-${base}${ext}`;
-
-      // Try OneDrive if configured
-      if (env.oneDrive.clientId && env.oneDrive.clientSecret && env.oneDrive.tenantId) {
-        try {
-          const driveData = await uploadToOneDrive(filename, file.buffer, file.mimetype, env.oneDrive.assignmentsFolder);
-          const proxyUrl = `/assignments/attachments/${driveData.drive_item_id}/content`;
-          
-          return res.status(200).json({
-            fileName: file.originalname,
-            fileUrl: proxyUrl,
-            driveItemId: driveData.drive_item_id,
-            size: file.size,
-            mimeType: file.mimetype
-          });
-        } catch (err) {
-          console.error("OneDrive upload failed for assignment, falling back to local:", err);
-        }
-      }
-
-      // Fallback to local storage
-      const uploadDir = path.join(process.cwd(), "uploads", "assignments");
-      await fs.mkdir(uploadDir, { recursive: true });
-      await fs.writeFile(path.join(uploadDir, filename), file.buffer);
-
-      res.status(200).json({
-        fileName: file.originalname,
-        fileUrl: `/uploads/assignments/${filename}`,
-        size: file.size,
-        mimeType: file.mimetype
-      });
+    res.status(200).json({
+      fileName: file.originalname,
+      fileUrl: `/uploads/assignments/${filename}`,
+      size: file.size,
+      mimeType: file.mimetype
     });
   } catch (error) {
     console.error("File upload error", error);
@@ -91,6 +87,10 @@ assignmentsRouter.post("/upload", requireAuth, async (req, res) => {
 assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
+    if (!auth) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
     const userId = auth.userId;
 
     // Security Check: Only the student themselves or an admin can view these
@@ -259,6 +259,10 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
 assignmentsRouter.post("/submit", requireAuth, async (req, res) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
+    if (!auth) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
     const { assignmentId, submissionContent } = req.body;
 
     if (!assignmentId || !submissionContent) {

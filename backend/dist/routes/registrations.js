@@ -1,8 +1,10 @@
 import express from "express";
 import { prisma } from "../services/prisma";
 import { verifyAccessToken } from "../services/sessionService";
+import { resolveCourseId } from "../services/courseResolutionService";
 import multer from "multer";
 import { supabase } from "../services/supabase";
+import { generateUniquePaymentCode } from "../utils/paymentCode";
 export const registrationsRouter = express.Router();
 // Configure Multer for memory storage (direct to Supabase)
 const upload = multer({
@@ -53,25 +55,160 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         const courseSlug = typeof req.query.courseSlug === "string" ? req.query.courseSlug : undefined;
         const courseId = typeof req.query.courseId === "string" ? req.query.courseId : undefined;
         const programType = typeof req.query.programType === "string" ? req.query.programType : undefined;
-        let course = null;
+        let resolvedCourseId = null;
         if (courseSlug) {
-            course = await prisma.course.findUnique({ where: { slug: courseSlug } });
+            resolvedCourseId = await resolveCourseId(courseSlug);
+            if (!resolvedCourseId) {
+                return res.json({ offerings: [] });
+            }
         }
         else if (courseId) {
-            course = await prisma.course.findUnique({ where: { courseId } });
+            resolvedCourseId = await resolveCourseId(courseId);
+            if (!resolvedCourseId) {
+                return res.json({ offerings: [] });
+            }
         }
-        const offerings = await prisma.courseOffering.findMany({
+        const rawOfferings = await prisma.courseOffering.findMany({
             where: {
-                ...(course ? { courseId: course.courseId } : {}),
+                ...(resolvedCourseId ? { courseId: resolvedCourseId } : {}),
                 isActive: true,
                 ...(programType ? { programType: programType } : {}),
             },
             include: {
-                course: true
+                course: true,
+                cohorts: {
+                    where: { isActive: true },
+                    select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+                }
             },
             orderBy: { createdAt: "asc" },
         });
+        const offerings = rawOfferings.map((offering) => {
+            let determinedPriceCents = offering.priceCents;
+            let determinedCompareAtPriceCents = offering.compareAtPriceCents;
+            if (offering.programType === "cohort") {
+                const activeCohort = offering.cohorts?.[0];
+                if (activeCohort && activeCohort.priceCents != null) {
+                    determinedPriceCents = activeCohort.priceCents;
+                    determinedCompareAtPriceCents = activeCohort.compareAtPriceCents ?? offering.compareAtPriceCents;
+                }
+                else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+                    determinedPriceCents = offering.course.priceCents;
+                    determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+                }
+            }
+            else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+                determinedPriceCents = offering.course.priceCents;
+                determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+            }
+            return {
+                offeringId: offering.offeringId,
+                courseId: offering.courseId,
+                title: offering.title,
+                programType: offering.programType,
+                priceCents: determinedPriceCents,
+                compareAtPriceCents: determinedCompareAtPriceCents,
+                isActive: offering.isActive,
+                assessmentRequired: offering.assessmentRequired,
+                showSlots: offering.showSlots,
+                slotsJson: offering.slotsJson,
+                qrImageUrl: offering.qrImageUrl,
+                paymentMode: offering.paymentMode,
+                programmeDetails: offering.programmeDetails,
+                course: offering.course,
+                cohorts: offering.cohorts || [],
+            };
+        });
         return res.json({ offerings });
+    }
+    catch (error) {
+        return next(error);
+    }
+});
+registrationsRouter.get("/offerings/:id", async (req, res, next) => {
+    try {
+        const idOrSlug = req.params.id;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        let offeringId = null;
+        if (uuidRegex.test(idOrSlug)) {
+            offeringId = idOrSlug;
+        }
+        else {
+            // Try to resolve as course slug first
+            const resolvedCourseId = await resolveCourseId(idOrSlug);
+            if (resolvedCourseId) {
+                const off = await prisma.courseOffering.findFirst({
+                    where: { courseId: resolvedCourseId, programType: "workshop", isActive: true },
+                    select: { offeringId: true }
+                });
+                offeringId = off?.offeringId ?? null;
+            }
+            // If still not found, try to resolve by slugifying active workshop titles
+            if (!offeringId) {
+                const activeWorkshops = await prisma.courseOffering.findMany({
+                    where: { programType: "workshop", isActive: true },
+                    select: { offeringId: true, title: true }
+                });
+                const toRouteSlug = (value) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+                const matched = activeWorkshops.find(w => w.title && toRouteSlug(w.title) === idOrSlug);
+                if (matched) {
+                    offeringId = matched.offeringId;
+                }
+            }
+        }
+        if (!offeringId) {
+            return res.status(404).json({ error: "Offering not found" });
+        }
+        const offering = await prisma.courseOffering.findUnique({
+            where: { offeringId },
+            include: {
+                course: true,
+                cohorts: {
+                    where: { isActive: true },
+                    select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+                }
+            }
+        });
+        if (!offering) {
+            return res.status(404).json({ error: "Offering not found" });
+        }
+        let determinedPriceCents = offering.priceCents;
+        let determinedCompareAtPriceCents = offering.compareAtPriceCents;
+        if (offering.programType === "cohort") {
+            const activeCohort = offering.cohorts?.[0];
+            if (activeCohort && activeCohort.priceCents != null) {
+                determinedPriceCents = activeCohort.priceCents;
+                determinedCompareAtPriceCents = activeCohort.compareAtPriceCents ?? offering.compareAtPriceCents;
+            }
+            else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+                determinedPriceCents = offering.course.priceCents;
+                determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+            }
+        }
+        else if (determinedPriceCents === 0 && offering.course?.priceCents) {
+            determinedPriceCents = offering.course.priceCents;
+            determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
+        }
+        return res.json({
+            offering: {
+                offeringId: offering.offeringId,
+                courseId: offering.courseId,
+                title: offering.title,
+                description: offering.description,
+                programType: offering.programType,
+                priceCents: determinedPriceCents,
+                compareAtPriceCents: determinedCompareAtPriceCents,
+                isActive: offering.isActive,
+                assessmentRequired: offering.assessmentRequired,
+                showSlots: offering.showSlots,
+                slotsJson: offering.slotsJson,
+                qrImageUrl: offering.qrImageUrl,
+                paymentMode: offering.paymentMode,
+                programmeDetails: offering.programmeDetails,
+                course: offering.course,
+                cohorts: offering.cohorts || [],
+            }
+        });
     }
     catch (error) {
         return next(error);
@@ -109,7 +246,7 @@ registrationsRouter.get("/assessment-questions", async (req, res, next) => {
 });
 registrationsRouter.post("/", async (req, res, next) => {
     try {
-        const { offeringId, fullName, email, phoneNumber, isCollegeStudent, collegeName, yearOfPassing, branch, referredBy, selectedSlot, sessionTime, mode, status, answersJson, questionsSnapshot, assessmentSubmittedAt, plan, } = req.body ?? {};
+        const { offeringId, fullName, email, phoneNumber, isCollegeStudent, collegeName, yearOfPassing, branch, referredBy, selectedSlot, sessionTime, mode, status, answersJson, questionsSnapshot, assessmentSubmittedAt, plan, cohortId, } = req.body ?? {};
         const authUserId = getOptionalAuthUserId(req);
         const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
         const resolvedIsCollegeStudent = typeof isCollegeStudent === "boolean" ? isCollegeStudent : true;
@@ -143,17 +280,17 @@ registrationsRouter.post("/", async (req, res, next) => {
                 where: { userId: authUserId },
                 select: { userId: true, email: true },
             });
-            if (!authUser) {
-                return res.status(401).json({ error: "Authenticated user not found" });
+            if (authUser) {
+                if (normalizeEmail(authUser.email) !== normalizedEmail) {
+                    return res.status(400).json({
+                        error: "Authenticated account email does not match registration email",
+                    });
+                }
+                resolvedUserId = authUser.userId;
             }
-            if (normalizeEmail(authUser.email) !== normalizedEmail) {
-                return res.status(400).json({
-                    error: "Authenticated account email does not match registration email",
-                });
-            }
-            resolvedUserId = authUser.userId;
+            // If authUserId was provided but user record wasn't found, we'll fall back to email lookup
         }
-        else {
+        if (!resolvedUserId) {
             const matchedUser = await prisma.user.findFirst({
                 where: {
                     email: {
@@ -174,6 +311,9 @@ registrationsRouter.post("/", async (req, res, next) => {
                 },
             },
         });
+        if (existing && ["paid", "completed", "enrolled"].includes(existing.status)) {
+            return res.status(400).json({ error: "You have already registered and paid for this course." });
+        }
         const payload = {
             offeringId,
             userId: resolvedUserId,
@@ -184,15 +324,16 @@ registrationsRouter.post("/", async (req, res, next) => {
             collegeName: resolvedIsCollegeStudent ? collegeName : null,
             yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
             branch: resolvedIsCollegeStudent ? branch : null,
-            referredBy: referredBy || null,
-            selectedSlot: selectedSlot || null,
-            sessionTime: sessionTime || null,
-            mode: mode || null,
-            status: status || "new",
-            answersJson: answersJson || null,
-            questionsSnapshot: questionsSnapshot || null,
-            assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : null,
-            plan: plan || null,
+            referredBy: referredBy || (existing?.referredBy) || null,
+            selectedSlot: selectedSlot || (existing?.selectedSlot) || null,
+            sessionTime: sessionTime || (existing?.sessionTime) || null,
+            mode: mode || (existing?.mode) || null,
+            status: status || (existing ? existing.status : "pending"),
+            answersJson: answersJson || (existing?.answersJson) || null,
+            questionsSnapshot: questionsSnapshot || (existing?.questionsSnapshot) || null,
+            assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : (existing?.assessmentSubmittedAt),
+            plan: plan || (existing?.plan) || null,
+            cohortId: cohortId || (existing?.cohortId) || null,
         };
         const registration = existing
             ? await prisma.registration.update({
@@ -200,12 +341,80 @@ registrationsRouter.post("/", async (req, res, next) => {
                 data: payload,
             })
             : await prisma.registration.create({ data: payload });
-        return res.status(existing ? 200 : 201).json({ registration });
+        // Sync to StudentProfile if we have a userId
+        if (resolvedUserId) {
+            await prisma.studentProfile.upsert({
+                where: { userId: resolvedUserId },
+                create: {
+                    userId: resolvedUserId,
+                    collegeName: resolvedIsCollegeStudent ? collegeName : null,
+                    branch: resolvedIsCollegeStudent ? branch : null,
+                    yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
+                    isCollegeStudent: resolvedIsCollegeStudent,
+                    fullName: fullName
+                },
+                update: {
+                    collegeName: resolvedIsCollegeStudent ? collegeName : null,
+                    branch: resolvedIsCollegeStudent ? branch : null,
+                    yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
+                    isCollegeStudent: resolvedIsCollegeStudent,
+                    fullName: fullName
+                }
+            });
+        }
+        // Enrich response with paymentMode so frontend knows which flow to use
+        const enrichedRegistration = {
+            ...registration,
+            paymentMode: offering.paymentMode,
+            qrImageUrl: offering.qrImageUrl,
+            priceCents: offering.priceCents,
+        };
+        return res.status(existing ? 200 : 201).json({ registration: enrichedRegistration });
     }
     catch (error) {
         return next(error);
     }
 });
+// ─── Generate Unique Payment Code (for email_code flow) ───
+registrationsRouter.post("/:id/generate-payment-code", async (req, res, next) => {
+    try {
+        const registrationId = req.params.id;
+        const registration = await prisma.registration.findUnique({
+            where: { registrationId },
+            include: { offering: true },
+        });
+        if (!registration) {
+            return res.status(404).json({ error: "Registration not found" });
+        }
+        // If code already exists, return it (idempotent)
+        if (registration.paymentCode) {
+            return res.status(200).json({
+                paymentCode: registration.paymentCode,
+                alreadyGenerated: true,
+            });
+        }
+        // Generate unique code
+        const paymentCode = await generateUniquePaymentCode();
+        // Store on registration
+        await prisma.registration.update({
+            where: { registrationId },
+            data: {
+                paymentCode,
+                status: "pending",
+            },
+        });
+        // The code is successfully generated and stored. 
+        // Email sending is deferred to the admin dashboard.
+        return res.status(200).json({
+            paymentCode,
+            alreadyGenerated: false,
+        });
+    }
+    catch (error) {
+        return next(error);
+    }
+});
+// ─── Direct Payment (screenshot upload for On-Demand flow) ───
 registrationsRouter.post("/:id/payment", upload.single("screenshot"), async (req, res, next) => {
     try {
         const registrationId = req.params.id;

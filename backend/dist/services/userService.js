@@ -7,6 +7,7 @@ function buildPlaceholderPassword(email) {
 export async function findOrCreateUserFromGoogle(profile) {
     const existingUser = await prisma.user.findUnique({
         where: { email: profile.email },
+        include: { studentProfile: true }
     });
     if (existingUser) {
         return existingUser;
@@ -17,6 +18,16 @@ export async function findOrCreateUserFromGoogle(profile) {
             email: profile.email,
             fullName,
             passwordHash: buildPlaceholderPassword(profile.email),
+            // Create an empty student profile for new learners
+            studentProfile: {
+                create: {
+                    fullName,
+                    totalPoints: 0
+                }
+            }
         },
+        include: {
+            studentProfile: true
+        }
     });
 }
