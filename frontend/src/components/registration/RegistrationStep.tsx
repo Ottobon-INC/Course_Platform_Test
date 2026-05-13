@@ -20,6 +20,7 @@ const PROFILE_OPTIONS = [
 
 const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, priceCents, onBack, slots = [], cohorts = [], showSlots = true, assessmentRequired = true }: RegistrationStepProps & { slots?: any[], cohorts?: any[], showSlots?: boolean, assessmentRequired?: boolean }) => {
     const session = readStoredSession();
+    const isLocked = !!session?.email;
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
 
@@ -488,7 +489,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                             value={formData.fullName}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-field ${touched.fullName && errors.fullName ? "border-red-500" : ""
+                            readOnly={isLocked}
+                            disabled={isLocked}
+                            className={`input-field ${isLocked ? "bg-gray-100 cursor-not-allowed" : ""} ${touched.fullName && errors.fullName ? "border-red-500" : ""
                                 }`}
                             placeholder="Enter your full name"
                         />
@@ -508,7 +511,9 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
-                            className={`input-email ${touched.email && errors.email ? "border-red-500" : ""
+                            readOnly={isLocked}
+                            disabled={isLocked}
+                            className={`input-email ${isLocked ? "bg-gray-100 cursor-not-allowed" : ""} ${touched.email && errors.email ? "border-red-500" : ""
                                 }`}
                             placeholder="your.email@example.com"
                         />

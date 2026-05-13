@@ -119,6 +119,13 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         qrImageUrl: offering.qrImageUrl,
         paymentMode: offering.paymentMode,
         programmeDetails: offering.programmeDetails,
+        skillsJson: offering.skillsJson,
+        reviewsJson: offering.reviewsJson,
+        faqsJson: offering.faqsJson,
+        companiesJson: offering.companiesJson,
+        overviewBullets: offering.overviewBullets,
+        prerequisitesJson: offering.prerequisitesJson,
+        learningOutcomesJson: offering.learningOutcomesJson,
         course: offering.course,
         cohorts: offering.cohorts || [],
       };
@@ -219,6 +226,13 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
         qrImageUrl: offering.qrImageUrl,
         paymentMode: offering.paymentMode,
         programmeDetails: offering.programmeDetails,
+        skillsJson: offering.skillsJson,
+        reviewsJson: offering.reviewsJson,
+        faqsJson: offering.faqsJson,
+        companiesJson: offering.companiesJson,
+        overviewBullets: offering.overviewBullets,
+        prerequisitesJson: offering.prerequisitesJson,
+        learningOutcomesJson: offering.learningOutcomesJson,
         course: offering.course,
         cohorts: offering.cohorts || [],
       }
@@ -359,7 +373,7 @@ registrationsRouter.post("/", async (req, res, next) => {
     const payload = {
       offeringId,
       userId: resolvedUserId,
-      fullName,
+      fullName: existing ? existing.fullName : fullName,
       email: normalizedEmail,
       phoneNumber,
       isCollegeStudent: resolvedIsCollegeStudent,
@@ -370,7 +384,11 @@ registrationsRouter.post("/", async (req, res, next) => {
       selectedSlot: selectedSlot || (existing?.selectedSlot) || null,
       sessionTime: sessionTime || (existing?.sessionTime) || null,
       mode: mode || (existing?.mode) || null,
-      status: status || (existing ? existing.status : "pending"),
+      status: (existing && ["paid", "enrolled", "completed"].includes(existing.status)) 
+        ? existing.status 
+        : (offering.programType === "ondemand" 
+            ? "approved" 
+            : (status || (existing ? existing.status : "pending"))),
       answersJson: answersJson || (existing?.answersJson) || null,
       questionsSnapshot: questionsSnapshot || (existing?.questionsSnapshot) || null,
       assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : (existing?.assessmentSubmittedAt),
@@ -402,7 +420,7 @@ registrationsRouter.post("/", async (req, res, next) => {
           branch: resolvedIsCollegeStudent ? branch : null,
           yearOfPassing: resolvedIsCollegeStudent ? yearOfPassing : null,
           isCollegeStudent: resolvedIsCollegeStudent,
-          fullName: fullName
+          // We intentionally do NOT update fullName here to avoid confusing the user's global profile
         }
       });
     }
