@@ -22,7 +22,7 @@ export function setupMessageSocket(io: Server) {
     const userId = socket.data.userId;
     console.log(`User connected to messaging: ${userId}`);
 
-    // Join a personal room for notifications/DMs
+    // Join a personal room for the notifications/DMs
     socket.join(`user:${userId}`);
 
     socket.on("join_conversation", (conversationId: string) => {
