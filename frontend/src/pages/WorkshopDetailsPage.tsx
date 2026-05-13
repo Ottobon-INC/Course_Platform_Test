@@ -31,9 +31,11 @@ interface WorkshopData {
   startTime?: string;
   duration?: string;
   mode: string;
-  seatsAvailable?: number;
+  isActive: boolean;
   prerequisites: string[];
   learningOutcomes: string[];
+  faqs: { question: string; answer: string }[];
+  overview: string[];
   priceCents: number;
   compareAtCents: number | null;
   targetDate?: Date | null;
@@ -129,18 +131,11 @@ const WorkshopDetailsPage: React.FC = () => {
           startTime: offering.startTime || (targetDate ? targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : "Upcoming Session"),
           duration: course.durationMinutes ? `${Math.round(course.durationMinutes / 60)} Hours` : "4 Hours",
           mode: offering.mode || "Live Online",
-          seatsAvailable: offering.seatsAvailable || 15,
-          prerequisites: course.prerequisites_json || [
-            "Basic understanding of the core concepts",
-            "Functional laptop with stable internet",
-            "A growth mindset and readiness to build"
-          ],
-          learningOutcomes: course.skills_json || [
-            "Master the fundamentals through hands-on practice",
-            "Apply industry-standard tools to real-world problems",
-            "Gain immediate clarity on complex workflows",
-            "Build a functional project by the end of the session"
-          ],
+          isActive: offering.isActive ?? true,
+          prerequisites: offering.prerequisitesJson || [],
+          learningOutcomes: offering.learningOutcomesJson || offering.skillsJson || [],
+          faqs: offering.faqsJson || [],
+          overview: offering.overviewBullets || [],
           priceCents: offering.priceCents,
           compareAtCents: offering.compareAtPriceCents,
           targetDate
@@ -157,6 +152,7 @@ const WorkshopDetailsPage: React.FC = () => {
   }, [identifier]);
 
   const handleRegister = () => {
+    if (!workshop.isActive) return;
     const slug = workshop?.title ? toRouteSlug(workshop.title) : identifier;
     const session = readStoredSession();
     
@@ -217,9 +213,14 @@ const WorkshopDetailsPage: React.FC = () => {
           <div className="hidden md:block">
             <button 
               onClick={handleRegister}
-              className="bg-[#bf2f1f] hover:bg-[#a62619] text-white text-sm px-5 py-2 rounded-lg font-bold transition-all active:scale-95"
+              disabled={!workshop.isActive}
+              className={`${
+                !workshop.isActive 
+                ? "bg-gray-400 cursor-not-allowed" 
+                : "bg-[#bf2f1f] hover:bg-[#a62619]"
+              } text-white text-sm px-5 py-2 rounded-lg font-bold transition-all active:scale-95`}
             >
-              Register Now
+              {!workshop.isActive ? "Closed" : "Register Now"}
             </button>
           </div>
         </div>
@@ -290,10 +291,15 @@ const WorkshopDetailsPage: React.FC = () => {
 
             <button 
               onClick={handleRegister}
-              className="group bg-[#bf2f1f] hover:bg-[#a62619] text-white px-10 py-4 rounded-xl font-black text-lg shadow-2xl shadow-[#bf2f1f]/20 transition-all active:scale-95 flex items-center gap-3 mx-auto"
+              disabled={!workshop.isActive}
+              className={`group ${
+                !workshop.isActive 
+                ? "bg-gray-400 cursor-not-allowed" 
+                : "bg-[#bf2f1f] hover:bg-[#a62619]"
+              } text-white px-10 py-4 rounded-xl font-black text-lg shadow-2xl shadow-[#bf2f1f]/20 transition-all active:scale-95 flex items-center gap-3 mx-auto`}
             >
-              Secure Your Seat
-              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              {!workshop.isActive ? "Registration Closed" : "Secure Your Seat"}
+              {workshop.isActive && <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />}
             </button>
           </motion.div>
         </div>
@@ -308,7 +314,7 @@ const WorkshopDetailsPage: React.FC = () => {
             { icon: Calendar, label: "Date", value: workshop.startTime },
             { icon: Clock, label: "Duration", value: workshop.duration },
             { icon: MapPin, label: "Mode", value: workshop.mode },
-            { icon: Users, label: "Availability", value: `${workshop.seatsAvailable} Seats Left` }
+            { icon: Users, label: "Format", value: "Masterclass" }
           ].map((info, i) => (
             <motion.div 
               key={i}
@@ -327,87 +333,113 @@ const WorkshopDetailsPage: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           {/* Section: What You Will Learn (Left) */}
-          <section>
-            <div className="flex items-center gap-4 mb-10">
-              <div className="w-10 h-10 bg-[#bf2f1f]/10 rounded-xl flex items-center justify-center shadow-inner">
-                <Zap size={20} className="text-[#bf2f1f]" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black text-[#000000] tracking-tight">What You Will Learn</h2>
-            </div>
-            
-            {/* Elevated Grouped Panel */}
-            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-[#000000]/5 overflow-hidden h-full flex flex-col">
-              <div className="p-8 md:p-10 flex-grow">
-                <ul className="space-y-6">
-                  {workshop.learningOutcomes.map((outcome, i) => (
-                    <li key={i} className="flex gap-4 items-start group">
-                      <div className="mt-1 w-6 h-6 rounded-full bg-[#f8f1e6] flex items-center justify-center shrink-0 border border-[#000000]/10 group-hover:border-[#bf2f1f]/30 group-hover:bg-[#bf2f1f]/5 transition-colors duration-300">
-                        <CheckCircle2 size={12} className="text-[#000000]/40 group-hover:text-[#bf2f1f] transition-colors" />
-                      </div>
-                      <p className="text-[14px] md:text-[15px] font-medium text-[#4a4845] leading-relaxed break-words whitespace-normal pt-0.5">
-                        {outcome}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
+          {workshop.learningOutcomes && workshop.learningOutcomes.length > 0 && (
+            <section>
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-10 h-10 bg-[#bf2f1f]/10 rounded-xl flex items-center justify-center shadow-inner">
+                  <Zap size={20} className="text-[#bf2f1f]" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-[#000000] tracking-tight">What You Will Learn</h2>
               </div>
               
-              {/* Highlighted Note Section */}
-              <div className="bg-gradient-to-br from-[#f8f1e6]/60 to-[#f8f1e6]/20 p-8 border-t border-[#000000]/5 flex gap-5 items-start mt-auto">
-                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-[#000000]/5">
-                  <Zap size={16} className="text-[#bf2f1f]" />
+              <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-[#000000]/5 overflow-hidden h-full flex flex-col">
+                <div className="p-8 md:p-10 flex-grow">
+                  <ul className="space-y-6">
+                    {workshop.learningOutcomes.map((outcome, i) => (
+                      <li key={i} className="flex gap-4 items-start group">
+                        <div className="mt-1 w-6 h-6 rounded-full bg-[#f8f1e6] flex items-center justify-center shrink-0 border border-[#000000]/10 group-hover:border-[#bf2f1f]/30 group-hover:bg-[#bf2f1f]/5 transition-colors duration-300">
+                          <CheckCircle2 size={12} className="text-[#000000]/40 group-hover:text-[#bf2f1f] transition-colors" />
+                        </div>
+                        <p className="text-[14px] md:text-[15px] font-medium text-[#4a4845] leading-relaxed break-words whitespace-normal pt-0.5">
+                          {outcome}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div>
-                  <h4 className="text-[13px] uppercase tracking-widest font-bold text-[#000000] mb-2">Outcome Focus</h4>
-                  <p className="text-[13px] md:text-sm text-[#4a4845]/80 leading-relaxed break-words whitespace-normal">
-                    By the end of this session, you will have built a functional implementation using the workflows described above.
-                  </p>
+                
+                <div className="bg-gradient-to-br from-[#f8f1e6]/60 to-[#f8f1e6]/20 p-8 border-t border-[#000000]/5 flex gap-5 items-start mt-auto">
+                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-[#000000]/5">
+                    <Zap size={16} className="text-[#bf2f1f]" />
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] uppercase tracking-widest font-bold text-[#000000] mb-2">Outcome Focus</h4>
+                    <p className="text-[13px] md:text-sm text-[#4a4845]/80 leading-relaxed break-words whitespace-normal">
+                      By the end of this session, you will have built a functional implementation using the workflows described above.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Section: Prerequisites (Right) */}
-          <section>
-            <div className="flex items-center gap-4 mb-10">
-              <div className="w-10 h-10 bg-[#000000]/5 rounded-xl flex items-center justify-center border border-[#000000]/10">
-                <ShieldCheck size={20} className="text-[#000000]" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black text-[#000000] tracking-tight">Prerequisites</h2>
-            </div>
-            
-            {/* Elevated Grouped Panel */}
-            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-[#000000]/5 overflow-hidden h-fit flex flex-col">
-              <div className="p-8 md:p-10 flex-grow">
-                <ul className="space-y-6">
-                  {workshop.prerequisites.map((req, i) => (
-                    <li key={i} className="flex gap-4 items-start group">
-                      <div className="mt-1 w-6 h-6 rounded-full bg-[#f8f1e6] flex items-center justify-center shrink-0 border border-[#000000]/10 group-hover:border-[#bf2f1f]/30 group-hover:bg-[#bf2f1f]/5 transition-colors duration-300">
-                        <CheckCircle2 size={12} className="text-[#000000]/40 group-hover:text-[#bf2f1f] transition-colors" />
-                      </div>
-                      <p className="text-[14px] md:text-[15px] font-medium text-[#4a4845] leading-relaxed break-words whitespace-normal pt-0.5">
-                        {req}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
+          {workshop.prerequisites && workshop.prerequisites.length > 0 && (
+            <section>
+              <div className="flex items-center gap-4 mb-10">
+                <div className="w-10 h-10 bg-[#000000]/5 rounded-xl flex items-center justify-center border border-[#000000]/10">
+                  <ShieldCheck size={20} className="text-[#000000]" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-[#000000] tracking-tight">Prerequisites</h2>
               </div>
               
-              {/* Highlighted Note Section */}
-              <div className="bg-gradient-to-br from-[#f8f1e6]/60 to-[#f8f1e6]/20 p-8 border-t border-[#000000]/5 flex gap-5 items-start">
-                <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-[#000000]/5">
-                  <BookOpen size={16} className="text-[#bf2f1f]" />
+              <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-[#000000]/5 overflow-hidden h-fit flex flex-col">
+                <div className="p-8 md:p-10 flex-grow">
+                  <ul className="space-y-6">
+                    {workshop.prerequisites.map((req, i) => (
+                      <li key={i} className="flex gap-4 items-start group">
+                        <div className="mt-1 w-6 h-6 rounded-full bg-[#f8f1e6] flex items-center justify-center shrink-0 border border-[#000000]/10 group-hover:border-[#bf2f1f]/30 group-hover:bg-[#bf2f1f]/5 transition-colors duration-300">
+                          <CheckCircle2 size={12} className="text-[#000000]/40 group-hover:text-[#bf2f1f] transition-colors" />
+                        </div>
+                        <p className="text-[14px] md:text-[15px] font-medium text-[#4a4845] leading-relaxed break-words whitespace-normal pt-0.5">
+                          {req}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div>
-                  <h4 className="text-[13px] uppercase tracking-widest font-bold text-[#000000] mb-2">Preparation Note</h4>
-                  <p className="text-[13px] md:text-sm text-[#4a4845]/80 leading-relaxed break-words whitespace-normal">
-                    This is an intensive, fast-paced session. Please ensure your environment is fully set up prior to joining for the best experience.
-                  </p>
+                
+                <div className="bg-gradient-to-br from-[#f8f1e6]/60 to-[#f8f1e6]/20 p-8 border-t border-[#000000]/5 flex gap-5 items-start">
+                  <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-[#000000]/5">
+                    <BookOpen size={16} className="text-[#bf2f1f]" />
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] uppercase tracking-widest font-bold text-[#000000] mb-2">Preparation Note</h4>
+                    <p className="text-[13px] md:text-sm text-[#4a4845]/80 leading-relaxed break-words whitespace-normal">
+                      This is an intensive, fast-paced session. Please ensure your environment is fully set up prior to joining for the best experience.
+                    </p>
+                  </div>
                 </div>
               </div>
+            </section>
+          )}
+        </div>
+
+        {/* Section: FAQ (New Dynamic Section) */}
+        {workshop.faqs && workshop.faqs.length > 0 && (
+          <section className="mt-20">
+            <div className="flex items-center gap-4 mb-10">
+              <div className="w-10 h-10 bg-[#000000]/5 rounded-xl flex items-center justify-center border border-[#000000]/10">
+                <BookOpen size={20} className="text-[#000000]" />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-[#000000] tracking-tight">Common Questions</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {workshop.faqs.map((faq, i) => (
+                <div key={i} className="bg-white p-8 rounded-[1.5rem] border border-[#000000]/5 shadow-sm">
+                  <h4 className="font-bold text-[#000000] mb-3 flex gap-3">
+                    <span className="text-[#bf2f1f]">Q.</span>
+                    {faq.question}
+                  </h4>
+                  <p className="text-sm text-[#4a4845] leading-relaxed pl-7">
+                    {faq.answer}
+                  </p>
+                </div>
+              ))}
             </div>
           </section>
-        </div>
+        )}
 
 
       </main>
