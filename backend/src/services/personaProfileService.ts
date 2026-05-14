@@ -15,37 +15,37 @@ const KEYWORD_MAP: Record<PersonaKey, string[]> = {
   last_minute_panic: ["last minute", "deadline", "panic", "final sprint", "urgent", "cram", "tomorrow"],
   pseudo_coder: ["copy", "paste", "github", "template", "clone", "youtube", "snippet"],
   rote_memorizer: ["memorize", "theory", "definitions", "exam", "interview", "mcq"],
+  default: [],
 };
 
-const DEFAULT_PERSONA: PersonaKey = "non_it_migrant";
-
-export const DEFAULT_PERSONA_KEY = DEFAULT_PERSONA;
+export const DEFAULT_PERSONA_KEY: string = "default";
 
 function scorePersonaFromText(text: string): {
   personaKey: PersonaKey;
   reason: string;
 } {
   const normalized = text.toLowerCase();
-  const scores = PERSONA_KEYS.reduce<Record<PersonaKey, number>>((acc, key) => {
+  const scorableKeys = PERSONA_KEYS.filter((k) => k !== "default");
+  const scores = scorableKeys.reduce<Record<string, number>>((acc, key) => {
     acc[key] = 0;
     return acc;
-  }, {} as Record<PersonaKey, number>);
+  }, {});
 
-  (Object.keys(KEYWORD_MAP) as PersonaKey[]).forEach((key) => {
+  scorableKeys.forEach((key) => {
     const hits = KEYWORD_MAP[key].reduce((count, keyword) => {
       return normalized.includes(keyword) ? count + 1 : count;
     }, 0);
     scores[key] = hits;
   });
 
-  const sorted = (Object.keys(scores) as PersonaKey[]).sort((a, b) => scores[b] - scores[a]);
+  const sorted = scorableKeys.sort((a, b) => scores[b] - scores[a]);
   const best = sorted[0];
-  if (scores[best] === 0) {
-    return { personaKey: DEFAULT_PERSONA, reason: "Fallback default persona (no keyword hits)." };
+  if (!best || scores[best] === 0) {
+    return { personaKey: "default", reason: "No keyword signals detected; using default persona." };
   }
   return {
-    personaKey: best,
-    reason: `Fallback classification based on keyword matches: ${scores[best]} hits.`,
+    personaKey: best as PersonaKey,
+    reason: `Keyword-based classification: ${scores[best]} hits for "${best}".`,
   };
 }
 
@@ -79,98 +79,75 @@ export async function analyzePersonaProfile(
   }
 }
 
-export async function upsertPersonaProfile(params: {
+/**
+ * Resolves the persona for a learner strictly from their CohortMember record.
+ * Returns "default" if no cohort persona is set — this is a READ-ONLY operation.
+ * Persona assignment is handled exclusively by the admin side.
+ */
+export async function ensurePersonaProfile(params: {
   userId: string;
   courseId: string;
-  personaKey: PersonaKey;
-  rawAnswers: Prisma.InputJsonValue;
-  analysisSummary: string;
-  analysisVersion: string;
-}) {
-  return prisma.learnerPersonaProfile.upsert({
-    where: {
-      userId_courseId: {
-        userId: params.userId,
-        courseId: params.courseId,
-      },
-    },
-    update: {
-      personaKey: params.personaKey,
-      rawAnswers: params.rawAnswers,
-      analysisSummary: params.analysisSummary,
-      analysisVersion: params.analysisVersion,
-    },
-    create: {
-      userId: params.userId,
-      courseId: params.courseId,
-      personaKey: params.personaKey,
-      rawAnswers: params.rawAnswers,
-      analysisSummary: params.analysisSummary,
-      analysisVersion: params.analysisVersion,
-    },
+}): Promise<{ personaKey: string | null; updatedAt: Date }> {
+  const user = await prisma.user.findUnique({
+    where: { userId: params.userId },
+    select: { email: true },
   });
+
+  if (!user) {
+    return { personaKey: null, updatedAt: new Date() };
+  }
+
+  const membership = await prisma.cohortMember.findFirst({
+    where: {
+      cohort: { offering: { courseId: params.courseId } },
+      status: "active",
+      OR: [
+        { userId: params.userId },
+        { email: { equals: user.email, mode: "insensitive" } },
+      ],
+    },
+    select: { persona: true, addedAt: true },
+  });
+
+  if (membership?.persona) {
+    return {
+      personaKey: membership.persona,
+      updatedAt: membership.addedAt,
+    };
+  }
+
+  // No cohort persona assigned yet — return null
+  return { personaKey: null, updatedAt: new Date() };
 }
 
+/**
+ * Read-only lookup of the current persona from CohortMember.
+ * Returns null if the user has no active membership for the course.
+ */
 export async function getPersonaProfile(params: { userId: string; courseId: string }) {
-  return prisma.learnerPersonaProfile.findUnique({
-    where: {
-      userId_courseId: {
-        userId: params.userId,
-        courseId: params.courseId,
-      },
-    },
-    select: {
-      personaKey: true,
-      updatedAt: true,
-    },
-  });
-}
-
-export async function ensurePersonaProfile(params: { userId: string; courseId: string }) {
-  const existing = await prisma.learnerPersonaProfile.findUnique({
-    where: {
-      userId_courseId: {
-        userId: params.userId,
-        courseId: params.courseId,
-      },
-    },
-    select: {
-      personaKey: true,
-      updatedAt: true,
-    },
+  const user = await prisma.user.findUnique({
+    where: { userId: params.userId },
+    select: { email: true },
   });
 
-  if (existing) {
-    return existing;
-  }
+  if (!user) return null;
 
-  try {
-    return await prisma.learnerPersonaProfile.create({
-      data: {
-        userId: params.userId,
-        courseId: params.courseId,
-        personaKey: DEFAULT_PERSONA,
-        rawAnswers: [],
-        analysisSummary: "Auto-assigned default learner persona.",
-        analysisVersion: `${PERSONA_PROFILE_VERSION}-auto`,
-      },
-      select: {
-        personaKey: true,
-        updatedAt: true,
-      },
-    });
-  } catch (error) {
-    return prisma.learnerPersonaProfile.findUnique({
-      where: {
-        userId_courseId: {
-          userId: params.userId,
-          courseId: params.courseId,
-        },
-      },
-      select: {
-        personaKey: true,
-        updatedAt: true,
-      },
-    });
-  }
+  const membership = await prisma.cohortMember.findFirst({
+    where: {
+      cohort: { offering: { courseId: params.courseId } },
+      status: "active",
+      OR: [
+        { userId: params.userId },
+        { email: { equals: user.email, mode: "insensitive" } },
+      ],
+    },
+    select: { persona: true, addedAt: true },
+  });
+
+  if (!membership) return null;
+
+  return {
+    personaKey: membership.persona,
+    updatedAt: membership.addedAt,
+  };
 }

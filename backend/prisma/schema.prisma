@@ -237,6 +237,9 @@ model Registration {
   sessionTime           String?        @map("session_time")
   mode                  String?        @map("mode")
   plan                  String?        @map("plan")
+  assignedBatchNo       Int?           @map("assigned_batch_no")
+  assignedPersona       String?        @map("assigned_persona")
+  sessionId             String?        @map("session_id") @db.Uuid
   status                String         @default("pending") @map("status")
   answersJson           Json?          @map("answers_json")
   questionsSnapshot     Json?          @map("questions_snapshot")
@@ -336,6 +339,7 @@ model CohortMember {
   status   String   @default("active") @map("status")
   batchNo  Int      @default(1) @map("batch_no")
   addedAt  DateTime @default(now()) @map("added_at")
+  persona  String?  @map("persona")
   cohort   Cohort   @relation(fields: [cohortId], references: [cohortId], onDelete: Cascade)
   user     User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
 

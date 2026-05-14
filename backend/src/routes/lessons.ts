@@ -152,7 +152,7 @@ type ContentAssetRecord = {
 function buildAssetIndex(assets: ContentAssetRecord[]): Map<string, ContentAssetRecord> {
   const index = new Map<string, ContentAssetRecord>();
   for (const asset of assets) {
-    const personaPart = asset.personaKey ?? "default";
+    const personaPart = asset.personaKey ?? "null";
     const key = `${asset.topicId}:${asset.contentKey}:${personaPart}`;
     index.set(key, asset);
   }
@@ -189,9 +189,9 @@ function resolveContentLayout(
           const data = block.data && typeof block.data === "object" ? (block.data as Record<string, unknown>) : undefined;
           return { id: block.id, type, data };
         }
-        const personaPart = personaKey ?? "default";
+        const personaPart = personaKey ?? "null";
         const exact = assetIndex.get(`${topicId}:${contentKey}:${personaPart}`);
-        const fallback = assetIndex.get(`${topicId}:${contentKey}:default`);
+        const fallback = assetIndex.get(`${topicId}:${contentKey}:null`);
         const asset = exact ?? fallback;
         if (!asset || asset.contentType !== type) {
           const data = block.data && typeof block.data === "object" ? (block.data as Record<string, unknown>) : undefined;
@@ -311,7 +311,7 @@ lessonsRouter.get(
           where: {
             topicId: { in: Array.from(contentKeyByTopic.keys()) },
             contentKey: { in: Array.from(allContentKeys) },
-            personaKey: null,
+            OR: [{ personaKey: null }],
           },
           select: {
             topicId: true,
@@ -385,16 +385,16 @@ lessonsRouter.get(
     }
 
     const userId = getOptionalAuthUserId(req);
-    let personaProfile: { personaKey: string } | null = null;
+    let personaKey: string | null = null;
     if (userId) {
       try {
-        personaProfile = await ensurePersonaProfile({ userId, courseId: resolvedCourseId });
+        const personaProfile = await ensurePersonaProfile({ userId, courseId: resolvedCourseId });
+        personaKey = personaProfile?.personaKey ?? null;
       } catch (error) {
         // Never block course outline rendering on persona profile persistence issues.
         console.warn("Unable to resolve persona profile; falling back to default content assets.", error);
       }
     }
-    const personaKey = personaProfile?.personaKey ?? null;
 
     const topics = await prisma.topic.findMany({
       where: { courseId: resolvedCourseId },

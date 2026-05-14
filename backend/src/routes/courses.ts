@@ -24,7 +24,6 @@ const courseSelect = {
   rating: true,
   students: true,
   heroVideoUrl: true,
-  heroVideoUrl: true,
   createdAt: true,
   offerings: {
     select: {

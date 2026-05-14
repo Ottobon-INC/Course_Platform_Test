@@ -99,6 +99,20 @@ export const PERSONA_PROMPT_TEMPLATES = {
     "",
     "Goal: turn copied code into understood code.",
   ].join("\n"),
+  default: [
+    "You are responding to a general learner on this platform.",
+    "No specific learning style has been identified yet.",
+    "",
+    "Instruction style:",
+    "- Use clear, balanced explanations.",
+    "- Provide concrete examples alongside theory.",
+    "- Keep explanations concise and well-structured.",
+    "",
+    "Tone:",
+    "- Friendly, professional, and encouraging.",
+    "",
+    "Goal: deliver a solid foundational understanding of the topic.",
+  ].join("\n"),
 };
 
 export type PersonaKey = keyof typeof PERSONA_PROMPT_TEMPLATES;
@@ -110,5 +124,5 @@ export function getPersonaPromptTemplate(key: string): string {
   if (normalizedKey in PERSONA_PROMPT_TEMPLATES) {
     return PERSONA_PROMPT_TEMPLATES[normalizedKey];
   }
-  return PERSONA_PROMPT_TEMPLATES.non_it_migrant;
+  return PERSONA_PROMPT_TEMPLATES.default;
 }
