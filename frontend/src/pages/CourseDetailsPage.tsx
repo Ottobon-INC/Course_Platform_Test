@@ -109,7 +109,6 @@ interface CourseMeta {
   mentors_json?: any[];
   overview_bullets?: string[];
   programme_details?: any[];
-  syllabus_url?: string;
 }
 
 interface TopicApi {
@@ -302,7 +301,6 @@ const CourseDetailsPage = (props: any) => {
               companies_json: course?.companies_json,
               overview_bullets: course?.overview_bullets,
               programme_details: course?.programme_details,
-              syllabus_url: course?.syllabus_url,
               mentors_json: course?.mentors_json,
             });
           }

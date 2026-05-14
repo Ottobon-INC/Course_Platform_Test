@@ -24,12 +24,7 @@ const courseSelect = {
   rating: true,
   students: true,
   heroVideoUrl: true,
-  skillsJson: true,
-  reviewsJson: true,
-  faqsJson: true,
-  companiesJson: true,
-  overviewBullets: true,
-  syllabusUrl: true,
+  heroVideoUrl: true,
   createdAt: true,
   offerings: {
     select: {
@@ -37,10 +32,15 @@ const courseSelect = {
        priceCents: true,
        compareAtPriceCents: true,
        programmeDetails: true,
-       cohorts: {
-         where: { isActive: true },
-         select: { priceCents: true, compareAtPriceCents: true }
-       }
+        cohorts: {
+          where: { isActive: true },
+          select: { priceCents: true, compareAtPriceCents: true }
+        },
+        skillsJson: true,
+        reviewsJson: true,
+        faqsJson: true,
+        companiesJson: true,
+        overviewBullets: true,
     }
   },
   tutors: {
@@ -116,6 +116,10 @@ function mapCourse(course: CourseRecord, programType?: string) {
     };
   }) || [];
 
+  const targetOffering = programType 
+    ? course.offerings?.find(o => o.programType === programType)
+    : (cohortOffering || onDemandOffering || workshopOffering || course.offerings?.[0]);
+
   return {
     id: course.courseId,
     slug: course.slug,
@@ -129,15 +133,14 @@ function mapCourse(course: CourseRecord, programType?: string) {
     rating: course.rating,
     students: course.students,
     heroVideoUrl: course.heroVideoUrl,
-    skills_json: course.skillsJson,
-    reviews_json: course.reviewsJson,
-    faqs_json: course.faqsJson,
-    companies_json: course.companiesJson,
-    overview_bullets: course.overviewBullets,
-    syllabus_url: course.syllabusUrl,
+    skills_json: targetOffering?.skillsJson || [],
+    reviews_json: targetOffering?.reviewsJson || [],
+    faqs_json: targetOffering?.faqsJson || [],
+    companies_json: targetOffering?.companiesJson || [],
+    overview_bullets: targetOffering?.overviewBullets || [],
     mentors_json: mentorsJson,
     instructor: mentorsJson.length > 0 ? mentorsJson[0].name : "Staff Instructor",
-    programme_details: cohortOffering?.programmeDetails ?? course.offerings?.[0]?.programmeDetails,
+    programme_details: targetOffering?.programmeDetails ?? course.offerings?.[0]?.programmeDetails,
     createdAt: createdAt.toISOString(),
   };
 }

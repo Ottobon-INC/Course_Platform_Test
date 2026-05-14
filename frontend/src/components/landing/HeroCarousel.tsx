@@ -150,17 +150,9 @@ const HeroSlide: React.FC<{
 
 const PromoSlide: React.FC<{
     onEnroll: () => void;
-    onOverlayChange: (open: boolean) => void;
-    onHoverPauseChange: (paused: boolean) => void;
     showPrimaryCta?: boolean;
     slide2?: typeof heroSection.slide2;
-    syllabus?: typeof heroSection.syllabus;
-}> = ({ onEnroll, onOverlayChange, onHoverPauseChange, showPrimaryCta = true, slide2 = heroSection.slide2, syllabus = heroSection.syllabus }) => {
-    const [isSyllabusOpen, setIsSyllabusOpen] = useState(false);
-
-    const openSyllabus = () => { setIsSyllabusOpen(true); onOverlayChange(true); };
-    const closeSyllabus = () => { setIsSyllabusOpen(false); onOverlayChange(false); };
-
+}> = ({ onEnroll, showPrimaryCta = true, slide2 = heroSection.slide2 }) => {
     return (
         <div className="w-full h-full flex items-center justify-center bg-[#FBE9D0]/30 overflow-hidden">
             <div className="w-full pl-6 md:pl-20 pr-6 grid md:grid-cols-2 gap-12 items-center">
@@ -258,17 +250,16 @@ const PromoSlide: React.FC<{
                                     onClick={onEnroll}
                                     whileHover={{ scale: 1.03, boxShadow: "0px 10px 25px rgba(230, 72, 51, 0.25)" }}
                                     whileTap={{ scale: 0.97 }}
-                                    onMouseEnter={() => onHoverPauseChange(true)}
-                                    onMouseLeave={() => onHoverPauseChange(false)}
                                     className="bg-retro-salmon text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl shadow-retro-salmon/20 transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
                                 >
                                     {slide2.primaryCta} <ArrowRight size={20} />
                                 </motion.button>
                             )}
                             <button
-                                onClick={openSyllabus}
-                                onMouseEnter={() => onHoverPauseChange(true)}
-                                onMouseLeave={() => onHoverPauseChange(false)}
+                                onClick={() => {
+                                    const el = document.getElementById('how');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                }}
                                 className={`group inline-flex items-center justify-center gap-2 rounded-xl border-2 border-retro-teal/30 bg-transparent px-8 py-4 font-semibold text-retro-teal transition-all hover:border-retro-teal hover:shadow-md w-full sm:w-auto ${showPrimaryCta ? '' : 'sm:mx-auto'}`}
                             >
                                 {slide2.secondaryCta}
@@ -293,58 +284,7 @@ const PromoSlide: React.FC<{
                 </div>
             </div>
 
-            {/* Syllabus Modal */}
-            <AnimatePresence>
-                {isSyllabusOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-                        onClick={closeSyllabus}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-white rounded-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] relative shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <button
-                                onClick={closeSyllabus}
-                                className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors z-10"
-                            >
-                                <X size={24} />
-                            </button>
-                            <div className="overflow-y-auto max-h-[85vh] p-6 space-y-6">
-                                <div className="rounded-2xl border border-retro-sage/40 bg-retro-bg/40 p-6 shadow-inner text-retro-teal">
-                                    <p className="text-xs font-bold uppercase tracking-[0.3em] text-retro-salmon">{slide2.syllabusModal.badge}</p>
-                                    <h3 className="text-2xl md:text-3xl font-semibold text-retro-teal mt-2 break-words">{slide2.syllabusModal.title}</h3>
-                                    <p className="text-sm md:text-base text-retro-teal/80 mt-3 break-words">{slide2.syllabusModal.description}</p>
-                                </div>
-                                <div className="grid gap-4">
-                                    {syllabus.map((section) => (
-                                        <div key={section.title} className="rounded-2xl border border-retro-sage/30 bg-white/90 p-5 shadow-sm">
-                                            <div className="flex flex-col gap-1">
-                                                <h4 className="text-lg font-semibold text-retro-teal break-words">{section.title}</h4>
-                                                <p className="text-sm text-retro-teal/70 break-words">{section.summary}</p>
-                                            </div>
-                                            <ul className="mt-3 space-y-2 text-sm text-retro-teal">
-                                                {section.topics.map((topic) => (
-                                                    <li key={topic} className="flex items-start gap-2">
-                                                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-retro-salmon shrink-0" />
-                                                        <span className="break-words">{topic}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
         </div>
     );
 };
@@ -393,8 +333,6 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ onEnroll, onSearch, heroVar
                     {currentSlide === 1 && (
                         <PromoSlide
                             onEnroll={onEnroll}
-                            onOverlayChange={setIsAutoplayPaused}
-                            onHoverPauseChange={setIsHoverPaused}
                             showPrimaryCta={showPrimaryCta}
                         />
                     )}
