@@ -215,7 +215,7 @@ interface QuizSection {
 interface QuizQuestion {
   questionId: string;
   prompt: string;
-  options: { optionId: string; text: string }[];
+  options: { optionId: string; text: string; isCorrect?: boolean }[];
 }
 
 interface QuizAttemptResult {
@@ -638,10 +638,12 @@ const CoursePlayerPage: React.FC = () => {
     mouseY: 0,
   });
 
-  const activeLesson = useMemo(
-    () => lessons.find((l) => l.slug === activeSlug) ?? lessons[0],
-    [lessons, activeSlug],
-  );
+  const activeLesson = useMemo(() => {
+    return lessons.find((l) => l.slug === activeSlug) ?? lessons[0];
+  }, [lessons, activeSlug]);
+  const isAssessment = useMemo(() => {
+    return activeLesson?.contentType === "final_assessment" || activeLesson?.topicName?.toLowerCase().includes("assessment");
+  }, [activeLesson]);
   const emitTelemetry = useCallback(
     (
       eventType: string,
@@ -1635,7 +1637,7 @@ const CoursePlayerPage: React.FC = () => {
   );
 
   const startInlineQuiz = useCallback(
-    async (runtimeKey: string, assessmentId: string, moduleNo: number | null) => {
+    async (runtimeKey: string, assessmentId: string, moduleNo: number | null, initialQuestions?: any[]) => {
       if (!courseKey) return;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
@@ -1652,9 +1654,37 @@ const CoursePlayerPage: React.FC = () => {
 
       emitTelemetry(
         "quiz.start",
-        { assessmentId, mode: "inline" },
+        { assessmentId: assessmentId || "inline", mode: "inline" },
         { moduleNo, topicId: activeLesson?.topicId ?? null },
       );
+
+      // If we have initial questions and NO assessmentId, we can skip the backend fetch
+      if (initialQuestions && initialQuestions.length > 0 && !assessmentId) {
+        // Normalize questions if needed (handling id vs questionId, text vs prompt)
+        const normalized: QuizQuestion[] = initialQuestions.map((q, idx) => {
+          const qId = q.questionId || q.id || `q-inline-${idx}`;
+          const prompt = q.prompt || q.text || "Question";
+          const options = Array.isArray(q.options)
+            ? q.options.map((o: any, oIdx: number) => ({
+                optionId: o.optionId || o.id || `o-inline-${idx}-${oIdx}`,
+                text: o.text || o.option_text || "Option",
+                isCorrect: Boolean(o.isCorrect),
+              }))
+            : [];
+          return { questionId: qId, prompt, options };
+        });
+
+        setInlineQuizState(runtimeKey, {
+          assessmentId: "inline",
+          phase: "active",
+          attemptId: `temp-${Date.now()}`,
+          questions: normalized,
+          answers: {},
+          result: null,
+          errorMessage: null,
+        });
+        return;
+      }
 
       try {
         const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
@@ -1729,6 +1759,36 @@ const CoursePlayerPage: React.FC = () => {
       });
 
       try {
+        if (current.attemptId.startsWith("temp-")) {
+          // Local grading for inline quizzes with direct payload
+          const questions = current.questions;
+          const answers = current.answers;
+          let correctCount = 0;
+          questions.forEach((q) => {
+            const chosen = answers[q.questionId];
+            const correctOption = q.options.find((o) => o.isCorrect);
+            if (chosen && correctOption && chosen === correctOption.optionId) {
+              correctCount++;
+            }
+          });
+
+          const result: QuizAttemptResult = {
+            correctCount,
+            totalQuestions: questions.length,
+            scorePercent: questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0,
+            passed: questions.length > 0 && (correctCount / questions.length) >= 0.7,
+            thresholdPercent: 70,
+          };
+
+          setInlineQuizState(runtimeKey, {
+            ...current,
+            phase: "result",
+            result,
+            errorMessage: null,
+          });
+          return;
+        }
+
         const res = await fetch(buildApiUrl(`/api/quiz/attempts/${current.attemptId}/submit`), {
           method: "POST",
           credentials: "include",
@@ -2467,6 +2527,13 @@ const CoursePlayerPage: React.FC = () => {
         const key = block.id ?? `${block.type}-${index}`;
         const data = block.data;
 
+        // Skip non-quiz blocks for assessment topics to ensure only the quiz is rendered
+        if (activeLesson?.contentType === "final_assessment" || activeLesson?.topicName?.toLowerCase().includes("assessment")) {
+          if (block.type !== "quiz") {
+            continue;
+          }
+        }
+
         if (block.type === "text") {
           const content = resolveTextVariant(data);
           if (!content) {
@@ -2576,11 +2643,13 @@ const CoursePlayerPage: React.FC = () => {
               : typeof data?.assessmentId === "string"
                 ? data.assessmentId.trim()
                 : "";
+          
+          const inlineQuestions = Array.isArray(data?.questions) ? data.questions : null;
 
-          if (!assessmentId) {
+          if (!assessmentId && !inlineQuestions) {
             output.push(
               <div key={key} className="rounded-2xl border border-[#f6d2cc] bg-[#fff5f3] px-4 py-3 text-sm text-[#8b2d20]">
-                Assessment pointer missing for this quiz block.
+                Assessment data missing for this quiz block.
               </div>,
             );
             continue;
@@ -2595,7 +2664,7 @@ const CoursePlayerPage: React.FC = () => {
             continue;
           }
 
-          const runtimeKey = `${activeLesson?.topicId ?? "topic"}:${key}:${assessmentId}`;
+          const runtimeKey = `${activeLesson?.topicId ?? "topic"}:${key}:${assessmentId || "inline"}`;
           const runtime = inlineQuizStateByKey[runtimeKey] ?? {
             assessmentId,
             phase: "intro" as InlineQuizPhase,
@@ -2625,7 +2694,7 @@ const CoursePlayerPage: React.FC = () => {
                 {runtime.phase === "intro" && (
                   <button
                     type="button"
-                    onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                    onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null, inlineQuestions)}
                     className="inline-flex items-center rounded-lg bg-[#bf2f1f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a62619] transition"
                   >
                     Start Assessment
@@ -2940,7 +3009,7 @@ const CoursePlayerPage: React.FC = () => {
           className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
         >
           {/* Video */}
-          {!isQuizMode && !hasBlockLayout && (
+          {!isQuizMode && !isAssessment && !hasBlockLayout && (
             <div
               className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
                 }`}
@@ -2966,8 +3035,17 @@ const CoursePlayerPage: React.FC = () => {
             </div>
           )}
 
+          {/* Assessment-only content */}
+          {!isFullScreen && isAssessment && hasBlockLayout && contentBlocks && (
+            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
+              <div className={`w-full ${studySectionPadding} space-y-8`}>
+                <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
+              </div>
+            </div>
+          )}
+
           {/* Study section */}
-          {!isFullScreen && !isQuizMode && (
+          {!isFullScreen && !isQuizMode && !isAssessment && (
             <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
               <div className={`w-full ${studySectionPadding} space-y-8`}>
                 {!hasBlockLayout && renderStudyHeader()}
@@ -3163,7 +3241,7 @@ const CoursePlayerPage: React.FC = () => {
       </div>
 
       {/* Chat widget */}
-      {chatOpen && !isQuizMode && (
+      {chatOpen && !isQuizMode && !isAssessment && (
         <div
           className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
           style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
@@ -3325,7 +3403,7 @@ const CoursePlayerPage: React.FC = () => {
       )}
 
       {/* Notes widget */}
-      {notesOpen && !isQuizMode && (
+      {notesOpen && !isQuizMode && !isAssessment && (
         <div
           className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
           style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
@@ -3348,7 +3426,7 @@ const CoursePlayerPage: React.FC = () => {
       )}
 
       {/* Study widget */}
-      {studyWidgetOpen && !isQuizMode && (
+      {studyWidgetOpen && !isQuizMode && !isAssessment && (
         <div
           className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
           style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
@@ -3416,7 +3494,7 @@ const CoursePlayerPage: React.FC = () => {
 
       <button
         onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode ? "hidden" : ""
+        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode || isAssessment ? "hidden" : ""
           }`}
         title="Chat with AI Tutor"
       >
