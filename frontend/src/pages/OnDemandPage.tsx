@@ -16,6 +16,7 @@ interface OnDemandOfferingCourseApi {
 
 interface OnDemandOfferingApi {
     offeringId: string;
+    slug?: string | null;
     title?: string | null;
     description?: string | null;
     isActive: boolean;
@@ -129,7 +130,7 @@ const OnDemandPage: React.FC = () => {
                             trimOrNull(offering.description) ??
                             trimOrNull(course.description) ??
                             "Self-paced learning experience with guided outcomes.";
-                        const routeKey = trimOrNull(course.slug) ?? course.courseId;
+                        const routeKey = trimOrNull(offering.slug) ?? trimOrNull(course.slug) ?? course.courseId;
 
                         return {
                             id: offering.offeringId,

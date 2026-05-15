@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/requireAuth";
 import { asyncHandler } from "../utils/asyncHandler";
 import { prisma } from "../services/prisma";
-import { analyzePersonaProfile, getPersonaProfile, upsertPersonaProfile } from "../services/personaProfileService";
+import { analyzePersonaProfile, getPersonaProfile } from "../services/personaProfileService";
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -129,15 +129,13 @@ personaProfilesRouter.post(
     }));
 
     const analysis = await analyzePersonaProfile(normalizedResponses);
-    await upsertPersonaProfile({
-      userId: auth.userId,
-      courseId,
+
+    // NOTE: We do NOT persist the result here.
+    // Persona assignment to CohortMember is handled exclusively by the admin side.
+    res.status(200).json({
       personaKey: analysis.personaKey,
-      rawAnswers: normalizedResponses,
       analysisSummary: analysis.analysisSummary,
       analysisVersion: analysis.analysisVersion,
     });
-
-    res.status(200).json({ status: "saved" });
   }),
 );

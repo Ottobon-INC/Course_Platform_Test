@@ -24,11 +24,12 @@ const courseSelect = {
   rating: true,
   students: true,
   heroVideoUrl: true,
-  heroVideoUrl: true,
   createdAt: true,
   offerings: {
     select: {
        programType: true,
+       title: true,
+       description: true,
        priceCents: true,
        compareAtPriceCents: true,
        programmeDetails: true,
@@ -123,8 +124,8 @@ function mapCourse(course: CourseRecord, programType?: string) {
   return {
     id: course.courseId,
     slug: course.slug,
-    title: course.courseName,
-    description: course.description,
+    title: targetOffering?.title ?? course.courseName,
+    description: targetOffering?.description ?? course.description,
     price: Math.round(determinedPriceCents / 100),
     priceCents: determinedPriceCents,
     compareAtCents: determinedCompareAtPriceCents,

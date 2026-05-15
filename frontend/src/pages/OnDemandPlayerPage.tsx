@@ -121,8 +121,9 @@ const resolveTextVariant = (data: Record<string, unknown> | undefined) => {
         : variants
           ? (Object.values(variants).find((value) => typeof value === "string") as string | undefined)
           : null;
-  const content = typeof data.content === "string" ? data.content : "";
-  return (fromVariants ?? content).trim();
+  const content = typeof data.content === "string" && data.content ? data.content : undefined;
+  const markdown = typeof data.markdown === "string" && data.markdown ? data.markdown : undefined;
+  return (fromVariants ?? content ?? markdown ?? "").trim();
 };
 
 const noteRegex = /^note[:\-]\s*/i;

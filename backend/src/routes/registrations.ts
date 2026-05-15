@@ -109,6 +109,7 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         offeringId: offering.offeringId,
         courseId: offering.courseId,
         title: offering.title,
+        slug: offering.slug,
         programType: offering.programType,
         priceCents: determinedPriceCents,
         compareAtPriceCents: determinedCompareAtPriceCents,
@@ -147,14 +148,25 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
     if (uuidRegex.test(idOrSlug)) {
       offeringId = idOrSlug;
     } else {
-      // Try to resolve as course slug first
-      const resolvedCourseId = await resolveCourseId(idOrSlug);
-      if (resolvedCourseId) {
-        const off = await prisma.courseOffering.findFirst({
-          where: { courseId: resolvedCourseId, programType: "workshop", isActive: true },
-          select: { offeringId: true }
-        });
-        offeringId = off?.offeringId ?? null;
+      // 1. Try to resolve by offering slug
+      const offeringBySlug = await prisma.courseOffering.findUnique({
+        where: { slug: idOrSlug },
+        select: { offeringId: true }
+      });
+      if (offeringBySlug) {
+        offeringId = offeringBySlug.offeringId;
+      }
+
+      // 2. Try to resolve as course slug first
+      if (!offeringId) {
+        const resolvedCourseId = await resolveCourseId(idOrSlug);
+        if (resolvedCourseId) {
+          const off = await prisma.courseOffering.findFirst({
+            where: { courseId: resolvedCourseId, programType: "workshop", isActive: true },
+            select: { offeringId: true }
+          });
+          offeringId = off?.offeringId ?? null;
+        }
       }
       
       // If still not found, try to resolve by slugifying active workshop titles
@@ -215,6 +227,7 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
         offeringId: offering.offeringId,
         courseId: offering.courseId,
         title: offering.title,
+        slug: offering.slug,
         description: offering.description,
         programType: offering.programType,
         priceCents: determinedPriceCents,

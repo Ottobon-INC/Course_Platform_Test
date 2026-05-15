@@ -45,6 +45,8 @@ model User {
   cpMessageReactions CpMessageReaction[]
   cpPollVotes CpPollVote[]
   assignmentSubmissions AssignmentSubmission[]
+  quizAttempts  QuizAttempt[]
+  moduleProgress ModuleProgress[]
   studentProfile StudentProfile?
 
   @@map("users")
@@ -176,6 +178,8 @@ model Course {
   assessments CourseAssessment[]
   draftAssessments DraftCourseAssessment[]
   assignments      Assignment[]
+  quizAttempts     QuizAttempt[]
+  moduleProgress   ModuleProgress[]
 
   @@map("courses")
 }
@@ -185,6 +189,7 @@ model CourseOffering {
   courseId            String       @map("course_id") @db.Uuid
   programType         ProgramType  @map("program_type")
   title               String       @map("title")
+  slug                String?      @unique @map("slug")
   description         String?      @map("description")
   isActive            Boolean      @default(true) @map("is_active")
   priceCents          Int          @default(0) @map("price_cents")
@@ -233,6 +238,9 @@ model Registration {
   sessionTime           String?        @map("session_time")
   mode                  String?        @map("mode")
   plan                  String?        @map("plan")
+  assignedBatchNo       Int?           @map("assigned_batch_no")
+  assignedPersona       String?        @map("assigned_persona")
+  sessionId             String?        @map("session_id") @db.Uuid
   status                String         @default("pending") @map("status")
   answersJson           Json?          @map("answers_json")
   questionsSnapshot     Json?          @map("questions_snapshot")
@@ -332,6 +340,7 @@ model CohortMember {
   status   String   @default("active") @map("status")
   batchNo  Int      @default(1) @map("batch_no")
   addedAt  DateTime @default(now()) @map("added_at")
+  persona  String?  @map("persona")
   cohort   Cohort   @relation(fields: [cohortId], references: [cohortId], onDelete: Cascade)
   user     User?    @relation(fields: [userId], references: [userId], onDelete: SetNull)
 
@@ -962,7 +971,8 @@ model CourseAssessment {
   questionsJson  Json     @map("questions_json")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
-  course         Course   @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  course         Course         @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  quizAttempts   QuizAttempt[]
 
   @@index([courseId], map: "idx_course_assessments_course")
   @@index([courseId, moduleNo], map: "idx_course_assessments_course_module")
@@ -1024,4 +1034,77 @@ model AssignmentSubmission {
   user       User       @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("cp_assignment_submissions")
+}
+
+// ---------------------------------------------------------------------------
+// Quiz Attempt — stores each student attempt at a quiz section.
+// quiz_attempts was previously accessed only via raw SQL; now a first-class model.
+// ---------------------------------------------------------------------------
+model QuizAttempt {
+  attemptId      String    @id @default(dbgenerated("gen_random_uuid()")) @map("attempt_id") @db.Uuid
+
+  // Context
+  userId         String    @map("user_id") @db.Uuid
+  courseId       String    @map("course_id") @db.Uuid
+  moduleNo       Int       @map("module_no")
+  topicPairIndex Int       @default(1) @map("topic_pair_index")
+  assessmentId   String    @map("assessment_id") @db.Uuid
+
+  // Snapshot of questions served (with isCorrect flags) — stored so grading never
+  // needs to re-query the question bank after submit.
+  questionSet    Json      @default("[]") @map("question_set")
+
+  // Student responses — array of {questionId, optionId}. Populated on submit.
+  answers        Json?     @map("answers")
+
+  // Result
+  score          Int?      @map("score")                // raw correct count
+  status         String?   @map("status")              // null=in-progress, "passed", "failed"
+  completedAt    DateTime? @map("completed_at")
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  user           User           @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course         Course         @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+  assessment     CourseAssessment @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade)
+
+  @@index([userId, courseId], map: "idx_quiz_attempts_user_course")
+  @@index([courseId, moduleNo], map: "idx_quiz_attempts_course_module")
+  @@index([assessmentId], map: "idx_quiz_attempts_assessment")
+  @@index([userId, assessmentId, completedAt], map: "idx_quiz_attempts_user_assessment_completed")
+  @@map("quiz_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Module Progress — tracks per-student, per-module quiz pass/unlock state.
+// module_progress was previously accessed only via raw SQL.
+// ---------------------------------------------------------------------------
+model ModuleProgress {
+  progressId      String    @id @default(dbgenerated("gen_random_uuid()")) @map("progress_id") @db.Uuid
+
+  userId          String    @map("user_id") @db.Uuid
+  courseId        String    @map("course_id") @db.Uuid
+  moduleNo        Int       @map("module_no")
+
+  // Array of topic IDs within this module whose videos are completed
+  videosCompleted Json      @default("[]") @map("videos_completed")
+
+  quizPassed      Boolean   @default(false) @map("quiz_passed")
+
+  // Timestamps
+  unlockedAt      DateTime  @default(now()) @map("unlocked_at")
+  cooldownUntil   DateTime? @map("cooldown_until")
+  passedAt        DateTime? @map("passed_at")
+  completedAt     DateTime? @map("completed_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  user            User   @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  course          Course @relation(fields: [courseId], references: [courseId], onDelete: Cascade)
+
+  @@unique([userId, courseId, moduleNo], map: "uq_module_progress_user_course_module")
+  @@index([userId, courseId], map: "idx_module_progress_user_course")
+  @@map("module_progress")
 }
