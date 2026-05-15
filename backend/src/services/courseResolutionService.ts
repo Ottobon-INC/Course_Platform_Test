@@ -80,7 +80,15 @@ export async function resolveCourseId(courseKey: string | null | undefined): Pro
         select: { courseId: true },
     });
 
-    const resultId = course?.courseId ?? null;
+    let resultId = course?.courseId ?? null;
+
+    if (!resultId) {
+        const offering = await prisma.courseOffering.findFirst({
+            where: { slug: { in: searchValues, mode: "insensitive" } },
+            select: { courseId: true }
+        });
+        resultId = offering?.courseId ?? null;
+    }
 
     // 5. Update Cache
     if (resultId) {

@@ -16,6 +16,7 @@ interface WorkshopOfferingCourseApi {
 
 interface WorkshopOfferingApi {
     offeringId: string;
+    slug?: string | null;
     title?: string | null;
     description?: string | null;
     isActive: boolean;
@@ -221,13 +222,15 @@ const WorkshopPage: React.FC = () => {
                             trimOrNull(course.description) ??
                             "Hands-on workshop experience focused on practical outcomes.";
 
+                        const routeSlug = trimOrNull(offering.slug) ?? toRouteSlug(title);
+
                         return {
                             id: offering.offeringId,
                             title,
                             duration: formatWorkshopDuration(course.durationMinutes),
                             image: trimOrNull(course.thumbnailUrl) ?? FALLBACK_WORKSHOP_IMAGES[index % FALLBACK_WORKSHOP_IMAGES.length],
                             description,
-                            route: `/workshop/${toRouteSlug(title)}`,
+                            route: `/workshop/${routeSlug}`,
                         };
                     });
 

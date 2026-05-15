@@ -189,6 +189,7 @@ model CourseOffering {
   courseId            String       @map("course_id") @db.Uuid
   programType         ProgramType  @map("program_type")
   title               String       @map("title")
+  slug                String?      @unique @map("slug")
   description         String?      @map("description")
   isActive            Boolean      @default(true) @map("is_active")
   priceCents          Int          @default(0) @map("price_cents")
