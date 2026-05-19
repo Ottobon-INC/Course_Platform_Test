@@ -38,7 +38,6 @@ type QuizSectionMetaRow = {
   module_no: number;
   topic_number: number;
   content_key: string | null;
-  topic_text_content: string | null;
   title: string | null;
   pass_threshold_percent: number | null;
   question_count: number | bigint | null;
@@ -239,6 +238,7 @@ async function resolveSectionContextByAssessment(courseId: string, assessmentId:
         WHERE t.course_id = ${courseId}::uuid
           AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
+          AND NOT (a.payload ? 'questions')
       )
       SELECT module_no, topic_pair_index
       FROM ranked
@@ -284,6 +284,7 @@ async function resolveAssessmentIdFromLegacy(params: {
         WHERE t.course_id = ${params.courseId}::uuid
           AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
+          AND NOT (a.payload ? 'questions')
       )
       SELECT assessment_id_text
       FROM ranked
@@ -468,7 +469,6 @@ async function loadQuizSectionsMetadata(courseId: string): Promise<QuizSectionMe
         t.module_no,
         t.topic_number,
         a.content_key,
-        t.text_content AS topic_text_content,
         ca.title,
         ca.pass_threshold_percent,
         jsonb_array_length(ca.questions_json)::bigint AS question_count
@@ -478,37 +478,14 @@ async function loadQuizSectionsMetadata(courseId: string): Promise<QuizSectionMe
       WHERE t.course_id = ${courseId}::uuid
         AND a.content_type = 'quiz'
         AND a.payload ? 'assessment_id'
+        AND NOT (a.payload ? 'questions')
       ORDER BY t.module_no ASC, t.topic_number ASC, a.content_key ASC
     `,
   );
 }
 
-function isInlineTopicQuizSection(row: QuizSectionMetaRow): boolean {
-  const key = row.content_key?.trim();
-  const rawLayout = row.topic_text_content;
-  if (!key || !rawLayout) {
-    return false;
-  }
-
-  try {
-    const parsed = JSON.parse(rawLayout) as Record<string, unknown>;
-    const blocks = Array.isArray(parsed?.blocks) ? parsed.blocks : [];
-    return blocks.some((block) => {
-      if (!block || typeof block !== "object") {
-        return false;
-      }
-      const node = block as Record<string, unknown>;
-      const blockType = typeof node.type === "string" ? node.type.trim().toLowerCase() : "";
-      const blockKey = typeof node.contentKey === "string" ? node.contentKey.trim() : "";
-      return blockType === "quiz" && blockKey === key;
-    });
-  } catch {
-    return false;
-  }
-}
-
 export async function buildQuizSections(params: { courseId: string; userId: string }) {
-  const metadata = (await loadQuizSectionsMetadata(params.courseId)).filter((row) => !isInlineTopicQuizSection(row));
+  const metadata = await loadQuizSectionsMetadata(params.courseId);
   if (metadata.length === 0) return [];
 
   const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(
@@ -712,6 +689,7 @@ async function isModuleFullyPassed(params: { userId: string; courseId: string; m
           AND t.module_no = ${params.moduleNo}
           AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
+          AND NOT (a.payload ? 'questions')
       ),
       latest AS (
         SELECT DISTINCT ON (qa.assessment_id)

@@ -230,12 +230,94 @@ type InlineQuizPhase = "intro" | "loading" | "active" | "submitting" | "result" 
 
 type InlineQuizRuntime = {
   assessmentId: string;
+  mode: "remote" | "local";
+  correctOptionByQuestionId: Record<string, string | null>;
   phase: InlineQuizPhase;
   attemptId: string | null;
   questions: QuizQuestion[];
   answers: Record<string, string>;
   result: QuizAttemptResult | null;
   errorMessage: string | null;
+};
+
+const parseInlineQuizQuestions = (raw: unknown): QuizQuestion[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw
+    .map((item, questionIndex) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const node = item as Record<string, unknown>;
+      const promptRaw = typeof node.text === "string" ? node.text : typeof node.prompt === "string" ? node.prompt : "";
+      const prompt = promptRaw.trim();
+      if (!prompt) {
+        return null;
+      }
+      const questionIdRaw =
+        typeof node.id === "string" && node.id.trim()
+          ? node.id.trim()
+          : typeof node.questionId === "string" && node.questionId.trim()
+            ? node.questionId.trim()
+            : `inline-q-${questionIndex + 1}`;
+      const optionsRaw = Array.isArray(node.options) ? node.options : [];
+      const options = optionsRaw
+        .map((option, optionIndex) => {
+          if (!option || typeof option !== "object") {
+            return null;
+          }
+          const opt = option as Record<string, unknown>;
+          const text = typeof opt.text === "string" ? opt.text.trim() : "";
+          if (!text) {
+            return null;
+          }
+          const optionId =
+            typeof opt.id === "string" && opt.id.trim()
+              ? opt.id.trim()
+              : typeof opt.optionId === "string" && opt.optionId.trim()
+                ? opt.optionId.trim()
+                : `inline-o-${questionIndex + 1}-${optionIndex + 1}`;
+          return { optionId, text };
+        })
+        .filter((entry): entry is { optionId: string; text: string } => Boolean(entry));
+      if (options.length < 2) {
+        return null;
+      }
+      return {
+        questionId: questionIdRaw,
+        prompt,
+        options,
+      } as QuizQuestion;
+    })
+    .filter((entry): entry is QuizQuestion => Boolean(entry));
+};
+
+const extractCorrectOptionId = (question: unknown, questionIndex: number): string | null => {
+  if (!question || typeof question !== "object") {
+    return null;
+  }
+  const node = question as Record<string, unknown>;
+  const options = Array.isArray(node.options) ? node.options : [];
+  for (let index = 0; index < options.length; index += 1) {
+    const option = options[index];
+    if (!option || typeof option !== "object") {
+      continue;
+    }
+    const opt = option as Record<string, unknown>;
+    const isCorrect = Boolean(opt.isCorrect ?? opt.is_correct);
+    if (!isCorrect) {
+      continue;
+    }
+    if (typeof opt.id === "string" && opt.id.trim()) {
+      return opt.id.trim();
+    }
+    if (typeof opt.optionId === "string" && opt.optionId.trim()) {
+      return opt.optionId.trim();
+    }
+    return `inline-o-${questionIndex + 1}-${index + 1}`;
+  }
+  return null;
 };
 
 type ChatMessage = {
@@ -495,10 +577,16 @@ const studyMarkdownComponents: Components = {
   em: (props) => <em className="italic text-[#374151]" {...props} />,
 };
 
-const CoursePlayerPage: React.FC = () => {
+type CoursePlayerPageProps = {
+  programType?: "cohort" | "ondemand";
+};
+
+const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "cohort" }) => {
   const { id: courseKey, lesson: lessonSlugParam } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const isCohortProgram = programType === "cohort";
+  const learnBasePath = isCohortProgram ? "/course" : "/ondemand";
   const [session, setSession] = useState<StoredSession | null>(null);
   const [sessionHydrated, setSessionHydrated] = useState(false);
 
@@ -870,7 +958,7 @@ const CoursePlayerPage: React.FC = () => {
       const freshSession = await ensureSessionFresh(storedSession);
       if (!freshSession?.accessToken) {
         setLessons([]);
-        setLocation(`/course/${courseKey}`);
+        setLocation(`${learnBasePath}/${courseKey}`);
         return;
       }
       const headers: HeadersInit = {};
@@ -882,7 +970,7 @@ const CoursePlayerPage: React.FC = () => {
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           setLessons([]);
-          setLocation(`/course/${courseKey}`);
+          setLocation(`${learnBasePath}/${courseKey}`);
           return;
         }
         throw new Error("Failed to load topics");
@@ -914,7 +1002,7 @@ const CoursePlayerPage: React.FC = () => {
     } finally {
       setTopicsLoaded(true);
     }
-  }, [courseKey, sessionHydrated, setLocation, toast]);
+  }, [courseKey, sessionHydrated, setLocation, toast, learnBasePath]);
 
   const fetchPromptSuggestions = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {
@@ -1000,6 +1088,12 @@ const CoursePlayerPage: React.FC = () => {
   }, [courseKey, session?.accessToken]);
 
   const fetchCohortProject = useCallback(async () => {
+    if (!isCohortProgram) {
+      setCohortProject(null);
+      setCohortProjectBatch(null);
+      setCohortProjectError(null);
+      return;
+    }
     if (!courseKey || !session?.accessToken) {
       setCohortProject(null);
       setCohortProjectBatch(null);
@@ -1038,7 +1132,7 @@ const CoursePlayerPage: React.FC = () => {
     } finally {
       setCohortProjectLoading(false);
     }
-  }, [courseKey, session?.accessToken]);
+  }, [courseKey, session?.accessToken, isCohortProgram]);
 
   const handleOpenCohortProject = useCallback(() => {
     setCohortProjectOpen(true);
@@ -1099,18 +1193,23 @@ const CoursePlayerPage: React.FC = () => {
       });
 
       sortedLessons.forEach((lesson) => {
-        submodules.push({
-          id: lesson.topicId,
-          title: lesson.topicName,
-          type: "video",
-          slug: lesson.slug,
-          moduleNo: lesson.moduleNo,
-          topicNumber: lesson.topicNumber,
-          unlocked: true,
-        });
         const attachedSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? []).sort(
           (a, b) => a.topicPairIndex - b.topicPairIndex,
         );
+        const isModuleFinalLesson = /module\s+\d+\s+final\s+assessment/i.test(lesson.topicName);
+        const shouldSuppressLessonNode = attachedSections.length > 0 && isModuleFinalLesson;
+
+        if (!shouldSuppressLessonNode) {
+          submodules.push({
+            id: lesson.topicId,
+            title: lesson.topicName,
+            type: "video",
+            slug: lesson.slug,
+            moduleNo: lesson.moduleNo,
+            topicNumber: lesson.topicNumber,
+            unlocked: true,
+          });
+        }
         attachedSections.forEach((section) => {
           submodules.push({
             id: `quiz-${section.assessmentId}`,
@@ -1225,7 +1324,7 @@ const CoursePlayerPage: React.FC = () => {
       setActiveSlug(targetLesson.slug);
     }
     if (normalizedParam !== normalizedTarget) {
-      setLocation(`/course/${courseKey}/learn/${targetLesson.slug}`);
+      setLocation(`${learnBasePath}/${courseKey}/learn/${targetLesson.slug}`);
     }
   }, [
     sessionHydrated,
@@ -1238,6 +1337,7 @@ const CoursePlayerPage: React.FC = () => {
     lessonSlugParam,
     activeSlug,
     setLocation,
+    learnBasePath,
   ]);
 
   useEffect(() => {
@@ -1524,13 +1624,32 @@ const CoursePlayerPage: React.FC = () => {
         });
         return;
       }
+      const mappedLesson = lessons.find(
+        (lesson) => lesson.moduleNo === sub.moduleNo && lesson.topicNumber === sub.topicNumber,
+      );
+      if (mappedLesson?.slug) {
+        resumeWriteEnabledRef.current = true;
+        setActiveSlug(mappedLesson.slug);
+        setLocation(`${learnBasePath}/${courseKey}/learn/${mappedLesson.slug}`);
+      }
+      setIsReadingMode(false);
+      setInlineQuizStateByKey({});
+      setChatOpen(false);
+      setNotesOpen(false);
+      setStudyWidgetOpen(false);
       void handleStartQuiz(sub.moduleNo, sub.assessmentId, sub.topicPairIndex ?? 1);
     } else if (sub.slug) {
       setIsQuizMode(false);
       setQuizPhase("intro");
+      setSelectedSection(null);
+      setQuizQuestions([]);
+      setQuizAttemptId(null);
+      setQuizResult(null);
+      setAnswers({});
+      setQuizTimer(60);
       resumeWriteEnabledRef.current = true;
       setActiveSlug(sub.slug);
-      setLocation(`/course/${courseKey}/learn/${sub.slug}`);
+      setLocation(`${learnBasePath}/${courseKey}/learn/${sub.slug}`);
       setProgress(0);
       setIsPlaying(true);
     }
@@ -1635,13 +1754,23 @@ const CoursePlayerPage: React.FC = () => {
   );
 
   const startInlineQuiz = useCallback(
-    async (runtimeKey: string, assessmentId: string, moduleNo: number | null) => {
+    async (
+      runtimeKey: string,
+      params: {
+        assessmentId: string | null;
+        moduleNo: number | null;
+        inlineQuestions: QuizQuestion[];
+        inlineQuestionsRaw: unknown[];
+      },
+    ) => {
+      const { assessmentId, moduleNo, inlineQuestions, inlineQuestionsRaw } = params;
       if (!courseKey) return;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
 
       setInlineQuizState(runtimeKey, {
-        assessmentId,
+        assessmentId: assessmentId ?? "",
+        mode: assessmentId ? "remote" : "local",
         phase: "loading",
         attemptId: null,
         questions: [],
@@ -1652,9 +1781,44 @@ const CoursePlayerPage: React.FC = () => {
 
       emitTelemetry(
         "quiz.start",
-        { assessmentId, mode: "inline" },
+        { assessmentId: assessmentId ?? null, mode: assessmentId ? "inline-remote" : "inline-local" },
         { moduleNo, topicId: activeLesson?.topicId ?? null },
       );
+
+      if (!assessmentId) {
+        if (inlineQuestions.length === 0) {
+          setInlineQuizState(runtimeKey, {
+            assessmentId: "",
+            mode: "local",
+            correctOptionByQuestionId: {},
+            phase: "error",
+            attemptId: null,
+            questions: [],
+            answers: {},
+            result: null,
+            errorMessage: "No questions available for this topic assessment.",
+          });
+          return;
+        }
+        const correctOptionByQuestionId: Record<string, string | null> = {};
+        inlineQuestionsRaw.forEach((entry, idx) => {
+          const question = inlineQuestions[idx];
+          if (!question) return;
+          correctOptionByQuestionId[question.questionId] = extractCorrectOptionId(entry, idx);
+        });
+        setInlineQuizState(runtimeKey, {
+          assessmentId: "",
+          mode: "local",
+          correctOptionByQuestionId,
+          phase: "active",
+          attemptId: null,
+          questions: inlineQuestions,
+          answers: {},
+          result: null,
+          errorMessage: null,
+        });
+        return;
+      }
 
       try {
         const res = await fetch(buildApiUrl(`/api/quiz/attempts`), {
@@ -1667,6 +1831,8 @@ const CoursePlayerPage: React.FC = () => {
         const data = await res.json();
         setInlineQuizState(runtimeKey, {
           assessmentId: data.assessmentId ?? assessmentId,
+          mode: "remote",
+          correctOptionByQuestionId: {},
           phase: "active",
           attemptId: data.attemptId ?? null,
           questions: data.questions ?? [],
@@ -1677,6 +1843,8 @@ const CoursePlayerPage: React.FC = () => {
       } catch (error) {
         setInlineQuizState(runtimeKey, {
           assessmentId,
+          mode: "remote",
+          correctOptionByQuestionId: {},
           phase: "error",
           attemptId: null,
           questions: [],
@@ -1694,6 +1862,8 @@ const CoursePlayerPage: React.FC = () => {
       setInlineQuizState(runtimeKey, (current) => {
         const base: InlineQuizRuntime = current ?? {
           assessmentId: "",
+          mode: "local",
+          correctOptionByQuestionId: {},
           phase: "intro",
           attemptId: null,
           questions: [],
@@ -1716,7 +1886,48 @@ const CoursePlayerPage: React.FC = () => {
   const submitInlineQuiz = useCallback(
     async (runtimeKey: string, moduleNo: number | null) => {
       const current = inlineQuizStateByKey[runtimeKey];
-      if (!current?.attemptId) return;
+      if (!current) return;
+
+      if (current.mode === "local") {
+        const answerMap = new Map(Object.entries(current.answers));
+        let correctCount = 0;
+        current.questions.forEach((question) => {
+          const chosen = answerMap.get(question.questionId);
+          const correctOptionId = current.correctOptionByQuestionId[question.questionId] ?? null;
+          if (chosen && correctOptionId && chosen === correctOptionId) {
+            correctCount += 1;
+          }
+        });
+        const totalQuestions = current.questions.length;
+        const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+        const thresholdPercent = PASSING_PERCENT_THRESHOLD;
+        const result: QuizAttemptResult = {
+          correctCount,
+          totalQuestions,
+          scorePercent,
+          passed: scorePercent >= thresholdPercent,
+          thresholdPercent,
+        };
+        setInlineQuizState(runtimeKey, {
+          ...current,
+          phase: "result",
+          result,
+          errorMessage: null,
+        });
+        emitTelemetry(
+          result.passed ? "quiz.pass" : "quiz.fail",
+          {
+            scorePercent: result.scorePercent,
+            correctCount: result.correctCount,
+            totalQuestions: result.totalQuestions,
+            mode: "inline-local",
+          },
+          { moduleNo, topicId: activeLesson?.topicId ?? null },
+        );
+        return;
+      }
+
+      if (!current.attemptId) return;
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (session?.accessToken) headers.Authorization = `Bearer ${session.accessToken}`;
@@ -2576,11 +2787,18 @@ const CoursePlayerPage: React.FC = () => {
               : typeof data?.assessmentId === "string"
                 ? data.assessmentId.trim()
                 : "";
+          const inlineQuestionsRaw =
+            data && typeof data === "object" && Array.isArray((data as Record<string, unknown>).questions)
+              ? ((data as Record<string, unknown>).questions as unknown[])
+              : [];
+          const inlineQuestions = parseInlineQuizQuestions(inlineQuestionsRaw);
+          const hasRemoteAssessment = assessmentId.length > 0;
+          const hasLocalQuestions = inlineQuestions.length > 0;
 
-          if (!assessmentId) {
+          if (!hasRemoteAssessment && !hasLocalQuestions) {
             output.push(
               <div key={key} className="rounded-2xl border border-[#f6d2cc] bg-[#fff5f3] px-4 py-3 text-sm text-[#8b2d20]">
-                Assessment pointer missing for this quiz block.
+                Quiz payload missing for this topic block.
               </div>,
             );
             continue;
@@ -2595,9 +2813,12 @@ const CoursePlayerPage: React.FC = () => {
             continue;
           }
 
-          const runtimeKey = `${activeLesson?.topicId ?? "topic"}:${key}:${assessmentId}`;
+          const runtimeIdentity = hasRemoteAssessment ? assessmentId : `${activeLesson?.topicId ?? "topic"}:${key}:local`;
+          const runtimeKey = `${activeLesson?.topicId ?? "topic"}:${key}:${runtimeIdentity}`;
           const runtime = inlineQuizStateByKey[runtimeKey] ?? {
-            assessmentId,
+            assessmentId: hasRemoteAssessment ? assessmentId : "",
+            mode: hasRemoteAssessment ? "remote" : "local",
+            correctOptionByQuestionId: {},
             phase: "intro" as InlineQuizPhase,
             attemptId: null,
             questions: [],
@@ -2625,7 +2846,14 @@ const CoursePlayerPage: React.FC = () => {
                 {runtime.phase === "intro" && (
                   <button
                     type="button"
-                    onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                    onClick={() =>
+                      void startInlineQuiz(runtimeKey, {
+                        assessmentId: hasRemoteAssessment ? assessmentId : null,
+                        moduleNo: activeLesson?.moduleNo ?? null,
+                        inlineQuestions,
+                        inlineQuestionsRaw,
+                      })
+                    }
                     className="inline-flex items-center rounded-lg bg-[#bf2f1f] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a62619] transition"
                   >
                     Start Assessment
@@ -2690,7 +2918,14 @@ const CoursePlayerPage: React.FC = () => {
                     </p>
                     <button
                       type="button"
-                      onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                      onClick={() =>
+                        void startInlineQuiz(runtimeKey, {
+                          assessmentId: hasRemoteAssessment ? assessmentId : null,
+                          moduleNo: activeLesson?.moduleNo ?? null,
+                          inlineQuestions,
+                          inlineQuestionsRaw,
+                        })
+                      }
                       className="inline-flex items-center rounded-lg border border-[#000000] px-4 py-2 text-sm font-semibold text-[#000000] hover:bg-[#f8f1e6]"
                     >
                       Retake
@@ -2703,7 +2938,14 @@ const CoursePlayerPage: React.FC = () => {
                     <p className="text-sm text-[#bf2f1f]">{runtime.errorMessage ?? "Unable to start assessment."}</p>
                     <button
                       type="button"
-                      onClick={() => void startInlineQuiz(runtimeKey, assessmentId, activeLesson?.moduleNo ?? null)}
+                      onClick={() =>
+                        void startInlineQuiz(runtimeKey, {
+                          assessmentId: hasRemoteAssessment ? assessmentId : null,
+                          moduleNo: activeLesson?.moduleNo ?? null,
+                          inlineQuestions,
+                          inlineQuestionsRaw,
+                        })
+                      }
                       className="inline-flex items-center rounded-lg border border-[#bf2f1f] px-4 py-2 text-sm font-semibold text-[#bf2f1f] hover:bg-[#fff1ee]"
                     >
                       Try again
@@ -2765,6 +3007,9 @@ const CoursePlayerPage: React.FC = () => {
     ],
   );
   const activeVideoUrl = activeLesson?.videoUrl ?? "";
+  const stageKey = isQuizMode
+    ? `quiz:${selectedSection?.assessmentId ?? "none"}:${selectedSection?.moduleNo ?? "none"}:${selectedSection?.topicPairIndex ?? "none"}`
+    : "lesson";
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
@@ -2847,7 +3092,13 @@ const CoursePlayerPage: React.FC = () => {
                     }`}
                 >
                   {module.submodules?.map((sub) => {
-                    const active = sub.slug ? sub.slug === activeLesson?.slug : false;
+                    const active = sub.type === "quiz"
+                      ? Boolean(
+                        isQuizMode &&
+                        selectedSection?.assessmentId &&
+                        sub.assessmentId === selectedSection.assessmentId,
+                      )
+                      : (sub.slug ? sub.slug === activeLesson?.slug : false);
                     return (
                       <button
                         key={sub.id}
@@ -2924,18 +3175,21 @@ const CoursePlayerPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
-            <button
-              type="button"
-              onClick={handleOpenCohortProject}
-              className="inline-flex items-center gap-2 rounded-full border border-[#4a4845]/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f8f1e6]/80 transition hover:border-[#f8f1e6]/60 hover:bg-white/5 hover:text-white"
-            >
-              <ClipboardList size={14} />
-              Cohort Project
-            </button>
+            {isCohortProgram && (
+              <button
+                type="button"
+                onClick={handleOpenCohortProject}
+                className="inline-flex items-center gap-2 rounded-full border border-[#4a4845]/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f8f1e6]/80 transition hover:border-[#f8f1e6]/60 hover:bg-white/5 hover:text-white"
+              >
+                <ClipboardList size={14} />
+                Cohort Project
+              </button>
+            )}
             <span>Progress {Math.round(courseProgress)}%</span>
           </div>
         </div>
         <div
+          key={stageKey}
           ref={contentScrollRef}
           className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
         >
@@ -2968,7 +3222,7 @@ const CoursePlayerPage: React.FC = () => {
 
           {/* Study section */}
           {!isFullScreen && !isQuizMode && (
-            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
+            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
               <div className={`w-full ${studySectionPadding} space-y-8`}>
                 {!hasBlockLayout && renderStudyHeader()}
 
@@ -3048,7 +3302,7 @@ const CoursePlayerPage: React.FC = () => {
 
           {/* Quiz overlay */}
           {isQuizMode && (
-            <div className="flex-1 bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+            <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
               <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
                 {quizPhase === "intro" && (
@@ -3423,14 +3677,16 @@ const CoursePlayerPage: React.FC = () => {
         {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
 
-      <CohortProjectModal
-        isOpen={cohortProjectOpen}
-        project={cohortProject}
-        batchNo={cohortProjectBatch}
-        isLoading={cohortProjectLoading}
-        error={cohortProjectError}
-        onClose={handleCloseCohortProject}
-      />
+      {isCohortProgram && (
+        <CohortProjectModal
+          isOpen={cohortProjectOpen}
+          project={cohortProject}
+          batchNo={cohortProjectBatch}
+          isLoading={cohortProjectLoading}
+          error={cohortProjectError}
+          onClose={handleCloseCohortProject}
+        />
+      )}
 
     </div>
   );
