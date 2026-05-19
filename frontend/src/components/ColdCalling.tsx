@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Star, Send } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -88,6 +88,7 @@ export default function ColdCalling({ topicId, session, onTelemetryEvent }: Cold
   const [replyText, setReplyText] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
   const [pendingStars, setPendingStars] = useState<Set<string>>(new Set());
+  const loadRequestIdRef = useRef(0);
 
   const accessToken = session?.accessToken ?? null;
   const currentUserId = session?.userId ?? null;
@@ -101,6 +102,7 @@ export default function ColdCalling({ topicId, session, onTelemetryEvent }: Cold
   );
 
   const loadPrompt = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
     if (!topicId || !accessToken) {
       setPrompt(null);
       setMessages([]);
@@ -115,6 +117,9 @@ export default function ColdCalling({ topicId, session, onTelemetryEvent }: Cold
       const response = await fetch(buildApiUrl(`/api/cold-call/prompts/${topicId}`), {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
 
       if (response.status === 403) {
         const payload = await response.json().catch(() => null);
@@ -138,22 +143,36 @@ export default function ColdCalling({ topicId, session, onTelemetryEvent }: Cold
       }
 
       const payload = (await response.json()) as ColdCallPayload;
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
       setPrompt(payload.prompt);
       setHasSubmitted(payload.hasSubmitted);
       setMessages(payload.messages ?? []);
       emitTelemetry("cold_call.loaded", { promptId: payload.prompt.promptId, hasSubmitted: payload.hasSubmitted });
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) {
+        return;
+      }
       toast({
         variant: "destructive",
         title: "Cold calling unavailable",
         description: error instanceof Error ? error.message : "Please try again shortly.",
       });
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [accessToken, toast, topicId, emitTelemetry]);
 
   useEffect(() => {
+    // Reset immediately on topic switch to avoid showing stale prompt from previous topic.
+    setPrompt(null);
+    setMessages([]);
+    setHasSubmitted(false);
+    setAccessMessage(null);
+    setLoading(false);
     setResponseText("");
     setReplyTargetId(null);
     setReplyText("");
@@ -354,6 +373,12 @@ export default function ColdCalling({ topicId, session, onTelemetryEvent }: Cold
         <p className="text-sm text-[#5c2b18] mt-2">{accessMessage}</p>
       </div>
     );
+  }
+
+  // Avoid flashing a temporary cold-calling card on topics that don't have prompts.
+  // If we are loading and still don't have a prompt payload, keep this section hidden.
+  if (loading && !prompt) {
+    return null;
   }
 
   if (!prompt && !loading) {
