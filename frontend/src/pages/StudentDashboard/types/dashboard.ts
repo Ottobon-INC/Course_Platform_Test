@@ -32,6 +32,7 @@ export interface DashboardCohort {
   progress: number;
   nextSessionDate: string | null;
   batchNo: number;
+  courseId: string;
 }
 
 export interface DashboardOnDemand {
@@ -41,6 +42,7 @@ export interface DashboardOnDemand {
   progress: number;
   lastAccessedModule: string;
   lastLessonSlug: string | null;
+  courseId: string;
 }
 
 export interface DashboardWorkshop {

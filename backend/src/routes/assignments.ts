@@ -110,8 +110,8 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
       return;
     }
 
-    // 1. Get Student's Context (Cohorts & Enrollments)
-    const [cohortMemberships, enrollments] = await Promise.all([
+    // 1. Get Student's Context (Cohorts & Registrations)
+    const [cohortMemberships, registrations] = await Promise.all([
       prisma.cohortMember.findMany({
         where: { 
           status: "active",
@@ -130,15 +130,25 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
           } 
         }
       }),
-      prisma.enrollment.findMany({
-        where: { userId, status: "active" },
+      prisma.registration.findMany({
+        where: { 
+          userId, 
+          offering: { 
+            isActive: true 
+          },
+          OR: [
+            {
+              offering: { programType: "ondemand" },
+              status: { in: ["paid", "enrolled", "completed", "approved", "verified"] }
+            },
+            {
+              offering: { programType: "workshop" }
+            }
+          ]
+        },
         include: { 
-          course: { 
-            include: { 
-              offerings: {
-                where: { isActive: true }
-              } 
-            } 
+          offering: { 
+            include: { course: true } 
           } 
         }
       })
@@ -151,30 +161,34 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
     cohortMemberships.forEach(m => {
       enrollmentList.push({
         courseId: m.cohort.offering.courseId,
-        courseName: m.cohort.offering.course.courseName,
-        programType: m.cohort.offering.programType, // cohort, workshop, etc.
+        courseName: m.cohort.offering.title || m.cohort.offering.course.courseName,
+        programType: m.cohort.offering.programType, // cohort
         cohortId: m.cohortId,
         batchNo: m.batchNo,
         offeringId: m.cohort.offeringId
       });
     });
 
-    // Add On-Demand and Workshop Enrollments
-    enrollments.forEach(e => {
-      e.course.offerings.forEach(offering => {
-        if (offering.programType === "ondemand" || offering.programType === "workshop") {
-          // Check if already added via cohort to avoid duplicates
-          const alreadyAdded = enrollmentList.some(item => item.offeringId === offering.offeringId);
-          if (!alreadyAdded) {
-            enrollmentList.push({
-              courseId: e.courseId,
-              courseName: e.course.courseName,
-              programType: offering.programType,
-              offeringId: offering.offeringId
-            });
-          }
-        }
-      });
+    // Add On-Demand and Workshop Registrations
+    registrations.forEach(r => {
+      const alreadyAdded = enrollmentList.some(item => item.offeringId === r.offeringId);
+      if (!alreadyAdded) {
+        enrollmentList.push({
+          courseId: r.offering.courseId,
+          courseName: r.offering.title || r.offering.course.courseName,
+          programType: r.offering.programType,
+          offeringId: r.offeringId
+        });
+      }
+    });
+
+    // --- SORTING LOGIC: Prioritize AI Native ---
+    enrollmentList.sort((a, b) => {
+      const aIsNative = a.courseName.toLowerCase().includes("ai native");
+      const bIsNative = b.courseName.toLowerCase().includes("ai native");
+      if (aIsNative && !bIsNative) return -1;
+      if (!aIsNative && bIsNative) return 1;
+      return a.courseName.localeCompare(b.courseName);
     });
 
     const cohortIds = cohortMemberships.map(m => m.cohortId);
@@ -222,7 +236,8 @@ assignmentsRouter.get("/learner", requireAuth, async (req, res) => {
       const submission = a.submissions[0] || null;
       let finalStatus = submission ? submission.status.toLowerCase() : "pending";
       if (finalStatus === "reviewed") {
-        finalStatus = (submission?.pointsAwarded !== null && submission?.pointsAwarded !== undefined) ? "approved" : "rejected";
+        const points = submission?.pointsAwarded;
+        finalStatus = (points !== null && points !== undefined && points > 0) ? "approved" : "rejected";
       }
 
       return {

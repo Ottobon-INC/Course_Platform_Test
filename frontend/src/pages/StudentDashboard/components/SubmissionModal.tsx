@@ -4,6 +4,11 @@ import { X, Send, Link as LinkIcon, FileText, CheckCircle2, Upload, Paperclip } 
 import { useSubmitAssignment, Assignment } from '../hooks/useLearnerAssignments';
 import { apiRequest } from '@/lib/queryClient';
 
+interface SubmissionModalProps {
+  assignment: Assignment;
+  onClose: () => void;
+}
+
 export function SubmissionModal({ assignment, onClose }: SubmissionModalProps) {
   const [content, setContent] = useState('');
   const [fileData, setFileData] = useState<{ fileName: string, fileUrl: string } | null>(null);

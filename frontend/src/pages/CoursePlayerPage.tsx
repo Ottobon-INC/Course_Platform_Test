@@ -30,6 +30,7 @@ import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 import ColdCalling from "@/components/ColdCalling";
 import CohortProjectModal, { type CohortProjectPayload } from "@/components/CohortProjectModal";
+import { ModuleAssignmentsView } from "./StudentDashboard/components/ModuleAssignmentsView";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -704,6 +705,9 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     topicPairIndex: number;
     assessmentId: string;
   } | null>(null);
+
+  const [isAssignmentMode, setIsAssignmentMode] = useState(false);
+  const [activeAssignmentModule, setActiveAssignmentModule] = useState<number | null>(null);
 
   const dragInfo = useRef<{
     isDragging: boolean;
@@ -1640,6 +1644,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       void handleStartQuiz(sub.moduleNo, sub.assessmentId, sub.topicPairIndex ?? 1);
     } else if (sub.slug) {
       setIsQuizMode(false);
+      setIsAssignmentMode(false);
       setQuizPhase("intro");
       setSelectedSection(null);
       setQuizQuestions([]);
@@ -1675,6 +1680,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       setAnswers({});
       setQuizResult(null);
       setIsQuizMode(true);
+      setIsAssignmentMode(false);
       setQuizPhase("intro");
       setQuizTimer(150);
       setSidebarOpen(false);
@@ -1821,6 +1827,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       setInlineQuizState(runtimeKey, {
         assessmentId: assessmentId ?? "",
         mode: assessmentId ? "remote" : "local",
+        correctOptionByQuestionId: {}, // <-- Add this line to satisfy the TypeScript compiler
         phase: "loading",
         attemptId: null,
         questions: [],
@@ -1828,6 +1835,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         result: null,
         errorMessage: null,
       });
+
 
       emitTelemetry(
         "quiz.start",
@@ -2929,11 +2937,10 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                                 type="button"
                                 key={option.optionId}
                                 onClick={() => selectInlineQuizAnswer(runtimeKey, question.questionId, option.optionId)}
-                                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
-                                  selected
-                                    ? "border-[#bf2f1f] bg-[#fff1ee] text-[#000000]"
-                                    : "border-[#e5e7eb] bg-white hover:border-[#bf2f1f]/60"
-                                }`}
+                                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${selected
+                                  ? "border-[#bf2f1f] bg-[#fff1ee] text-[#000000]"
+                                  : "border-[#e5e7eb] bg-white hover:border-[#bf2f1f]/60"
+                                  }`}
                               >
                                 {option.text}
                               </button>
@@ -3199,6 +3206,23 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                       </button>
                     );
                   })}
+                  {module.id !== 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAssignmentMode(true);
+                        setActiveAssignmentModule(module.id);
+                        setIsQuizMode(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold flex items-center gap-3 transition-all rounded-md ${isAssignmentMode && activeAssignmentModule === module.id
+                        ? "bg-[#bf2f1f]/20 text-[#bf2f1f]"
+                        : "text-[#4a4845] hover:bg-[#000000]/5 hover:text-[#000000]"
+                        }`}
+                    >
+                      <ClipboardList size={14} className="flex-shrink-0" />
+                      <span className="truncate flex-1">Module Assignment</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -3247,18 +3271,27 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             )}
             <button
               type="button"
-              onClick={() => setLocation("/student-dashboard")}
+              onClick={() => isAssignmentMode ? setIsAssignmentMode(false) : setLocation("/student-dashboard")}
               className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
             >
               <ChevronLeft size={18} /> Back
             </button>
             <div>
-              <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo}</p>
-              <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
+              {isAssignmentMode ? (
+                <>
+                  <p className="text-xs text-[#f8f1e6]/60">Module {activeAssignmentModule}</p>
+                  <h1 className="text-xl md:text-2xl font-black leading-tight">Module Assignments</h1>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo}</p>
+                  <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
-            {isCohortProgram && (
+            {isCohortProgram && !isAssignmentMode && (
               <button
                 type="button"
                 onClick={handleOpenCohortProject}
@@ -3271,10 +3304,20 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             <span>Progress {Math.round(courseProgress)}%</span>
           </div>
         </div>
+  <div
+    key={stageKey}
+    ref={contentScrollRef}
+    className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
+  >
+    {/* Video */}
+    {!isAssignmentMode && !isQuizMode && !hasBlockLayout && (
+      <div
+        className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
+          }`}
+      >
         <div
-          key={stageKey}
-          ref={contentScrollRef}
-          className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
+          className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
+            }`}
         >
           {/* Video */}
           {!isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && !hasBlockLayout && (
@@ -3508,280 +3551,414 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           )}
         </div>
       </div>
+    )}
 
-      {/* Chat widget */}
-      {chatOpen && !isQuizMode && (
-        <div
-          className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
-          style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
-        >
-          <div
-            className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
-          >
-            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
-            <div className="flex items-center gap-1">
+    {/* Quiz overlay */}
+    {isQuizMode && (
+      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+          {quizPhase === "intro" && (
+            <div className="text-center space-y-6 animate-fade-in">
+              <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
+                <Lock size={48} />
+              </div>
+              <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">The Gauntlet</h2>
+              <p className="text-lg text-[#4a4845] font-medium">
+                You are about to enter a mandatory evaluation.
+                <br />
+                <span className="text-[#bf2f1f] font-bold">Rules are strict:</span>
+              </p>
+              <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
+                <li className="flex gap-2">
+                  <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
+                </li>
+                <li className="flex gap-2">
+                  <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
+                </li>
+                <li className="flex gap-2">
+                  <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 70% to pass
+                </li>
+                <li className="flex gap-2 text-[#bf2f1f]">
+                  <X size={16} /> Failure = Reset to Module 1
+                </li>
+              </ul>
               <button
-                onMouseDown={(event) => event.stopPropagation()}
-                onClick={handleChatExpandToggle}
-                className="p-1 hover:bg-white/20 rounded"
-                title={chatExpanded ? "Minimize" : "Maximize"}
+                onClick={() => setQuizPhase("active")}
+                className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
               >
-                {chatExpanded ? <Minimize size={14} className="text-white" /> : <Maximize size={14} className="text-white" />}
+                I Accept the Challenge
               </button>
-              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
             </div>
-          </div>
-          <div
-            ref={chatListRef}
-            className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
-          >
-            {chatMessages.map((msg) => {
-              const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
-              const showInlineChip =
-                !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length) && !chatLoading;
-              const showThinkingIndicator =
-                msg.isBot && chatLoading && !msg.error && msg.text.trim().length === 0;
+          )}
 
-              return (
-                <div
-                  key={msg.id}
-                  ref={(node) => {
-                    if (node) {
-                      chatMessageRefs.current[msg.id] = node;
-                    } else {
-                      delete chatMessageRefs.current[msg.id];
-                    }
-                  }}
-                  className="space-y-2"
-                >
-                  <div
-                    className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
-                      }`}
-                  >
-                    <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
-                    {showThinkingIndicator ? (
-                      <div className="mt-1 rounded-lg border border-[#bf2f1f]/30 bg-gradient-to-br from-[#1a0b09] via-[#100809] to-[#070707] p-2.5 space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-[#f8f1e6]/90">
-                          <span className="relative flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff5a3c]/50 animate-ping" />
-                            <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff5a3c]" />
-                          </span>
-                          <span>{chatLoadingMessage}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-line">{msg.text}</div>
-                    )}
+          {quizPhase === "active" && (
+            <div className="animate-fade-in">
+              <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
+                <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
+                <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
+                  {Math.floor(quizTimer / 60).toString().padStart(2, "0")}:
+                  {(quizTimer % 60).toString().padStart(2, "0")}
+                </span>
+              </div>
+
+              <div className="space-y-8">
+                {quizQuestions.map((q, idx) => (
+                  <div key={q.questionId} className="space-y-4">
+                    <h3 className="text-xl font-bold">{idx + 1}. {q.prompt}</h3>
+                    <div className="grid gap-3">
+                      {q.options.map((opt) => (
+                        <button
+                          key={opt.optionId}
+                          onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
+                          className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${answers[q.questionId] === opt.optionId
+                            ? "bg-[#000000] text-white border-[#000000]"
+                            : "bg-white border-[#4a4845]/20 hover:border-[#000000]"
+                            }`}
+                        >
+                          {opt.text}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  {starterAnchorMessageId === msg.id && !chatLoading && (
-                    <div className="pl-3 border-l border-white/10 space-y-2">
-                      <p className="text-xs text-[#f8f1e6]/70">
-                        Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
-                      </p>
-                      {suggestionsLoading ? (
-                        <div className="space-y-2">
-                          <div className="h-7 w-40 rounded-full bg-white/10 animate-pulse" />
-                          <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
-                          <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
-                        </div>
-                      ) : visibleStarterSuggestions.length > 0 ? (
-                        <div className="flex flex-col gap-2 items-start">
-                          {visibleStarterSuggestions.map((suggestion) => (
-                            <button
-                              key={suggestion.id}
-                              type="button"
-                              disabled={chatLoading}
-                              onClick={() => handleSuggestionSelect(suggestion)}
-                              className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
-                                ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                                : "border-white/25 text-white/80 hover:border-white hover:text-white"
-                                }`}
-                            >
-                              {suggestion.promptText}
-                            </button>
-                          ))}
-                        </div>
-                      ) : availableStarterSuggestions.length === 0 ? (
-                        <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
-                      ) : (
-                        <p className="text-xs text-[#f8f1e6]/50">Refreshing prompts...</p>
-                      )}
-                    </div>
-                  )}
-                  {showInlineChip && (
-                    <div className="flex justify-end">
-                      <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
-                        {msg.suggestionContext?.promptText}
-                      </span>
-                    </div>
-                  )}
-                  {followUpsForMessage.length > 0 && !chatLoading && (
-                    <div className="pl-2 border-l border-white/10 space-y-1">
-                      <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
-                      <div className="flex flex-wrap gap-2">
-                        {followUpsForMessage.map((suggestion) => (
-                          <button
-                            key={`${msg.id}-${suggestion.id}`}
-                            type="button"
-                            disabled={chatLoading}
-                            onClick={() => handleSuggestionSelect(suggestion)}
-                            className={`px-3 py-1 rounded-full text-xs border transition ${chatLoading
-                              ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                              : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
-                              }`}
-                          >
-                            {suggestion.promptText}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
-            <input
-              className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
-              placeholder="Ask AI..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleSendChat();
+                ))}
+              </div>
+
+              <button
+                disabled={quizQuestions.some((q) => !answers[q.questionId])}
+                onClick={handleSubmitQuiz}
+                className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
+              >
+                Submit Assessment
+              </button>
+            </div>
+          )}
+
+          {quizPhase === "result" && quizResult && (
+            <div className="text-center animate-fade-in space-y-6">
+              <div
+                className={`inline-flex p-6 rounded-full border-4 mb-4 ${quizResult.passed
+                  ? "bg-green-100 border-green-500 text-green-600"
+                  : "bg-red-100 border-red-500 text-red-600"
+                  }`}
+              >
+                {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
+              </div>
+              <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Gauntlet Passed" : "Protocol Failed"}</h2>
+              <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
+              <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
+              <button
+                onClick={() => {
+                  setIsQuizMode(false);
+                  setQuizPhase("intro");
+                  setQuizQuestions([]);
+                  setAnswers({});
+                  setSelectedSection(null);
+                  setQuizAttemptId(null);
+                  setQuizResult(null);
+                }}
+                className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
+              >
+                Back to course
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* Module Assignments */}
+    {isAssignmentMode && activeAssignmentModule !== null && (
+      <ModuleAssignmentsView
+        courseId={activeLesson?.courseId ?? courseKey ?? null}
+        moduleNo={activeAssignmentModule}
+        onClose={() => setIsAssignmentMode(false)}
+      />
+    )}
+        </div >
+      </div >
+
+  {/* Chat widget */ }
+{
+  chatOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
+      style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
+    >
+      <div
+        className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
+      >
+        <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
+        <div className="flex items-center gap-1">
+          <button
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={handleChatExpandToggle}
+            className="p-1 hover:bg-white/20 rounded"
+            title={chatExpanded ? "Minimize" : "Maximize"}
+          >
+            {chatExpanded ? <Minimize size={14} className="text-white" /> : <Maximize size={14} className="text-white" />}
+          </button>
+          <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
+        </div>
+      </div>
+      <div
+        ref={chatListRef}
+        className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
+      >
+        {chatMessages.map((msg) => {
+          const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
+          const showInlineChip =
+            !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length) && !chatLoading;
+          const showThinkingIndicator =
+            msg.isBot && chatLoading && !msg.error && msg.text.trim().length === 0;
+
+          return (
+            <div
+              key={msg.id}
+              ref={(node) => {
+                if (node) {
+                  chatMessageRefs.current[msg.id] = node;
+                } else {
+                  delete chatMessageRefs.current[msg.id];
                 }
               }}
-              disabled={chatLoading}
-            />
-            <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
-              <Send size={16} className="text-[#bf2f1f]" />
-            </button>
-          </div>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
-        </div>
-      )}
-
-      {/* Notes widget */}
-      {notesOpen && !isQuizMode && (
-        <div
-          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-          style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
-        >
-          <div
-            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
-          >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
-            <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
-              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
-            </div>
-          </div>
-          <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
-        </div>
-      )}
-
-      {/* Study widget */}
-      {studyWidgetOpen && !isQuizMode && (
-        <div
-          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-          style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
-        >
-          <div
-            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "study")}
-          >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-              <Book size={16} /> Study Material
-            </div>
-            <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
-              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
-            {hasBlockLayout && contentBlocks ? (
-              <div className="space-y-4">{renderContentBlocks(contentBlocks.blocks, "widget")}</div>
-            ) : formattedStudyText ? (
-              <div className="rounded-2xl border border-[#000000]/10 bg-white shadow-sm">
-                <div className="p-4 prose prose-sm max-w-none text-[#1e293b]">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeSanitize]}
-                    components={studyMarkdownComponents}
-                  >
-                    {formattedStudyText}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
-            )}
-            {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
-              <div className="mt-6 space-y-2">
-                <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
-                    <FileText size={14} />
-                    <span>Slides Viewer</span>
+              className="space-y-2"
+            >
+              <div
+                className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
+                  }`}
+              >
+                <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
+                {showThinkingIndicator ? (
+                  <div className="mt-1 rounded-lg border border-[#bf2f1f]/30 bg-gradient-to-br from-[#1a0b09] via-[#100809] to-[#070707] p-2.5 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-[#f8f1e6]/90">
+                      <span className="relative flex h-3 w-3">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff5a3c]/50 animate-ping" />
+                        <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff5a3c]" />
+                      </span>
+                      <span>{chatLoadingMessage}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                    </div>
                   </div>
-                  <div className="bg-[#f6f2eb] h-[360px] rounded-b-xl overflow-hidden">
-                    <iframe
-                      title={`Slides for ${activeLesson.topicName} (Study widget)`}
-                      src={activePptEmbedUrl}
-                      className="w-full h-full border-0"
-                      referrerPolicy="no-referrer"
-                      allowFullScreen
-                      loading="lazy"
-                    />
+                ) : (
+                  <div className="whitespace-pre-line">{msg.text}</div>
+                )}
+              </div>
+              {starterAnchorMessageId === msg.id && !chatLoading && (
+                <div className="pl-3 border-l border-white/10 space-y-2">
+                  <p className="text-xs text-[#f8f1e6]/70">
+                    Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
+                  </p>
+                  {suggestionsLoading ? (
+                    <div className="space-y-2">
+                      <div className="h-7 w-40 rounded-full bg-white/10 animate-pulse" />
+                      <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
+                      <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
+                    </div>
+                  ) : visibleStarterSuggestions.length > 0 ? (
+                    <div className="flex flex-col gap-2 items-start">
+                      {visibleStarterSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          type="button"
+                          disabled={chatLoading}
+                          onClick={() => handleSuggestionSelect(suggestion)}
+                          className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
+                            ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                            : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                            }`}
+                        >
+                          {suggestion.promptText}
+                        </button>
+                      ))}
+                    </div>
+                  ) : availableStarterSuggestions.length === 0 ? (
+                    <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
+                  ) : (
+                    <p className="text-xs text-[#f8f1e6]/50">Refreshing prompts...</p>
+                  )}
+                </div>
+              )}
+              {showInlineChip && (
+                <div className="flex justify-end">
+                  <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
+                    {msg.suggestionContext?.promptText}
+                  </span>
+                </div>
+              )}
+              {followUpsForMessage.length > 0 && !chatLoading && (
+                <div className="pl-2 border-l border-white/10 space-y-1">
+                  <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
+                  <div className="flex flex-wrap gap-2">
+                    {followUpsForMessage.map((suggestion) => (
+                      <button
+                        key={`${msg.id}-${suggestion.id}`}
+                        type="button"
+                        disabled={chatLoading}
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                        className={`px-3 py-1 rounded-full text-xs border transition ${chatLoading
+                          ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                          : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
+                          }`}
+                      >
+                        {suggestion.promptText}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <p className="text-[11px] text-[#4a4845]">Use the embedded Microsoft viewer controls to move between slides.</p>
-              </div>
-            )}
-            {activeLesson?.simulation && (
-              <SimulationExercise simulation={activeLesson.simulation} />
-            )}
-          </div>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />
-        </div>
-      )}
-
-      <button
-        onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode ? "hidden" : ""
-          }`}
-        title="Chat with AI Tutor"
-      >
-        {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
-      </button>
-
-      {isCohortProgram && (
-        <CohortProjectModal
-          isOpen={cohortProjectOpen}
-          project={cohortProject}
-          batchNo={cohortProjectBatch}
-          isLoading={cohortProjectLoading}
-          error={cohortProjectError}
-          onClose={handleCloseCohortProject}
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
+        <input
+          className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
+          placeholder="Ask AI..."
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleSendChat();
+            }
+          }}
+          disabled={chatLoading}
         />
-      )}
-
+        <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
+          <Send size={16} className="text-[#bf2f1f]" />
+        </button>
+      </div>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
     </div>
+  )
+}
+
+{/* Notes widget */ }
+{
+  notesOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+          <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
+        </div>
+      </div>
+      <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
+    </div>
+  )
+}
+
+{/* Study widget */ }
+{
+  studyWidgetOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "study")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+          <Book size={16} /> Study Material
+        </div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+          <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
+        {hasBlockLayout && contentBlocks ? (
+          <div className="space-y-4">{renderContentBlocks(contentBlocks.blocks, "widget")}</div>
+        ) : formattedStudyText ? (
+          <div className="rounded-2xl border border-[#000000]/10 bg-white shadow-sm">
+            <div className="p-4 prose prose-sm max-w-none text-[#1e293b]">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={studyMarkdownComponents}
+              >
+                {formattedStudyText}
+              </ReactMarkdown>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+        )}
+        {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
+          <div className="mt-6 space-y-2">
+            <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
+                <FileText size={14} />
+                <span>Slides Viewer</span>
+              </div>
+              <div className="bg-[#f6f2eb] h-[360px] rounded-b-xl overflow-hidden">
+                <iframe
+                  title={`Slides for ${activeLesson.topicName} (Study widget)`}
+                  src={activePptEmbedUrl}
+                  className="w-full h-full border-0"
+                  referrerPolicy="no-referrer"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-[#4a4845]">Use the embedded Microsoft viewer controls to move between slides.</p>
+          </div>
+        )}
+        {activeLesson?.simulation && (
+          <SimulationExercise simulation={activeLesson.simulation} />
+        )}
+      </div>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />
+    </div>
+  )
+}
+
+<button
+  onClick={() => setChatOpen(!chatOpen)}
+  className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode ? "hidden" : ""
+    }`}
+  title="Chat with AI Tutor"
+>
+  {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+</button>
+
+{
+  isCohortProgram && (
+    <CohortProjectModal
+      isOpen={cohortProjectOpen}
+      project={cohortProject}
+      batchNo={cohortProjectBatch}
+      isLoading={cohortProjectLoading}
+      error={cohortProjectError}
+      onClose={handleCloseCohortProject}
+    />
+  )
+}
+
+    </div >
   );
 };
 

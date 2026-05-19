@@ -2,27 +2,41 @@ import React from 'react';
 import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
 import { useLeaderboardData } from '../hooks/useLeaderboardData';
+import { useModuleProgress } from '../hooks/useModuleProgress';
 
 export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { data, isLoading, error } = useCohortData();
   const [selectedCourse, setSelectedCourse] = React.useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = React.useState<string | null>(null);
 
   const { activeCohorts = [], completedCohorts = [], stats } = data || {};
 
-  // Extract unique course names
-  const allCourseNames = React.useMemo(() => {
-    const names = new Set<string>();
-    activeCohorts.forEach(c => names.add(c.courseName));
-    completedCohorts.forEach(c => names.add(c.courseName));
-    return Array.from(names);
+  // Extract unique courses (name + id)
+  const allCourses = React.useMemo(() => {
+    const map = new Map<string, string>();
+    activeCohorts.forEach(c => map.set(c.courseName, c.courseId));
+    completedCohorts.forEach(c => map.set(c.courseName, c.courseId));
+    return Array.from(map.entries()).map(([name, id]) => ({ name, id }));
   }, [activeCohorts, completedCohorts]);
+
+  // Actually, I need the REAL courseId.
+  // Let's check ActiveCohort type in useCohortData.ts
 
   // Set default selection
   React.useEffect(() => {
-    if (!selectedCourse && allCourseNames.length > 0) {
-      setSelectedCourse(allCourseNames[0]);
+    if (!selectedCourse && allCourses.length > 0) {
+      setSelectedCourse(allCourses[0].name);
+      setSelectedCourseId(allCourses[0].id);
     }
-  }, [allCourseNames, selectedCourse]);
+  }, [allCourses, selectedCourse]);
+
+  const handleCourseChange = (courseName: string) => {
+    setSelectedCourse(courseName);
+    const course = allCourses.find(c => c.name === courseName);
+    if (course) {
+      setSelectedCourseId(course.id);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -68,7 +82,7 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
           </p>
         </div>
 
-        {allCourseNames.length > 0 && (
+        {allCourses.length > 0 && (
           <div className="flex flex-col gap-1.5 min-w-[240px]">
             <label className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
               <i className="fas fa-filter text-dark-teal" /> Switch Cohort Course
@@ -76,11 +90,11 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
             <div className="relative">
               <select 
                 value={selectedCourse || ''} 
-                onChange={(e) => setSelectedCourse(e.target.value)}
+                onChange={(e) => handleCourseChange(e.target.value)}
                 className="w-full bg-white border border-border-soft rounded-xl px-4 py-2.5 text-sm font-bold text-dark-text shadow-sm focus:outline-none focus:ring-2 focus:ring-dark-teal/20 appearance-none cursor-pointer"
               >
-                {allCourseNames.map(name => (
-                  <option key={name} value={name}>{name}</option>
+                {allCourses.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
                 ))}
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
@@ -100,9 +114,12 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
           </p>
         </div>
       ) : (
-        <div className={hideSidebar ? "w-full" : "grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-8"}>
+        <div className={hideSidebar ? "w-full" : "grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8"}>
           {/* Main content */}
           <div className="flex flex-col gap-8">
+            {/* Top Performer Banner */}
+            <CohortTopPerformer key={selectedCourseId} courseId={selectedCourseId || undefined} />
+
             {/* Active Cohorts */}
             {filteredActive.length > 0 && (
               <section>
@@ -135,10 +152,10 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
             </section>
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Optional space for other features */}
           {!hideSidebar && (
             <div className="flex flex-col gap-8">
-              <CohortTopPerformer />
+              {/* Other sidebar content can go here in the future */}
             </div>
           )}
         </div>
@@ -150,49 +167,104 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
 /* ─── Cohort Sidebar Components ─── */
 
 
-export function CohortTopPerformer() {
-  const { topUsers, isLoading } = useLeaderboardData();
+export function CohortTopPerformer({ courseId }: { courseId?: string }) {
+  const { topUsers, isLoading: isLeaderboardLoading } = useLeaderboardData(courseId);
+  const { data: progressData, isLoading: isProgressLoading } = useModuleProgress(courseId);
+  
   const topPerformer = topUsers?.[0];
 
+  // Gating logic: Show only if Module 1 is passed AND Module 2 is unlocked
+  const isModule1Passed = progressData?.modules?.find(m => m.moduleNo === 1)?.quizPassed;
+  const isModule2Unlocked = progressData?.modules?.some(m => m.moduleNo === 2); // Exists = unlocked
+
+  const isLoading = isLeaderboardLoading || isProgressLoading;
+  const isLocked = !isModule1Passed || !isModule2Unlocked;
+
+  if (courseId && !isLoading && isLocked) {
+    return (
+      <section className="bg-white rounded-2xl shadow-sm p-8 border border-border-soft overflow-hidden relative group">
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="w-20 h-20 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-200 text-4xl">
+            <i className="fas fa-lock" />
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="text-lg font-bold text-dark-text mb-2 flex items-center justify-center md:justify-start gap-2">
+              Leaderboard Locked
+            </h3>
+            <p className="text-sm text-gray-400 font-medium max-w-md">
+              Complete Module 1 and unlock Module 2 to view the cohort's top performers! Keep learning to reveal your competition.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="bg-white rounded-xl shadow-sm p-6 border border-border-soft overflow-hidden group hover:border-orange-primary/30 transition-all">
-      <h3 className="text-[1rem] font-bold mb-4 flex items-center gap-2">
-        <i className="fas fa-star text-yellow-500 opacity-70 group-hover:scale-110 transition-transform" /> Cohort Top Performer
-      </h3>
-      
-      {isLoading ? (
-        <div className="flex flex-col items-center py-4 gap-2 animate-pulse">
-          <div className="w-12 h-12 bg-gray-100 rounded-full" />
-          <div className="w-20 h-3 bg-gray-100 rounded" />
-        </div>
-      ) : topPerformer ? (
-        <div className="flex flex-col items-center py-2 text-center animate-fade-in">
-          <div className="relative mb-4">
-             <i className="fas fa-crown text-yellow-400 absolute -top-4 left-1/2 -translate-x-1/2 text-xl drop-shadow-sm animate-bounce" />
-             {topPerformer.avatar ? (
-                <img src={topPerformer.avatar} className="w-16 h-16 rounded-full border-4 border-orange-soft object-cover shadow-md" alt="Top Performer" />
-             ) : (
-                <div className="w-16 h-16 rounded-full bg-orange-soft flex items-center justify-center border-4 border-white shadow-sm">
-                   <i className="fas fa-user text-orange-primary text-2xl" />
-                </div>
-             )}
-             <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm scale-90">
-                <i className="fas fa-trophy text-[0.7rem]" />
-             </div>
+    <section className="bg-gradient-to-br from-white via-white to-orange-soft/20 rounded-2xl shadow-sm p-6 border border-border-soft overflow-hidden group hover:border-orange-primary/30 transition-all relative">
+      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+        <i className="fas fa-trophy text-8xl text-orange-primary" />
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+        {/* Left: Branding & Title */}
+        <div className="flex-1 text-center md:text-left">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-primary/10 text-orange-primary text-[0.6rem] font-black uppercase tracking-widest rounded-full mb-3">
+            <i className="fas fa-bolt" /> Cohort Highlight
           </div>
-          <h4 className="font-black text-dark-text text-sm leading-tight mb-1">{topPerformer.name}</h4>
-          <p className="text-[0.65rem] font-black text-orange-primary uppercase tracking-widest">{topPerformer.score.toLocaleString()} Points</p>
-          
-          <div className="mt-4 pt-4 border-t border-gray-50 w-full">
-            <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest">Global Rank #1</span>
+          <h3 className="text-xl font-black text-dark-text mb-2">
+            Top Performer
+          </h3>
+          <p className="text-sm text-gray-400 font-medium max-w-xs">
+            Recognizing top-tier engagement and performance in this cohort.
+          </p>
+        </div>
+
+        {/* Center/Right: Data */}
+        {isLoading ? (
+          <div className="flex items-center gap-4 animate-pulse px-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-full" />
+            <div className="space-y-2">
+              <div className="w-24 h-4 bg-gray-100 rounded" />
+              <div className="w-16 h-3 bg-gray-100 rounded" />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center py-4 text-center">
-          <i className="fas fa-trophy text-gray-200 text-3xl mb-3" />
-          <p className="text-xs text-gray-400 font-medium">Coming soon</p>
-        </div>
-      )}
+        ) : (topPerformer && topPerformer.name) ? (
+          <div className="flex flex-col md:flex-row items-center gap-6 px-4 md:px-8 md:border-l border-gray-100">
+            <div className="relative">
+               <i className="fas fa-crown text-yellow-400 absolute -top-4 left-1/2 -translate-x-1/2 text-xl drop-shadow-sm animate-bounce" />
+               {topPerformer.avatar ? (
+                  <img src={topPerformer.avatar} className="w-16 h-16 rounded-full border-4 border-white object-cover shadow-lg" alt="Top Performer" />
+               ) : (
+                  <div className="w-16 h-16 rounded-full bg-orange-soft flex items-center justify-center border-4 border-white shadow-md">
+                     <i className="fas fa-user text-orange-primary text-2xl" />
+                  </div>
+               )}
+               <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-white w-7 h-7 rounded-full flex items-center justify-center border-2 border-white shadow-sm scale-90">
+                  <i className="fas fa-trophy text-[0.7rem]" />
+               </div>
+            </div>
+            
+            <div className="text-center md:text-left">
+              <h4 className="font-black text-dark-text text-lg leading-tight mb-0.5">{topPerformer.name}</h4>
+              <div className="flex items-center justify-center md:justify-start gap-3">
+                <p className="text-xs font-black text-orange-primary uppercase tracking-widest">{(topPerformer.score || 0).toLocaleString()} Points</p>
+                <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                <span className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">
+                   {courseId ? `Cohort Rank #${topPerformer.rank}` : `Global Rank #${topPerformer.rank}`}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 px-8 opacity-40">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+              <i className="fas fa-trophy text-gray-400" />
+            </div>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Leaderboard coming soon</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

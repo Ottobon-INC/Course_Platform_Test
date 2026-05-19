@@ -21,13 +21,21 @@ export interface LeaderboardUser {
   progress: number;
 }
 
-export function useLeaderboardData() {
+export function useLeaderboardData(courseId?: string) {
+  const summaryUrl = courseId 
+    ? `/api/users/leaderboard/summary?courseId=${courseId}` 
+    : '/api/users/leaderboard/summary';
+    
+  const topUrl = courseId 
+    ? `/api/users/leaderboard/top?courseId=${courseId}` 
+    : '/api/users/leaderboard/top';
+
   const summaryQuery = useQuery<LeaderboardSummary>({
-    queryKey: ['/api/users/leaderboard/summary'],
+    queryKey: [summaryUrl],
   });
 
   const topUsersQuery = useQuery<LeaderboardUser[]>({
-    queryKey: ['/api/users/leaderboard/top'],
+    queryKey: [topUrl],
   });
 
   return {
