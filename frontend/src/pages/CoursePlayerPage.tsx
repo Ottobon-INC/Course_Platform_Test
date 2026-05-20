@@ -75,6 +75,45 @@ const normalizeVideoUrl = (rawUrl?: string | null) => {
   }
 };
 
+const isYouTubeVideoUrl = (url?: string | null) => {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.includes("youtube.com") || host === "youtu.be";
+  } catch {
+    return false;
+  }
+};
+
+const getYouTubeVideoId = (url?: string | null) => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\/+/, "").trim();
+      return id || null;
+    }
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname.startsWith("/embed/")) {
+        const id = parsed.pathname.split("/").pop()?.trim();
+        return id || null;
+      }
+      if (parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v")?.trim();
+        return id || null;
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const id = parsed.pathname.split("/").pop()?.trim();
+        return id || null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 type ContentBlock = {
   id?: string;
   type: "text" | "image" | "video" | "ppt" | "quiz";
@@ -597,6 +636,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const [sections, setSections] = useState<QuizSection[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [courseProgress, setCourseProgress] = useState(0);
+  const [activatedVideos, setActivatedVideos] = useState<Record<string, true>>({});
   const isComplete = useMemo(() => Math.round(courseProgress) >= 100, [courseProgress]);
   const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -1196,13 +1236,28 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         existing.push(section);
         sectionsByTopicNumber.set(section.topicNumber, existing);
       });
+      const consumedSectionIds = new Set<string>();
+      const moduleFinalLessonIndex = sortedLessons.findIndex((lesson) =>
+        /module\s+\d+\s+final\s+assessment/i.test(lesson.topicName),
+      );
 
-      sortedLessons.forEach((lesson) => {
-        const attachedSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? []).sort(
-          (a, b) => a.topicPairIndex - b.topicPairIndex,
-        );
+      sortedLessons.forEach((lesson, lessonIndex) => {
+        const directSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? [])
+          .filter((section) => !consumedSectionIds.has(section.assessmentId))
+          .sort((a, b) => a.topicPairIndex - b.topicPairIndex);
         const isModuleFinalLesson = /module\s+\d+\s+final\s+assessment/i.test(lesson.topicName);
-        const shouldSuppressLessonNode = attachedSections.length > 0 && isModuleFinalLesson;
+        const isDesignatedModuleFinalHost = isModuleFinalLesson && moduleFinalLessonIndex === lessonIndex;
+        const fallbackSectionsForModuleFinal = isDesignatedModuleFinalHost
+          ? sectionForModule
+            .filter((section) => !consumedSectionIds.has(section.assessmentId))
+            .sort((a, b) => {
+              if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+              return a.topicPairIndex - b.topicPairIndex;
+            })
+          : [];
+        const attachedSections = directSections.length > 0 ? directSections : fallbackSectionsForModuleFinal;
+        attachedSections.forEach((section) => consumedSectionIds.add(section.assessmentId));
+        const shouldSuppressLessonNode = isModuleFinalLesson && attachedSections.length > 0;
 
         if (!shouldSuppressLessonNode) {
           submodules.push({
@@ -2803,6 +2858,10 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             typeof data?.title === "string" && data.title.trim()
               ? data.title.trim()
               : activeLesson?.topicName ?? "Lesson video";
+          const isYoutubeVideo = isYouTubeVideoUrl(videoUrl);
+          const youtubeVideoId = getYouTubeVideoId(videoUrl);
+          const videoActivationKey = `block:${key}:${videoUrl}`;
+          const isVideoActivated = Boolean(activatedVideos[videoActivationKey]);
           const videoWrapperClass = `transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isReadingMode
             ? "max-h-0 opacity-0 pointer-events-none"
             : `${blockVideoMaxHeightClass} opacity-100`
@@ -2811,14 +2870,52 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             <div key={key} className={videoWrapperClass} style={isReadingMode ? { marginTop: 0 } : undefined}>
               <div className="space-y-2">
                 <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                  <div className="w-full bg-black aspect-video">
-                    <iframe
-                      className="w-full h-full"
-                      src={videoUrl}
-                      title={title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                  <div className="w-full bg-black aspect-video rounded-[inherit] overflow-hidden">
+                    {isYoutubeVideo && youtubeVideoId && !isVideoActivated ? (
+                      <button
+                        type="button"
+                        onClick={() => setActivatedVideos((prev) => ({ ...prev, [videoActivationKey]: true }))}
+                        className="relative w-full h-full block"
+                        aria-label={`Play ${title}`}
+                      >
+                        <img
+                          src={`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
+                          onError={(event) => {
+                            const target = event.currentTarget;
+                            if (!target.dataset.fallbackApplied) {
+                              target.dataset.fallbackApplied = "1";
+                              target.src = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+                            }
+                          }}
+                          alt={title}
+                          className="w-full h-full object-contain bg-black block rounded-[inherit]"
+                          loading="lazy"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
+                            <Play size={28} fill="currentColor" />
+                          </span>
+                        </span>
+                      </button>
+                    ) : isYoutubeVideo ? (
+                      <iframe
+                        className="w-full h-full block border-0 rounded-[inherit]"
+                        src={videoUrl}
+                        title={title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        className="w-full h-full block rounded-[inherit]"
+                        controls
+                        playsInline
+                        preload="metadata"
+                        title={title}
+                      >
+                        <source src={videoUrl} />
+                      </video>
+                    )}
                   </div>
                 </div>
                 {variant === "main" && firstBlockIsVideo && firstTextBlockIndex !== null && index === 0 && (
@@ -3069,7 +3166,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     : "lesson";
   const normalizedRouteLesson = normalizeSlugValue(lessonSlugParam);
   const normalizedActiveLesson = normalizeSlugValue(activeLesson?.slug ?? "");
-  const isModuleFinalRouteParam = /^module-\d+-final-assessment$/.test(normalizedRouteLesson);
   const isRouteBoundToActiveLesson = normalizedRouteLesson.length > 0 && normalizedRouteLesson === normalizedActiveLesson;
   const isRouteModuleFinalLesson =
     isRouteBoundToActiveLesson && /module\s+\d+\s+final\s+assessment/i.test(activeLesson?.topicName ?? "");
@@ -3099,7 +3195,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       moduleQuizBootstrapRef.current !== routeBootstrapKey &&
       !isQuizMode,
     );
-  const shouldHoldModuleFinalRouteInQuizShell = isModuleFinalRouteParam && !isQuizMode;
+  const shouldHoldModuleFinalRouteInQuizShell = isBootstrappingModuleQuiz;
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
@@ -3316,17 +3412,56 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           }`}
       >
         <div
-          className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
+          className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full rounded-3xl overflow-hidden ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
             }`}
         >
           {activeVideoUrl ? (
-            <iframe
-              className="w-full h-full"
-              src={activeVideoUrl}
-              title={activeLesson?.topicName ?? "Lesson video"}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            isYouTubeVideoUrl(activeVideoUrl) && getYouTubeVideoId(activeVideoUrl) && !activatedVideos[`hero:${activeVideoUrl}`] ? (
+              <button
+                type="button"
+                onClick={() => setActivatedVideos((prev) => ({ ...prev, [`hero:${activeVideoUrl}`]: true }))}
+                className="relative w-full h-full block"
+                aria-label={`Play ${activeLesson?.topicName ?? "Lesson video"}`}
+              >
+                <img
+                  src={`https://i.ytimg.com/vi/${getYouTubeVideoId(activeVideoUrl)}/maxresdefault.jpg`}
+                  onError={(event) => {
+                    const id = getYouTubeVideoId(activeVideoUrl);
+                    const target = event.currentTarget;
+                    if (id && !target.dataset.fallbackApplied) {
+                      target.dataset.fallbackApplied = "1";
+                      target.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+                    }
+                  }}
+                  alt={activeLesson?.topicName ?? "Lesson video"}
+                  className="w-full h-full object-contain bg-black block rounded-[inherit]"
+                  loading="lazy"
+                />
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
+                    <Play size={28} fill="currentColor" />
+                  </span>
+                </span>
+              </button>
+            ) : isYouTubeVideoUrl(activeVideoUrl) ? (
+              <iframe
+                className="w-full h-full block border-0 rounded-[inherit]"
+                src={activeVideoUrl}
+                title={activeLesson?.topicName ?? "Lesson video"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                className="w-full h-full block rounded-[inherit]"
+                controls
+                playsInline
+                preload="metadata"
+                title={activeLesson?.topicName ?? "Lesson video"}
+              >
+                <source src={activeVideoUrl} />
+              </video>
+            )
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
               No video for this lesson.

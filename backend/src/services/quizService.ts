@@ -43,6 +43,14 @@ type QuizSectionMetaRow = {
   question_count: number | bigint | null;
 };
 
+type AssessmentBackfillRow = {
+  assessment_id: string;
+  module_no: number;
+  title: string | null;
+  pass_threshold_percent: number | null;
+  question_count: number | bigint | null;
+};
+
 type QuizSectionAttemptRow = {
   assessment_id: string;
   status: string | null;
@@ -236,7 +244,6 @@ async function resolveSectionContextByAssessment(courseId: string, assessmentId:
         FROM topic_content_assets a
         JOIN topics t ON t.topic_id = a.topic_id
         WHERE t.course_id = ${courseId}::uuid
-          AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
           AND NOT (a.payload ? 'questions')
       )
@@ -282,7 +289,6 @@ async function resolveAssessmentIdFromLegacy(params: {
         FROM topic_content_assets a
         JOIN topics t ON t.topic_id = a.topic_id
         WHERE t.course_id = ${params.courseId}::uuid
-          AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
           AND NOT (a.payload ? 'questions')
       )
@@ -476,7 +482,6 @@ async function loadQuizSectionsMetadata(courseId: string): Promise<QuizSectionMe
       JOIN topics t ON t.topic_id = a.topic_id
       JOIN course_assessments ca ON ca.assessment_id::text = a.payload->>'assessment_id'
       WHERE t.course_id = ${courseId}::uuid
-        AND a.content_type = 'quiz'
         AND a.payload ? 'assessment_id'
         AND NOT (a.payload ? 'questions')
       ORDER BY t.module_no ASC, t.topic_number ASC, a.content_key ASC
@@ -484,9 +489,49 @@ async function loadQuizSectionsMetadata(courseId: string): Promise<QuizSectionMe
   );
 }
 
+async function loadAssessmentBackfillMetadata(courseId: string): Promise<AssessmentBackfillRow[]> {
+  return prisma.$queryRaw<AssessmentBackfillRow[]>(
+    Prisma.sql`
+      SELECT
+        ca.assessment_id,
+        ca.module_no,
+        ca.title,
+        ca.pass_threshold_percent,
+        jsonb_array_length(ca.questions_json)::bigint AS question_count
+      FROM course_assessments ca
+      WHERE ca.course_id = ${courseId}::uuid
+        AND ca.title ILIKE '%final assessment%'
+      ORDER BY ca.module_no ASC, ca.created_at ASC
+    `,
+  );
+}
+
 export async function buildQuizSections(params: { courseId: string; userId: string }) {
   const metadata = await loadQuizSectionsMetadata(params.courseId);
-  if (metadata.length === 0) return [];
+  const backfill = await loadAssessmentBackfillMetadata(params.courseId);
+
+  const metadataByAssessmentId = new Map<string, QuizSectionMetaRow>();
+  metadata.forEach((row) => {
+    metadataByAssessmentId.set(row.assessment_id, row);
+  });
+  backfill.forEach((row) => {
+    if (metadataByAssessmentId.has(row.assessment_id)) {
+      return;
+    }
+    metadataByAssessmentId.set(row.assessment_id, {
+      assessment_id: row.assessment_id,
+      topic_id: "",
+      module_no: row.module_no,
+      topic_number: Number.MAX_SAFE_INTEGER,
+      content_key: `backfill-${row.module_no}-${row.assessment_id}`,
+      title: row.title,
+      pass_threshold_percent: row.pass_threshold_percent,
+      question_count: row.question_count,
+    });
+  });
+
+  const mergedMetadata = Array.from(metadataByAssessmentId.values());
+  if (mergedMetadata.length === 0) return [];
 
   const attempts = await prisma.$queryRaw<QuizSectionAttemptRow[]>(
     Prisma.sql`
@@ -506,7 +551,7 @@ export async function buildQuizSections(params: { courseId: string; userId: stri
   });
 
   const sectionsByModule = new Map<number, QuizSectionMetaRow[]>();
-  metadata.forEach((row) => {
+  mergedMetadata.forEach((row) => {
     const list = sectionsByModule.get(row.module_no) ?? [];
     list.push(row);
     sectionsByModule.set(row.module_no, list);
@@ -687,7 +732,6 @@ async function isModuleFullyPassed(params: { userId: string; courseId: string; m
         JOIN topics t ON t.topic_id = a.topic_id
         WHERE t.course_id = ${params.courseId}::uuid
           AND t.module_no = ${params.moduleNo}
-          AND a.content_type = 'quiz'
           AND a.payload ? 'assessment_id'
           AND NOT (a.payload ? 'questions')
       ),
