@@ -21,7 +21,7 @@ export function Home() {
     if (!courseSlug) {
       return null;
     }
-    return `/course/${courseSlug}/learn/${lessonSlug || 'start'}`;
+    return `/course/${courseSlug}`;
   };
 
   if (isLoading) {

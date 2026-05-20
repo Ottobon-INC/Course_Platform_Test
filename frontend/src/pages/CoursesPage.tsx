@@ -9,7 +9,7 @@ import type { CourseSummary, CourseListResponse, PageContentEntry, PageContentRe
 import { SiteLayout } from "@/components/layout/SiteLayout";
 import { useToast } from "@/hooks/use-toast";
 
-const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer/learn/start";
+const COURSE_PLAYER_PATH = "/course/ai-native-fullstack-developer";
 
 const shimmerArray = Array.from({ length: 6 });
 const CONTINUE_PROGRESS: Record<string, number> = {
@@ -56,10 +56,7 @@ const FALLBACK_CONTINUE_COURSES: CourseSummary[] = [
   },
 ];
 
-const getContinuePath = (courseId: string) =>
-  courseId === "ai-native-fullstack-developer"
-    ? "/course/ai-native-fullstack-developer/learn/start"
-    : `/course/${courseId}/learn/getting-started`;
+const getContinuePath = (courseId: string) => `/course/${courseId}`;
 
 const getCategoryGradient = (category?: string) => {
   switch (category) {
@@ -85,7 +82,7 @@ const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
 
 const formatCoursePrice = (value: number) => INR_FORMATTER.format(Math.max(0, Math.round(value)));
 const PRIMARY_COURSE_TITLES = new Set(["ai for web-developer", "ai in web development", "intro to ai"]);
-const PRIMARY_COURSE_ROUTE = "/course/ai-native-fullstack-developer/learn/start";
+const PRIMARY_COURSE_ROUTE = "/course/ai-native-fullstack-developer";
 
 export default function CoursesPage() {
   const [location, setLocation] = useLocation();

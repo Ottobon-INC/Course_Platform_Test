@@ -24,7 +24,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
     const initialProfileCategory =
         programType === "workshop" ? "general" : "college_student";
 
-    const [formData, setFormData] = useState<RegistrationFormData>({
+    const [formData, setFormData] = useState<RegistrationFormData & { sessionId?: string }>({
         fullName: session?.fullName || "",
         email: session?.email || "",
         phoneNumber: "",
@@ -43,6 +43,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
         programType: programType,
         plan: "",
         cohortId: "",
+        sessionId: "",
     });
 
     useEffect(() => {
@@ -153,10 +154,6 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 newErrors.selectedSlot = "Please select a slot";
             }
 
-            if (!formData.mode) {
-                newErrors.mode = "Please select a preferred mode";
-            }
-
             if (!formData.specificCourse) {
                 newErrors.specificCourse = "Please select a course";
             }
@@ -257,6 +254,14 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                     selectedSlot: dateStr,
                     cohortId: value,
                     plan: cohort?.priceCents ? (cohort.priceCents / 100).toString() : prev.plan
+                }));
+            } else if (programType === "workshop") {
+                const slot = slots.find((s: any) => s.id === value);
+                setFormData(prev => ({
+                    ...prev,
+                    selectedSlot: slot?.name || "",
+                    sessionId: value,
+                    sessionTime: slot?.time || ""
                 }));
             } else {
                 const slot = slots.find((s: any) => s.name === value);
@@ -376,6 +381,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                 referredBy: formData.referredBy || null,
                 plan: (programType === "workshop" || programType === "cohort") ? formData.plan : null,
                 cohortId: programType === "cohort" ? formData.cohortId : null,
+                sessionId: programType === "workshop" ? formData.sessionId : null,
                 status: "pending",
             };
 
@@ -741,7 +747,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                 <select
                                     id="selectedSlot"
                                     name="selectedSlot"
-                                    value={programType === "cohort" ? (formData as any).cohortId : formData.selectedSlot}
+                                    value={programType === "cohort" ? (formData as any).cohortId : programType === "workshop" ? (formData as any).sessionId : formData.selectedSlot}
                                     onChange={handleChange}
                                     onBlur={handleBlur}
                                     className={`input-field ${touched.selectedSlot && errors.selectedSlot
@@ -762,7 +768,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                                         ))
                                     ) : (
                                         slots.map((slot: any) => (
-                                            <option key={slot.id} value={slot.name}>
+                                            <option key={slot.id} value={slot.id || slot.name}>
                                                 {slot.name} {slot.time ? `(${slot.time})` : ""}
                                             </option>
                                         ))
@@ -776,31 +782,7 @@ const RegistrationStep = ({ onSubmit, programType, selectedCourse, offeringId, p
                         </>
                     )}
 
-                    {(programType === "cohort" || programType === "workshop") && (
-                        <>
-                            <div>
-                                <label htmlFor="mode" className="label">
-                                    Preferred Mode <span className="text-red-500">*</span>
-                                </label>
-                                <select
-                                    id="mode"
-                                    name="mode"
-                                    value={formData.mode}
-                                    onChange={handleChange}
-                                    onBlur={handleBlur}
-                                    className={`input-field ${touched.mode && errors.mode ? "border-red-500" : ""
-                                        }`}
-                                >
-                                    <option value="">Select mode</option>
-                                    <option value="Online">Online</option>
-                                    <option value="Offline">Offline</option>
-                                </select>
-                                {touched.mode && errors.mode && (
-                                    <p className="error-text">{errors.mode}</p>
-                                )}
-                            </div>
-                        </>
-                    )}
+
 
                     {(programType === "workshop" || programType === "cohort") && (
                         <div>

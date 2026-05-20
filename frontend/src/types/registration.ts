@@ -30,6 +30,7 @@ export interface StudentData {
     paymentMode?: 'direct' | 'email_code' | 'none' // Added
     paymentCode?: string // Added
     cohortId?: string    // Added
+    sessionId?: string   // Added
 }
 
 export interface RegistrationFormData {
@@ -52,6 +53,7 @@ export interface RegistrationFormData {
     programType: 'cohort' | 'ondemand' | 'workshop' // Added
     plan?: string         // Added
     cohortId?: string     // Added
+    sessionId?: string    // Added
 }
 
 export type FormErrors = Record<string, string>

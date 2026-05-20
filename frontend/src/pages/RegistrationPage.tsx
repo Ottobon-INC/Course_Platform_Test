@@ -45,7 +45,8 @@ const defaultRegistrationData: StudentData = {
     specificCourse: '',
     plan: '',
     assessmentRequired: true,
-    cohorts: []
+    cohorts: [],
+    sessionId: '',
 }
 
 function RegistrationPage() {
@@ -120,85 +121,83 @@ function RegistrationPage() {
             const normalizedRequestedSlug = toRouteSlug(requestedSlug)
             const currentSlug = toRouteSlug(registrationData.specificCourse || '')
 
-            // Only resolve if we don't have an offeringId OR if the slug doesn't match the specificCourse title
-            if (!registrationData.offeringId || currentSlug !== normalizedRequestedSlug) {
-                console.log(`Resolving course for slug: ${normalizedRequestedSlug}, current: ${currentSlug}`);
-                const resolveSlug = async () => {
-                    try {
-                        const offeringsData = await fetchOfferings({ programType });
+            // Always resolve when slug is present to ensure we fetch fresh slot data
+            console.log(`Resolving course for slug: ${normalizedRequestedSlug}, current: ${currentSlug}`);
+            const resolveSlug = async () => {
+                try {
+                    const offeringsData = await fetchOfferings({ programType });
 
-                        if (offeringsData?.offerings) {
-                            const matched = offeringsData.offerings.find((o) => {
-                                return o.isActive && o.programType === programType && o.offeringId === requestedSlug
-                            }) || offeringsData.offerings.find((o) => {
-                                return o.isActive && o.programType === programType && toRouteSlug(o.title || '') === normalizedRequestedSlug
-                            }) || offeringsData.offerings.find((o) => {
-                                return o.isActive && o.programType === programType && toRouteSlug(o.course?.slug || '') === normalizedRequestedSlug
-                            }) || offeringsData.offerings.find((o) => o.isActive && o.programType === programType)
+                    if (offeringsData?.offerings) {
+                        const matched = offeringsData.offerings.find((o) => {
+                            return o.isActive && o.programType === programType && o.offeringId === requestedSlug
+                        }) || offeringsData.offerings.find((o) => {
+                            return o.isActive && o.programType === programType && toRouteSlug(o.title || '') === normalizedRequestedSlug
+                        }) || offeringsData.offerings.find((o) => {
+                            return o.isActive && o.programType === programType && toRouteSlug(o.course?.slug || '') === normalizedRequestedSlug
+                        }) || offeringsData.offerings.find((o) => o.isActive && o.programType === programType)
 
-                            if (matched) {
-                                setRegistrationData(prev => ({
-                                    ...prev,
-                                    offeringId: matched.offeringId,
-                                    specificCourse: matched.title,
-                                    programType: programType,
-                                    assessmentRequired: matched.assessmentRequired,
-                                    priceCents: matched.priceCents,
-                                    compareAtPriceCents: matched.compareAtPriceCents,
-                                    showSlots: matched.showSlots,
-                                    slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
-                                    cohorts: matched.cohorts || [],
-                                    qrImageUrl: matched.qrImageUrl ?? undefined,
-                                    paymentMode: (matched.paymentMode as any) || 'direct',
-                                }));
+                        if (matched) {
+                            setRegistrationData(prev => ({
+                                ...prev,
+                                offeringId: matched.offeringId,
+                                specificCourse: matched.title,
+                                programType: programType,
+                                assessmentRequired: matched.assessmentRequired,
+                                priceCents: matched.priceCents,
+                                compareAtPriceCents: matched.compareAtPriceCents,
+                                showSlots: matched.showSlots,
+                                slots: Array.isArray(matched.slotsJson) ? matched.slotsJson : [],
+                                cohorts: matched.cohorts || [],
+                                qrImageUrl: matched.qrImageUrl ?? undefined,
+                                paymentMode: (matched.paymentMode as any) || 'direct',
+                            }));
 
-                                // If user is on assessment page but course doesn't require it, redirect to success/payment
-                                if (matched.assessmentRequired === false && matchAssessment) {
-                                    const slug = toRouteSlug(matched.course?.slug || matched.title || '')
-                                    const mode = matched.paymentMode || 'direct'
-                                    if (mode === 'direct') {
-                                        setLocation(`/registration/${programType}/${slug}/payment`)
-                                    } else {
-                                        setLocation(`/registration/${programType}/${slug}/success`)
-                                    }
+                            // If user is on assessment page but course doesn't require it, redirect to success/payment
+                            if (matched.assessmentRequired === false && matchAssessment) {
+                                const slug = toRouteSlug(matched.course?.slug || matched.title || '')
+                                const mode = matched.paymentMode || 'direct'
+                                if (mode === 'direct') {
+                                    setLocation(`/registration/${programType}/${slug}/payment`)
+                                } else {
+                                    setLocation(`/registration/${programType}/${slug}/success`)
                                 }
-                            } else {
-                                setRegistrationData(prev => {
-                                    if (
-                                        prev.offeringId === '' &&
-                                        prev.specificCourse === '' &&
-                                        prev.programType === programType &&
-                                        prev.assessmentRequired === true &&
-                                        prev.priceCents === undefined &&
-                                        (prev.showSlots ?? true) === true &&
-                                        (!prev.slots || prev.slots.length === 0) &&
-                                        prev.qrImageUrl === undefined
-                                    ) {
-                                        return prev
-                                    }
-                                    return {
-                                        ...prev,
-                                        offeringId: '',
-                                        specificCourse: '',
-                                        programType,
-                                        assessmentRequired: true,
-                                        priceCents: undefined,
-                                        showSlots: true,
-                                        slots: [],
-                                        cohorts: [],
-                                        qrImageUrl: undefined,
-                                    }
-                                })
                             }
+                        } else {
+                            setRegistrationData(prev => {
+                                if (
+                                    prev.offeringId === '' &&
+                                    prev.specificCourse === '' &&
+                                    prev.programType === programType &&
+                                    prev.assessmentRequired === true &&
+                                    prev.priceCents === undefined &&
+                                    (prev.showSlots ?? true) === true &&
+                                    (!prev.slots || prev.slots.length === 0) &&
+                                    prev.qrImageUrl === undefined
+                                ) {
+                                    return prev
+                                }
+                                return {
+                                    ...prev,
+                                    offeringId: '',
+                                    specificCourse: '',
+                                    programType,
+                                    assessmentRequired: true,
+                                    priceCents: undefined,
+                                    showSlots: true,
+                                    slots: [],
+                                    cohorts: [],
+                                    qrImageUrl: undefined,
+                                }
+                            })
                         }
-                    } catch (e) {
-                        console.error("Failed to resolve offering from slug", e);
                     }
-                };
-                resolveSlug();
-            }
+                } catch (e) {
+                    console.error("Failed to resolve offering from slug", e);
+                }
+            };
+            resolveSlug();
         }
-    }, [successParams?.courseSlug, paymentParams?.courseSlug, assessmentParams?.courseSlug, courseParams?.courseSlug, programType, registrationData.offeringId, registrationData.specificCourse, matchAssessment, setLocation])
+    }, [successParams?.courseSlug, paymentParams?.courseSlug, assessmentParams?.courseSlug, courseParams?.courseSlug, programType, matchAssessment, setLocation])
 
     const handleCourseSelect = (type: 'cohort' | 'ondemand' | 'workshop') => {
         setRegistrationData(prev => ({ ...prev, programType: type }))
