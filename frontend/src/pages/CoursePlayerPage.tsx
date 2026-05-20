@@ -617,6 +617,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const [ttsText, setTtsText] = useState("");
   const suppressResumeCacheWriteRef = useRef(false);
   const resumeWriteEnabledRef = useRef(false);
+  const moduleQuizBootstrapRef = useRef<string | null>(null);
   const [passedQuizzes, setPassedQuizzes] = useState<Set<string>>(new Set());
 
   // Video playback state
@@ -1614,7 +1615,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         { moduleNo: sub.moduleNo, topicId: targetLesson?.topicId ?? null, courseId: targetLesson?.courseId ?? null },
       );
     }
-    if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
     if (sub.type === "quiz") {
       if (!sub.assessmentId) {
         toast({
@@ -1689,6 +1689,56 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       });
     }
   };
+
+  useEffect(() => {
+    if (!sessionHydrated || !topicsLoaded || !sectionsLoaded || !courseKey) return;
+    if (isQuizMode || !activeLesson) return;
+
+    const normalizedParam = normalizeSlugValue(lessonSlugParam);
+    const normalizedActive = normalizeSlugValue(activeLesson.slug);
+    if (!normalizedParam || normalizedParam !== normalizedActive) return;
+
+    const isModuleFinalLesson = /module\s+\d+\s+final\s+assessment/i.test(activeLesson.topicName);
+    if (!isModuleFinalLesson) return;
+
+    const bootstrapKey = `${courseKey}:${normalizedActive}`;
+    if (moduleQuizBootstrapRef.current === bootstrapKey) return;
+
+    const exactSection = sections
+      .filter(
+        (section) =>
+          section.moduleNo === activeLesson.moduleNo &&
+          section.topicNumber === activeLesson.topicNumber,
+      )
+      .sort((a, b) => a.topicPairIndex - b.topicPairIndex)[0];
+
+    const fallbackSection = sections
+      .filter((section) => section.moduleNo === activeLesson.moduleNo)
+      .sort((a, b) => {
+        if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+        return a.topicPairIndex - b.topicPairIndex;
+      })[0];
+
+    const targetSection = exactSection ?? fallbackSection;
+    if (!targetSection?.assessmentId) return;
+
+    moduleQuizBootstrapRef.current = bootstrapKey;
+    void handleStartQuiz(
+      activeLesson.moduleNo,
+      targetSection.assessmentId,
+      targetSection.topicPairIndex ?? 1,
+    );
+  }, [
+    sessionHydrated,
+    topicsLoaded,
+    sectionsLoaded,
+    courseKey,
+    isQuizMode,
+    activeLesson,
+    lessonSlugParam,
+    sections,
+    handleStartQuiz,
+  ]);
 
   const handleSubmitQuiz = async () => {
     if (!quizAttemptId) return;
@@ -3010,6 +3060,39 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const stageKey = isQuizMode
     ? `quiz:${selectedSection?.assessmentId ?? "none"}:${selectedSection?.moduleNo ?? "none"}:${selectedSection?.topicPairIndex ?? "none"}`
     : "lesson";
+  const normalizedRouteLesson = normalizeSlugValue(lessonSlugParam);
+  const normalizedActiveLesson = normalizeSlugValue(activeLesson?.slug ?? "");
+  const isModuleFinalRouteParam = /^module-\d+-final-assessment$/.test(normalizedRouteLesson);
+  const isRouteBoundToActiveLesson = normalizedRouteLesson.length > 0 && normalizedRouteLesson === normalizedActiveLesson;
+  const isRouteModuleFinalLesson =
+    isRouteBoundToActiveLesson && /module\s+\d+\s+final\s+assessment/i.test(activeLesson?.topicName ?? "");
+  const routeModuleSection = isRouteModuleFinalLesson
+    ? sections
+      .filter(
+        (section) =>
+          section.moduleNo === activeLesson?.moduleNo &&
+          section.topicNumber === activeLesson?.topicNumber,
+      )
+      .sort((a, b) => a.topicPairIndex - b.topicPairIndex)[0] ??
+      sections
+        .filter((section) => section.moduleNo === activeLesson?.moduleNo)
+        .sort((a, b) => {
+          if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+          return a.topicPairIndex - b.topicPairIndex;
+        })[0]
+    : null;
+  const routeBootstrapKey = isRouteBoundToActiveLesson && courseKey ? `${courseKey}:${normalizedActiveLesson}` : null;
+  const isBootstrappingModuleQuiz =
+    Boolean(
+      sessionHydrated &&
+      topicsLoaded &&
+      sectionsLoaded &&
+      routeModuleSection?.assessmentId &&
+      routeBootstrapKey &&
+      moduleQuizBootstrapRef.current !== routeBootstrapKey &&
+      !isQuizMode,
+    );
+  const shouldHoldModuleFinalRouteInQuizShell = isModuleFinalRouteParam && !isQuizMode;
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
@@ -3194,7 +3277,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
         >
           {/* Video */}
-          {!isQuizMode && !hasBlockLayout && (
+          {!isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && !hasBlockLayout && (
             <div
               className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
                 }`}
@@ -3221,7 +3304,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           )}
 
           {/* Study section */}
-          {!isFullScreen && !isQuizMode && (
+          {!isFullScreen && !isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && (
             <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
               <div className={`w-full ${studySectionPadding} space-y-8`}>
                 {!hasBlockLayout && renderStudyHeader()}
@@ -3296,6 +3379,16 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                     <SimulationExercise simulation={activeLesson.simulation} />
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {(isBootstrappingModuleQuiz || shouldHoldModuleFinalRouteInQuizShell) && (
+            <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10 text-center">
+                <h2 className="text-3xl font-black uppercase tracking-tight">Preparing Gauntlet</h2>
+                <p className="mt-3 text-sm text-[#4a4845]">Loading module final assessment...</p>
               </div>
             </div>
           )}
