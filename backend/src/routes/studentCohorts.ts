@@ -249,6 +249,7 @@ studentCohortsRouter.get("/cohorts", requireAuth, async (req, res) => {
           cohortId: e.cohortId,
           cohortName: e.cohortName,
           courseName: e.courseName,
+          courseId: e.courseId,
           courseSlug: e.courseSlug,
           startsAt: e.startsAt?.toISOString() ?? null,
           endsAt: e.endsAt?.toISOString() ?? null,
@@ -263,6 +264,15 @@ studentCohortsRouter.get("/cohorts", requireAuth, async (req, res) => {
         };
       });
 
+    // --- SORTING LOGIC: Prioritize AI Native then by progress ---
+    activeCohorts.sort((a, b) => {
+      const aIsNative = a.courseName.toLowerCase().includes("ai native");
+      const bIsNative = b.courseName.toLowerCase().includes("ai native");
+      if (aIsNative && !bIsNative) return -1;
+      if (!aIsNative && bIsNative) return 1;
+      return b.progress - a.progress;
+    });
+
     const completedCohorts = cohortEntries
       .filter((e) => computeStatus(e.startsAt, e.endsAt) === "Completed")
       .map((e) => {
@@ -273,6 +283,7 @@ studentCohortsRouter.get("/cohorts", requireAuth, async (req, res) => {
           cohortId: e.cohortId,
           cohortName: e.cohortName,
           courseName: e.courseName,
+          courseId: e.courseId,
           courseSlug: e.courseSlug,
           courseDescription: e.courseDescription,
           startsAtFormatted: formatDate(e.startsAt),

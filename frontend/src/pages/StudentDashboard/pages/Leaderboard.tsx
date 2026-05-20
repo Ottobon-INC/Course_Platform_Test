@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RECENT_ACTIVITIES, ActivityItemType } from '../constants/mockData';
 import { useLeaderboardData, LeaderboardUser } from '../hooks/useLeaderboardData';
+import { useDashboardSummary } from '../hooks/useDashboardSummary';
 import avatarImage from '@/assets/avatar.png';
 
 function ActivityItem({ activity }: { activity: ActivityItemType }) {
@@ -132,10 +133,80 @@ function FilterBar({ view, setView }: { view: string, setView: (v: 'score' | 'ac
   );
 }
 
+function CourseDropdown({ cohorts, selectedId, onSelect }: { cohorts: any[], selectedId: string | undefined, onSelect: (id: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedCohort = cohorts.find(c => c.courseId === selectedId);
 
+  return (
+    <div className="relative mb-8">
+      <div 
+        className="bg-white border border-border-soft px-6 py-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center justify-between cursor-pointer group w-full sm:max-w-md border-l-4 border-l-orange-primary"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-orange-soft flex items-center justify-center text-orange-primary">
+            <i className="fas fa-book-open" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">Active Cohort</span>
+            <span className="text-base font-black text-dark-text leading-tight">
+              {selectedCohort ? selectedCohort.title : 'Switch Course'}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-[0.7rem] font-bold text-gray-300 hidden sm:inline">Change Course</span>
+          <i className={`fas fa-chevron-down text-gray-400 group-hover:text-orange-primary transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
+      </div>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 mt-2 w-full sm:max-w-md bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 py-3 animate-fade-in overflow-hidden">
+            <div className="px-5 pb-2 mb-2 border-b border-gray-50">
+              <p className="text-[0.65rem] font-black text-gray-400 uppercase tracking-widest">My Cohorts</p>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+              {cohorts.map((cohort) => (
+                <div
+                  key={cohort.id}
+                  className={`px-5 py-3.5 text-sm font-bold transition-all cursor-pointer flex items-center justify-between mx-2 rounded-xl mb-1 ${
+                    selectedId === cohort.courseId 
+                      ? 'bg-orange-soft text-orange-primary shadow-sm' 
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                  onClick={() => {
+                    onSelect(cohort.courseId);
+                    setIsOpen(false);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${selectedId === cohort.courseId ? 'bg-orange-primary animate-pulse' : 'bg-gray-200'}`} />
+                    <span>{cohort.title}</span>
+                  </div>
+                  {selectedId === cohort.courseId && <i className="fas fa-check-circle text-orange-primary" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function Leaderboard() {
-  const { summary, isLoading } = useLeaderboardData();
+  const { data: dashboardData } = useDashboardSummary();
+  const [selectedCourseId, setSelectedCourseId] = useState<string | undefined>();
+  
+  const { summary, topUsers, isLoading } = useLeaderboardData(selectedCourseId);
+
+  useEffect(() => {
+    if (dashboardData?.cohorts && dashboardData.cohorts.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(dashboardData.cohorts[0].courseId);
+    }
+  }, [dashboardData, selectedCourseId]);
 
   if (isLoading) {
     return (
@@ -151,6 +222,14 @@ export function Leaderboard() {
 
   return (
     <div className="animate-fade-in relative z-0">
+      {dashboardData?.cohorts && dashboardData.cohorts.length > 1 && (
+        <CourseDropdown 
+          cohorts={dashboardData.cohorts} 
+          selectedId={selectedCourseId} 
+          onSelect={setSelectedCourseId} 
+        />
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-8">
         <div>
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-border-soft mb-8">
