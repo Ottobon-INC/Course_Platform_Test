@@ -3319,128 +3319,118 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
             }`}
         >
-          {/* Video */}
-          {!isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && !hasBlockLayout && (
-            <div
-              className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
-                }`}
-            >
-              <div
-                className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
-                  }`}
-              >
-                {activeVideoUrl ? (
-                  <iframe
-                    className="w-full h-full"
-                    src={activeVideoUrl}
-                    title={activeLesson?.topicName ?? "Lesson video"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
-                    No video for this lesson.
-                  </div>
-                )}
-              </div>
+          {activeVideoUrl ? (
+            <iframe
+              className="w-full h-full"
+              src={activeVideoUrl}
+              title={activeLesson?.topicName ?? "Lesson video"}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
+              No video for this lesson.
             </div>
           )}
+        </div>
+      </div>
+    )}
 
-          {/* Study section */}
-          {!isFullScreen && !isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && (
-            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
-              <div className={`w-full ${studySectionPadding} space-y-8`}>
-                {!hasBlockLayout && renderStudyHeader()}
+    {/* Study section */}
+    {!isAssignmentMode && !isFullScreen && !isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && (
+      <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
+        <div className={`w-full ${studySectionPadding} space-y-8`}>
+          {!hasBlockLayout && renderStudyHeader()}
 
-                <div className="space-y-4 text-left" ref={studyContentRef}>
-                  {hasStudyContent && (
-                    <div className="sticky top-24 z-10 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={toggleTts}
-                        disabled={!ttsText || ttsStatus === "unavailable"}
-                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
-                          ttsStatus === "playing"
-                            ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
-                            : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
-                        } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
-                        aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
-                        title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
-                      >
-                        {ttsStatus === "playing" ? <Pause size={14} /> : <Play size={14} />}
-                        {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
-                      </button>
-                    </div>
-                  )}
-                  {hasBlockLayout && contentBlocks ? (
-                    <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
-                  ) : formattedStudyText ? (
-                    <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-                      <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeSanitize]}
-                          components={ttsMarkdownComponents}
-                        >
-                          {formattedStudyText}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
-                  )}
+          <div className="space-y-4 text-left" ref={studyContentRef}>
+            {hasStudyContent && (
+              <div className="sticky top-24 z-10 flex justify-end">
+                <button
+                  type="button"
+                  onClick={toggleTts}
+                  disabled={!ttsText || ttsStatus === "unavailable"}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
+                    ttsStatus === "playing"
+                      ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
+                      : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
+                  } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                  title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                >
+                  {ttsStatus === "playing" ? <Pause size={14} /> : <Play size={14} />}
+                  {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
+                </button>
+              </div>
+            )}
+            {hasBlockLayout && contentBlocks ? (
+              <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
+            ) : formattedStudyText ? (
+              <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={ttsMarkdownComponents}
+                  >
+                    {formattedStudyText}
+                  </ReactMarkdown>
                 </div>
-
-                {hasStudyContent && activeLesson?.topicId && (
-                  <ColdCalling topicId={activeLesson.topicId} session={session} onTelemetryEvent={emitTelemetry} />
-                )}
-
-                {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
-                        <FileText size={16} className="text-[#bf2f1f]" />
-                        <span>Slides Viewer</span>
-                      </div>
-                      <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
-                        <iframe
-                          title={`Slides for ${activeLesson.topicName}`}
-                          src={activePptEmbedUrl}
-                          className="w-full h-full border-0"
-                          referrerPolicy="no-referrer"
-                          allowFullScreen
-                          loading="lazy"
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-
-                {activeLesson?.simulation && (
-                  <div className="space-y-4">
-                    <SimulationExercise simulation={activeLesson.simulation} />
-                  </div>
-                )}
               </div>
+            ) : (
+              <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+            )}
+          </div>
+
+          {hasStudyContent && activeLesson?.topicId && (
+            <ColdCalling topicId={activeLesson.topicId} session={session} onTelemetryEvent={emitTelemetry} />
+          )}
+
+          {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                  <FileText size={16} className="text-[#bf2f1f]" />
+                  <span>Slides Viewer</span>
+                </div>
+                <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                  <iframe
+                    title={`Slides for ${activeLesson.topicName}`}
+                    src={activePptEmbedUrl}
+                    className="w-full h-full border-0"
+                    referrerPolicy="no-referrer"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
             </div>
           )}
 
-          {(isBootstrappingModuleQuiz || shouldHoldModuleFinalRouteInQuizShell) && (
-            <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
-              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10 text-center">
-                <h2 className="text-3xl font-black uppercase tracking-tight">Preparing Gauntlet</h2>
-                <p className="mt-3 text-sm text-[#4a4845]">Loading module final assessment...</p>
-              </div>
+          {activeLesson?.simulation && (
+            <div className="space-y-4">
+              <SimulationExercise simulation={activeLesson.simulation} />
             </div>
           )}
+        </div>
+      </div>
+    )}
 
-          {/* Quiz overlay */}
-          {isQuizMode && (
-            <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
-              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+    {!isAssignmentMode && (isBootstrappingModuleQuiz || shouldHoldModuleFinalRouteInQuizShell) && (
+      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10 text-center">
+          <h2 className="text-3xl font-black uppercase tracking-tight">Preparing Gauntlet</h2>
+          <p className="mt-3 text-sm text-[#4a4845]">Loading module final assessment...</p>
+        </div>
+      </div>
+    )}
+
+    {/* Quiz overlay */}
+    {!isAssignmentMode && isQuizMode && (
+      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
                 {quizPhase === "intro" && (
                   <div className="text-center space-y-6 animate-fade-in">
                     <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
@@ -3546,123 +3536,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    )}
-
-    {/* Quiz overlay */}
-    {isQuizMode && (
-      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
-        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
-          {quizPhase === "intro" && (
-            <div className="text-center space-y-6 animate-fade-in">
-              <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
-                <Lock size={48} />
-              </div>
-              <h2 className="text-4xl font-black uppercase tracking-tighter text-[#000000]">The Gauntlet</h2>
-              <p className="text-lg text-[#4a4845] font-medium">
-                You are about to enter a mandatory evaluation.
-                <br />
-                <span className="text-[#bf2f1f] font-bold">Rules are strict:</span>
-              </p>
-              <ul className="text-left max-w-sm mx-auto space-y-3 text-sm font-bold bg-white/50 p-6 rounded-lg border border-[#000000]/10">
-                <li className="flex gap-2">
-                  <ArrowDown size={16} className="text-[#bf2f1f]" /> 5 Random Questions
-                </li>
-                <li className="flex gap-2">
-                  <ArrowDown size={16} className="text-[#bf2f1f]" /> 60 Seconds Timer
-                </li>
-                <li className="flex gap-2">
-                  <ArrowDown size={16} className="text-[#bf2f1f]" /> Must score 70% to pass
-                </li>
-                <li className="flex gap-2 text-[#bf2f1f]">
-                  <X size={16} /> Failure = Reset to Module 1
-                </li>
-              </ul>
-              <button
-                onClick={() => setQuizPhase("active")}
-                className="w-full py-4 bg-[#bf2f1f] hover:bg-[#a62619] text-white font-bold text-xl rounded-lg shadow-lg transform transition hover:scale-[1.02] active:scale-95"
-              >
-                I Accept the Challenge
-              </button>
-            </div>
-          )}
-
-          {quizPhase === "active" && (
-            <div className="animate-fade-in">
-              <div className="flex justify-between items-center mb-8 border-b-2 border-[#000000]/10 pb-4">
-                <span className="font-bold text-[#4a4845]">Question {Object.keys(answers).length + 1} / {quizQuestions.length}</span>
-                <span className={`font-mono text-xl font-bold ${quizTimer < 10 ? "text-[#bf2f1f] animate-pulse" : "text-[#000000]"}`}>
-                  {Math.floor(quizTimer / 60).toString().padStart(2, "0")}:
-                  {(quizTimer % 60).toString().padStart(2, "0")}
-                </span>
-              </div>
-
-              <div className="space-y-8">
-                {quizQuestions.map((q, idx) => (
-                  <div key={q.questionId} className="space-y-4">
-                    <h3 className="text-xl font-bold">{idx + 1}. {q.prompt}</h3>
-                    <div className="grid gap-3">
-                      {q.options.map((opt) => (
-                        <button
-                          key={opt.optionId}
-                          onClick={() => setAnswers((prev) => ({ ...prev, [q.questionId]: opt.optionId }))}
-                          className={`p-4 text-left rounded-lg border-2 font-medium transition-all ${answers[q.questionId] === opt.optionId
-                            ? "bg-[#000000] text-white border-[#000000]"
-                            : "bg-white border-[#4a4845]/20 hover:border-[#000000]"
-                            }`}
-                        >
-                          {opt.text}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                disabled={quizQuestions.some((q) => !answers[q.questionId])}
-                onClick={handleSubmitQuiz}
-                className="mt-8 w-full py-3 bg-[#000000] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg hover:bg-gray-800 transition"
-              >
-                Submit Assessment
-              </button>
-            </div>
-          )}
-
-          {quizPhase === "result" && quizResult && (
-            <div className="text-center animate-fade-in space-y-6">
-              <div
-                className={`inline-flex p-6 rounded-full border-4 mb-4 ${quizResult.passed
-                  ? "bg-green-100 border-green-500 text-green-600"
-                  : "bg-red-100 border-red-500 text-red-600"
-                  }`}
-              >
-                {quizResult.passed ? <BookOpen size={48} /> : <X size={48} />}
-              </div>
-              <h2 className="text-4xl font-black uppercase">{quizResult.passed ? "Gauntlet Passed" : "Protocol Failed"}</h2>
-              <p className="text-xl font-bold">Score: {quizResult.scorePercent}%</p>
-              <p className="text-sm text-[#4a4845]">Correct: {quizResult.correctCount} / {quizResult.totalQuestions}</p>
-              <button
-                onClick={() => {
-                  setIsQuizMode(false);
-                  setQuizPhase("intro");
-                  setQuizQuestions([]);
-                  setAnswers({});
-                  setSelectedSection(null);
-                  setQuizAttemptId(null);
-                  setQuizResult(null);
-                }}
-                className="w-full py-3 bg-[#000000] text-white font-bold rounded-lg hover:bg-gray-800 transition"
-              >
-                Back to course
-              </button>
-            </div>
-          )}
         </div>
       </div>
     )}
