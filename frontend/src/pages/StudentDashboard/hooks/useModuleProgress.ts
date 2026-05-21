@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 export interface ModuleProgress {
   moduleNo: number;
@@ -19,8 +20,7 @@ export function useModuleProgress(courseId?: string) {
     queryKey: ['/api/quiz/progress', courseId],
     queryFn: async () => {
       if (!courseId) return { courseId: '', modules: [] };
-      const res = await fetch(`/api/quiz/progress/${courseId}`);
-      if (!res.ok) throw new Error('Failed to fetch module progress');
+      const res = await apiRequest('GET', `/api/quiz/progress/${courseId}`);
       return res.json();
     },
     enabled: !!courseId,
