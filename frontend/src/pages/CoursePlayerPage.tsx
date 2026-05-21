@@ -2474,7 +2474,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     }),
     [],
   );
-  const blockVideoMaxHeightClass = isCompactLayout ? "max-h-[40vh]" : "max-h-[65vh]";
   const scrollMainToTop = useCallback((behavior: ScrollBehavior = "smooth") => {
     const container = contentScrollRef.current;
     if (container) {
@@ -2862,9 +2861,9 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           const youtubeVideoId = getYouTubeVideoId(videoUrl);
           const videoActivationKey = `block:${key}:${videoUrl}`;
           const isVideoActivated = Boolean(activatedVideos[videoActivationKey]);
-          const videoWrapperClass = `transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isReadingMode
-            ? "max-h-0 opacity-0 pointer-events-none"
-            : `${blockVideoMaxHeightClass} opacity-100`
+          const videoWrapperClass = `transition-[max-height,opacity] duration-300 ease-in-out ${isReadingMode
+            ? "max-h-0 opacity-0 pointer-events-none overflow-hidden"
+            : "max-h-none opacity-100 overflow-visible"
             }`;
           output.push(
             <div key={key} className={videoWrapperClass} style={isReadingMode ? { marginTop: 0 } : undefined}>
@@ -2875,21 +2874,18 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                       <button
                         type="button"
                         onClick={() => setActivatedVideos((prev) => ({ ...prev, [videoActivationKey]: true }))}
-                        className="relative w-full h-full block"
+                        className="relative w-full h-full block rounded-[inherit] overflow-hidden"
                         aria-label={`Play ${title}`}
                       >
-                        <img
-                          src={`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
-                          onError={(event) => {
-                            const target = event.currentTarget;
-                            if (!target.dataset.fallbackApplied) {
-                              target.dataset.fallbackApplied = "1";
-                              target.src = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
-                            }
+                        <span
+                          className="block w-full h-full rounded-[inherit] bg-black"
+                          style={{
+                            backgroundImage: `url("https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg"), url("https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg")`,
+                            backgroundSize: "contain",
+                            backgroundPosition: "center",
+                            backgroundRepeat: "no-repeat",
                           }}
-                          alt={title}
-                          className="w-full h-full object-contain bg-black block rounded-[inherit]"
-                          loading="lazy"
+                          aria-label={title}
                         />
                         <span className="absolute inset-0 flex items-center justify-center">
                           <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
@@ -2899,7 +2895,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                       </button>
                     ) : isYoutubeVideo ? (
                       <iframe
-                        className="w-full h-full block border-0 rounded-[inherit]"
+                        className="w-full h-full block border-0 rounded-[inherit] overflow-hidden"
                         src={videoUrl}
                         title={title}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -2907,7 +2903,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                       />
                     ) : (
                       <video
-                        className="w-full h-full block rounded-[inherit]"
+                        className="w-full h-full block rounded-[inherit] overflow-hidden"
                         controls
                         playsInline
                         preload="metadata"
@@ -3149,7 +3145,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       activeLesson?.moduleNo,
       activeLesson?.topicId,
       activeLesson?.topicName,
-      blockVideoMaxHeightClass,
+      activatedVideos,
       firstBlockIsVideo,
       firstTextBlockIndex,
       inlineQuizStateByKey,
@@ -3420,22 +3416,18 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
               <button
                 type="button"
                 onClick={() => setActivatedVideos((prev) => ({ ...prev, [`hero:${activeVideoUrl}`]: true }))}
-                className="relative w-full h-full block"
+                className="relative w-full h-full block rounded-[inherit] overflow-hidden"
                 aria-label={`Play ${activeLesson?.topicName ?? "Lesson video"}`}
               >
-                <img
-                  src={`https://i.ytimg.com/vi/${getYouTubeVideoId(activeVideoUrl)}/maxresdefault.jpg`}
-                  onError={(event) => {
-                    const id = getYouTubeVideoId(activeVideoUrl);
-                    const target = event.currentTarget;
-                    if (id && !target.dataset.fallbackApplied) {
-                      target.dataset.fallbackApplied = "1";
-                      target.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-                    }
+                <span
+                  className="block w-full h-full rounded-[inherit] bg-black"
+                  style={{
+                    backgroundImage: `url("https://i.ytimg.com/vi/${getYouTubeVideoId(activeVideoUrl)}/maxresdefault.jpg"), url("https://i.ytimg.com/vi/${getYouTubeVideoId(activeVideoUrl)}/hqdefault.jpg")`,
+                    backgroundSize: "contain",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
                   }}
-                  alt={activeLesson?.topicName ?? "Lesson video"}
-                  className="w-full h-full object-contain bg-black block rounded-[inherit]"
-                  loading="lazy"
+                  aria-label={activeLesson?.topicName ?? "Lesson video"}
                 />
                 <span className="absolute inset-0 flex items-center justify-center">
                   <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
@@ -3445,7 +3437,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
               </button>
             ) : isYouTubeVideoUrl(activeVideoUrl) ? (
               <iframe
-                className="w-full h-full block border-0 rounded-[inherit]"
+                className="w-full h-full block border-0 rounded-[inherit] overflow-hidden"
                 src={activeVideoUrl}
                 title={activeLesson?.topicName ?? "Lesson video"}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -3453,7 +3445,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
               />
             ) : (
               <video
-                className="w-full h-full block rounded-[inherit]"
+                className="w-full h-full block rounded-[inherit] overflow-hidden"
                 controls
                 playsInline
                 preload="metadata"
