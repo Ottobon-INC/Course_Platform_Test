@@ -215,10 +215,27 @@ model CourseOffering {
   registrations       Registration[]
   assessment          AssessmentQuestion?
   assignments         Assignment[]
+  workshopSessions    WorkshopSession[]
 
   @@unique([courseId, programType, title], map: "uq_course_offering_course_program_title")
   @@index([courseId], map: "idx_course_offering_course")
   @@map("course_offerings")
+}
+
+model WorkshopSession {
+  sessionId       String         @id @default(dbgenerated("gen_random_uuid()")) @map("session_id") @db.Uuid
+  offeringId      String         @map("offering_id") @db.Uuid
+  scheduledAt     DateTime       @map("scheduled_at")
+  durationMinutes Int?           @map("duration_minutes")
+  sessionNo       Int            @map("session_no")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  googleMeetLink  String?        @map("google_meet_link")
+  startTime       String?        @map("start_time")
+  endTime         String?        @map("end_time")
+
+  offering        CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)
+
+  @@map("workshop_sessions")
 }
 
 model Registration {
@@ -320,6 +337,8 @@ model Cohort {
   endsAt    DateTime?     @map("ends_at")
   priceCents Int?         @map("price_cents")
   compareAtPriceCents Int? @map("compare_at_price_cents")
+  registrationStartsAt DateTime? @map("registration_starts_at")
+  registrationEndsAt   DateTime? @map("registration_ends_at")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
   offering  CourseOffering @relation(fields: [offeringId], references: [offeringId], onDelete: Cascade)

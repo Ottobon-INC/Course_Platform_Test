@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { buildApiUrl } from '@/lib/api';
 import type { CourseSummary } from '@/types/content';
 
-const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer/learn/start';
+const COURSE_PLAYER_PATH = '/course/ai-native-fullstack-developer';
 
 export default function EnrollmentPage() {
   const { id } = useParams(); // This is the course slug
@@ -36,19 +36,10 @@ export default function EnrollmentPage() {
         try {
           await apiRequest('POST', `/api/courses/${courseInfo.course.id}/enroll`);
 
-          // Find first lesson to redirect to
-          const sectionsResponse = await fetch(buildApiUrl(`/api/courses/${courseInfo.course.id}/sections`), {
-            credentials: 'include'
-          });
-          const sections = await sectionsResponse.json();
-          if (sections?.[0]?.lessons?.[0]) {
-            setLocation(`/course/${courseInfo.course.id}/learn/${sections[0].lessons[0].slug}`);
-          } else {
-            setLocation(`/course/${courseInfo.course.id}/learn`);
-          }
+          setLocation(`/course/${courseInfo.course.id}`);
         } catch (enrollError) {
           console.error('Enrollment error:', enrollError);
-          setLocation(`/course/${courseInfo.course.id}/learn`);
+          setLocation(`/course/${courseInfo.course.id}`);
         }
       }
     },

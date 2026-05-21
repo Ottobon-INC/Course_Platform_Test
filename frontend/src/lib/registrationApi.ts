@@ -9,6 +9,7 @@ export type CourseOffering = {
   description?: string | null;
   isActive: boolean;
   priceCents: number;
+  compareAtPriceCents?: number;
   applicationRequired: boolean;
   assessmentRequired: boolean;
   showSlots: boolean;

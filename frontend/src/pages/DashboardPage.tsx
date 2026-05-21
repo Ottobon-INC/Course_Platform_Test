@@ -173,15 +173,9 @@ const coursesData: Course[] = [
     }
 ];
 
-const getEnrollPath = (course: Course): string =>
-    course.id === 'ai-native-fullstack-developer'
-        ? '/course/ai-native-fullstack-developer/learn/start'
-        : `/course/${course.id}/learn/start`;
+const getEnrollPath = (course: Course): string => `/course/${course.id}`;
 
-const getContinuePath = (course: Course): string =>
-    course.id === 'ai-native-fullstack-developer'
-        ? '/course/ai-native-fullstack-developer/learn/start'
-        : `/course/${course.id}/learn/getting-started`;
+const getContinuePath = (course: Course): string => `/course/${course.id}`;
 
 // --- NEW COURSE DATA FOR LANDING PAGE COURSES ---
 const landingCoursesData: Course[] = [

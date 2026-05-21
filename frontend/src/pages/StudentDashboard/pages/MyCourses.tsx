@@ -31,11 +31,7 @@ export function MyCourses() {
     if (!course.courseSlug) {
       return null;
     }
-    if (course.isEnrolled === false) {
-      return `/course/${course.courseSlug}`;
-    }
-    const lessonSlug = course.lastLessonSlug || 'start';
-    return `/course/${course.courseSlug}/learn/${lessonSlug}`;
+    return `/course/${course.courseSlug}`;
   };
 
   const mappedCourses = useMemo(() => {

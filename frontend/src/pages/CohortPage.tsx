@@ -269,30 +269,10 @@ const CohortPage: React.FC = () => {
   const handleCardClick = async (courseKey: string) => {
     if (navigatingCourse) return;
     setNavigatingCourse(courseKey);
-    try {
-      const stored = readStoredSession();
-      const session = await ensureSessionFresh(stored);
-      const token = session?.accessToken ?? null;
-
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const res = await fetch(buildApiUrl(`/api/courses/${courseKey}/access-status`), { headers });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.isApprovedMember) {
-          setLocation(`/course/${courseKey}/learn/start`);
-          return;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setNavigatingCourse(null);
-    }
+    // Always navigate to the CDP so users can see the dynamic CTA logic
+    // (e.g. 'Starts on X days' if the cohort hasn't started yet).
     setLocation(`/course/${courseKey}`);
+    setNavigatingCourse(null);
   };
 
   const filteredCourses = courses.filter(course =>

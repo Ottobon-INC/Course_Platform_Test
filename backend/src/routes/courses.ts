@@ -34,9 +34,18 @@ const courseSelect = {
        compareAtPriceCents: true,
        programmeDetails: true,
         cohorts: {
-          where: { isActive: true },
-          select: { priceCents: true, compareAtPriceCents: true }
-        },
+           where: { isActive: true },
+           select: {
+             cohortId: true,
+             name: true,
+             priceCents: true,
+             compareAtPriceCents: true,
+             startsAt: true,
+             endsAt: true,
+             registrationStartsAt: true,
+             registrationEndsAt: true,
+           }
+         },
         skillsJson: true,
         reviewsJson: true,
         faqsJson: true,
@@ -143,6 +152,15 @@ function mapCourse(course: CourseRecord, programType?: string) {
     instructor: mentorsJson.length > 0 ? mentorsJson[0].name : "Staff Instructor",
     programme_details: targetOffering?.programmeDetails ?? course.offerings?.[0]?.programmeDetails,
     createdAt: createdAt.toISOString(),
+    // Cohort schedule data for CTA button logic
+    cohorts: (targetOffering?.cohorts || []).map((c: any) => ({
+      cohortId: c.cohortId,
+      name: c.name,
+      startsAt: c.startsAt?.toISOString?.() ?? c.startsAt ?? null,
+      endsAt: c.endsAt?.toISOString?.() ?? c.endsAt ?? null,
+      registrationStartsAt: c.registrationStartsAt?.toISOString?.() ?? c.registrationStartsAt ?? null,
+      registrationEndsAt: c.registrationEndsAt?.toISOString?.() ?? c.registrationEndsAt ?? null,
+    })),
   };
 }
 
@@ -302,7 +320,7 @@ coursesRouter.get(
           cohort: { offering: { courseId: resolved.courseId } },
           OR: cohortIdentityFilter,
         },
-        select: { memberId: true, userId: true, email: true },
+        select: { memberId: true, userId: true, email: true, cohort: { select: { startsAt: true } } },
       }),
       prisma.enrollment.findFirst({
         where: { userId, courseId: resolved.courseId },
@@ -337,6 +355,7 @@ coursesRouter.get(
       isAuthenticated: true,
       hasApplied,
       isApprovedMember,
+      cohortStartsAt: member?.cohort?.startsAt || null,
     });
   }),
 );

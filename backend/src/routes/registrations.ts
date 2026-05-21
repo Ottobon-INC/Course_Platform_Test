@@ -37,6 +37,21 @@ function getOptionalAuthUserId(req: express.Request): string | null {
   }
 }
 
+registrationsRouter.get("/run-db-migration", async (req, res, next) => {
+  try {
+    console.log("Starting temporary raw SQL db migration...");
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE cohorts ADD COLUMN IF NOT EXISTS registration_starts_at timestamptz;
+      ALTER TABLE cohorts ADD COLUMN IF NOT EXISTS registration_ends_at timestamptz;
+    `);
+    console.log("Raw SQL db migration completed!");
+    return res.json({ success: true, message: "Migration completed successfully via raw SQL!" });
+  } catch (error: any) {
+    console.error("Migration error:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 registrationsRouter.get("/active-program-types", async (req, res, next) => {
   try {
     const activeOfferings = await prisma.courseOffering.findMany({
@@ -81,13 +96,16 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         course: true,
         cohorts: {
           where: { isActive: true },
-          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true, registrationStartsAt: true, registrationEndsAt: true }
+        },
+        workshopSessions: {
+          orderBy: { sessionNo: "asc" }
         }
       },
       orderBy: { createdAt: "asc" },
     });
 
-    const offerings = rawOfferings.map((offering) => {
+    const offerings = rawOfferings.map((offering: any) => {
       let determinedPriceCents = offering.priceCents;
       let determinedCompareAtPriceCents = offering.compareAtPriceCents;
       
@@ -105,6 +123,36 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
       }
 
+      // Format dynamic workshop sessions as slots
+      let resolvedSlots = offering.slotsJson;
+      if (offering.programType === "workshop" && offering.workshopSessions?.length) {
+        const now = Date.now();
+        const upcomingSessions = offering.workshopSessions.filter((session: any) => {
+          const sessionTime = new Date(session.scheduledAt).getTime();
+          const durationMs = (session.durationMinutes || 120) * 60 * 1000;
+          return sessionTime + durationMs >= now;
+        });
+
+        resolvedSlots = upcomingSessions.map((session: any) => {
+          const dt = new Date(session.scheduledAt);
+          const formattedDate = dt.toLocaleDateString('en-IN', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+          const timeStr = session.startTime || dt.toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+          return {
+            id: session.sessionId,
+            name: `${formattedDate} (${timeStr})`,
+            time: ""
+          };
+        });
+      }
       return {
         offeringId: offering.offeringId,
         courseId: offering.courseId,
@@ -116,7 +164,7 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         isActive: offering.isActive,
         assessmentRequired: offering.assessmentRequired,
         showSlots: offering.showSlots,
-        slotsJson: offering.slotsJson,
+        slotsJson: resolvedSlots,
         qrImageUrl: offering.qrImageUrl,
         paymentMode: offering.paymentMode,
         programmeDetails: offering.programmeDetails,
@@ -128,7 +176,16 @@ registrationsRouter.get("/offerings", async (req, res, next) => {
         prerequisitesJson: offering.prerequisitesJson,
         learningOutcomesJson: offering.learningOutcomesJson,
         course: offering.course,
-        cohorts: offering.cohorts || [],
+        cohorts: (offering.cohorts || []).filter((c: any) => {
+          const now = new Date();
+          // Filter out cohorts that have already started
+          if (c.startsAt && new Date(c.startsAt) < now) return false;
+          // Filter out cohorts whose registration hasn't opened yet
+          if (c.registrationStartsAt && new Date(c.registrationStartsAt) > now) return false;
+          // Filter out cohorts whose registration has closed
+          if (c.registrationEndsAt && new Date(c.registrationEndsAt) < now) return false;
+          return true;
+        }),
       };
     });
 
@@ -196,7 +253,10 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
         course: true,
         cohorts: {
           where: { isActive: true },
-          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true }
+          select: { cohortId: true, name: true, startsAt: true, priceCents: true, compareAtPriceCents: true, registrationStartsAt: true, registrationEndsAt: true }
+        },
+        workshopSessions: {
+          orderBy: { sessionNo: "asc" }
         }
       }
     });
@@ -222,6 +282,37 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
       determinedCompareAtPriceCents = offering.compareAtPriceCents ?? offering.course.compareAtPriceCents;
     }
 
+    // Format dynamic workshop sessions as slots
+    let resolvedSlots = offering.slotsJson;
+    if (offering.programType === "workshop" && offering.workshopSessions?.length) {
+      const now = Date.now();
+      const upcomingSessions = offering.workshopSessions.filter((session: any) => {
+        const sessionTime = new Date(session.scheduledAt).getTime();
+        const durationMs = (session.durationMinutes || 120) * 60 * 1000;
+        return sessionTime + durationMs >= now;
+      });
+
+      resolvedSlots = upcomingSessions.map((session: any) => {
+        const dt = new Date(session.scheduledAt);
+        const formattedDate = dt.toLocaleDateString('en-IN', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const timeStr = session.startTime || dt.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+        return {
+          id: session.sessionId,
+          name: `${formattedDate} (${timeStr})`,
+          time: ""
+        };
+      });
+    }
+
     return res.json({ 
       offering: {
         offeringId: offering.offeringId,
@@ -235,7 +326,7 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
         isActive: offering.isActive,
         assessmentRequired: offering.assessmentRequired,
         showSlots: offering.showSlots,
-        slotsJson: offering.slotsJson,
+        slotsJson: resolvedSlots,
         qrImageUrl: offering.qrImageUrl,
         paymentMode: offering.paymentMode,
         programmeDetails: offering.programmeDetails,
@@ -247,7 +338,17 @@ registrationsRouter.get("/offerings/:id", async (req, res, next) => {
         prerequisitesJson: offering.prerequisitesJson,
         learningOutcomesJson: offering.learningOutcomesJson,
         course: offering.course,
-        cohorts: offering.cohorts || [],
+        cohorts: (offering.cohorts || []).filter((c: any) => {
+          const now = new Date();
+          // Filter out cohorts that have already started
+          if (c.startsAt && new Date(c.startsAt) < now) return false;
+          // Filter out cohorts whose registration hasn't opened yet
+          if (c.registrationStartsAt && new Date(c.registrationStartsAt) > now) return false;
+          // Filter out cohorts whose registration has closed
+          if (c.registrationEndsAt && new Date(c.registrationEndsAt) < now) return false;
+          return true;
+        }),
+        workshopSessions: offering.workshopSessions || [],
       }
     });
   } catch (error) {
@@ -312,6 +413,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       assessmentSubmittedAt,
       plan,
       cohortId,
+      sessionId,
     } = req.body ?? {};
     const authUserId = getOptionalAuthUserId(req);
     const normalizedEmail = typeof email === "string" ? normalizeEmail(email) : "";
@@ -407,6 +509,7 @@ registrationsRouter.post("/", async (req, res, next) => {
       assessmentSubmittedAt: assessmentSubmittedAt ? new Date(assessmentSubmittedAt) : (existing?.assessmentSubmittedAt),
       plan: plan || (existing?.plan) || null,
       cohortId: cohortId || (existing?.cohortId) || null,
+      sessionId: sessionId || (existing?.sessionId) || null,
     };
 
     const registration = existing

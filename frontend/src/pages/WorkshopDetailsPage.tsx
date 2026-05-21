@@ -41,53 +41,7 @@ interface WorkshopData {
   targetDate?: Date | null;
 }
 
-const CountdownTimer: React.FC<{ targetDate: Date }> = ({ targetDate }) => {
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
 
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const difference = +targetDate - +new Date();
-      if (difference > 0) {
-        setTimeLeft({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((difference / 1000 / 60) % 60),
-          seconds: Math.floor((difference / 1000) % 60),
-        });
-      } else {
-        setTimeLeft(null);
-      }
-    };
-
-    calculateTimeLeft();
-    const timer = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(timer);
-  }, [targetDate]);
-
-  if (!timeLeft) return null;
-
-  return (
-    <div className="flex justify-center gap-4 mb-12">
-      {[
-        { label: "Days", value: timeLeft.days },
-        { label: "Hours", value: timeLeft.hours },
-        { label: "Mins", value: timeLeft.minutes },
-        { label: "Secs", value: timeLeft.seconds },
-      ].map((item, idx) => (
-        <div key={idx} className="flex flex-col items-center">
-          <div className="w-16 h-16 md:w-20 md:h-20 bg-[#f8f1e6]/5 backdrop-blur-md border border-[#f8f1e6]/10 rounded-2xl flex items-center justify-center mb-2 shadow-xl">
-            <span className="text-2xl md:text-3xl font-black text-white tabular-nums">
-              {item.value.toString().padStart(2, '0')}
-            </span>
-          </div>
-          <span className="text-[10px] uppercase tracking-widest font-bold text-[#f8f1e6]/40">
-            {item.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
 
 const WorkshopDetailsPage: React.FC = () => {
   const { id: identifier } = useParams<{ id: string }>();
@@ -123,13 +77,45 @@ const WorkshopDetailsPage: React.FC = () => {
           }
         }
 
+        // Sort sessions chronologically
+        const sortedSessions = [...(offering.workshopSessions || [])].sort(
+          (a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+        );
+
+        // Find the first upcoming session (end time in the future)
+        const now = Date.now();
+        const upcomingSession = sortedSessions.find((session: any) => {
+          const sessionTime = new Date(session.scheduledAt).getTime();
+          const durationMs = (session.durationMinutes || 120) * 60 * 1000;
+          return sessionTime + durationMs >= now;
+        }) || sortedSessions[sortedSessions.length - 1]; // Fallback to last session if all are crossed
+
+        // Resolve dynamic date from active upcoming session (with year)
+        let resolvedDate = "Upcoming Session";
+        if (upcomingSession) {
+          const dt = new Date(upcomingSession.scheduledAt);
+          resolvedDate = dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        } else {
+          resolvedDate = offering.startTime || (targetDate ? targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : "Upcoming Session");
+        }
+
+        // Resolve dynamic duration (always show Session 1's duration)
+        let resolvedDuration = "4 Hours";
+        const firstSession = sortedSessions[0];
+        if (firstSession && firstSession.durationMinutes) {
+          const hours = firstSession.durationMinutes / 60;
+          resolvedDuration = hours % 1 === 0 ? `${hours} Hours` : `${hours.toFixed(1).replace(/\.0$/, '')} Hours`;
+        } else {
+          resolvedDuration = course.durationMinutes ? `${Math.round(course.durationMinutes / 60)} Hours` : "4 Hours";
+        }
+
         // Map API response to our WorkshopData interface
         setWorkshop({
           id: offering.offeringId,
           title: offering.title || course.courseName || "Premium Workshop",
           description: offering.description || course.description || "An intensive hands-on session designed for rapid skill acquisition.",
-          startTime: offering.startTime || (targetDate ? targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : "Upcoming Session"),
-          duration: course.durationMinutes ? `${Math.round(course.durationMinutes / 60)} Hours` : "4 Hours",
+          startTime: resolvedDate,
+          duration: resolvedDuration,
           mode: offering.mode || "Live Online",
           isActive: offering.isActive ?? true,
           prerequisites: offering.prerequisitesJson || [],
@@ -152,7 +138,7 @@ const WorkshopDetailsPage: React.FC = () => {
   }, [identifier]);
 
   const handleRegister = () => {
-    if (!workshop.isActive) return;
+    if (!workshop || !workshop.isActive) return;
     const slug = workshop?.title ? toRouteSlug(workshop.title) : identifier;
     const session = readStoredSession();
     
@@ -285,9 +271,7 @@ const WorkshopDetailsPage: React.FC = () => {
             </p>
             
 
-            {workshop.targetDate && (
-              <CountdownTimer targetDate={workshop.targetDate} />
-            )}
+
 
             <button 
               onClick={handleRegister}
@@ -309,12 +293,11 @@ const WorkshopDetailsPage: React.FC = () => {
       <main className="max-w-5xl mx-auto px-6 -mt-16 relative z-20 pb-24">
         
         {/* Section: Session Info Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-20">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-20">
           {[
             { icon: Calendar, label: "Date", value: workshop.startTime },
             { icon: Clock, label: "Duration", value: workshop.duration },
-            { icon: MapPin, label: "Mode", value: workshop.mode },
-            { icon: Users, label: "Format", value: "Masterclass" }
+            { icon: MapPin, label: "Mode", value: workshop.mode }
           ].map((info, i) => (
             <motion.div 
               key={i}
