@@ -130,6 +130,19 @@ const computeSessionsThisWeek = (cohorts: Array<{ startsAt?: Date | null }>): nu
   }).length;
 };
 
+const normalizeAssignmentStatus = (submission: { status: string; pointsAwarded: number | null } | null | undefined) => {
+  if (!submission) {
+    return "pending";
+  }
+  const status = submission.status.toLowerCase();
+  if (status === "reviewed") {
+    return submission.pointsAwarded !== null && submission.pointsAwarded !== undefined && submission.pointsAwarded > 0
+      ? "approved"
+      : "rejected";
+  }
+  return status;
+};
+
 export const dashboardRouter = express.Router();
 
 dashboardRouter.get("/summary", requireAuth, async (req, res) => {
@@ -327,41 +340,109 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     });
 
     // --- ENHANCED PROGRESS LOGIC: Unified Topic + Assignment Calculation ---
-    // --- QUIZ-BASED PROGRESS LOGIC: Match CoursePlayerPage calculation ---
-    const [quizTotalRows, quizPassedRows] = await Promise.all([
+    // --- MODULE COMPLETION PROGRESS: Match CoursePlayerPage calculation ---
+    const batchFilters = cohortEntries.map(entry => ({
+      cohortId: entry.cohortId,
+      batchNo: entry.batchNo
+    }));
+
+    const courseModuleNosByCourse = new Map<string, Set<number>>();
+    allCourseTopics.forEach(topic => {
+      if (topic.moduleNo <= 0) {
+        return;
+      }
+      const moduleSet = courseModuleNosByCourse.get(topic.courseId) ?? new Set<number>();
+      moduleSet.add(topic.moduleNo);
+      courseModuleNosByCourse.set(topic.courseId, moduleSet);
+    });
+
+    const [passedFinalAssessmentRows, moduleAssignments] = await Promise.all([
       courseIds.length
-        ? prisma.$queryRaw<{ course_id: string; total_quizzes: bigint }[]>(
+        ? prisma.$queryRaw<{ course_id: string; module_no: number }[]>(
             Prisma.sql`
-              SELECT 
-                t.course_id::text, 
-                COUNT(DISTINCT (a.payload->>'assessment_id'))::bigint as total_quizzes
-              FROM topic_content_assets a
-              JOIN topics t ON t.topic_id = a.topic_id
-              WHERE t.course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))})
-                AND a.content_type = 'quiz'
-                AND a.payload ? 'assessment_id'
-              GROUP BY t.course_id
+              SELECT DISTINCT
+                ca.course_id::text AS course_id,
+                ca.module_no
+              FROM course_assessments ca
+              LEFT JOIN topic_content_assets a
+                ON (a.payload->>'assessment_id') = ca.assessment_id::text
+              LEFT JOIN topics t
+                ON t.topic_id = a.topic_id
+              JOIN quiz_attempts qa
+                ON qa.assessment_id = ca.assessment_id
+                AND qa.user_id = ${auth.userId}::uuid
+                AND qa.status = 'passed'
+              WHERE ca.course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))})
+                AND ca.module_no > 0
+                AND (
+                  ca.title ILIKE '%final assessment%'
+                  OR t.topic_name ILIKE '%final assessment%'
+                )
             `
           )
         : Promise.resolve([]),
       courseIds.length
-        ? prisma.$queryRaw<{ course_id: string; passed_quizzes: bigint }[]>(
-            Prisma.sql`
-              SELECT 
-                course_id::text, 
-                COUNT(DISTINCT assessment_id)::bigint as passed_quizzes
-              FROM quiz_attempts
-              WHERE user_id = ${auth.userId}::uuid
-                AND course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))})
-                AND status = 'passed'
-              GROUP BY course_id
-            `
-          )
+        ? prisma.assignment.findMany({
+            where: {
+              courseId: { in: courseIds },
+              moduleNo: { gt: 0 },
+              OR: [
+                { userId: auth.userId },
+                ...batchFilters.map(filter => ({
+                  cohortId: filter.cohortId,
+                  OR: [
+                    { batchNo: filter.batchNo },
+                    { batchNo: null },
+                  ],
+                })),
+              ],
+            },
+            include: {
+              submissions: {
+                where: { userId: auth.userId },
+                orderBy: { submittedAt: "desc" },
+                take: 1,
+              },
+            },
+          })
         : Promise.resolve([]),
     ]);
 
-    const totalQuizzesMap = new Map(quizTotalRows.map(r => [r.course_id, Number(r.total_quizzes)]));
-    const passedQuizzesMap = new Map(quizPassedRows.map(r => [r.course_id, Number(r.passed_quizzes)]));
+    const passedFinalAssessmentModules = new Set(
+      passedFinalAssessmentRows.map(row => `${row.course_id}:${row.module_no}`)
+    );
+    const assignmentApprovalByModule = new Map<string, { total: number; approved: number }>();
+    moduleAssignments.forEach(assignment => {
+      const key = `${assignment.courseId}:${assignment.moduleNo}`;
+      const current = assignmentApprovalByModule.get(key) ?? { total: 0, approved: 0 };
+      const status = normalizeAssignmentStatus(assignment.submissions[0] ?? null);
+      assignmentApprovalByModule.set(key, {
+        total: current.total + 1,
+        approved: current.approved + (status === "approved" ? 1 : 0),
+      });
+    });
+
+    const progressByCourse = new Map<string, number>();
+    courseIds.forEach(courseId => {
+      const moduleNos = Array.from(courseModuleNosByCourse.get(courseId) ?? []).sort((a, b) => a - b);
+      if (moduleNos.length === 0) {
+        progressByCourse.set(courseId, 0);
+        return;
+      }
+
+      const completedModules = moduleNos.filter(moduleNo => {
+        const key = `${courseId}:${moduleNo}`;
+        const assignmentProgress = assignmentApprovalByModule.get(key);
+        return (
+          passedFinalAssessmentModules.has(key) &&
+          Boolean(assignmentProgress) &&
+          assignmentProgress!.total > 0 &&
+          assignmentProgress!.approved >= assignmentProgress!.total
+        );
+      }).length;
+
+      progressByCourse.set(courseId, Math.round((completedModules / moduleNos.length) * 100));
+    });
 
     const lastActivity = progressRows.reduce<Date | null>((latest, row) => {
       if (!latest || row.updatedAt > latest) {
@@ -372,10 +453,7 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
 
     const cohortsList = cohortEntries.map((entry) => {
       const courseId = entry.courseId;
-      const totalQuizzes = totalQuizzesMap.get(courseId) || 0;
-      const passedQuizzes = passedQuizzesMap.get(courseId) || 0;
-
-      const progress = totalQuizzes === 0 ? 0 : Math.round((passedQuizzes / totalQuizzes) * 100);
+      const progress = progressByCourse.get(courseId) ?? 0;
       const latest = latestByCourse.get(courseId);
       const nextTopic = nextTopicByCourse.get(courseId);
       
@@ -415,11 +493,6 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     // --- LOGICALLY DYNAMIC TASKS START ---
     
     // 1. Fetch all assignments and projects specifically for the user's batch
-    const batchFilters = cohorts.map(c => ({
-      cohortId: c.id,
-      batchNo: c.batchNo
-    }));
-
     const [assignments, submissions, cohortProjects] = await Promise.all([
       prisma.assignment.findMany({
         where: {

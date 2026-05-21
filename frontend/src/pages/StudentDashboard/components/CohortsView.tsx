@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { useCohortData, type ActiveCohort, type CompletedCohort } from '../hooks/useCohortData';
 import { useLeaderboardData } from '../hooks/useLeaderboardData';
 import { useModuleProgress } from '../hooks/useModuleProgress';
+import { useLearnerAssignments, type Assignment } from '../hooks/useLearnerAssignments';
 
 export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) {
   const { data, isLoading, error } = useCohortData();
@@ -170,15 +171,48 @@ export function CohortsView({ hideSidebar = false }: { hideSidebar?: boolean }) 
 export function CohortTopPerformer({ courseId }: { courseId?: string }) {
   const { topUsers, isLoading: isLeaderboardLoading } = useLeaderboardData(courseId);
   const { data: progressData, isLoading: isProgressLoading } = useModuleProgress(courseId);
+  const { data: assignmentData, isLoading: isAssignmentsLoading } = useLearnerAssignments({
+    enabled: Boolean(courseId),
+  });
   
   const topPerformer = topUsers?.[0];
 
-  // Gating logic: Show only if Module 1 is passed AND Module 2 is unlocked
-  const isModule1Passed = progressData?.modules?.find(m => m.moduleNo === 1)?.quizPassed;
-  const isModule2Unlocked = progressData?.modules?.some(m => m.moduleNo === 2); // Exists = unlocked
+  const module1Assignments = React.useMemo(() => {
+    const assignments = assignmentData?.assignments ?? [];
+    return assignments.filter(
+      (assignment) =>
+        assignment.courseId === courseId &&
+        assignment.programType === 'cohort' &&
+        assignment.moduleNo === 1,
+    );
+  }, [assignmentData?.assignments, courseId]);
 
-  const isLoading = isLeaderboardLoading || isProgressLoading;
-  const isLocked = !isModule1Passed || !isModule2Unlocked;
+  const getAssignmentCompletionStatus = (assignment: Assignment) => {
+    if (assignment.status === 'reviewed') {
+      return assignment.pointsAwarded !== null && assignment.pointsAwarded !== undefined && assignment.pointsAwarded > 0
+        ? 'approved'
+        : 'rejected';
+    }
+    return assignment.status;
+  };
+
+  // Gating logic: show only after Module 1 is complete and Module 2 is available.
+  const module1Progress = progressData?.modules?.find(m => m.moduleNo === 1);
+  const module2Progress = progressData?.modules?.find(m => m.moduleNo === 2);
+  const isModule1FinalPassed = Boolean(module1Progress?.quizPassed);
+  const areModule1AssignmentsApproved =
+    module1Assignments.length > 0 &&
+    module1Assignments.every((assignment) => getAssignmentCompletionStatus(assignment) === 'approved');
+  const areModule1AssignmentsSubmitted =
+    module1Assignments.length > 0 &&
+    module1Assignments.every((assignment) =>
+      ['submitted', 'in_review', 'approved'].includes(getAssignmentCompletionStatus(assignment)),
+    );
+  const isModule1Completed = isModule1FinalPassed && areModule1AssignmentsApproved;
+  const isModule2Unlocked = Boolean(module2Progress) && areModule1AssignmentsSubmitted;
+
+  const isLoading = isLeaderboardLoading || isProgressLoading || isAssignmentsLoading;
+  const isLocked = !isModule1Completed || !isModule2Unlocked;
 
   if (courseId && !isLoading && isLocked) {
     return (
@@ -192,7 +226,7 @@ export function CohortTopPerformer({ courseId }: { courseId?: string }) {
               Leaderboard Locked
             </h3>
             <p className="text-sm text-gray-400 font-medium max-w-md">
-              Complete Module 1 and unlock Module 2 to view the cohort's top performers! Keep learning to reveal your competition.
+              Pass Module 1 final assessment and get all Module 1 assignments approved to unlock Module 2 and view this cohort's top performers.
             </p>
           </div>
         </div>

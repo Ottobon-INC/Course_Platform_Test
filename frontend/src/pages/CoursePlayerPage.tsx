@@ -282,6 +282,12 @@ type ModuleAssignmentProgress = {
   complete: boolean;
 };
 
+type ModuleApprovalProgress = {
+  total: number;
+  approved: number;
+  complete: boolean;
+};
+
 const MODULE_UNLOCK_COMPLETED_STATUSES = new Set([
   "approved",
   "reviewed"
@@ -289,6 +295,11 @@ const MODULE_UNLOCK_COMPLETED_STATUSES = new Set([
 
 const isAssignmentCompletedForUnlock = (assignment: Assignment) =>
   MODULE_UNLOCK_COMPLETED_STATUSES.has(assignment.status);
+
+const isAssignmentApprovedForProgress = (assignment: Assignment) => assignment.status === "approved";
+
+const isModuleFinalAssessmentSection = (section: QuizSection) =>
+  /final\s+assessment/i.test(section.title ?? "");
 
 type InlineQuizPhase = "intro" | "loading" | "active" | "submitting" | "result" | "error";
 
@@ -841,6 +852,90 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     return progressByModule;
   }, [assignmentLockDataReady, courseAssignments, courseModuleNumbers]);
 
+  const assignmentApprovalProgressByModule = useMemo(() => {
+    const progressByModule = new Map<number, ModuleApprovalProgress>();
+    courseModuleNumbers.forEach((moduleNo) => {
+      progressByModule.set(moduleNo, {
+        total: 0,
+        approved: 0,
+        complete: false,
+      });
+    });
+
+    if (!assignmentLockDataReady) {
+      return progressByModule;
+    }
+
+    courseAssignments.forEach((assignment) => {
+      if (!Number.isFinite(assignment.moduleNo) || assignment.moduleNo <= 0) {
+        return;
+      }
+      const current =
+        progressByModule.get(assignment.moduleNo) ?? {
+          total: 0,
+          approved: 0,
+          complete: false,
+        };
+      progressByModule.set(assignment.moduleNo, {
+        total: current.total + 1,
+        approved: current.approved + (isAssignmentApprovedForProgress(assignment) ? 1 : 0),
+        complete: false,
+      });
+    });
+
+    progressByModule.forEach((progress, moduleNo) => {
+      progressByModule.set(moduleNo, {
+        ...progress,
+        complete: progress.total > 0 && progress.approved >= progress.total,
+      });
+    });
+
+    return progressByModule;
+  }, [assignmentLockDataReady, courseAssignments, courseModuleNumbers]);
+
+  const finalAssessmentTopicNumberByModule = useMemo(() => {
+    const topicNumberByModule = new Map<number, number>();
+    lessons.forEach((lesson) => {
+      if (lesson.moduleNo <= 0 || !/final\s+assessment/i.test(lesson.topicName ?? "")) {
+        return;
+      }
+      topicNumberByModule.set(lesson.moduleNo, lesson.topicNumber);
+    });
+    return topicNumberByModule;
+  }, [lessons]);
+
+  const finalAssessmentPassedByModule = useMemo(() => {
+    const passedByModule = new Map<number, boolean>();
+    courseModuleNumbers.forEach((moduleNo) => {
+      passedByModule.set(moduleNo, false);
+    });
+
+    sections.forEach((section) => {
+      const finalTopicNumber = finalAssessmentTopicNumberByModule.get(section.moduleNo);
+      const isFinalAssessment =
+        isModuleFinalAssessmentSection(section) ||
+        (finalTopicNumber !== undefined && section.topicNumber === finalTopicNumber);
+      if (section.moduleNo <= 0 || !isFinalAssessment) {
+        return;
+      }
+      if (section.passed) {
+        passedByModule.set(section.moduleNo, true);
+      }
+    });
+
+    return passedByModule;
+  }, [courseModuleNumbers, finalAssessmentTopicNumberByModule, sections]);
+
+  const moduleCompletionById = useMemo(() => {
+    const completionById = new Map<number, boolean>();
+    courseModuleNumbers.forEach((moduleNo) => {
+      const finalAssessmentPassed = finalAssessmentPassedByModule.get(moduleNo) === true;
+      const assignmentsApproved = assignmentApprovalProgressByModule.get(moduleNo)?.complete === true;
+      completionById.set(moduleNo, finalAssessmentPassed && assignmentsApproved);
+    });
+    return completionById;
+  }, [assignmentApprovalProgressByModule, courseModuleNumbers, finalAssessmentPassedByModule]);
+
   const moduleUnlockById = useMemo(() => {
     const unlockById = new Map<number, boolean>();
     let previousModulesComplete = true;
@@ -868,6 +963,16 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     },
     [moduleUnlockById],
   );
+
+  useEffect(() => {
+    if (!topicsLoaded || !sectionsLoaded || !assignmentLockDataReady || courseModuleNumbers.length === 0) {
+      setCourseProgress(0);
+      return;
+    }
+
+    const completedModules = courseModuleNumbers.filter((moduleNo) => moduleCompletionById.get(moduleNo) === true).length;
+    setCourseProgress(Math.round((completedModules / courseModuleNumbers.length) * 100));
+  }, [assignmentLockDataReady, courseModuleNumbers, moduleCompletionById, sectionsLoaded, topicsLoaded]);
 
   const dragInfo = useRef<{
     isDragging: boolean;
@@ -1218,7 +1323,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     setShouldRefreshStarterBatch(true);
   }, [starterSuggestions]);
 
-  // Quiz sections are loaded for assessment rendering; module locks are driven by assignment submission status.
+  // Quiz sections are loaded for assessment rendering; module progress is derived after assignment status is known.
   const fetchSections = useCallback(async () => {
     if (!courseKey || !session?.accessToken) {
       setSections([]);
@@ -1250,13 +1355,9 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         moduleWindowEndsAt: s.moduleWindowEndsAt ?? null,
       }));
       setSections(list);
-      const total = list.length;
-      const passed = list.filter((s) => s.passed).length;
-      setCourseProgress(total > 0 ? Math.round((passed / total) * 100) : 0);
     } catch (error) {
       console.error("Failed to load quiz sections", error);
       setSections([]);
-      setCourseProgress(0);
     } finally {
       setSectionsLoaded(true);
     }
@@ -1361,7 +1462,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
           if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
           return a.topicPairIndex - b.topicPairIndex;
         });
-      const modulePassed = assignmentLockDataReady ? (assignmentProgress?.complete ?? true) : false;
+      const modulePassed = moduleCompletionById.get(moduleNo) === true;
       const sectionsByTopicNumber = new Map<number, QuizSection[]>();
       sectionForModule.forEach((section) => {
         const existing = sectionsByTopicNumber.get(section.topicNumber) ?? [];
@@ -1425,7 +1526,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       };
     });
     setModules(newModules);
-  }, [assignmentLockDataReady, assignmentProgressByModule, isModuleUnlocked, lessons, sections]);
+  }, [isModuleUnlocked, lessons, moduleCompletionById, sections]);
 
   useEffect(() => {
     setExpandedModules((prev) => {
