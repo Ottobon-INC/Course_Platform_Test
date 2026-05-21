@@ -44,6 +44,7 @@ type DashboardSummary = {
     progress: number;
     nextSessionDate: string | null;
     batchNo: number;
+    courseId: string;
   }>;
   onDemand: Array<{
     id: string;
@@ -52,6 +53,7 @@ type DashboardSummary = {
     progress: number;
     lastAccessedModule: string;
     lastLessonSlug: string | null;
+    courseId: string;
   }>;
   workshops: Array<{
     id: string;
@@ -325,73 +327,41 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
     });
 
     // --- ENHANCED PROGRESS LOGIC: Unified Topic + Assignment Calculation ---
-    const [totalTopicsByCourse, completedTopicsByCourse, totalAssignmentsByCourse, submittedAssignmentsByCourse] = await Promise.all([
-      // 1. Total Topics per Course
-      prisma.topic.groupBy({
-        by: ['courseId'],
-        where: { courseId: { in: courseIds } },
-        _count: { topicId: true }
-      }),
-      // 2. Completed Topics per User per Course
-      prisma.topicProgress.groupBy({
-        by: ['topicId'],
-        where: {
-          userId: auth.userId,
-          isCompleted: true,
-          topic: { courseId: { in: courseIds } }
-        },
-        _count: { topicId: true }
-      }),
-      // 3. Total Assignments for the user's Cohorts/Batches
-      prisma.assignment.findMany({
-        where: {
-          OR: [
-            ...cohortEntries.map(c => ({
-              cohortId: c.cohortId,
-              batchNo: c.batchNo
-            })),
-            { isOnDemand: true, courseId: { in: courseIds } }
-          ]
-        }
-      }),
-      // 4. User's Assignment Submissions
-      prisma.assignmentSubmission.findMany({
-        where: {
-          userId: auth.userId,
-          assignment: {
-            OR: [
-              ...cohortEntries.map(c => ({
-                cohortId: c.cohortId,
-                batchNo: c.batchNo
-              })),
-              { isOnDemand: true, courseId: { in: courseIds } }
-            ]
-          }
-        },
-        include: { assignment: true }
-      })
+    // --- QUIZ-BASED PROGRESS LOGIC: Match CoursePlayerPage calculation ---
+    const [quizTotalRows, quizPassedRows] = await Promise.all([
+      courseIds.length
+        ? prisma.$queryRaw<{ course_id: string; total_quizzes: bigint }[]>(
+            Prisma.sql`
+              SELECT 
+                t.course_id::text, 
+                COUNT(DISTINCT (a.payload->>'assessment_id'))::bigint as total_quizzes
+              FROM topic_content_assets a
+              JOIN topics t ON t.topic_id = a.topic_id
+              WHERE t.course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))})
+                AND a.content_type = 'quiz'
+                AND a.payload ? 'assessment_id'
+              GROUP BY t.course_id
+            `
+          )
+        : Promise.resolve([]),
+      courseIds.length
+        ? prisma.$queryRaw<{ course_id: string; passed_quizzes: bigint }[]>(
+            Prisma.sql`
+              SELECT 
+                course_id::text, 
+                COUNT(DISTINCT assessment_id)::bigint as passed_quizzes
+              FROM quiz_attempts
+              WHERE user_id = ${auth.userId}::uuid
+                AND course_id IN (${Prisma.join(courseIds.map(id => Prisma.sql`${id}::uuid`))})
+                AND status = 'passed'
+              GROUP BY course_id
+            `
+          )
+        : Promise.resolve([]),
     ]);
 
-    // Map counts for easy lookup
-    const topicTotalMap = new Map(totalTopicsByCourse.map(r => [r.courseId, r._count.topicId]));
-    
-    // For completed topics, we need to map the grouped results back to courseIds
-    const topicCompletedMap = new Map<string, number>();
-    progressRows.filter(p => p.isCompleted).forEach(p => {
-      const cid = (p.topic as any).courseId;
-      topicCompletedMap.set(cid, (topicCompletedMap.get(cid) || 0) + 1);
-    });
-
-    const assignmentTotalMap = new Map<string, number>();
-    totalAssignmentsByCourse.forEach(a => {
-      assignmentTotalMap.set(a.courseId, (assignmentTotalMap.get(a.courseId) || 0) + 1);
-    });
-
-    const assignmentSubmittedMap = new Map<string, number>();
-    submittedAssignmentsByCourse.forEach(s => {
-      const cid = s.assignment.courseId;
-      assignmentSubmittedMap.set(cid, (assignmentSubmittedMap.get(cid) || 0) + 1);
-    });
+    const totalQuizzesMap = new Map(quizTotalRows.map(r => [r.course_id, Number(r.total_quizzes)]));
+    const passedQuizzesMap = new Map(quizPassedRows.map(r => [r.course_id, Number(r.passed_quizzes)]));
 
     const lastActivity = progressRows.reduce<Date | null>((latest, row) => {
       if (!latest || row.updatedAt > latest) {
@@ -402,15 +372,10 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
 
     const cohortsList = cohortEntries.map((entry) => {
       const courseId = entry.courseId;
-      const totalTopics = topicTotalMap.get(courseId) || 0;
-      const completedTopics = topicCompletedMap.get(courseId) || 0;
-      const totalAssignments = assignmentTotalMap.get(courseId) || 0;
-      const submittedAssignments = assignmentSubmittedMap.get(courseId) || 0;
+      const totalQuizzes = totalQuizzesMap.get(courseId) || 0;
+      const passedQuizzes = passedQuizzesMap.get(courseId) || 0;
 
-      const grandTotal = totalTopics + totalAssignments;
-      const grandCompleted = completedTopics + submittedAssignments;
-
-      const progress = grandTotal === 0 ? 0 : Math.round((grandCompleted / grandTotal) * 100);
+      const progress = totalQuizzes === 0 ? 0 : Math.round((passedQuizzes / totalQuizzes) * 100);
       const latest = latestByCourse.get(courseId);
       const nextTopic = nextTopicByCourse.get(courseId);
       
@@ -433,6 +398,15 @@ dashboardRouter.get("/summary", requireAuth, async (req, res) => {
         nextSessionDate: formatDateTime(entry.startsAt),
         batchNo: entry.batchNo,
       };
+    });
+
+    // --- SORTING LOGIC: Prioritize AI Native then by progress ---
+    cohortsList.sort((a, b) => {
+      const aIsNative = a.title.toLowerCase().includes("ai native");
+      const bIsNative = b.title.toLowerCase().includes("ai native");
+      if (aIsNative && !bIsNative) return -1;
+      if (!aIsNative && bIsNative) return 1;
+      return b.progress - a.progress;
     });
 
     const cohorts = cohortsList.filter(c => c.status !== 'Completed');

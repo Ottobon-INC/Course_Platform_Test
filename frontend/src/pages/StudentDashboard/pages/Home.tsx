@@ -189,7 +189,7 @@ export function Home() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-6">
-        <div className="col-span-1 md:col-span-12 lg:col-span-5 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
+        <div className="col-span-1 md:col-span-6 lg:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">Recommendations</h3>
             <div className="flex gap-2">
@@ -216,46 +216,7 @@ export function Home() {
           </div>
         </div>
 
-        <div 
-          className="col-span-1 sm:col-span-6 lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col relative justify-center items-center cursor-pointer hover:border-orange-primary transition-all group"
-          onClick={() => setLocation('/leaderboard')}
-        >
-          <div className="w-full flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold">Your Rank</h3>
-            <i className="fas fa-trophy text-orange-primary opacity-80 group-hover:scale-110 transition-transform"></i>
-          </div>
-          <div className="flex items-end justify-center gap-2 h-[80px] mb-4 w-full flex-grow">
-            {/* Third Place */}
-            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 3 ? 'scale-110' : 'opacity-60'}`}>
-              <div className="w-8 h-7 bg-gray-100 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-400">3</div>
-            </div>
-            {/* First Place */}
-            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 1 ? 'scale-110' : 'opacity-60'}`}>
-              <i className="fas fa-crown text-orange-primary mb-1 text-[0.8rem] animate-bounce"></i>
-              <div className="w-10 h-14 bg-orange-soft rounded-t-md flex items-end justify-center pb-1.5 text-sm font-bold text-orange-primary border border-orange-primary">1</div>
-            </div>
-            {/* Second Place */}
-            <div className={`flex flex-col items-center ${leaderboardSummary?.rank === 2 ? 'scale-110' : 'opacity-60'}`}>
-              <div className="w-8 h-10 bg-gray-100 rounded-t-md flex items-end justify-center pb-1 text-xs font-bold text-gray-400">2</div>
-            </div>
-          </div>
-          
-          <div className="text-center">
-            <div className="text-3xl font-black text-dark-text mb-1">
-              #{leaderboardSummary?.rank ?? '-'}
-            </div>
-            <p className="text-[0.7rem] font-bold text-gray-500 uppercase tracking-tighter">
-              Current Standing
-            </p>
-          </div>
-
-          <div className="mt-4 w-full pt-4 border-t border-gray-50 flex items-center justify-between">
-            <span className="text-[0.65rem] font-black text-dark-teal uppercase">{leaderboardSummary?.totalPoints.toLocaleString()} PTS</span>
-            <span className="text-[0.65rem] font-black text-orange-primary uppercase">{leaderboardSummary?.streak} DAY STREAK</span>
-          </div>
-        </div>
-
-        <div className="col-span-1 sm:col-span-6 lg:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
+        <div className="col-span-1 md:col-span-6 lg:col-span-6 bg-white p-6 rounded-2xl shadow-sm border border-border-soft flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fas fa-award text-orange-primary"></i> Certificates Section</h3>
             <a href="#" className="font-semibold text-orange-primary hover:underline text-sm">View All</a>

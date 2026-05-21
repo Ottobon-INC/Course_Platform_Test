@@ -30,6 +30,7 @@ import type { StoredSession } from "@/types/session";
 import SimulationExercise, { SimulationPayload } from "@/components/SimulationExercise";
 import ColdCalling from "@/components/ColdCalling";
 import CohortProjectModal, { type CohortProjectPayload } from "@/components/CohortProjectModal";
+import { ModuleAssignmentsView } from "./StudentDashboard/components/ModuleAssignmentsView";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize from "rehype-sanitize";
@@ -71,6 +72,45 @@ const normalizeVideoUrl = (rawUrl?: string | null) => {
     return trimmed;
   } catch {
     return trimmed;
+  }
+};
+
+const isYouTubeVideoUrl = (url?: string | null) => {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.includes("youtube.com") || host === "youtu.be";
+  } catch {
+    return false;
+  }
+};
+
+const getYouTubeVideoId = (url?: string | null) => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\/+/, "").trim();
+      return id || null;
+    }
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname.startsWith("/embed/")) {
+        const id = parsed.pathname.split("/").pop()?.trim();
+        return id || null;
+      }
+      if (parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v")?.trim();
+        return id || null;
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const id = parsed.pathname.split("/").pop()?.trim();
+        return id || null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
   }
 };
 
@@ -215,7 +255,7 @@ interface QuizSection {
 interface QuizQuestion {
   questionId: string;
   prompt: string;
-  options: { optionId: string; text: string; isCorrect?: boolean }[];
+  options: { optionId: string; text: string }[];
 }
 
 interface QuizAttemptResult {
@@ -596,6 +636,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const [sections, setSections] = useState<QuizSection[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [courseProgress, setCourseProgress] = useState(0);
+  const [activatedVideos, setActivatedVideos] = useState<Record<string, true>>({});
   const isComplete = useMemo(() => Math.round(courseProgress) >= 100, [courseProgress]);
   const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -617,6 +658,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const [ttsText, setTtsText] = useState("");
   const suppressResumeCacheWriteRef = useRef(false);
   const resumeWriteEnabledRef = useRef(false);
+  const moduleQuizBootstrapRef = useRef<string | null>(null);
   const [passedQuizzes, setPassedQuizzes] = useState<Set<string>>(new Set());
 
   // Video playback state
@@ -704,6 +746,9 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     assessmentId: string;
   } | null>(null);
 
+  const [isAssignmentMode, setIsAssignmentMode] = useState(false);
+  const [activeAssignmentModule, setActiveAssignmentModule] = useState<number | null>(null);
+
   const dragInfo = useRef<{
     isDragging: boolean;
     widget: "study" | "chat" | "notes" | null;
@@ -726,12 +771,10 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     mouseY: 0,
   });
 
-  const activeLesson = useMemo(() => {
-    return lessons.find((l) => l.slug === activeSlug) ?? lessons[0];
-  }, [lessons, activeSlug]);
-  const isAssessment = useMemo(() => {
-    return activeLesson?.contentType === "final_assessment" || activeLesson?.topicName?.toLowerCase().includes("assessment");
-  }, [activeLesson]);
+  const activeLesson = useMemo(
+    () => lessons.find((l) => l.slug === activeSlug) ?? lessons[0],
+    [lessons, activeSlug],
+  );
   const emitTelemetry = useCallback(
     (
       eventType: string,
@@ -1193,13 +1236,28 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         existing.push(section);
         sectionsByTopicNumber.set(section.topicNumber, existing);
       });
+      const consumedSectionIds = new Set<string>();
+      const moduleFinalLessonIndex = sortedLessons.findIndex((lesson) =>
+        /module\s+\d+\s+final\s+assessment/i.test(lesson.topicName),
+      );
 
-      sortedLessons.forEach((lesson) => {
-        const attachedSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? []).sort(
-          (a, b) => a.topicPairIndex - b.topicPairIndex,
-        );
+      sortedLessons.forEach((lesson, lessonIndex) => {
+        const directSections = (sectionsByTopicNumber.get(lesson.topicNumber) ?? [])
+          .filter((section) => !consumedSectionIds.has(section.assessmentId))
+          .sort((a, b) => a.topicPairIndex - b.topicPairIndex);
         const isModuleFinalLesson = /module\s+\d+\s+final\s+assessment/i.test(lesson.topicName);
-        const shouldSuppressLessonNode = attachedSections.length > 0 && isModuleFinalLesson;
+        const isDesignatedModuleFinalHost = isModuleFinalLesson && moduleFinalLessonIndex === lessonIndex;
+        const fallbackSectionsForModuleFinal = isDesignatedModuleFinalHost
+          ? sectionForModule
+            .filter((section) => !consumedSectionIds.has(section.assessmentId))
+            .sort((a, b) => {
+              if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+              return a.topicPairIndex - b.topicPairIndex;
+            })
+          : [];
+        const attachedSections = directSections.length > 0 ? directSections : fallbackSectionsForModuleFinal;
+        attachedSections.forEach((section) => consumedSectionIds.add(section.assessmentId));
+        const shouldSuppressLessonNode = isModuleFinalLesson && attachedSections.length > 0;
 
         if (!shouldSuppressLessonNode) {
           submodules.push({
@@ -1616,7 +1674,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         { moduleNo: sub.moduleNo, topicId: targetLesson?.topicId ?? null, courseId: targetLesson?.courseId ?? null },
       );
     }
-    if (isQuizMode && quizPhase !== "result" && sub.type !== "quiz") return;
     if (sub.type === "quiz") {
       if (!sub.assessmentId) {
         toast({
@@ -1642,6 +1699,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       void handleStartQuiz(sub.moduleNo, sub.assessmentId, sub.topicPairIndex ?? 1);
     } else if (sub.slug) {
       setIsQuizMode(false);
+      setIsAssignmentMode(false);
       setQuizPhase("intro");
       setSelectedSection(null);
       setQuizQuestions([]);
@@ -1677,6 +1735,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       setAnswers({});
       setQuizResult(null);
       setIsQuizMode(true);
+      setIsAssignmentMode(false);
       setQuizPhase("intro");
       setQuizTimer(150);
       setSidebarOpen(false);
@@ -1691,6 +1750,56 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       });
     }
   };
+
+  useEffect(() => {
+    if (!sessionHydrated || !topicsLoaded || !sectionsLoaded || !courseKey) return;
+    if (isQuizMode || !activeLesson) return;
+
+    const normalizedParam = normalizeSlugValue(lessonSlugParam);
+    const normalizedActive = normalizeSlugValue(activeLesson.slug);
+    if (!normalizedParam || normalizedParam !== normalizedActive) return;
+
+    const isModuleFinalLesson = /module\s+\d+\s+final\s+assessment/i.test(activeLesson.topicName);
+    if (!isModuleFinalLesson) return;
+
+    const bootstrapKey = `${courseKey}:${normalizedActive}`;
+    if (moduleQuizBootstrapRef.current === bootstrapKey) return;
+
+    const exactSection = sections
+      .filter(
+        (section) =>
+          section.moduleNo === activeLesson.moduleNo &&
+          section.topicNumber === activeLesson.topicNumber,
+      )
+      .sort((a, b) => a.topicPairIndex - b.topicPairIndex)[0];
+
+    const fallbackSection = sections
+      .filter((section) => section.moduleNo === activeLesson.moduleNo)
+      .sort((a, b) => {
+        if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+        return a.topicPairIndex - b.topicPairIndex;
+      })[0];
+
+    const targetSection = exactSection ?? fallbackSection;
+    if (!targetSection?.assessmentId) return;
+
+    moduleQuizBootstrapRef.current = bootstrapKey;
+    void handleStartQuiz(
+      activeLesson.moduleNo,
+      targetSection.assessmentId,
+      targetSection.topicPairIndex ?? 1,
+    );
+  }, [
+    sessionHydrated,
+    topicsLoaded,
+    sectionsLoaded,
+    courseKey,
+    isQuizMode,
+    activeLesson,
+    lessonSlugParam,
+    sections,
+    handleStartQuiz,
+  ]);
 
   const handleSubmitQuiz = async () => {
     if (!quizAttemptId) return;
@@ -1773,6 +1882,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       setInlineQuizState(runtimeKey, {
         assessmentId: assessmentId ?? "",
         mode: assessmentId ? "remote" : "local",
+        correctOptionByQuestionId: {}, // <-- Add this line to satisfy the TypeScript compiler
         phase: "loading",
         attemptId: null,
         questions: [],
@@ -1780,6 +1890,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         result: null,
         errorMessage: null,
       });
+
 
       emitTelemetry(
         "quiz.start",
@@ -1942,36 +2053,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       });
 
       try {
-        if (current.attemptId.startsWith("temp-")) {
-          // Local grading for inline quizzes with direct payload
-          const questions = current.questions;
-          const answers = current.answers;
-          let correctCount = 0;
-          questions.forEach((q) => {
-            const chosen = answers[q.questionId];
-            const correctOption = q.options.find((o) => o.isCorrect);
-            if (chosen && correctOption && chosen === correctOption.optionId) {
-              correctCount++;
-            }
-          });
-
-          const result: QuizAttemptResult = {
-            correctCount,
-            totalQuestions: questions.length,
-            scorePercent: questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0,
-            passed: questions.length > 0 && (correctCount / questions.length) >= 0.7,
-            thresholdPercent: 70,
-          };
-
-          setInlineQuizState(runtimeKey, {
-            ...current,
-            phase: "result",
-            result,
-            errorMessage: null,
-          });
-          return;
-        }
-
         const res = await fetch(buildApiUrl(`/api/quiz/attempts/${current.attemptId}/submit`), {
           method: "POST",
           credentials: "include",
@@ -2710,13 +2791,6 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         const key = block.id ?? `${block.type}-${index}`;
         const data = block.data;
 
-        // Skip non-quiz blocks for assessment topics to ensure only the quiz is rendered
-        if (activeLesson?.contentType === "final_assessment" || activeLesson?.topicName?.toLowerCase().includes("assessment")) {
-          if (block.type !== "quiz") {
-            continue;
-          }
-        }
-
         if (block.type === "text") {
           const content = resolveTextVariant(data);
           if (!content) {
@@ -2784,6 +2858,10 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             typeof data?.title === "string" && data.title.trim()
               ? data.title.trim()
               : activeLesson?.topicName ?? "Lesson video";
+          const isYoutubeVideo = isYouTubeVideoUrl(videoUrl);
+          const youtubeVideoId = getYouTubeVideoId(videoUrl);
+          const videoActivationKey = `block:${key}:${videoUrl}`;
+          const isVideoActivated = Boolean(activatedVideos[videoActivationKey]);
           const videoWrapperClass = `transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${isReadingMode
             ? "max-h-0 opacity-0 pointer-events-none"
             : `${blockVideoMaxHeightClass} opacity-100`
@@ -2792,14 +2870,52 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             <div key={key} className={videoWrapperClass} style={isReadingMode ? { marginTop: 0 } : undefined}>
               <div className="space-y-2">
                 <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                  <div className="w-full bg-black aspect-video">
-                    <iframe
-                      className="w-full h-full"
-                      src={videoUrl}
-                      title={title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                  <div className="w-full bg-black aspect-video rounded-[inherit] overflow-hidden">
+                    {isYoutubeVideo && youtubeVideoId && !isVideoActivated ? (
+                      <button
+                        type="button"
+                        onClick={() => setActivatedVideos((prev) => ({ ...prev, [videoActivationKey]: true }))}
+                        className="relative w-full h-full block"
+                        aria-label={`Play ${title}`}
+                      >
+                        <img
+                          src={`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`}
+                          onError={(event) => {
+                            const target = event.currentTarget;
+                            if (!target.dataset.fallbackApplied) {
+                              target.dataset.fallbackApplied = "1";
+                              target.src = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+                            }
+                          }}
+                          alt={title}
+                          className="w-full h-full object-contain bg-black block rounded-[inherit]"
+                          loading="lazy"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
+                            <Play size={28} fill="currentColor" />
+                          </span>
+                        </span>
+                      </button>
+                    ) : isYoutubeVideo ? (
+                      <iframe
+                        className="w-full h-full block border-0 rounded-[inherit]"
+                        src={videoUrl}
+                        title={title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        className="w-full h-full block rounded-[inherit]"
+                        controls
+                        playsInline
+                        preload="metadata"
+                        title={title}
+                      >
+                        <source src={videoUrl} />
+                      </video>
+                    )}
                   </div>
                 </div>
                 {variant === "main" && firstBlockIsVideo && firstTextBlockIndex !== null && index === 0 && (
@@ -2918,11 +3034,10 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                                 type="button"
                                 key={option.optionId}
                                 onClick={() => selectInlineQuizAnswer(runtimeKey, question.questionId, option.optionId)}
-                                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
-                                  selected
-                                    ? "border-[#bf2f1f] bg-[#fff1ee] text-[#000000]"
-                                    : "border-[#e5e7eb] bg-white hover:border-[#bf2f1f]/60"
-                                }`}
+                                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${selected
+                                  ? "border-[#bf2f1f] bg-[#fff1ee] text-[#000000]"
+                                  : "border-[#e5e7eb] bg-white hover:border-[#bf2f1f]/60"
+                                  }`}
                               >
                                 {option.text}
                               </button>
@@ -3049,6 +3164,38 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const stageKey = isQuizMode
     ? `quiz:${selectedSection?.assessmentId ?? "none"}:${selectedSection?.moduleNo ?? "none"}:${selectedSection?.topicPairIndex ?? "none"}`
     : "lesson";
+  const normalizedRouteLesson = normalizeSlugValue(lessonSlugParam);
+  const normalizedActiveLesson = normalizeSlugValue(activeLesson?.slug ?? "");
+  const isRouteBoundToActiveLesson = normalizedRouteLesson.length > 0 && normalizedRouteLesson === normalizedActiveLesson;
+  const isRouteModuleFinalLesson =
+    isRouteBoundToActiveLesson && /module\s+\d+\s+final\s+assessment/i.test(activeLesson?.topicName ?? "");
+  const routeModuleSection = isRouteModuleFinalLesson
+    ? sections
+      .filter(
+        (section) =>
+          section.moduleNo === activeLesson?.moduleNo &&
+          section.topicNumber === activeLesson?.topicNumber,
+      )
+      .sort((a, b) => a.topicPairIndex - b.topicPairIndex)[0] ??
+      sections
+        .filter((section) => section.moduleNo === activeLesson?.moduleNo)
+        .sort((a, b) => {
+          if (a.topicNumber !== b.topicNumber) return a.topicNumber - b.topicNumber;
+          return a.topicPairIndex - b.topicPairIndex;
+        })[0]
+    : null;
+  const routeBootstrapKey = isRouteBoundToActiveLesson && courseKey ? `${courseKey}:${normalizedActiveLesson}` : null;
+  const isBootstrappingModuleQuiz =
+    Boolean(
+      sessionHydrated &&
+      topicsLoaded &&
+      sectionsLoaded &&
+      routeModuleSection?.assessmentId &&
+      routeBootstrapKey &&
+      moduleQuizBootstrapRef.current !== routeBootstrapKey &&
+      !isQuizMode,
+    );
+  const shouldHoldModuleFinalRouteInQuizShell = isBootstrappingModuleQuiz;
   const rootClassName = `${isCompactLayout ? "flex flex-col" : "flex"} h-screen bg-[#000000] text-[#f8f1e6] overflow-hidden font-sans relative`;
   const videoHeightClass = isCompactLayout ? "w-full h-[40vh]" : "w-full h-[65vh]";
   const studySectionPadding = isCompactLayout ? "px-4 py-6 sm:px-6" : "p-8 md:p-12";
@@ -3155,6 +3302,23 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                       </button>
                     );
                   })}
+                  {module.id !== 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAssignmentMode(true);
+                        setActiveAssignmentModule(module.id);
+                        setIsQuizMode(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-bold flex items-center gap-3 transition-all rounded-md ${isAssignmentMode && activeAssignmentModule === module.id
+                        ? "bg-[#bf2f1f]/20 text-[#bf2f1f]"
+                        : "text-[#4a4845] hover:bg-[#000000]/5 hover:text-[#000000]"
+                        }`}
+                    >
+                      <ClipboardList size={14} className="flex-shrink-0" />
+                      <span className="truncate flex-1">Module Assignment</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -3203,18 +3367,27 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             )}
             <button
               type="button"
-              onClick={() => setLocation("/student-dashboard")}
+              onClick={() => isAssignmentMode ? setIsAssignmentMode(false) : setLocation("/student-dashboard")}
               className="flex items-center gap-2 text-sm font-semibold text-[#f8f1e6]/80 hover:text-white transition"
             >
               <ChevronLeft size={18} /> Back
             </button>
             <div>
-              <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo}</p>
-              <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
+              {isAssignmentMode ? (
+                <>
+                  <p className="text-xs text-[#f8f1e6]/60">Module {activeAssignmentModule}</p>
+                  <h1 className="text-xl md:text-2xl font-black leading-tight">Module Assignments</h1>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-[#f8f1e6]/60">Module {activeLesson?.moduleNo}</p>
+                  <h1 className="text-xl md:text-2xl font-black leading-tight">{activeLesson?.topicName ?? "Loading..."}</h1>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-[#f8f1e6]/70">
-            {isCohortProgram && (
+            {isCohortProgram && !isAssignmentMode && (
               <button
                 type="button"
                 onClick={handleOpenCohortProject}
@@ -3227,132 +3400,172 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
             <span>Progress {Math.round(courseProgress)}%</span>
           </div>
         </div>
+  <div
+    key={stageKey}
+    ref={contentScrollRef}
+    className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
+  >
+    {/* Video */}
+    {!isAssignmentMode && !isQuizMode && !hasBlockLayout && (
+      <div
+        className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
+          }`}
+      >
         <div
-          key={stageKey}
-          ref={contentScrollRef}
-          className={`${isFullScreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"} relative`}
+          className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full rounded-3xl overflow-hidden ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
+            }`}
         >
-          {/* Video */}
-          {!isQuizMode && !isAssessment && !hasBlockLayout && (
-            <div
-              className={`relative bg-black transition-all duration-300 shrink-0 flex justify-center items-center ${isFullScreen ? "flex-1 h-full" : isReadingMode ? "h-0 overflow-hidden" : videoHeightClass
-                }`}
-            >
-              <div
-                className={`relative aspect-video group bg-black shadow-2xl max-w-full max-h-full ${isFullScreen ? "w-auto h-auto" : "w-full h-full"
-                  }`}
+          {activeVideoUrl ? (
+            isYouTubeVideoUrl(activeVideoUrl) && getYouTubeVideoId(activeVideoUrl) && !activatedVideos[`hero:${activeVideoUrl}`] ? (
+              <button
+                type="button"
+                onClick={() => setActivatedVideos((prev) => ({ ...prev, [`hero:${activeVideoUrl}`]: true }))}
+                className="relative w-full h-full block"
+                aria-label={`Play ${activeLesson?.topicName ?? "Lesson video"}`}
               >
-                {activeVideoUrl ? (
-                  <iframe
-                    className="w-full h-full"
-                    src={activeVideoUrl}
-                    title={activeLesson?.topicName ?? "Lesson video"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
-                    No video for this lesson.
-                  </div>
-                )}
-              </div>
+                <img
+                  src={`https://i.ytimg.com/vi/${getYouTubeVideoId(activeVideoUrl)}/maxresdefault.jpg`}
+                  onError={(event) => {
+                    const id = getYouTubeVideoId(activeVideoUrl);
+                    const target = event.currentTarget;
+                    if (id && !target.dataset.fallbackApplied) {
+                      target.dataset.fallbackApplied = "1";
+                      target.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+                    }
+                  }}
+                  alt={activeLesson?.topicName ?? "Lesson video"}
+                  className="w-full h-full object-contain bg-black block rounded-[inherit]"
+                  loading="lazy"
+                />
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="w-16 h-16 rounded-full bg-white/90 text-[#bf2f1f] flex items-center justify-center shadow-xl">
+                    <Play size={28} fill="currentColor" />
+                  </span>
+                </span>
+              </button>
+            ) : isYouTubeVideoUrl(activeVideoUrl) ? (
+              <iframe
+                className="w-full h-full block border-0 rounded-[inherit]"
+                src={activeVideoUrl}
+                title={activeLesson?.topicName ?? "Lesson video"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                className="w-full h-full block rounded-[inherit]"
+                controls
+                playsInline
+                preload="metadata"
+                title={activeLesson?.topicName ?? "Lesson video"}
+              >
+                <source src={activeVideoUrl} />
+              </video>
+            )
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[#f8f1e6]/60">
+              No video for this lesson.
             </div>
           )}
+        </div>
+      </div>
+    )}
 
-          {/* Assessment-only content */}
-          {!isFullScreen && isAssessment && hasBlockLayout && contentBlocks && (
-            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full text-[#000000]">
-              <div className={`w-full ${studySectionPadding} space-y-8`}>
-                <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
+    {/* Study section */}
+    {!isAssignmentMode && !isFullScreen && !isQuizMode && !isBootstrappingModuleQuiz && !shouldHoldModuleFinalRouteInQuizShell && (
+      <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
+        <div className={`w-full ${studySectionPadding} space-y-8`}>
+          {!hasBlockLayout && renderStudyHeader()}
+
+          <div className="space-y-4 text-left" ref={studyContentRef}>
+            {hasStudyContent && (
+              <div className="sticky top-24 z-10 flex justify-end">
+                <button
+                  type="button"
+                  onClick={toggleTts}
+                  disabled={!ttsText || ttsStatus === "unavailable"}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
+                    ttsStatus === "playing"
+                      ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
+                      : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
+                  } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
+                  aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                  title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
+                >
+                  {ttsStatus === "playing" ? <Pause size={14} /> : <Play size={14} />}
+                  {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
+                </button>
               </div>
-            </div>
-          )}
-
-          {/* Study section */}
-          {!isFullScreen && !isQuizMode && !isAssessment && (
-            <div className="bg-[#f8f1e6] border-t-4 border-[#000000] w-full min-h-full text-[#000000]">
-              <div className={`w-full ${studySectionPadding} space-y-8`}>
-                {!hasBlockLayout && renderStudyHeader()}
-
-                <div className="space-y-4 text-left" ref={studyContentRef}>
-                  {hasStudyContent && (
-                    <div className="sticky top-24 z-10 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={toggleTts}
-                        disabled={!ttsText || ttsStatus === "unavailable"}
-                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] shadow-sm transition ${
-                          ttsStatus === "playing"
-                            ? "bg-[#bf2f1f] text-white border-[#bf2f1f]"
-                            : "bg-white text-[#1c242c] border-[#e8e1d8] hover:border-[#bf2f1f]"
-                        } ${!ttsText || ttsStatus === "unavailable" ? "opacity-50 cursor-not-allowed" : ""}`}
-                        aria-label={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
-                        title={ttsStatus === "playing" ? "Pause text to speech" : "Play text to speech"}
-                      >
-                        {ttsStatus === "playing" ? <Pause size={14} /> : <Play size={14} />}
-                        {ttsStatus === "playing" ? "Pause" : ttsStatus === "paused" ? "Resume" : "Listen"}
-                      </button>
-                    </div>
-                  )}
-                  {hasBlockLayout && contentBlocks ? (
-                    <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
-                  ) : formattedStudyText ? (
-                    <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-                      <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeSanitize]}
-                          components={ttsMarkdownComponents}
-                        >
-                          {formattedStudyText}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
-                  )}
+            )}
+            {hasBlockLayout && contentBlocks ? (
+              <div className="space-y-6">{renderContentBlocks(contentBlocks.blocks, "main")}</div>
+            ) : formattedStudyText ? (
+              <div className="rounded-3xl border border-[#e8e1d8] bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+                <div className="p-6 sm:p-8 prose prose-base max-w-none text-[#1e293b]">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeSanitize]}
+                    components={ttsMarkdownComponents}
+                  >
+                    {formattedStudyText}
+                  </ReactMarkdown>
                 </div>
-
-                {hasStudyContent && activeLesson?.topicId && (
-                  <ColdCalling topicId={activeLesson.topicId} session={session} onTelemetryEvent={emitTelemetry} />
-                )}
-
-                {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
-                  <div className="space-y-3">
-                    <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
-                      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
-                        <FileText size={16} className="text-[#bf2f1f]" />
-                        <span>Slides Viewer</span>
-                      </div>
-                      <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
-                        <iframe
-                          title={`Slides for ${activeLesson.topicName}`}
-                          src={activePptEmbedUrl}
-                          className="w-full h-full border-0"
-                          referrerPolicy="no-referrer"
-                          allowFullScreen
-                          loading="lazy"
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-
-                {activeLesson?.simulation && (
-                  <div className="space-y-4">
-                    <SimulationExercise simulation={activeLesson.simulation} />
-                  </div>
-                )}
               </div>
+            ) : (
+              <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+            )}
+          </div>
+
+          {hasStudyContent && activeLesson?.topicId && (
+            <ColdCalling topicId={activeLesson.topicId} session={session} onTelemetryEvent={emitTelemetry} />
+          )}
+
+          {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-[#e8e1d8] bg-white shadow-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-[#f4ece3] text-[#1E3A47] font-semibold">
+                  <FileText size={16} className="text-[#bf2f1f]" />
+                  <span>Slides Viewer</span>
+                </div>
+                <div className="w-full bg-[#000000]/5 h-[260px] sm:h-[360px] lg:h-[500px] rounded-b-2xl overflow-hidden">
+                  <iframe
+                    title={`Slides for ${activeLesson.topicName}`}
+                    src={activePptEmbedUrl}
+                    className="w-full h-full border-0"
+                    referrerPolicy="no-referrer"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
             </div>
           )}
 
-          {/* Quiz overlay */}
-          {isQuizMode && (
-            <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
-              <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
+          {activeLesson?.simulation && (
+            <div className="space-y-4">
+              <SimulationExercise simulation={activeLesson.simulation} />
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {!isAssignmentMode && (isBootstrappingModuleQuiz || shouldHoldModuleFinalRouteInQuizShell) && (
+      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10 text-center">
+          <h2 className="text-3xl font-black uppercase tracking-tight">Preparing Gauntlet</h2>
+          <p className="mt-3 text-sm text-[#4a4845]">Loading module final assessment...</p>
+        </div>
+      </div>
+    )}
+
+    {/* Quiz overlay */}
+    {!isAssignmentMode && isQuizMode && (
+      <div className="flex-1 min-h-full bg-[#000000] flex flex-col items-center justify-center p-8 relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#bf2f1f]/10 to-transparent pointer-events-none" />
+        <div className="max-w-2xl w-full bg-[#f8f1e6] text-[#000000] rounded-xl p-8 shadow-2xl border-2 border-[#bf2f1f] z-10">
                 {quizPhase === "intro" && (
                   <div className="text-center space-y-6 animate-fade-in">
                     <div className="inline-flex p-4 rounded-full bg-[#bf2f1f]/10 text-[#bf2f1f] mb-2 border border-[#bf2f1f]">
@@ -3458,285 +3671,302 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
+    )}
 
-      {/* Chat widget */}
-      {chatOpen && !isQuizMode && !isAssessment && (
-        <div
-          className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
-          style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
-        >
-          <div
-            className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
-          >
-            <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
-            <div className="flex items-center gap-1">
-              <button
-                onMouseDown={(event) => event.stopPropagation()}
-                onClick={handleChatExpandToggle}
-                className="p-1 hover:bg-white/20 rounded"
-                title={chatExpanded ? "Minimize" : "Maximize"}
-              >
-                {chatExpanded ? <Minimize size={14} className="text-white" /> : <Maximize size={14} className="text-white" />}
-              </button>
-              <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
-            </div>
-          </div>
-          <div
-            ref={chatListRef}
-            className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
-          >
-            {chatMessages.map((msg) => {
-              const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
-              const showInlineChip =
-                !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length) && !chatLoading;
-              const showThinkingIndicator =
-                msg.isBot && chatLoading && !msg.error && msg.text.trim().length === 0;
+    {/* Module Assignments */}
+    {isAssignmentMode && activeAssignmentModule !== null && (
+      <ModuleAssignmentsView
+        courseId={activeLesson?.courseId ?? courseKey ?? null}
+        moduleNo={activeAssignmentModule}
+        onClose={() => setIsAssignmentMode(false)}
+      />
+    )}
+        </div >
+      </div >
 
-              return (
-                <div
-                  key={msg.id}
-                  ref={(node) => {
-                    if (node) {
-                      chatMessageRefs.current[msg.id] = node;
-                    } else {
-                      delete chatMessageRefs.current[msg.id];
-                    }
-                  }}
-                  className="space-y-2"
-                >
-                  <div
-                    className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
-                      }`}
-                  >
-                    <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
-                    {showThinkingIndicator ? (
-                      <div className="mt-1 rounded-lg border border-[#bf2f1f]/30 bg-gradient-to-br from-[#1a0b09] via-[#100809] to-[#070707] p-2.5 space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-[#f8f1e6]/90">
-                          <span className="relative flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff5a3c]/50 animate-ping" />
-                            <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff5a3c]" />
-                          </span>
-                          <span>{chatLoadingMessage}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                          <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-line">{msg.text}</div>
-                    )}
-                  </div>
-                  {starterAnchorMessageId === msg.id && !chatLoading && (
-                    <div className="pl-3 border-l border-white/10 space-y-2">
-                      <p className="text-xs text-[#f8f1e6]/70">
-                        Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
-                      </p>
-                      {suggestionsLoading ? (
-                        <div className="space-y-2">
-                          <div className="h-7 w-40 rounded-full bg-white/10 animate-pulse" />
-                          <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
-                          <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
-                        </div>
-                      ) : visibleStarterSuggestions.length > 0 ? (
-                        <div className="flex flex-col gap-2 items-start">
-                          {visibleStarterSuggestions.map((suggestion) => (
-                            <button
-                              key={suggestion.id}
-                              type="button"
-                              disabled={chatLoading}
-                              onClick={() => handleSuggestionSelect(suggestion)}
-                              className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
-                                ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                                : "border-white/25 text-white/80 hover:border-white hover:text-white"
-                                }`}
-                            >
-                              {suggestion.promptText}
-                            </button>
-                          ))}
-                        </div>
-                      ) : availableStarterSuggestions.length === 0 ? (
-                        <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
-                      ) : (
-                        <p className="text-xs text-[#f8f1e6]/50">Refreshing prompts...</p>
-                      )}
-                    </div>
-                  )}
-                  {showInlineChip && (
-                    <div className="flex justify-end">
-                      <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
-                        {msg.suggestionContext?.promptText}
-                      </span>
-                    </div>
-                  )}
-                  {followUpsForMessage.length > 0 && !chatLoading && (
-                    <div className="pl-2 border-l border-white/10 space-y-1">
-                      <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
-                      <div className="flex flex-wrap gap-2">
-                        {followUpsForMessage.map((suggestion) => (
-                          <button
-                            key={`${msg.id}-${suggestion.id}`}
-                            type="button"
-                            disabled={chatLoading}
-                            onClick={() => handleSuggestionSelect(suggestion)}
-                            className={`px-3 py-1 rounded-full text-xs border transition ${chatLoading
-                              ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
-                              : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
-                              }`}
-                          >
-                            {suggestion.promptText}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
-            <input
-              className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
-              placeholder="Ask AI..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleSendChat();
+  {/* Chat widget */ }
+{
+  chatOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#000000]/95 backdrop-blur-md border border-[#4a4845] rounded-xl shadow-2xl flex flex-col transition-shadow duration-300 overflow-hidden z-[60]"
+      style={{ left: chatRect.x, top: chatRect.y, width: chatRect.width, height: chatRect.height }}
+    >
+      <div
+        className="p-3 bg-[#bf2f1f] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "chat")}
+      >
+        <div className="flex items-center gap-2 text-white font-bold text-sm"><MessageSquare size={16} /> AI Tutor</div>
+        <div className="flex items-center gap-1">
+          <button
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={handleChatExpandToggle}
+            className="p-1 hover:bg-white/20 rounded"
+            title={chatExpanded ? "Minimize" : "Maximize"}
+          >
+            {chatExpanded ? <Minimize size={14} className="text-white" /> : <Maximize size={14} className="text-white" />}
+          </button>
+          <button onClick={() => setChatOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} className="text-white" /></button>
+        </div>
+      </div>
+      <div
+        ref={chatListRef}
+        className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/40 text-sm text-[#f8f1e6]/80"
+      >
+        {chatMessages.map((msg) => {
+          const followUpsForMessage = inlineFollowUps[msg.id] ?? [];
+          const showInlineChip =
+            !!msg.suggestionContext && msg.isBot && Boolean(inlineFollowUps[msg.id]?.length) && !chatLoading;
+          const showThinkingIndicator =
+            msg.isBot && chatLoading && !msg.error && msg.text.trim().length === 0;
+
+          return (
+            <div
+              key={msg.id}
+              ref={(node) => {
+                if (node) {
+                  chatMessageRefs.current[msg.id] = node;
+                } else {
+                  delete chatMessageRefs.current[msg.id];
                 }
               }}
-              disabled={chatLoading}
-            />
-            <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
-              <Send size={16} className="text-[#bf2f1f]" />
-            </button>
-          </div>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
-        </div>
-      )}
-
-      {/* Notes widget */}
-      {notesOpen && !isQuizMode && !isAssessment && (
-        <div
-          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-          style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
-        >
-          <div
-            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
-          >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
-            <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
-              <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
-            </div>
-          </div>
-          <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
-        </div>
-      )}
-
-      {/* Study widget */}
-      {studyWidgetOpen && !isQuizMode && !isAssessment && (
-        <div
-          className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
-          style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
-        >
-          <div
-            className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
-            onMouseDown={(e) => handleMouseDown(e, "move", "study")}
-          >
-            <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
-              <Book size={16} /> Study Material
-            </div>
-            <div className="flex items-center gap-1 text-[#f8f1e6]">
-              <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
-              <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
-            {hasBlockLayout && contentBlocks ? (
-              <div className="space-y-4">{renderContentBlocks(contentBlocks.blocks, "widget")}</div>
-            ) : formattedStudyText ? (
-              <div className="rounded-2xl border border-[#000000]/10 bg-white shadow-sm">
-                <div className="p-4 prose prose-sm max-w-none text-[#1e293b]">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeSanitize]}
-                    components={studyMarkdownComponents}
-                  >
-                    {formattedStudyText}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
-            )}
-            {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
-              <div className="mt-6 space-y-2">
-                <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
-                    <FileText size={14} />
-                    <span>Slides Viewer</span>
+              className="space-y-2"
+            >
+              <div
+                className={`p-2 rounded-lg ${msg.isBot ? "bg-white/5 border border-white/10" : "bg-[#bf2f1f]/20 border border-[#bf2f1f]/40"} ${msg.error ? "border-red-500/60 text-red-200" : ""
+                  }`}
+              >
+                <div className="text-[11px] uppercase tracking-wide opacity-70">{msg.isBot ? "Tutor" : "You"}</div>
+                {showThinkingIndicator ? (
+                  <div className="mt-1 rounded-lg border border-[#bf2f1f]/30 bg-gradient-to-br from-[#1a0b09] via-[#100809] to-[#070707] p-2.5 space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-[#f8f1e6]/90">
+                      <span className="relative flex h-3 w-3">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff5a3c]/50 animate-ping" />
+                        <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ff5a3c]" />
+                      </span>
+                      <span>{chatLoadingMessage}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:0ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:140ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:280ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                      <span className="h-2 w-2 rounded-full bg-[#ff5a3c] animate-[pulse_1.1s_ease-in-out_infinite] [animation-delay:420ms] shadow-[0_0_8px_rgba(255,90,60,0.65)]" />
+                    </div>
                   </div>
-                  <div className="bg-[#f6f2eb] h-[360px] rounded-b-xl overflow-hidden">
-                    <iframe
-                      title={`Slides for ${activeLesson.topicName} (Study widget)`}
-                      src={activePptEmbedUrl}
-                      className="w-full h-full border-0"
-                      referrerPolicy="no-referrer"
-                      allowFullScreen
-                      loading="lazy"
-                    />
+                ) : (
+                  <div className="whitespace-pre-line">{msg.text}</div>
+                )}
+              </div>
+              {starterAnchorMessageId === msg.id && !chatLoading && (
+                <div className="pl-3 border-l border-white/10 space-y-2">
+                  <p className="text-xs text-[#f8f1e6]/70">
+                    Hello! Curious about this topic? Not sure what to ask? Choose one of these to get started.
+                  </p>
+                  {suggestionsLoading ? (
+                    <div className="space-y-2">
+                      <div className="h-7 w-40 rounded-full bg-white/10 animate-pulse" />
+                      <div className="h-7 w-48 rounded-full bg-white/10 animate-pulse" />
+                      <div className="h-7 w-36 rounded-full bg-white/10 animate-pulse" />
+                    </div>
+                  ) : visibleStarterSuggestions.length > 0 ? (
+                    <div className="flex flex-col gap-2 items-start">
+                      {visibleStarterSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          type="button"
+                          disabled={chatLoading}
+                          onClick={() => handleSuggestionSelect(suggestion)}
+                          className={`px-4 py-1.5 rounded-full text-xs border transition ${chatLoading
+                            ? "opacity-40 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                            : "border-white/25 text-white/80 hover:border-white hover:text-white"
+                            }`}
+                        >
+                          {suggestion.promptText}
+                        </button>
+                      ))}
+                    </div>
+                  ) : availableStarterSuggestions.length === 0 ? (
+                    <p className="text-xs text-[#f8f1e6]/50">Starter prompts will appear when this topic loads.</p>
+                  ) : (
+                    <p className="text-xs text-[#f8f1e6]/50">Refreshing prompts...</p>
+                  )}
+                </div>
+              )}
+              {showInlineChip && (
+                <div className="flex justify-end">
+                  <span className="px-3 py-1 rounded-full bg-white text-[#bf2f1f] text-xs font-semibold">
+                    {msg.suggestionContext?.promptText}
+                  </span>
+                </div>
+              )}
+              {followUpsForMessage.length > 0 && !chatLoading && (
+                <div className="pl-2 border-l border-white/10 space-y-1">
+                  <div className="text-[10px] uppercase tracking-wide text-[#f8f1e6]/60">More to explore</div>
+                  <div className="flex flex-wrap gap-2">
+                    {followUpsForMessage.map((suggestion) => (
+                      <button
+                        key={`${msg.id}-${suggestion.id}`}
+                        type="button"
+                        disabled={chatLoading}
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                        className={`px-3 py-1 rounded-full text-xs border transition ${chatLoading
+                          ? "opacity-50 cursor-not-allowed border-[#4a4845]/40 text-[#f8f1e6]/40"
+                          : "border-[#f8f1e6]/30 text-[#f8f1e6]/80 hover:border-white hover:text-white"
+                          }`}
+                      >
+                        {suggestion.promptText}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <p className="text-[11px] text-[#4a4845]">Use the embedded Microsoft viewer controls to move between slides.</p>
-              </div>
-            )}
-            {activeLesson?.simulation && (
-              <SimulationExercise simulation={activeLesson.simulation} />
-            )}
-          </div>
-          <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
-          <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />
-        </div>
-      )}
-
-      <button
-        onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode || isAssessment ? "hidden" : ""
-          }`}
-        title="Chat with AI Tutor"
-      >
-        {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
-      </button>
-
-      {isCohortProgram && (
-        <CohortProjectModal
-          isOpen={cohortProjectOpen}
-          project={cohortProject}
-          batchNo={cohortProjectBatch}
-          isLoading={cohortProjectLoading}
-          error={cohortProjectError}
-          onClose={handleCloseCohortProject}
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="p-3 bg-white/5 border-t border-[#4a4845]/30 flex gap-2">
+        <input
+          className="flex-1 bg-transparent border border-[#4a4845]/50 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#bf2f1f]"
+          placeholder="Ask AI..."
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void handleSendChat();
+            }
+          }}
+          disabled={chatLoading}
         />
-      )}
-
+        <button className="p-2" disabled={chatLoading} onClick={() => void handleSendChat()}>
+          <Send size={16} className="text-[#bf2f1f]" />
+        </button>
+      </div>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "chat")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-white/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "chat")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-white/20 hover:bg-white/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "chat")} />
     </div>
+  )
+}
+
+{/* Notes widget */ }
+{
+  notesOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: notesRect.x, top: notesRect.y, width: notesRect.width, height: notesRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "notes")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm"><FileText size={16} /> My Notes</div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("notes")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+          <button onClick={() => setNotesOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
+        </div>
+      </div>
+      <textarea className="flex-1 p-3 bg-transparent resize-none text-[#000000] text-sm focus:outline-none font-mono" placeholder="Type notes here..."></textarea>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-r", "notes")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/20" onMouseDown={(e) => handleMouseDown(e, "resize-b", "notes")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#000000]/20 hover:bg-[#000000]/40 rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "notes")} />
+    </div>
+  )
+}
+
+{/* Study widget */ }
+{
+  studyWidgetOpen && !isQuizMode && (
+    <div
+      className="fixed bg-[#f8f1e6]/95 backdrop-blur-md border-2 border-[#000000] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[60]"
+      style={{ left: studyWidgetRect.x, top: studyWidgetRect.y, width: studyWidgetRect.width, height: studyWidgetRect.height }}
+    >
+      <div
+        className="p-3 bg-[#000000] flex justify-between items-center cursor-move select-none"
+        onMouseDown={(e) => handleMouseDown(e, "move", "study")}
+      >
+        <div className="flex items-center gap-2 text-[#f8f1e6] font-bold text-sm">
+          <Book size={16} /> Study Material
+        </div>
+        <div className="flex items-center gap-1 text-[#f8f1e6]">
+          <button onClick={() => centerWidget("study")} className="p-1 hover:bg-white/20 rounded" title="Reset Position"><Move size={14} /></button>
+          <button onClick={() => setStudyWidgetOpen(false)} className="p-1 hover:bg-white/20 rounded"><X size={14} /></button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 bg-[#f8f1e6] text-[#000000]">
+        {hasBlockLayout && contentBlocks ? (
+          <div className="space-y-4">{renderContentBlocks(contentBlocks.blocks, "widget")}</div>
+        ) : formattedStudyText ? (
+          <div className="rounded-2xl border border-[#000000]/10 bg-white shadow-sm">
+            <div className="p-4 prose prose-sm max-w-none text-[#1e293b]">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={studyMarkdownComponents}
+              >
+                {formattedStudyText}
+              </ReactMarkdown>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-[#4a4845]">No study material for this lesson.</p>
+        )}
+        {!hasBlockLayout && activePptEmbedUrl && activeLesson?.pptUrl && (
+          <div className="mt-6 space-y-2">
+            <div className="rounded-xl border-2 border-[#000000] bg-white overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-[#000000]/10 text-sm font-semibold">
+                <FileText size={14} />
+                <span>Slides Viewer</span>
+              </div>
+              <div className="bg-[#f6f2eb] h-[360px] rounded-b-xl overflow-hidden">
+                <iframe
+                  title={`Slides for ${activeLesson.topicName} (Study widget)`}
+                  src={activePptEmbedUrl}
+                  className="w-full h-full border-0"
+                  referrerPolicy="no-referrer"
+                  allowFullScreen
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-[#4a4845]">Use the embedded Microsoft viewer controls to move between slides.</p>
+          </div>
+        )}
+        {activeLesson?.simulation && (
+          <SimulationExercise simulation={activeLesson.simulation} />
+        )}
+      </div>
+      <div className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-r", "study")} />
+      <div className="absolute bottom-0 left-0 w-full h-1 cursor-ns-resize hover:bg-[#bf2f1f]/50" onMouseDown={(e) => handleMouseDown(e, "resize-b", "study")} />
+      <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize bg-[#4a4845]/20 hover:bg-[#bf2f1f] rounded-tl" onMouseDown={(e) => handleMouseDown(e, "resize-br", "study")} />
+    </div>
+  )
+}
+
+<button
+  onClick={() => setChatOpen(!chatOpen)}
+  className={`fixed bottom-8 right-8 z-50 p-4 bg-[#bf2f1f] text-white rounded-full shadow-2xl hover:bg-[#a62619] hover:scale-110 transition-all border-2 border-white ${isFullScreen || isQuizMode ? "hidden" : ""
+    }`}
+  title="Chat with AI Tutor"
+>
+  {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+</button>
+
+{
+  isCohortProgram && (
+    <CohortProjectModal
+      isOpen={cohortProjectOpen}
+      project={cohortProject}
+      batchNo={cohortProjectBatch}
+      isLoading={cohortProjectLoading}
+      error={cohortProjectError}
+      onClose={handleCloseCohortProject}
+    />
+  )
+}
+
+    </div >
   );
 };
 

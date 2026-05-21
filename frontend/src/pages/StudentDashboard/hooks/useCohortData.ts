@@ -14,6 +14,7 @@ export interface ActiveCohort {
   cohortId: string;
   cohortName: string;
   courseName: string;
+  courseId: string;
   courseSlug: string | null;
   startsAt: string | null;
   endsAt: string | null;
@@ -31,6 +32,7 @@ export interface CompletedCohort {
   cohortId: string;
   cohortName: string;
   courseName: string;
+  courseId: string;
   courseSlug: string | null;
   courseDescription: string;
   startsAtFormatted: string | null;

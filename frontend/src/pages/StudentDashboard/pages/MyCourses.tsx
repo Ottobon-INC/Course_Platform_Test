@@ -316,11 +316,6 @@ export function MyCourses() {
               </button>
             </div>
           )}
-          {activeFilter === 'Cohorts' && (
-            <div className="flex flex-col gap-6 mt-6">
-              <CohortTopPerformer />
-            </div>
-          )}
         </aside>
       </div>
     </div>
