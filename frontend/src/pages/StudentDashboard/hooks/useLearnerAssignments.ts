@@ -10,7 +10,7 @@ export interface Assignment {
   body: any;
   dueDate: string | null;
   programType: 'cohort' | 'ondemand' | 'workshop';
-  status: 'pending' | 'submitted' | 'in_review' | 'approved' | 'rejected';
+  status: 'pending' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'reviewed';
   submissionId: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
@@ -21,18 +21,19 @@ export interface Assignment {
 
 export interface LearnerAssignmentsResponse {
   assignments: Assignment[];
-  enrollments: { 
-    courseId: string; 
-    courseName: string; 
+  enrollments: {
+    courseId: string;
+    courseName: string;
     programType: 'cohort' | 'ondemand' | 'workshop';
     cohortId?: string;
     offeringId?: string;
   }[];
 }
 
-export function useLearnerAssignments() {
+export function useLearnerAssignments(options?: { enabled?: boolean }) {
   const query = useQuery<LearnerAssignmentsResponse>({
     queryKey: ['/api/assignments/learner'],
+    enabled: options?.enabled ?? true,
     staleTime: 60000, // 1 minute
   });
 
