@@ -7,10 +7,11 @@ import { ClipboardList, X } from 'lucide-react';
 interface ModuleAssignmentsViewProps {
   courseId: string | null;
   moduleNo: number | null;
+  programType?: 'cohort' | 'ondemand' | 'workshop';
   onClose: () => void;
 }
 
-export function ModuleAssignmentsView({ courseId, moduleNo, onClose }: ModuleAssignmentsViewProps) {
+export function ModuleAssignmentsView({ courseId, moduleNo, programType, onClose }: ModuleAssignmentsViewProps) {
   const { data, isLoading } = useLearnerAssignments();
   const [activeTab, setActiveTab] = useState<'All' | 'Pending' | 'Submitted' | 'Review' | 'Approved' | 'Rejected'>('All');
   const [submittingAssignment, setSubmittingAssignment] = useState<Assignment | null>(null);
@@ -19,8 +20,12 @@ export function ModuleAssignmentsView({ courseId, moduleNo, onClose }: ModuleAss
   const assignments = data?.assignments || [];
 
   const courseAssignments = useMemo(() => {
-    return assignments.filter(a => a.courseId === courseId && a.moduleNo === moduleNo);
-  }, [assignments, courseId, moduleNo]);
+    return assignments.filter(a =>
+      a.courseId === courseId &&
+      a.moduleNo === moduleNo &&
+      (!programType || a.programType === programType)
+    );
+  }, [assignments, courseId, moduleNo, programType]);
 
   const stats = useMemo(() => ({
     total: courseAssignments.length,
