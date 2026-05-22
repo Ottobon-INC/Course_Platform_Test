@@ -347,6 +347,11 @@ lessonsRouter.get(
       res.status(404).json({ message: "Course not found" });
       return;
     }
+    const courseRecord = await prisma.course.findUnique({
+      where: { courseId: resolvedCourseId },
+      select: { courseName: true },
+    });
+    const courseTitle = courseRecord?.courseName?.trim() || null;
 
     const outlineOnly = typeof req.query.outline === "string" && req.query.outline === "true";
 
@@ -367,6 +372,7 @@ lessonsRouter.get(
       });
 
       res.status(200).json({
+        courseTitle,
         topics: topics.map((topic) => ({
           ...topic,
           videoUrl: null,
@@ -460,6 +466,7 @@ lessonsRouter.get(
     const assetIndex = buildAssetIndex(assets);
 
     res.status(200).json({
+      courseTitle,
       topics: topics.map((topic) => {
         const resolved = resolveContentLayout(topic.textContent ?? null, topic.topicId, personaKey, assetIndex);
         return mapTopicForResponse(topic, resolved);

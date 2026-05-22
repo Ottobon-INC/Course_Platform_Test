@@ -114,6 +114,15 @@ const getYouTubeVideoId = (url?: string | null) => {
   }
 };
 
+const formatCourseKeyLabel = (value?: string | null) => {
+  if (!value) return "Course Content";
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => (part.length <= 3 ? part.toUpperCase() : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join(" ");
+};
+
 type ContentBlock = {
   id?: string;
   type: "text" | "image" | "video" | "ppt" | "quiz";
@@ -636,6 +645,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const [sections, setSections] = useState<QuizSection[]>([]);
   const [sectionsLoaded, setSectionsLoaded] = useState(false);
   const [courseProgress, setCourseProgress] = useState(0);
+  const [courseTitle, setCourseTitle] = useState<string>("");
   const [activatedVideos, setActivatedVideos] = useState<Record<string, true>>({});
   const isComplete = useMemo(() => Math.round(courseProgress) >= 100, [courseProgress]);
   const [activeSlug, setActiveSlug] = useState<string | null>(lessonSlugParam ?? null);
@@ -991,6 +1001,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
   const fetchTopics = useCallback(async () => {
     if (!courseKey) {
       setLessons([]);
+      setCourseTitle("");
       setTopicsLoaded(true);
       return;
     }
@@ -1003,6 +1014,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       const freshSession = await ensureSessionFresh(storedSession);
       if (!freshSession?.accessToken) {
         setLessons([]);
+        setCourseTitle("");
         setLocation(`${learnBasePath}/${courseKey}`);
         return;
       }
@@ -1021,6 +1033,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
         throw new Error("Failed to load topics");
       }
       const data = await res.json();
+      setCourseTitle(typeof data?.courseTitle === "string" ? data.courseTitle.trim() : "");
       const mapped: Lesson[] = (data.topics ?? []).map((t: any) => ({
         topicId: t.topicId,
         courseId: t.courseId,
@@ -1039,6 +1052,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       setLessons(sorted);
     } catch (error) {
       setLessons([]);
+      setCourseTitle("");
       toast({
         variant: "destructive",
         title: "Unable to load course",
@@ -3201,6 +3215,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
     } border-r border-[#4a4845]/70 shadow-2xl z-40`
     : `${sidebarBaseClasses} shrink-0 relative z-30 ${isFullScreen ? "absolute h-full z-40" : ""} ${!isControlsVisible && isFullScreen ? "opacity-0 pointer-events-none" : "opacity-100"
     } ${sidebarOpen ? "w-80 border-r border-[#4a4845]" : "w-12 border-r border-[#4a4845]"}`;
+  const sidebarHeaderTitle = courseTitle || formatCourseKeyLabel(courseKey);
 
   return (
     <div
@@ -3221,7 +3236,7 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
       {/* Sidebar */}
       <div className={sidebarClassName}>
         <div className="h-14 flex items-center justify-between px-3 border-b border-[#4a4845]/50 bg-white/5 min-w-[3rem]">
-          {sidebarOpen && <h2 className="font-bold text-sm text-[#f8f1e6] truncate">Course Content</h2>}
+          {sidebarOpen && <h2 className="font-bold text-sm text-[#f8f1e6] truncate">{sidebarHeaderTitle}</h2>}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-1 hover:bg-[#4a4845]/30 rounded text-[#f8f1e6]"
@@ -3276,11 +3291,19 @@ const CoursePlayerPage: React.FC<CoursePlayerPageProps> = ({ programType = "coho
                   {module.submodules?.map((sub) => {
                     const active = sub.type === "quiz"
                       ? Boolean(
+                        !isAssignmentMode &&
                         isQuizMode &&
                         selectedSection?.assessmentId &&
                         sub.assessmentId === selectedSection.assessmentId,
                       )
-                      : (sub.slug ? sub.slug === activeLesson?.slug : false);
+                      : Boolean(
+                        !isAssignmentMode &&
+                        !isQuizMode &&
+                        !isBootstrappingModuleQuiz &&
+                        !shouldHoldModuleFinalRouteInQuizShell &&
+                        sub.slug &&
+                        sub.slug === activeLesson?.slug,
+                      );
                     return (
                       <button
                         key={sub.id}
