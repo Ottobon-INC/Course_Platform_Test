@@ -10,6 +10,11 @@ Primary responsibilities:
 - Quizzes, cold calling, and cohort batch projects.
 - AI tutor with Async RAG (Job Queue + SSE), prompt suggestions, and chat memory.
 
+Worker/runtime controls:
+- `ENABLE_AI_WORKER=false` keeps the API up without starting the background AI worker.
+- `DATABASE_CONNECT_MAX_RETRIES`, `DATABASE_CONNECT_RETRY_BASE_MS`, `DATABASE_CONNECT_RETRY_MAX_MS` control startup retry behavior for transient DB saturation/network errors.
+- `AI_WORKER_BASE_POLL_MS`, `AI_WORKER_IDLE_POLL_MS`, `AI_WORKER_MAX_BACKOFF_MS`, `AI_WORKER_COOLDOWN_MS`, `AI_WORKER_CIRCUIT_BREAKER_FAILURES`, and `AI_WORKER_STALE_RECOVERY_MS` tune worker polling, backoff, and pause behavior.
+
 Start here:
 - `Course_Platform.md` for end-to-end behavior
 - `CP_Arc.md` for architecture and router mapping
